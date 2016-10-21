@@ -1,4 +1,3 @@
-
 ---------------
 -- Functions --
 ---------------
@@ -69,6 +68,7 @@ CREATE TABLE content_types (
 DROP TABLE IF EXISTS collections;
 CREATE TABLE collections (
   id          BIGSERIAL PRIMARY KEY,
+  uid         CHAR(8) UNIQUE                                  NOT NULL,
   type_id     BIGINT REFERENCES content_types                 NOT NULL,
   name        BIGINT REFERENCES strings (id)                  NOT NULL,
   description BIGINT REFERENCES strings (id)                  NULL,
@@ -80,6 +80,7 @@ CREATE TABLE collections (
 DROP TABLE IF EXISTS content_units;
 CREATE TABLE content_units (
   id          BIGSERIAL PRIMARY KEY,
+  uid         CHAR(8) UNIQUE                                  NOT NULL,
   type_id     BIGINT REFERENCES content_types                 NOT NULL,
   name        BIGINT REFERENCES strings (id)                  NOT NULL,
   description BIGINT REFERENCES strings (id)                  NULL,
@@ -99,28 +100,30 @@ CREATE TABLE collections_content_units (
 DROP TABLE IF EXISTS files;
 CREATE TABLE files (
   id                BIGSERIAL PRIMARY KEY,
-  name              VARCHAR(255)                               NOT NULL, -- physical file name
-  size              BIGINT                                     NOT NULL, -- physical size in bytes
-  type              VARCHAR(16)                                NOT NULL, --  audio, video, image, text
-  subtype           VARCHAR(16)                                NOT NULL, --  drawing, photo, song, lesson
-  mime_type         VARCHAR(255)                               NULL,
-  SHA_1             BYTEA UNIQUE                               NOT NULL,
-  operation_id      BIGINT REFERENCES operations               NULL,
-  content_unit_id   BIGINT REFERENCES content_units            NULL,
-  parent_id         BIGINT REFERENCES files                    NULL,
-  created_at        TIMESTAMP WITH TIME ZONE DEFAULT now_utc() NOT NULL,
-  language          CHAR(2)                                    NULL,
+  uid               CHAR(8) UNIQUE                                  NOT NULL,
+  name              VARCHAR(255)                                    NOT NULL, -- physical file name
+  size              BIGINT                                          NOT NULL, -- physical size in bytes
+  type              VARCHAR(16)                                     NOT NULL, --  audio, video, image, text
+  subtype           VARCHAR(16)                                     NOT NULL, --  drawing, photo, song, lesson
+  mime_type         VARCHAR(255)                                    NULL,
+  SHA_1             BYTEA UNIQUE                                    NOT NULL,
+  operation_id      BIGINT REFERENCES operations                    NULL,
+  content_unit_id   BIGINT REFERENCES content_units                 NULL,
+  parent_id         BIGINT REFERENCES files                         NULL,
+  created_at        TIMESTAMP WITH TIME ZONE DEFAULT now_utc()      NOT NULL,
+  language          CHAR(2)                                         NULL,
   --   mm_duration       INTEGER                                NULL,  -- multimedia playing time in seconds, should be in properties field
   --   vid_internal_id   VARCHAR(64)                            NULL,   -- needs discussion with Amnon & Shaul maybe put in properties field
-  backup_count      SMALLINT DEFAULT 0                         NULL, -- number of existing backups
-  first_backup_time TIMESTAMP WITH TIME ZONE                   NULL,
-  properties        JSONB                                      NULL
+  backup_count      SMALLINT DEFAULT 0                              NULL, -- number of existing backups
+  first_backup_time TIMESTAMP WITH TIME ZONE                        NULL,
+  properties        JSONB                                           NULL
 );
 
 
 DROP TABLE IF EXISTS persons;
 CREATE TABLE persons (
   id          BIGSERIAL PRIMARY KEY,
+  uid         CHAR(8) UNIQUE                 NOT NULL,
   name        BIGINT REFERENCES strings (id) NOT NULL,
   description BIGINT REFERENCES strings (id) NULL
 );

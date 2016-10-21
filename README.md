@@ -4,7 +4,7 @@
 
 Metadata database for BB content.
 
-The main purpose of this repository is to hold the sql migrations and a basic go ORM slim model layer.
+The main purpose of this repository is to hold the sql migrations and a basic, slim, go ORM model layer.
 
 
 ## Implementation Notes
