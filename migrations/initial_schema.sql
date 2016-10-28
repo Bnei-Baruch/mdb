@@ -73,7 +73,8 @@ CREATE TABLE collections (
   name        BIGINT REFERENCES strings (id)                  NOT NULL,
   description BIGINT REFERENCES strings (id)                  NULL,
   created_at  TIMESTAMP WITH TIME ZONE DEFAULT now_utc()      NOT NULL,
-  properties  JSONB                                           NULL
+  properties  JSONB                                           NULL,
+  external_id VARCHAR(255) UNIQUE                             NULL
 );
 
 
@@ -153,6 +154,7 @@ CREATE TABLE tags (
   description VARCHAR(255)                      NULL,
   parent_id   BIGINT REFERENCES tags            NULL
 );
+
 
 -------------
 -- Indexes --
