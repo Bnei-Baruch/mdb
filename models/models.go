@@ -1,4 +1,4 @@
-package mdb
+package models
 
 import (
 	"time"
@@ -107,7 +107,7 @@ type File struct {
 	//Operation Operation
 	ContentUnit     ContentUnit
 	ContentUnitID   uint64
-	Parent          File
+	Parent          *File
 	ParentID        uint64
 	CreatedAt       time.Time
 	Language        string `gorm:"type:char(2)"`
