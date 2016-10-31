@@ -23,7 +23,11 @@ Special values:
 
 ## Installation details
 
-### Go related installations (need 1.4).
+### Postgresql installation
+
+https://wiki.postgresql.org/wiki/Apt
+
+### Go related installations
 
 ```shell
 sudo apt-get update
@@ -39,9 +43,14 @@ export GOROOT=/user/local/go
 ```
 
 ### While at /home/kolmanv/go
+
+```shell
 export GOPATH=/home/kolmanv/go
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 git clone https://github.com/Bnei-Baruch/MDB.git
+```
 
 ### Install Packages - for now not using any package manager.
+```shell
 go get gopkg.in/gin-gonic/gin.v1
+```
