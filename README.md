@@ -2,9 +2,9 @@
 
 ## Overview
 
-Metadata database for BB content.
+BB archive Metadata Database.
 
-The main purpose of this repository is to hold the sql migrations and a basic, slim, go ORM model layer.
+This system aims to be a single source of truth for all content produced by Bnei Baruch. 
 
 
 ## Implementation Notes
