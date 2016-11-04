@@ -18,7 +18,7 @@ Run the server
 `mdb config <path>`
  
 Generate default configuration in the given path. If path is omitted STDOUT is used instead.
-  *Note* that default value to config file is `config.toml` in project root directory.
+**Note** that default value to config file is `config.toml` in project root directory.
 
 
 ## Implementation Notes
@@ -41,7 +41,6 @@ We keep track of all changes to the MDB schema under `migrations`.
 These are pure postgres sql scripts. Name pattern is `version_description.sql`.
 
 They play along well with [rambler](https://github.com/elwinar/rambler) A simple and language-independent SQL schema migration tool.
-
 Download the rambler executable for your system from the [release page](https://github.com/elwinar/rambler/releases).
 (on linux `chmod +x`)
 
@@ -60,11 +59,12 @@ Under `migrations` folder add a `rambler.json` config file. An example:
 }
 ```
 
-*Important* make sure never to commit such files to SCM.
+**Important** make sure never to commit such files to SCM.
 
 On the command line:
 
 ```$ rambler apply -a```
+ 
 
 ## Installation details
 
