@@ -1,4 +1,5 @@
 .idea/
 
 config.toml
+**/rambler.json
 visio.SQL
