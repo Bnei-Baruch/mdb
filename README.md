@@ -6,6 +6,18 @@ BB archive Metadata Database.
 
 This system aims to be a single source of truth for all content produced by Bnei Baruch. 
 
+## Commands
+The mdb is meant to be executed as command line. 
+Type `mdb <command> -h` to see how to use each command.
+ 
+`mdb server` 
+
+Run the server
+
+`mdb config <path>`
+ 
+Generate default configuration in the given path. If path is omitted STDOUT is used instead.
+  *Note* that default value to config file is `config.toml` in project root directory.
 
 ## Implementation Notes
 

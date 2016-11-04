@@ -10,21 +10,21 @@ import (
 var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "MDB api server",
-	Run: execute,
+	Run: serverFn,
 }
 
 func init() {
 	RootCmd.AddCommand(serverCmd)
 }
 
-func setDefaults() {
+func serverDefaults() {
 	viper.SetDefault("server", map[string]interface{}{
 		"bind-address": ":8080",
 	})
 }
 
-func execute(cmd *cobra.Command, args []string) {
-	setDefaults()
+func serverFn(cmd *cobra.Command, args []string) {
+	serverDefaults()
 	router := gin.Default()
 
 	// This handler will match /user/john but will not match neither /user/ or /user
