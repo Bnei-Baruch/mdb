@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/Bnei-Baruch/mdb",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v74",
+	"GodepVersion": "v75",
 	"Deps": [
 		{
 			"ImportPath": "github.com/gin-gonic/gin/binding",

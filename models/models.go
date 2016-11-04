@@ -1,9 +1,9 @@
 package models
 
 import (
-	"time"
 	"database/sql/driver"
 	"encoding/json"
+	"time"
 )
 
 type JSONB map[string]interface{}
@@ -78,7 +78,7 @@ type Collection struct {
 	Description   IString
 	DescriptionID uint64 `gorm:"column:description"`
 	CreatedAt     time.Time
-	Properties    JSONB `gorm:"type:jsonb"`
+	Properties    JSONB  `gorm:"type:jsonb"`
 	ExternalID    string `gorm:"type:varchar(255);unique_index"`
 }
 
@@ -96,14 +96,14 @@ type ContentUnit struct {
 }
 
 type File struct {
-	ID              uint64 `gorm:"primary_key"`
-	UID             string `gorm:"type:char(10);unique_index"`
-	Name            string `gorm:"type:varchar(255)"`
-	Size            uint64
-	Type            string `gorm:"type:varchar(16)"`
-	Subtype         string `gorm:"type:varchar(16)"`
-	MimeType        string `gorm:"type:varchar(255)"`
-	Sha1            []byte `gorm:"type:bytea;column:SHA_1"`
+	ID       uint64 `gorm:"primary_key"`
+	UID      string `gorm:"type:char(10);unique_index"`
+	Name     string `gorm:"type:varchar(255)"`
+	Size     uint64
+	Type     string `gorm:"type:varchar(16)"`
+	Subtype  string `gorm:"type:varchar(16)"`
+	MimeType string `gorm:"type:varchar(255)"`
+	Sha1     []byte `gorm:"type:bytea;column:SHA_1"`
 	//Operation Operation
 	ContentUnit     ContentUnit
 	ContentUnitID   uint64
@@ -111,7 +111,7 @@ type File struct {
 	ParentID        uint64
 	CreatedAt       time.Time
 	Language        string `gorm:"type:char(2)"`
-	BackupCount     int8 `gorm:"type:smallint"`
+	BackupCount     int8   `gorm:"type:smallint"`
 	FirstBackupTime time.Time
 	Properties      JSONB `gorm:"type:jsonb"`
 }

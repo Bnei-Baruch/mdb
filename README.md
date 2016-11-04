@@ -50,7 +50,10 @@ export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 git clone https://github.com/Bnei-Baruch/MDB.git
 ```
 
-### Install Packages - for now not using any package manager.
+### Install Packages - Using godep
 ```shell
-go get gopkg.in/gin-gonic/gin.v1
+go get github.com/tools/godep
+godep save
+# go get gopkg.in/gin-gonic/gin.v1
+# go get github.com/lib/pq
 ```
