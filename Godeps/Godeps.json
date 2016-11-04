@@ -2,6 +2,9 @@
 	"ImportPath": "github.com/Bnei-Baruch/mdb",
 	"GoVersion": "go1.7",
 	"GodepVersion": "v75",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/gin-gonic/gin/binding",
@@ -16,6 +19,16 @@
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
 			"Rev": "98fa357170587e470c5f27d3c3ea0947b71eb455"
+		},
+		{
+			"ImportPath": "github.com/lib/pq",
+			"Comment": "go1.0-cutoff-123-gae8357d",
+			"Rev": "ae8357db35d721c58dcdc911318b55bef6b1b001"
+		},
+		{
+			"ImportPath": "github.com/lib/pq/oid",
+			"Comment": "go1.0-cutoff-123-gae8357d",
+			"Rev": "ae8357db35d721c58dcdc911318b55bef6b1b001"
 		},
 		{
 			"ImportPath": "github.com/manucorporat/sse",
