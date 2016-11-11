@@ -1,5 +1,6 @@
 .idea/
 
+mdb
 *.swp
 config.toml
 **/rambler.json
