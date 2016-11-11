@@ -22,6 +22,7 @@ func init() {
 func serverDefaults() {
 	viper.SetDefault("server", map[string]interface{}{
 		"bind-address": ":8080",
+		"mode": "debug",
 	})
 }
 
@@ -32,6 +33,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 
 	// Setup routes
+	gin.SetMode(viper.GetString("server.mode"))
 	router := gin.New()
 	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()), gin.Recovery())
 
@@ -50,5 +52,6 @@ func serverFn(cmd *cobra.Command, args []string) {
 		c.String(http.StatusOK, message)
 	})
 
+	log.Infoln("Running application")
 	router.Run(viper.GetString("server.bind-address"))
 }

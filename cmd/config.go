@@ -11,9 +11,10 @@ var outFile string
 const template = `# MDB generated config template
 [server]
 bind-address=":8080"
+mode="debug"  # GIN mode. Either debug, release or test
 
 [mdb]
-url=postgres://localhost/mdb?sslmode=disable
+url="postgres://localhost/mdb?sslmode=disable"
 `
 
 var configCmd = &cobra.Command{

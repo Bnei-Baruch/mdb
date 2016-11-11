@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"log"
 )
 
 var cfgFile string
@@ -36,6 +37,8 @@ func initConfig() {
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
 	viper.AutomaticEnv()
-	viper.ReadInConfig()
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("Error reading config: %v", err)
+	}
 }
 
