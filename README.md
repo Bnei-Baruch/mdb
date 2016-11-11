@@ -64,7 +64,14 @@ Under `migrations` folder add a `rambler.json` config file. An example:
 On the command line:
 
 ```$ rambler apply -a```
- 
+
+
+## Logging
+We use [logrus](https://github.com/Sirupsen/logrus) for logging.
+
+All logs are written to STDOUT or STDERR. It's up to the running environment
+to pipe these into physical files and rotate those using `logrotate(8)`.
+
 
 ## Installation details
 
