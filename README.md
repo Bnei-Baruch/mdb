@@ -52,8 +52,9 @@ git clone https://github.com/Bnei-Baruch/MDB.git
 
 ### Install Packages - Using godep
 ```shell
+go get gopkg.in/gin-gonic/gin.v1
+go get github.com/lib/pq
 go get github.com/tools/godep
+# https://github.com/tools/godep
 godep save
-# go get gopkg.in/gin-gonic/gin.v1
-# go get github.com/lib/pq
 ```

@@ -1,4 +1,6 @@
 .idea/
 
+migrations/rambler.json
+
 *.swp
 visio.SQL
