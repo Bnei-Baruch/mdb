@@ -2,9 +2,23 @@
 
 ## Overview
 
-Metadata database for BB content.
+BB archive Metadata Database.
 
-The main purpose of this repository is to hold the sql migrations and a basic, slim, go ORM model layer.
+This system aims to be a single source of truth for all content produced by Bnei Baruch. 
+
+
+## Commands
+The mdb is meant to be executed as command line. 
+Type `mdb <command> -h` to see how to use each command.
+ 
+`mdb server` 
+
+Run the server
+
+`mdb config <path>`
+ 
+Generate default configuration in the given path. If path is omitted STDOUT is used instead.
+**Note** that default value to config file is `config.toml` in project root directory.
 
 
 ## Implementation Notes
@@ -20,6 +34,37 @@ Special values:
 
 * Unknown - `xx` 
 * Multiple languages - `zz` 
+
+
+## Schema Migrations
+We keep track of all changes to the MDB schema under `migrations`. 
+These are pure postgres sql scripts. Name pattern is `version_description.sql`.
+
+They play along well with [rambler](https://github.com/elwinar/rambler) A simple and language-independent SQL schema migration tool.
+Download the rambler executable for your system from the [release page](https://github.com/elwinar/rambler/releases).
+(on linux `chmod +x`)
+
+Under `migrations` folder add a `rambler.json` config file. An example:
+```
+{
+  "driver": "postgresql",
+  "protocol": "tcp",
+  "host": "localhost",
+  "port": 5432,
+  "user": "",
+  "password": "",
+  "database": "mdb",
+  "directory": ".",
+  "table": "migrations"
+}
+```
+
+**Important** make sure never to commit such files to SCM.
+
+On the command line:
+
+```$ rambler apply -a```
+ 
 
 ## Installation details
 
@@ -47,7 +92,7 @@ export GOROOT=/user/local/go
 ```shell
 export GOPATH=/home/kolmanv/go
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
-git clone https://github.com/Bnei-Baruch/MDB.git
+git clone https://github.com/Bnei-Baruch/mdb.git
 ```
 
 ### Install Packages - Using godep

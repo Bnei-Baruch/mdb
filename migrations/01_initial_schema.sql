@@ -1,3 +1,5 @@
+-- rambler up
+
 ---------------
 -- Functions --
 ---------------
@@ -177,3 +179,7 @@ CREATE INDEX IF NOT EXISTS files_created_at_idx
 
 CREATE INDEX IF NOT EXISTS files_type_subtype_idx
   ON files USING BTREE (type, subtype);
+
+
+-- rambler down
+-- TODO: fill this section with full schema cleanup
