@@ -4,6 +4,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
 	"time"
+	"net/http"
+	"github.com/stvp/rollbar"
+	"github.com/pkg/errors"
 )
 
 func MdbLoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
@@ -27,6 +30,23 @@ func MdbLoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
 		} else {
 			entry.Info()
 		}
+	}
+}
+
+func RollbarRecovery() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if rval := recover(); rval != nil {
+				if err, ok := rval.(error); ok {
+					rollbar.RequestError(rollbar.CRIT, c.Request, err)
+				} else {
+					rollbar.RequestError(rollbar.CRIT, c.Request, errors.Errorf("%s", rval))
+
+				}
+				c.AbortWithStatus(http.StatusInternalServerError)
+			}
+		}()
+		c.Next()
 	}
 }
 

@@ -135,6 +135,11 @@
 			"Rev": "651d9d916abc3c3d6a91a12549495caba5edffd2"
 		},
 		{
+			"ImportPath": "github.com/stvp/rollbar",
+			"Comment": "v0.4.0-6-g3eb4713",
+			"Rev": "3eb4713e2655cd1be805795be31b3f85b74b05fd"
+		},
+		{
 			"ImportPath": "golang.org/x/crypto/curve25519",
 			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
 		},

@@ -12,6 +12,8 @@ const template = `# MDB generated config template
 [server]
 bind-address=":8080"
 mode="debug"  # GIN mode. Either debug, release or test
+rollbar-token=""
+rollbar-environment="development"
 
 [mdb]
 url="postgres://localhost/mdb?sslmode=disable"
