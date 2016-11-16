@@ -5,4 +5,7 @@ echo "Creating DB"
 createdb mdb
 
 echo "Migrating schema"
-psql -d mdb -f migrations/initial_schema.sql --quiet
+cd migrations && rambler apply -a
+
+echo "Seeding database"
+psql -d mdb -f data/seed.sql
