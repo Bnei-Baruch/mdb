@@ -3,11 +3,11 @@ package dal
 import (
 	"database/sql"
 	_ "github.com/lib/pq"
+	"github.com/spf13/viper"
 )
 
 func Init() bool {
-	// TODO: Move this from config.
-	url := "postgres://localhost/mdb?sslmode=disable"
+    url := viper.GetString("mdb.url")
 	db, err := sql.Open("postgres", url)
 	checkErr(err)
 	defer db.Close()

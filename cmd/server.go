@@ -1,10 +1,12 @@
 package cmd
 
 import (
+    "github.com/Bnei-Baruch/mdb/models"
+
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"gopkg.in/gin-gonic/gin.v1"
 	"net/http"
-	"github.com/spf13/viper"
 )
 
 var serverCmd = &cobra.Command{
@@ -27,20 +29,12 @@ func serverFn(cmd *cobra.Command, args []string) {
 	serverDefaults()
 	router := gin.Default()
 
-	// This handler will match /user/john but will not match neither /user/ or /user
-	router.GET("/user/:name", func(c *gin.Context) {
-		name := c.Param("name")
-		c.String(http.StatusOK, "Hello %s", name)
-	})
-
-	// However, this one will match /user/john/ and also /user/john/send
-	// If no other routers match /user/john, it will redirect to /user/john/
-	router.GET("/user/:name/*action", func(c *gin.Context) {
-		name := c.Param("name")
-		action := c.Param("action")
-		message := name + " is " + action
-		c.String(http.StatusOK, message)
-	})
+    router.POST("/operations/capture", func(c *gin.Context) {
+        var op models.Operation
+        if c.BindJSON(&op) == nil {
+            c.JSON(http.StatusOK, gin.H{"status": "HHH"})
+        }
+    })
 
 	router.Run(viper.GetString("server.bind-address"))
 }
