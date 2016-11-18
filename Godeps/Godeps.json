@@ -7,9 +7,9 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "github.com/BurntSushi/toml",
-			"Comment": "v0.2.0-21-g9906417",
-			"Rev": "99064174e013895bbd9b025c31100bd1d9b590ca"
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.11.0",
+			"Rev": "d26492970760ca5d33129d2d799e34be5c4782eb"
 		},
 		{
 			"ImportPath": "github.com/fsnotify/fsnotify",
@@ -81,6 +81,10 @@
 			"Rev": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
 		},
 		{
+			"ImportPath": "github.com/kr/fs",
+			"Rev": "2788f0dbd16903de03cb8186e5c7d97b69ad387b"
+		},
+		{
 			"ImportPath": "github.com/magiconair/properties",
 			"Comment": "v1.7.0-3-gb3f6dd5",
 			"Rev": "b3f6dd549956e8a61ea4a686a1c02a33d5bdda4b"
@@ -93,6 +97,36 @@
 		{
 			"ImportPath": "github.com/mitchellh/mapstructure",
 			"Rev": "21a35fb16463dfb7c8eee579c65d995d95e64d1e"
+		},
+		{
+			"ImportPath": "github.com/pelletier/go-buffruneio",
+			"Rev": "df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d"
+		},
+		{
+			"ImportPath": "github.com/pelletier/go-toml",
+			"Comment": "v0.3.5-16-g45932ad",
+			"Rev": "45932ad32dfdd20826f5671da37a5f3ce9f26a8d"
+		},
+		{
+			"ImportPath": "github.com/pkg/errors",
+			"Comment": "v0.8.0-2-g248dadf",
+			"Rev": "248dadf4e9068a0b3e79f02ed0a610d935de5302"
+		},
+		{
+			"ImportPath": "github.com/pkg/sftp",
+			"Rev": "4d0e916071f68db74f8a73926335f809396d6b42"
+		},
+		{
+			"ImportPath": "github.com/spf13/afero",
+			"Rev": "52e4a6cfac46163658bd4f123c49b6ee7dc75f78"
+		},
+		{
+			"ImportPath": "github.com/spf13/afero/mem",
+			"Rev": "52e4a6cfac46163658bd4f123c49b6ee7dc75f78"
+		},
+		{
+			"ImportPath": "github.com/spf13/afero/sftp",
+			"Rev": "52e4a6cfac46163658bd4f123c49b6ee7dc75f78"
 		},
 		{
 			"ImportPath": "github.com/spf13/cast",
@@ -115,12 +149,41 @@
 			"Rev": "651d9d916abc3c3d6a91a12549495caba5edffd2"
 		},
 		{
+			"ImportPath": "github.com/stvp/rollbar",
+			"Comment": "v0.4.0-6-g3eb4713",
+			"Rev": "3eb4713e2655cd1be805795be31b3f85b74b05fd"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/curve25519",
+			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ed25519",
+			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ed25519/internal/edwards25519",
+			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh",
+			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
+		},
+		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "73058b0420c0c24a7f9ec3eb6f624ac85d2ed035"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "a646d33e2ee3172a661fc09bca23bb4889a41bc8"
+		},
+		{
+			"ImportPath": "golang.org/x/text/transform",
+			"Rev": "a8b38433e35b65ba247bb267317037dee1b70cea"
+		},
+		{
+			"ImportPath": "golang.org/x/text/unicode/norm",
+			"Rev": "a8b38433e35b65ba247bb267317037dee1b70cea"
 		},
 		{
 			"ImportPath": "gopkg.in/gin-gonic/gin.v1",
@@ -135,64 +198,6 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "e4d366fc3c7938e2958e662b4258c7a89e1f0e3e"
-		},
-		{
-			"ImportPath": "github.com/pelletier/go-toml",
-			"Comment": "v0.3.5-16-g45932ad",
-			"Rev": "45932ad32dfdd20826f5671da37a5f3ce9f26a8d"
-		},
-		{
-			"ImportPath": "github.com/spf13/afero",
-			"Rev": "52e4a6cfac46163658bd4f123c49b6ee7dc75f78"
-		},
-		{
-			"ImportPath": "github.com/pelletier/go-buffruneio",
-			"Rev": "df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d"
-		},
-		{
-			"ImportPath": "github.com/pkg/sftp",
-			"Rev": "4d0e916071f68db74f8a73926335f809396d6b42"
-		},
-		{
-			"ImportPath": "github.com/spf13/afero/mem",
-			"Rev": "52e4a6cfac46163658bd4f123c49b6ee7dc75f78"
-		},
-		{
-			"ImportPath": "github.com/spf13/afero/sftp",
-			"Rev": "52e4a6cfac46163658bd4f123c49b6ee7dc75f78"
-		},
-		{
-			"ImportPath": "golang.org/x/text/transform",
-			"Rev": "a8b38433e35b65ba247bb267317037dee1b70cea"
-		},
-		{
-			"ImportPath": "golang.org/x/text/unicode/norm",
-			"Rev": "a8b38433e35b65ba247bb267317037dee1b70cea"
-		},
-		{
-			"ImportPath": "github.com/kr/fs",
-			"Rev": "2788f0dbd16903de03cb8186e5c7d97b69ad387b"
-		},
-		{
-			"ImportPath": "github.com/pkg/errors",
-			"Comment": "v0.8.0-2-g248dadf",
-			"Rev": "248dadf4e9068a0b3e79f02ed0a610d935de5302"
-		},
-		{
-			"ImportPath": "golang.org/x/crypto/ssh",
-			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
-		},
-		{
-			"ImportPath": "golang.org/x/crypto/curve25519",
-			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
-		},
-		{
-			"ImportPath": "golang.org/x/crypto/ed25519",
-			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
-		},
-		{
-			"ImportPath": "golang.org/x/crypto/ed25519/internal/edwards25519",
-			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
 		}
 	]
 }

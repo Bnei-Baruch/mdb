@@ -64,7 +64,29 @@ Under `migrations` folder add a `rambler.json` config file. An example:
 On the command line:
 
 ```$ rambler apply -a```
- 
+
+
+## Logging
+We use [logrus](https://github.com/Sirupsen/logrus) for logging.
+
+All logs are written to STDOUT or STDERR. It's up to the running environment
+to pipe these into physical files and rotate those using `logrotate(8)`.
+
+
+### Rollbar
+If the `rollbar-token` config is found we'll use our own recovery middleware to send errors to [Rollbar](https://rollbar.com).
+If not, we'll use gin.Recovery() to print stacktrace to console. Using rollbar is meant for production environment.
+
+ In addition, you could log whatever error you want to rollbar directly, for example:
+
+ ```
+    if _, err := SomeErrorProneFunc(); err != nil {
+        rollbar.Error("level", err,...)
+    }
+ ```
+
+ Check out the [docs](https://godoc.org/github.com/stvp/rollbar) for more info on how to use the Rollbar client.
+
 
 ## Installation details
 
