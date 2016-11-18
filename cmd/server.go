@@ -1,13 +1,12 @@
 package cmd
 
 import (
-    "github.com/Bnei-Baruch/mdb/models"
+    "github.com/Bnei-Baruch/mdb/rest"
 	"github.com/Bnei-Baruch/mdb/utils"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"gopkg.in/gin-gonic/gin.v1"
-	"net/http"
 	log "github.com/Sirupsen/logrus"
 	"github.com/stvp/rollbar"
 )
@@ -54,12 +53,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()), recovery)
 
-    router.POST("/operations/capture", func(c *gin.Context) {
-        var op models.Operation
-        if c.BindJSON(&op) == nil {
-            c.JSON(http.StatusOK, gin.H{"status": "HHH"})
-        }
-    })
+    router.POST("/operations/capture_start", rest.CaptureStartHandler)
 
 	router.GET("/recover", func(c *gin.Context) {
 		panic("test recover")
