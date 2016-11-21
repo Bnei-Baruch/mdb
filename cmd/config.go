@@ -16,7 +16,7 @@ rollbar-token=""
 rollbar-environment="development"
 
 [mdb]
-url="postgres://localhost/mdb?sslmode=disable"
+url="postgres://localhost/mdb?sslmode=disable&user=postgres"
 `
 
 var configCmd = &cobra.Command{

@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-	"gopkg.in/gin-gonic/gin.v1"
-	"net/http"
-	"github.com/spf13/viper"
+    "github.com/Bnei-Baruch/mdb/rest"
 	"github.com/Bnei-Baruch/mdb/utils"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"gopkg.in/gin-gonic/gin.v1"
 	log "github.com/Sirupsen/logrus"
 	"github.com/stvp/rollbar"
 )
@@ -52,20 +53,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()), recovery)
 
-	// This handler will match /user/john but will not match neither /user/ or /user
-	router.GET("/user/:name", func(c *gin.Context) {
-		name := c.Param("name")
-		c.String(http.StatusOK, "Hello %s", name)
-	})
-
-	// However, this one will match /user/john/ and also /user/john/send
-	// If no other routers match /user/john, it will redirect to /user/john/
-	router.GET("/user/:name/*action", func(c *gin.Context) {
-		name := c.Param("name")
-		action := c.Param("action")
-		message := name + " is " + action
-		c.String(http.StatusOK, message)
-	})
+    router.POST("/operations/capture_start", rest.CaptureStartHandler)
 
 	router.GET("/recover", func(c *gin.Context) {
 		panic("test recover")

@@ -1,7 +1,10 @@
 {
 	"ImportPath": "github.com/Bnei-Baruch/mdb",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v74",
+	"GodepVersion": "v75",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -28,6 +31,16 @@
 			"Rev": "98fa357170587e470c5f27d3c3ea0947b71eb455"
 		},
 		{
+			"ImportPath": "github.com/lib/pq",
+			"Comment": "go1.0-cutoff-123-gae8357d",
+			"Rev": "ae8357db35d721c58dcdc911318b55bef6b1b001"
+		},
+		{
+			"ImportPath": "github.com/lib/pq/oid",
+			"Comment": "go1.0-cutoff-123-gae8357d",
+			"Rev": "ae8357db35d721c58dcdc911318b55bef6b1b001"
+        },
+        {
 			"ImportPath": "github.com/hashicorp/hcl",
 			"Rev": "d8c773c4cba11b11539e3d45f93daeaa5dcf1fa1"
 		},
@@ -75,6 +88,7 @@
 			"ImportPath": "github.com/magiconair/properties",
 			"Comment": "v1.7.0-3-gb3f6dd5",
 			"Rev": "b3f6dd549956e8a61ea4a686a1c02a33d5bdda4b"
+>>>>>>> 14e30b5ff42cde8b39d2f8ad602701558f9956c9
 		},
 		{
 			"ImportPath": "github.com/manucorporat/sse",
