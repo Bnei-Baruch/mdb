@@ -25,6 +25,12 @@ Generate default configuration in the given path. If path is omitted STDOUT is u
 **Note** that default value to config file is `config.toml` in project root directory.
 
 
+```Shell
+mdb version
+```
+
+Print the version of MDB
+
 ## Implementation Notes
 
 ### Dates and Times
@@ -38,6 +44,25 @@ Special values:
 
 * Unknown - `xx` 
 * Multiple languages - `zz` 
+
+
+## Deployment
+
+Once development is done and all tests are green we need to build an executable for deployment.
+
+Make sure the version is correct and build with:
+
+```Shell
+make build
+```
+
+This will generate the `mdb` executable for deployment in the root directory.
+
+To add a pre-release tag to the version, add the relevant environment variable. For example,
+
+```Shell
+PRE_RELEASE=rc.1 make build
+```
 
 
 ## Schema Migrations

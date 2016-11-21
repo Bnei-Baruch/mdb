@@ -1,8 +1,9 @@
 GO_FILES      = $(shell find . -path ./vendor -prune -o -type f -name "*.go" -print)
+IMPORT_PATH   = $(shell pwd | sed "s|^$(GOPATH)/src/||g")
 GIT_HASH      = $(shell git rev-parse HEAD)
-LDFLAGS       = -w -X main.commitHash=$(GIT_HASH)
+LDFLAGS       = -w -X $(IMPORT_PATH)/version.PreRelease=$(PRE_RELEASE)
 
-build: clean
+build: clean test
 	@go build -ldflags '$(LDFLAGS)'
 
 clean:
@@ -17,6 +18,4 @@ test:
 lint:
 	@golint $(GO_FILES) || true
 
-try:
-	@echo $(GO_FILES)
 

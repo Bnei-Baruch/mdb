@@ -9,6 +9,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	log "github.com/Sirupsen/logrus"
 	"github.com/stvp/rollbar"
+	"github.com/Bnei-Baruch/mdb/version"
 )
 
 var serverCmd = &cobra.Command{
@@ -39,6 +40,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	// Setup rollbar
 	rollbar.Token = viper.GetString("server.rollbar-token")
 	rollbar.Environment = viper.GetString("server.rollbar-environment")
+	rollbar.CodeVersion = version.Version
 
 	// Setup gin
 	gin.SetMode(viper.GetString("server.mode"))
