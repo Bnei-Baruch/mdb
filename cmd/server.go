@@ -1,7 +1,7 @@
 package cmd
 
 import (
-    "github.com/Bnei-Baruch/mdb/rest"
+	"github.com/Bnei-Baruch/mdb/rest"
 	"github.com/Bnei-Baruch/mdb/utils"
 
 	"github.com/spf13/cobra"
@@ -53,7 +53,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()), recovery)
 
-    router.POST("/operations/capture_start", rest.CaptureStartHandler)
+	router.POST("/operations/capture_start", rest.CaptureStartHandler)
 
 	router.GET("/recover", func(c *gin.Context) {
 		panic("test recover")

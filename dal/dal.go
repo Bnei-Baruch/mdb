@@ -7,7 +7,7 @@ import (
 )
 
 func Init() bool {
-    url := viper.GetString("mdb.url")
+	url := viper.GetString("mdb.url")
 	db, err := sql.Open("postgres", url)
 	checkErr(err)
 	defer db.Close()

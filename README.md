@@ -11,11 +11,15 @@ This system aims to be a single source of truth for all content produced by Bnei
 The mdb is meant to be executed as command line. 
 Type `mdb <command> -h` to see how to use each command.
  
-`mdb server` 
+```Shell
+mdb server
+```
 
 Run the server
 
-`mdb config <path>`
+```Shell
+mdb config <path>
+```
  
 Generate default configuration in the given path. If path is omitted STDOUT is used instead.
 **Note** that default value to config file is `config.toml` in project root directory.
@@ -45,7 +49,8 @@ Download the rambler executable for your system from the [release page](https://
 (on linux `chmod +x`)
 
 Under `migrations` folder add a `rambler.json` config file. An example:
-```
+
+```JSON
 {
   "driver": "postgresql",
   "protocol": "tcp",
@@ -63,7 +68,9 @@ Under `migrations` folder add a `rambler.json` config file. An example:
 
 On the command line:
 
-```$ rambler apply -a```
+```Shell
+rambler apply -a
+```
 
 
 ## Logging
@@ -79,7 +86,7 @@ If not, we'll use gin.Recovery() to print stacktrace to console. Using rollbar i
 
  In addition, you could log whatever error you want to rollbar directly, for example:
 
- ```
+ ```Go
     if _, err := SomeErrorProneFunc(); err != nil {
         rollbar.Error("level", err,...)
     }
@@ -96,14 +103,14 @@ https://wiki.postgresql.org/wiki/Apt
 
 ### Go related installations
 
-```shell
+```Shell
 sudo apt-get update
 sudo curl -O https://storage.googleapis.com/golang/go1.7.3linux-amd64.tar.gz
 ```
 
 Detailes can be found here: https://www.digitalocean.com/community/tutorials/how-to-install-go-1-6-on-ubuntu-14-04)
 
-```shell
+```Shell
 sudo tar -xvf go1.7.3.linux-amd64.tar.gz
 sudo mv go /usr/local
 export GOROOT=/user/local/go
@@ -111,14 +118,14 @@ export GOROOT=/user/local/go
 
 ### While at /home/kolmanv/go
 
-```shell
+```Shell
 export GOPATH=/home/kolmanv/go
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 git clone https://github.com/Bnei-Baruch/mdb.git
 ```
 
 ### Install Packages - Using godep
-```shell
+```Shell
 go get gopkg.in/gin-gonic/gin.v1
 go get github.com/lib/pq
 go get github.com/tools/godep
