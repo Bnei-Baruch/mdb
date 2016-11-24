@@ -48,12 +48,12 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	var recovery gin.HandlerFunc
 	if len(rollbar.Token) > 0 {
-		recovery = utils.RollbarRecovery()
+		recovery = utils.RollbarRecoveryMiddleware()
 	} else {
 		recovery = gin.Recovery()
 	}
 
-	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()), recovery)
+	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()), utils.ErrorHandlingMiddleware(), recovery)
 
 	router.POST("/operations/capture_start", rest.CaptureStartHandler)
 

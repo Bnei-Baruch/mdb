@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"github.com/stvp/rollbar"
 	"github.com/pkg/errors"
+	"gopkg.in/go-playground/validator.v8"
 )
 
 func MdbLoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
@@ -16,24 +17,22 @@ func MdbLoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
 
 		c.Next()
 
-		entry := logger.WithFields(logrus.Fields{
+		logger.WithFields(logrus.Fields{
 			"status":     c.Writer.Status(),
 			"method":     c.Request.Method,
 			"path":       path,
 			"latency":    time.Now().Sub(start),
 			"ip":         c.ClientIP(),
 			"user-agent": c.Request.UserAgent(),
-		})
+		}).Info()
 
 		if len(c.Errors) > 0 {
-			entry.Error(c.Errors.String())
-		} else {
-			entry.Info()
+			logger.Error(c.Errors.String())
 		}
 	}
 }
 
-func RollbarRecovery() gin.HandlerFunc {
+func RollbarRecoveryMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if rval := recover(); rval != nil {
@@ -47,6 +46,20 @@ func RollbarRecovery() gin.HandlerFunc {
 			}
 		}()
 		c.Next()
+	}
+}
+
+func ErrorHandlingMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+
+		if be := c.Errors.ByType(gin.ErrorTypeBind).Last(); be != nil {
+			var errorMessages []interface{}
+			for _, err := range be.Err.(validator.ValidationErrors) {
+				errorMessages = append(errorMessages, gin.H{err.Field: err.ActualTag})
+			}
+			c.JSON(-1, gin.H{"errors":errorMessages})
+		}
 	}
 }
 

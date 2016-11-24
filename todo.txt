@@ -1,0 +1,5 @@
+* Release tag in git
+* Automatic deployment
+* Unit tests
+* Seed DB with TV Programs
+* Logic, logic, logic
