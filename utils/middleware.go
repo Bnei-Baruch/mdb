@@ -35,6 +35,7 @@ func MdbLoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
 func RollbarRecoveryMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
+			// Log panics
 			if rval := recover(); rval != nil {
 				if err, ok := rval.(error); ok {
 					rollbar.RequestError(rollbar.CRIT, c.Request, err)
@@ -45,7 +46,13 @@ func RollbarRecoveryMiddleware() gin.HandlerFunc {
 				c.AbortWithStatus(http.StatusInternalServerError)
 			}
 		}()
+
 		c.Next()
+
+		// Log context errors
+		for _, err := range c.Errors.ByType(gin.ErrorTypePrivate) {
+			rollbar.RequestError(rollbar.CRIT, c.Request, err.Err)
+		}
 	}
 }
 
