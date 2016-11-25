@@ -45,6 +45,7 @@ type (
 	Collection struct {
 		ID           uint64
 		UID          string
+		TypeID       uint64
 		CreateAt     time.Time
 		Properties   JsonB
 		ExternalID   string
@@ -61,7 +62,7 @@ type (
 	ContentUnit struct {
 		ID          uint64
 		UID         string
-		TypeID      string
+		TypeID      uint64
 		TranslatedContent
 		CreatedAt   time.Time
 		Properties  JsonB

@@ -57,6 +57,9 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	router.POST("/operations/capture_start", rest.CaptureStartHandler)
 
+	collections := router.Group("collections")
+	collections.POST("/", rest.CollectionsCreateHandler)
+
 	router.GET("/recover", func(c *gin.Context) {
 		panic("test recover")
 	})
