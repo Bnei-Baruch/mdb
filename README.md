@@ -46,23 +46,17 @@ Special values:
 * Multiple languages - `zz` 
 
 
-## Deployment
+## Release and Deployment
 
-Once development is done and all tests are green we need to build an executable for deployment.
+Once development is done, all tests are green, we want to go live.
+All we have to do is simply execute `misc/release.sh`.
 
-Make sure the version is correct and build with:
-
-```Shell
-make build
-```
-
-This will generate the `mdb` executable for deployment in the root directory.
-
-To add a pre-release tag to the version, add the relevant environment variable. For example,
+To add a pre-release tag, add the relevant environment variable. For example,
 
 ```Shell
-PRE_RELEASE=rc.1 make build
+PRE_RELEASE=rc.1 misc/release.sh
 ```
+
 
 
 ## Schema Migrations
