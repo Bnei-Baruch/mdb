@@ -31,5 +31,8 @@ func (e DalError) Error() string {
 }
 
 func CaptureStart(rest.CaptureStart) (bool, error) {
+
+    // Implementation goes here...
+
     return false, DalError{err: "not implemented"}
 }
