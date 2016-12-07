@@ -8,22 +8,22 @@ import (
 	"github.com/spf13/viper"
 )
 
-func Init() bool {
+func Init() (*sql.DB, error) {
 	url := viper.GetString("mdb.url")
-	db, err := sql.Open("postgres", url)
-	checkErr(err)
-	defer db.Close()
-	return true
+    return InitByUrl(url)
 }
 
-func checkErr(err error) {
+func InitByUrl(url string) (*sql.DB, error) {
+	db, err := sql.Open("postgres", url)
 	if err != nil {
-		panic(err)
+        return nil, DalError{err: "Error opening db.", reason: err}
 	}
+    return db, nil
 }
 
 type DalError struct {
     err string
+    reason error
 }
 
 func (e DalError) Error() string {
@@ -34,5 +34,5 @@ func CaptureStart(rest.CaptureStart) (bool, error) {
 
     // Implementation goes here...
 
-    return false, DalError{err: "not implemented"}
+    return false, DalError{err: "Not Implemented."}
 }
