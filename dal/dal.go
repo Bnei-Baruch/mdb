@@ -8,13 +8,16 @@ import (
 	"github.com/spf13/viper"
 )
 
+var db *sql.DB
+
 func Init() (*sql.DB, error) {
 	url := viper.GetString("mdb.url")
     return InitByUrl(url)
 }
 
 func InitByUrl(url string) (*sql.DB, error) {
-	db, err := sql.Open("postgres", url)
+    var err error
+	db, err = sql.Open("postgres", url)
 	if err != nil {
         return nil, DalError{err: "Error opening db.", reason: err}
 	}
