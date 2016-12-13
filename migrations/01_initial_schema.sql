@@ -140,7 +140,7 @@ CREATE TABLE content_roles (
 );
 
 
-DROP TABLE IF EXISTS content_units_persons_roles;
+DROP TABLE IF EXISTS content_units_persons;
 CREATE TABLE content_units_persons (
   content_unit_id BIGINT REFERENCES content_units       NOT NULL,
   person_id       BIGINT REFERENCES persons             NOT NULL,
@@ -182,5 +182,26 @@ CREATE INDEX IF NOT EXISTS files_type_subtype_idx
 
 
 -- rambler down
--- TODO: fill this section with full schema cleanup
+-- TODO: Check schema is fully cleared.
 
+DROP INDEX IF EXISTS files_type_subtype_idx;
+DROP INDEX IF EXISTS files_created_at_idx;
+DROP INDEX IF EXISTS content_units_created_at_idx;
+DROP INDEX IF EXISTS collections_created_at_idx;
+DROP INDEX IF EXISTS strings_created_at_idx;
+DROP INDEX IF EXISTS operations_created_at_idx;
+
+DROP TABLE IF EXISTS tags;
+DROP TABLE IF EXISTS content_units_persons;
+DROP TABLE IF EXISTS files;
+DROP TABLE IF EXISTS collections_content_units;
+DROP TABLE IF EXISTS collections;
+DROP TABLE IF EXISTS operations;
+DROP TABLE IF EXISTS operation_types;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS content_types CASCADE;
+DROP TABLE IF EXISTS content_units CASCADE;
+DROP TABLE IF EXISTS persons CASCADE;
+DROP TABLE IF EXISTS content_roles CASCADE;
+DROP TABLE IF EXISTS strings CASCADE;
+DROP FUNCTION IF EXISTS now_utc();

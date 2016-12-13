@@ -4,11 +4,15 @@ import (
 	"time"
 	"database/sql/driver"
 	"encoding/json"
+
+    "github.com/jinzhu/gorm"
 )
 
 type (
 
 	User struct {
+        gorm.Model
+
 		ID        uint64 `gorm:"primary_key"`
 		Email     string `gorm:"type:varchar(64);unique_index"`
 		Name      string `gorm:"type:char(32)"`

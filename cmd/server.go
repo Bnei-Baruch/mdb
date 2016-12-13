@@ -80,11 +80,10 @@ func serverFn(cmd *cobra.Command, args []string) {
 func CaptureStartHandler(c *gin.Context) {
 	var cs rest.CaptureStart
 	if c.BindJSON(&cs) == nil {
-        if ok, _ := dal.CaptureStart(cs); ok {
+        if err := dal.CaptureStart(cs); err != nil {
             c.JSON(http.StatusOK, gin.H{"status": "ok"})
         } else {
-            // Add errors to context and return bad status.
-            c.JSON(http.StatusOK, gin.H{"status": "dal error."})
+            c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
         }
 	}
 }
