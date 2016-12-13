@@ -40,8 +40,9 @@ func CaptureStart(cs rest.CaptureStart) (error) {
 
     var user = models.User{Email: cs.User}
     fmt.Printf("%s\n", user)
-    db.First(&user)
+    ret := db.First(&user)
     fmt.Printf("%s\n", user)
+    fmt.Printf("%s\n", ret)
 
     return DalError{err: "Not Implemented."}
 }

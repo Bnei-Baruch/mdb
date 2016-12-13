@@ -1,3 +1,4 @@
+-- rambler up
 INSERT INTO content_types (name) VALUES
   -- Collection Types
   ('DAILY_LESSON'),

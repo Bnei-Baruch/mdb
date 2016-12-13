@@ -100,8 +100,9 @@ func TestInit(t *testing.T) {
 }
 
 func TestCaptureStart(t *testing.T) {
-    baseDb, tmpDb, name := SwitchToTmpDb()
-    defer DropTmpDB(baseDb, tmpDb, name)
+    SwitchToTmpDb()
+    // baseDb, tmpDb, name := SwitchToTmpDb()
+    // defer DropTmpDB(baseDb, tmpDb, name)
 
     cs := rest.CaptureStart{
         Type: "type",
