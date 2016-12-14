@@ -4,15 +4,11 @@ import (
 	"time"
 	"database/sql/driver"
 	"encoding/json"
-
-    "github.com/jinzhu/gorm"
 )
 
 type (
 
 	User struct {
-        gorm.Model
-
 		ID        uint64 `gorm:"primary_key"`
 		Email     string `gorm:"type:varchar(64);unique_index"`
 		Name      string `gorm:"type:char(32)"`
@@ -24,13 +20,15 @@ type (
 	}
 
 	OperationType struct {
-		ID uint64 `gorm:"primary_key"`
-		TranslatedContent
+		ID          uint64 `gorm:"primary_key"`
+        Name        string
+        Description string
 	}
 
 	Operation struct {
 		ID        uint64 `gorm:"primary_key"`
-		Type      OperationType
+        UID       string
+		Type      OperationType `gorm:"ForeignKey:TypeID`
 		TypeID    uint64
 		CreatedAt time.Time
 		Station   string `gorm:"type:varchar(255)"`
@@ -42,8 +40,8 @@ type (
 	TranslatedContent struct {
 		NameID        uint64
 		DescriptionID uint64
-		Name          StringTranslation `gorm:"ForeignKey:NameID;AssociationForeignKey:Text"`
-		Description   StringTranslation `gorm:"ForeignKey:DescriptionID;AssociationForeignKey:Text"`
+		Name          StringTranslation `gorm:"ForeignKey:NameID;AssociationForeignKey:ID"`
+		Description   StringTranslation `gorm:"ForeignKey:DescriptionID;AssociationForeignKey:ID"`
 	}
 
 	Collection struct {
@@ -63,10 +61,17 @@ type (
 		Containers    []Container `gorm:"many2many:containers_file_assets;"`*/
 	}
 
+    ContentType struct {
+        ID          uint64
+        Name        string
+        Description string
+    }
+
 	ContentUnit struct {
 		ID          uint64
 		UID         string
-		TypeID      uint64
+        TypeID      uint64
+        Type        ContentType `gorm:"ForeignKey:TypeID"`
 		TranslatedContent
 		CreatedAt   time.Time
 		Properties  JsonB
@@ -84,10 +89,11 @@ type (
 		MimeType        string
 		Sha1            []byte
 		OperationID     uint64
+        Operation       Operation `gorm:"ForeignKey:OperationID`
 		ContentUnitID   uint64
-		ContentUnit     ContentUnit
-		ParentID        uint64
-		CreateAt        time.Time
+		ContentUnit     ContentUnit `gorm:"ForeignKey:ContentUnitID`
+		// ParentID        uint64
+		CreatedAt       time.Time
 		Language        string
 		BackupCount     uint
 		FirstBackupTime time.Time

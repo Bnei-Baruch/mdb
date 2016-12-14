@@ -104,8 +104,22 @@ func TestCaptureStart(t *testing.T) {
     // baseDb, tmpDb, name := SwitchToTmpDb()
     // defer DropTmpDB(baseDb, tmpDb, name)
 
+    // User not found.
     cs := rest.CaptureStart{
-        Type: "type",
+        Type: "mltcap",
+        Station: "a station",
+        User: "111operator@dev.com",
+        FileName: "some.file.name",
+        CaptureID: "this.is.capture.id",
+    }
+
+    if err := CaptureStart(cs); err == nil ||
+        err.Error() != "User 111operator@dev.com not found." {
+        t.Error("Expected user not found, got", err)
+    }
+
+    cs = rest.CaptureStart{
+        Type: "mltcap",
         Station: "a station",
         User: "operator@dev.com",
         FileName: "some.file.name",
