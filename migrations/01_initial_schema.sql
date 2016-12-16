@@ -97,6 +97,7 @@ DROP TABLE IF EXISTS collections_content_units;
 CREATE TABLE collections_content_units (
   collection_id   BIGINT REFERENCES collections   NOT NULL,
   content_unit_id BIGINT REFERENCES content_units NOT NULL,
+  name            VARCHAR(255)                    NOT NULL,
   PRIMARY KEY (collection_id, content_unit_id)
 );
 

@@ -100,16 +100,15 @@ func TestInit(t *testing.T) {
 }
 
 func TestCaptureStart(t *testing.T) {
-    SwitchToTmpDb()
-    // baseDb, tmpDb, name := SwitchToTmpDb()
-    // defer DropTmpDB(baseDb, tmpDb, name)
+    baseDb, tmpDb, name := SwitchToTmpDb()
+    defer DropTmpDB(baseDb, tmpDb, name)
 
     // User not found.
     cs := rest.CaptureStart{
         Type: "mltcap",
         Station: "a station",
         User: "111operator@dev.com",
-        FileName: "some.file.name",
+        FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
         CaptureID: "this.is.capture.id",
     }
 
@@ -122,12 +121,25 @@ func TestCaptureStart(t *testing.T) {
         Type: "mltcap",
         Station: "a station",
         User: "operator@dev.com",
-        FileName: "some.file.name",
+        FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
         CaptureID: "this.is.capture.id",
     }
 
     if err := CaptureStart(cs); err != nil {
         t.Error("CaptureStart should succeed.", err)
+    }
+}
+
+func TestParseFilename(t *testing.T) {
+    fn, err := ParseFileName("heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4")
+    if err != nil {
+        t.Error("ParseFileName should succeed.")
+    }
+    if fn.Type != "mp4" {
+        t.Error("Expected type to be mp4")
+    }
+    if fn.Part != "rb-1990-02-kishalon" {
+        t.Error("Expected different part %s", fn.Part)
     }
 }
 

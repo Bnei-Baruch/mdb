@@ -48,17 +48,12 @@ type (
 		ID           uint64
 		UID          string
 		TypeID       uint64
-		CreateAt     time.Time
+        Type         ContentType `gorm:"ForeignKey:TypeID"`
+		CreatedAt    time.Time
 		Properties   JsonB
 		ExternalID   string
-		ContentUnits []ContentUnit `gorm:"many2many:collections_content_units;"`
+		ContentUnits []ContentUnit `gorm:"many2many:collections_content_units;AssociationForeignKey:ID;ForeignKey:ID;"`
 		TranslatedContent
-		/*Name          string
-		Lang          string
-		AssetType     string
-		Date          time.Time
-		Size          uint
-		Containers    []Container `gorm:"many2many:containers_file_assets;"`*/
 	}
 
     ContentType struct {
@@ -71,13 +66,21 @@ type (
 		ID          uint64
 		UID         string
         TypeID      uint64
-        Type        ContentType `gorm:"ForeignKey:TypeID"`
+        Type        ContentType `gorm:"ForeignKey:TypeID;"`
 		TranslatedContent
 		CreatedAt   time.Time
 		Properties  JsonB
 		Files       []File
-		Collections []Collection `gorm:"many2many:collections_content_units;"`
+		Collections []Collection `gorm:"many2many:collections_content_units;AssociationForeignKey:ID;ForeignKey:ID;"`
 	}
+
+    CollectionsContentUnit struct {
+        CollectionID    uint64
+        Collection      Collection `gorm:"ForeignKey:CollectionID;"`
+        ContentUnitID   uint64
+        ContentUnit     ContentUnit `gorm:"ForeignKey:ContentUnitID;"`
+        Name            string
+    }
 
 	File struct {
 		ID              uint64
