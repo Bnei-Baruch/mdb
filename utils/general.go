@@ -3,6 +3,7 @@ package utils
 import "math/rand"
 
 const uidBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+const lettersBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 func GenerateUID(n int) string {
 	b := make([]byte, n)
@@ -10,4 +11,13 @@ func GenerateUID(n int) string {
 		b[i] = uidBytes[rand.Intn(len(uidBytes))]
 	}
 	return string(b)
+}
+
+func GenerateName(n int) string {
+    b := make([]byte, n)
+    b[0] = lettersBytes[rand.Intn(len(lettersBytes))]
+    for i := range b[1:] {
+        b[i+1] = uidBytes[rand.Intn(len(uidBytes))]
+    }
+    return string(b)
 }

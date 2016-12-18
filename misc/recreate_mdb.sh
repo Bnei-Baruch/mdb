@@ -11,3 +11,7 @@ cd migrations && rambler apply -a
 
 echo "Seeding database"
 psql -d mdb -f data/seed.sql
+
+# TODO: Disable if on production.
+psql -d mdb -f data/dev.sql
+

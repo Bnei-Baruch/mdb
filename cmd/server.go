@@ -1,15 +1,18 @@
 package cmd
 
 import (
+	"github.com/Bnei-Baruch/mdb/dal"
 	"github.com/Bnei-Baruch/mdb/rest"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/Bnei-Baruch/mdb/version"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gopkg.in/gin-gonic/gin.v1"
-	log "github.com/Sirupsen/logrus"
 	"github.com/stvp/rollbar"
-	"github.com/Bnei-Baruch/mdb/version"
+	log "github.com/Sirupsen/logrus"
+	"gopkg.in/gin-gonic/gin.v1"
+
+	"net/http"
 )
 
 var serverCmd = &cobra.Command{
@@ -55,7 +58,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()), utils.ErrorHandlingMiddleware(), recovery)
 
-	router.POST("/operations/capture_start", rest.CaptureStartHandler)
+	router.POST("/operations/capture_start", CaptureStartHandler)
 
 	collections := router.Group("collections")
 	collections.POST("/", rest.CollectionsCreateHandler)
@@ -72,3 +75,16 @@ func serverFn(cmd *cobra.Command, args []string) {
 	//	rollbar.Wait()
 	//}
 }
+
+// Handlers
+func CaptureStartHandler(c *gin.Context) {
+	var cs rest.CaptureStart
+	if c.BindJSON(&cs) == nil {
+        if err := dal.CaptureStart(cs); err != nil {
+            c.JSON(http.StatusOK, gin.H{"status": "ok"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
+        }
+	}
+}
+
