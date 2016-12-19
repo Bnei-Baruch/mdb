@@ -59,6 +59,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()), utils.ErrorHandlingMiddleware(), recovery)
 
 	router.POST("/operations/capture_start", CaptureStartHandler)
+	router.POST("/operations/capture_stop", CaptureStopHandler)
 
 	collections := router.Group("collections")
 	collections.POST("/", rest.CollectionsCreateHandler)
@@ -88,3 +89,13 @@ func CaptureStartHandler(c *gin.Context) {
 	}
 }
 
+func CaptureStopHandler(c *gin.Context) {
+	var cs rest.CaptureStop
+	if c.BindJSON(&cs) == nil {
+        if err := dal.CaptureStop(cs); err != nil {
+            c.JSON(http.StatusOK, gin.H{"status": "ok"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
+        }
+	}
+}

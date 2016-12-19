@@ -6,6 +6,7 @@ import (
 	"github.com/Bnei-Baruch/mdb/utils"
 
     "fmt"
+    "encoding/hex"
     "path/filepath"
     "strings"
     "time"
@@ -79,53 +80,57 @@ func ParseFileName(name string) (*FileName, error) {
     fn.Date, err = time.Parse("2006-01-02", parts[4])
     if err != nil {
         return nil, DalError{err: fmt.Sprintf(
-            "Bad filename, could not parse date (%s): %s", parts[3], err.Error())}
+            "Bad filename, could not parse date (%s): %s", parts[4], err.Error())}
     }
     fn.DateStr = parts[4]
 
     return &fn, nil
 }
 
-func CaptureStart(cs rest.CaptureStart) (error) {
-    // Validate operation may be executed correctly.
-    var u = models.User{Email: cs.User}
+func ValidateCapture(start rest.CaptureStart) (
+    *models.User, *models.OperationType, *models.ContentType, *models.ContentType, *FileName, error) {
+    var u = models.User{Email: start.User}
     if db.Where(&u).First(&u).RecordNotFound() {
-        return DalError{err: fmt.Sprintf("User %s not found.", cs.User)}
+        return nil, nil, nil, nil, nil, DalError{err: fmt.Sprintf("User %s not found.", start.User)}
     }
 
-    var t = models.OperationType{Name: cs.Type}
+    var t = models.OperationType{Name: start.Type}
     if db.Where(&t).First(&t).RecordNotFound() {
-        return DalError{err: fmt.Sprintf("Operation type %s not found.", cs.Type)}
-    }
-
-    var o = models.Operation{UID: utils.GenerateUID(8),  User: u, Type: t, Station: cs.Station}
-    if err := db.Create(&o).Error; err != nil {
-        return DalError{err: fmt.Sprintf("Failed adding operation to db: %s", err.Error())}
+        return nil, nil, nil, nil, nil, DalError{err: fmt.Sprintf("Operation type %s not found.", start.Type)}
     }
 
     var dl = models.ContentType{Name: "DAILY_LESSON"}
     if db.Where(&dl).First(&dl).RecordNotFound() {
-        return DalError{err: "Failed fetching \"DAILY_LESSON\" content type from db"}
+        return nil, nil, nil, nil, nil, DalError{err: "Failed fetching \"DAILY_LESSON\" content type from db"}
     }
 
     var lp = models.ContentType{Name: "LESSON_PART"}
     if db.Where(&lp).First(&lp).RecordNotFound() {
-        return DalError{err: "Failed fetching \"LESSON_PART\" content type from db"}
+        return nil, nil, nil, nil, nil, DalError{err: "Failed fetching \"LESSON_PART\" content type from db"}
     }
 
-    fn, err := ParseFileName(cs.FileName)
+    fn, err := ParseFileName(start.FileName)
     if err != nil {
-        return DalError{err: "Error parsing filename.", reason: err}
+        return nil, nil, nil, nil, nil, DalError{err: "Error parsing filename.", reason: err}
+    }
+
+    return &u, &t, &dl, &lp, fn, err
+}
+
+func CaptureStart(start rest.CaptureStart) error {
+    u, t, collectionType, contentUnitType, fileName, err := ValidateCapture(start)
+    if err != nil {
+        return err
     }
 
     // Execute (change DB).
-    var c = models.Collection{ExternalID: cs.CaptureID}
+    var c = models.Collection{ExternalID: start.CaptureID}
     if db.Where(&c).First(&c).RecordNotFound() {
         // Could not find collection by external id, create new.
         c = models.Collection{
-            ExternalID: cs.CaptureID,
+            ExternalID: start.CaptureID,
             UID: utils.GenerateUID(8),
-            Type: dl,
+            Type: *collectionType,
             TranslatedContent: models.TranslatedContent{
                 Name: models.StringTranslation{Text: "Collection name"},
                 Description: models.StringTranslation{Text: "Collection description"},
@@ -137,7 +142,7 @@ func CaptureStart(cs rest.CaptureStart) (error) {
     }
 
     var cu = models.ContentUnit{
-        Type: lp,
+        Type: *contentUnitType,
         UID: utils.GenerateUID(8),
         TranslatedContent: models.TranslatedContent{
             Name: models.StringTranslation{Text: "Content unit name"},
@@ -151,20 +156,76 @@ func CaptureStart(cs rest.CaptureStart) (error) {
     var m2m = models.CollectionsContentUnit{
         Collection: c,
         ContentUnit: cu,
-        Name: fn.Part,
+        Name: fileName.Part,
     }
     if err := db.Create(&m2m).Error; err != nil {
         return DalError{err: fmt.Sprintf("Failed adding collections content unit relation to db: %s", err.Error())}
     }
 
+    var o = models.Operation{UID: utils.GenerateUID(8),  User: *u, Type: *t, Station: start.Station}
+    if err := db.Create(&o).Error; err != nil {
+        return DalError{err: fmt.Sprintf("Failed adding operation to db: %s", err.Error())}
+    }
+
     var f = models.File{
         UID: utils.GenerateUID(8),
-        Name: cs.FileName,
+        Name: start.FileName,
         Operation: o,
         ContentUnit: cu,
     }
     if err := db.Create(&f).Error; err != nil {
         return DalError{err: fmt.Sprintf("Failed adding file to db: %s", err.Error())}
+    }
+
+    return nil
+}
+
+func CaptureStop(stop rest.CaptureStop) error {
+    u, t, collectionType, contentUnitType, _, err := ValidateCapture(stop.CaptureStart)
+    if err != nil {
+        return err
+    }
+
+    var sha1 []byte
+    sha1, err = hex.DecodeString(stop.Sha1)
+    if err != nil {
+        return DalError{err: fmt.Sprintf("Cannot convert sha1 %s to []bytes.", stop.Sha1)}
+    }
+
+    // Extract collection, content unit and file (should exist).
+    var c = models.Collection{ExternalID: stop.CaptureID}
+    if db.Where(&c).First(&c).RecordNotFound() {
+        return DalError{err: fmt.Sprintf("Failed finding collection with external id %s.", stop.CaptureID)}
+    }
+
+    var cu = models.ContentUnit{Type: *contentUnitType}
+    if db.Where(&cu).First(&cu).RecordNotFound() {
+        return DalError{err: fmt.Sprintf("Failed adding content unit to db: %s")}
+    }
+
+    // Execute (change DB).
+    var f = models.File{
+        Name: stop.FileName,
+        ContentUnit: models.ContentUnit{
+            Type: *contentUnitType,
+            Collections: []models.Collection{
+                models.Collection{
+                    Type: *collectionType,
+                    ExternalID: stop.CaptureID,
+                },
+            },
+        },
+        Sha1: sha1,
+        Size: stop.Size,
+    }
+    if errs := utils.FilterErrors(db.Where(&f).First(&f).Update(&f).GetErrors()); len(errs) > 0 {
+        return DalError{err: fmt.Sprintf("Failed fetching file from db: %s", errs)}
+    }
+
+    // Create operation for the update.
+    var o = models.Operation{UID: utils.GenerateUID(8),  User: *u, Type: *t, Station: stop.Station}
+    if err := db.Create(&o).Error; err != nil {
+        return DalError{err: fmt.Sprintf("Failed adding operation to db: %s", err.Error())}
     }
 
     return nil
