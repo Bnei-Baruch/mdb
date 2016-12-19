@@ -58,6 +58,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()), utils.ErrorHandlingMiddleware(), recovery)
 
+    dal.Init()
 	router.POST("/operations/capture_start", CaptureStartHandler)
 	router.POST("/operations/capture_stop", CaptureStopHandler)
 
