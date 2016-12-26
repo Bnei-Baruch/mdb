@@ -11,6 +11,7 @@ import (
 	"github.com/stvp/rollbar"
 	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/gin-contrib/cors.v1"
 
 	"net/http"
 )
@@ -56,7 +57,10 @@ func serverFn(cmd *cobra.Command, args []string) {
 		recovery = gin.Recovery()
 	}
 
-	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()), utils.ErrorHandlingMiddleware(), recovery)
+	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()),
+		utils.ErrorHandlingMiddleware(),
+		cors.Default(),
+		recovery)
 
     dal.Init()
 	router.POST("/operations/capture_start", CaptureStartHandler)
