@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/Bnei-Baruch/mdb",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v75",
+	"GodepVersion": "v74",
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -189,6 +189,11 @@
 		{
 			"ImportPath": "golang.org/x/text/unicode/norm",
 			"Rev": "a8b38433e35b65ba247bb267317037dee1b70cea"
+		},
+		{
+			"ImportPath": "gopkg.in/gin-contrib/cors.v1",
+			"Comment": "v1.1",
+			"Rev": "fb918bcd825b9e20f0c3c365981baf9454029b6c"
 		},
 		{
 			"ImportPath": "gopkg.in/gin-gonic/gin.v1",
