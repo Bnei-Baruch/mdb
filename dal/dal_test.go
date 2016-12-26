@@ -100,8 +100,9 @@ func TestInit(t *testing.T) {
 }
 
 func TestCaptureStart(t *testing.T) {
-    baseDb, tmpDb, name := SwitchToTmpDb()
-    defer DropTmpDB(baseDb, tmpDb, name)
+    SwitchToTmpDb()
+    // baseDb, tmpDb, name := SwitchToTmpDb()
+    // defer DropTmpDB(baseDb, tmpDb, name)
 
     // User not found.
     cs := rest.CaptureStart{
@@ -140,7 +141,16 @@ func TestCaptureStop(t *testing.T) {
         FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
         CaptureID: "this.is.capture.id",
     }
-
+    if err := CaptureStart(start); err != nil {
+        t.Error("CaptureStart should succeed.", err)
+    }
+    start = rest.CaptureStart{
+        Type: "mltcap",
+        Station: "a station",
+        User: "operator@dev.com",
+        FileName: "heb_o_rav_bs-igeret_2016-09-14_lesson.mp4",
+        CaptureID: "this.is.capture.id",
+    }
     if err := CaptureStart(start); err != nil {
         t.Error("CaptureStart should succeed.", err)
     }
@@ -157,7 +167,7 @@ func TestCaptureStop(t *testing.T) {
         Size: 123,
     }
     if err := CaptureStop(stop); err != nil {
-        // t.Error("CaptureStop should succeed.", err)
+        t.Error("CaptureStop should succeed.", err)
     }
 }
 

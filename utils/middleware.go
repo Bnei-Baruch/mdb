@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"github.com/stvp/rollbar"
 	"github.com/pkg/errors"
-	"gopkg.in/go-playground/validator.v8"
 )
 
 func MdbLoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
@@ -61,7 +60,10 @@ func ErrorHandlingMiddleware() gin.HandlerFunc {
 		c.Next()
 
 		if be := c.Errors.ByType(gin.ErrorTypeBind).Last(); be != nil {
-			c.JSON(-1, gin.H{"status": "error", "error": be.Err.(validator.ValidationErrors).Error()})
+			c.JSON(http.StatusBadRequest, gin.H{
+                "status": "error",
+                "error": be.Err.Error(),
+            })
 		}
 	}
 }

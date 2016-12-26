@@ -85,7 +85,10 @@ func CaptureStartHandler(c *gin.Context) {
         if err := dal.CaptureStart(cs); err != nil {
             c.JSON(http.StatusOK, gin.H{"status": "ok"})
         } else {
-            c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "status": "error",
+                "error": err.Error(),
+            })
         }
 	}
 }
