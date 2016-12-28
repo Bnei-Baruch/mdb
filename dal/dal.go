@@ -190,8 +190,23 @@ func Json(v interface{}) string {
     return string(b)
 }
 
-func FindFileByExternalIDAndFileName(externalID string, fileName string) models.File {
-    return models.File{}
+func FindFileByExternalIDAndFileName(externalID string, fileName string) (models.File, error) {
+    // Select file by ExternalID and FileName
+    var id uint64
+    f := models.File{}
+    if err := db.CommonDB().QueryRow(
+        "select files.id from files, collections, collections_content_units where " +
+        "files.name = $1 and collections.external_id = $2 and " +
+        "collections.id = collections_content_units.collection_id and " +
+        "files.content_unit_id = collections_content_units.content_unit_id",
+        fileName, externalID).Scan(&id); err != nil {
+        return f, DalError{err: fmt.Sprintf("Failed fetching file id due to %s", err.Error())}
+    }
+    f.ID = id
+    if errs := db.Where(&f).First(&f).GetErrors(); len(errs) > 0 {
+        return f, DalError{err: fmt.Sprintf("Failed fetching file: %s due to %s", Json(f), errs)}
+    }
+    return f, nil
 }
 
 func CaptureStop(stop rest.CaptureStop) error {
@@ -207,16 +222,23 @@ func CaptureStop(stop rest.CaptureStop) error {
     }
 
     // Execute (change DB).
-    f := FindFileByExternalIDAndFileName(stop.CaptureID, stop.FileName)
-    fmt.Printf("File:%s\n", Json(f))
-    f.ID = 1
+    f, err := FindFileByExternalIDAndFileName(stop.CaptureID, stop.FileName)
+    if err != nil {
+        return err
+    }
+    if f.Sha1.Valid && f.Sha1.String != string(sha1) {
+        return DalError{err: fmt.Sprintf("File already has different Sha1 existing: %s vs new: %s",
+            hex.EncodeToString([]byte(f.Sha1.String)), stop.Sha1)}
+    }
+    if f.Size > 0 && f.Size != stop.Size {
+        return DalError{err: fmt.Sprintf("File already has different Size existing: %d vs new: %d",
+            f.Size, stop.Size)}
+    }
     f.Sha1 = sql.NullString{String: string(sha1), Valid: len(sha1) > 0}
     f.Size = stop.Size
-    fmt.Printf("File:%s\n", Json(f))
-    if errs := utils.FilterErrors(db.Update(&f).GetErrors()); len(errs) > 0 {
+    if errs := utils.FilterErrors(db.Model(&f).Update(&f).GetErrors()); len(errs) > 0 {
         return DalError{err: fmt.Sprintf("Failed updating file in db: %s", errs)}
     }
-    fmt.Printf("File:%s\n", Json(f))
 
     // Create operation for the update.
     var o = models.Operation{UID: utils.GenerateUID(8),  User: *u, Type: *t, Station: stop.Station}
@@ -224,5 +246,5 @@ func CaptureStop(stop rest.CaptureStop) error {
         return DalError{err: fmt.Sprintf("Failed adding operation to db: %s", err.Error())}
     }
 
-    return DalError{err: "Errror???"}
+    return nil
 }

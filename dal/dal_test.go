@@ -2,9 +2,11 @@ package dal
 
 import (
 	"github.com/Bnei-Baruch/mdb/migrations"
+	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/rest"
 	"github.com/Bnei-Baruch/mdb/utils"
 
+    "encoding/hex"
     "regexp"
     "fmt"
     "math/rand"
@@ -100,9 +102,8 @@ func TestInit(t *testing.T) {
 }
 
 func TestCaptureStart(t *testing.T) {
-    SwitchToTmpDb()
-    // baseDb, tmpDb, name := SwitchToTmpDb()
-    // defer DropTmpDB(baseDb, tmpDb, name)
+    baseDb, tmpDb, name := SwitchToTmpDb()
+    defer DropTmpDB(baseDb, tmpDb, name)
 
     // User not found.
     cs := rest.CaptureStart{
@@ -155,6 +156,8 @@ func TestCaptureStop(t *testing.T) {
         t.Error("CaptureStart should succeed.", err)
     }
 
+    sha1 := "abcd1234abcd1234abcd1234abcd1234abcd1234"
+    var size uint64 = 123
     stop := rest.CaptureStop{
         CaptureStart: rest.CaptureStart{
             Type: "mltcap",
@@ -163,11 +166,37 @@ func TestCaptureStop(t *testing.T) {
             FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
             CaptureID: "this.is.capture.id",
         },
-        Sha1: "abcd1234abcd1234abcd1234abcd1234abcd1234",
-        Size: 123,
+        Sha1: sha1,
+        Size: size,
     }
     if err := CaptureStop(stop); err != nil {
         t.Error("CaptureStop should succeed.", err)
+    }
+
+
+    f := models.File{Name: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4"}
+    db.Where(&f).First(&f)
+    if !f.Sha1.Valid || hex.EncodeToString([]byte(f.Sha1.String)) != sha1 {
+        t.Error(fmt.Sprintf("Expected size %d got %d", size, f.Size))
+    }
+    if f.Size != size {
+        t.Error(fmt.Sprintf("Expected size %d got %d", size, f.Size))
+    }
+
+    stop = rest.CaptureStop{
+        CaptureStart: rest.CaptureStart{
+            Type: "mltcap",
+            Station: "a station",
+            User: "operator@dev.com",
+            FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
+            CaptureID: "this.is.capture.id",
+        },
+        Sha1: "1111111111111111111111111111111111111111",
+        Size: 111,
+    }
+    if err := CaptureStop(stop); err == nil ||
+        strings.Contains(err.Error(), "CaptureStop File already has different Sha1") {
+        t.Error("Expected to fail with wrong Sha1 on CaptureStop: ", err)
     }
 }
 
