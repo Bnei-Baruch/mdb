@@ -96,7 +96,7 @@ type (
         Operation       Operation       `json:"omitempty",gorm:"ForeignKey:OperationID"`
 		ContentUnitID   uint64          `json:"omitempty"`
 		ContentUnit     ContentUnit     `json:"omitempty",gorm:"ForeignKey:ContentUnitID"`
-		ParentID        sql.NullInt64   `json:"omitempty"`
+        ParentID        sql.NullInt64   `json:"omitempty"`
 		CreatedAt       time.Time       `json:"omitempty"`
 		Language        string          `json:"omitempty"`
 		BackupCount     uint            `json:"omitempty"`

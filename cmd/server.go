@@ -87,35 +87,41 @@ func serverFn(cmd *cobra.Command, args []string) {
 // Handlers
 type HandlerFunc func() error
 
-func Handle(c *gin.Context, structToJson interface{}, h HandlerFunc) {
-	if c.BindJSON(&structToJson) == nil {
-        if err := h(); err != nil {
-            c.JSON(http.StatusOK, gin.H{"status": "ok"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "status": "error",
-                "error": err.Error(),
-            })
-        }
-	}
+func Handle(c *gin.Context, h HandlerFunc) {
+    if err := h(); err == nil {
+        c.JSON(http.StatusOK, gin.H{"status": "ok"})
+    } else {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "status": "error",
+            "error": err.Error(),
+        })
+    }
 }
 
 func CaptureStartHandler(c *gin.Context) {
 	var cs rest.CaptureStart
-    Handle(c, cs, func() error { return dal.CaptureStart(cs) })
+	if c.BindJSON(&cs) == nil {
+        Handle(c, func() error { return dal.CaptureStart(cs) })
+    }
 }
 
 func CaptureStopHandler(c *gin.Context) {
 	var cs rest.CaptureStop
-    Handle(c, cs, func() error { return dal.CaptureStop(cs) })
+	if c.BindJSON(&cs) == nil {
+        Handle(c, func() error { return dal.CaptureStop(cs) })
+    }
 }
 
 func DemuxHandler(c *gin.Context) {
     var demux rest.Demux
-    Handle(c, demux, func() error { return dal.Demux(demux) })
+	if c.BindJSON(&demux) == nil {
+        Handle(c, func() error { return dal.Demux(demux) })
+    }
 }
 
 func SendHandler(c *gin.Context) {
     var send rest.Send
-    Handle(c, send, func() error { return dal.Send(send) })
+	if c.BindJSON(&send) == nil {
+        Handle(c, func() error { return dal.Send(send) })
+    }
 }

@@ -115,8 +115,8 @@ func TestCaptureStart(t *testing.T) {
     }
 
     if err := CaptureStart(cs); err == nil ||
-        err.Error() != "User 111operator@dev.com not found." {
-        t.Error("Expected user not found, got", err)
+                                !strings.Contains(err.Error(), "User 111operator@dev.com not found.") {
+        t.Error("Expected user not found, got:", err)
     }
 
     cs = rest.CaptureStart{
