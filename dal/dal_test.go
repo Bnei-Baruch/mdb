@@ -28,6 +28,7 @@ func RunMigrations(tmpDb *gorm.DB) {
             return nil
         }
 
+        fmt.Printf("Applying migration %s\n", path)
         m, err := migrations.NewMigration(path)
         if err != nil {
             fmt.Printf("Error migrating %s, %s", path, err.Error())

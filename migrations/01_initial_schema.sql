@@ -73,7 +73,7 @@ CREATE TABLE collections (
   id          BIGSERIAL PRIMARY KEY,
   uid         CHAR(8) UNIQUE                                  NOT NULL,
   type_id     BIGINT REFERENCES content_types                 NOT NULL,
-  name     BIGINT REFERENCES strings (id)                  NOT NULL,
+  name        BIGINT REFERENCES strings (id)                  NOT NULL,
   description BIGINT REFERENCES strings (id)                  NULL,
   created_at  TIMESTAMP WITH TIME ZONE DEFAULT now_utc()      NOT NULL,
   properties  JSONB                                           NULL,
