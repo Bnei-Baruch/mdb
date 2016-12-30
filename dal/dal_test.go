@@ -25,11 +25,9 @@ func RunMigrations(tmpDb *gorm.DB) {
     var visit = func(path string, f os.FileInfo, err error) error {
         match, _ := regexp.MatchString(".*\\.sql$", path);
         if !match {
-            fmt.Printf("Did not match sql file %s\n", path)
             return nil
         }
 
-        fmt.Printf("Migrating %s\n", path)
         m, err := migrations.NewMigration(path)
         if err != nil {
             fmt.Printf("Error migrating %s, %s", path, err.Error())
@@ -69,7 +67,7 @@ func SwitchToTmpDb() (*gorm.DB, *gorm.DB, string) {
         panic(fmt.Sprintf("Could not connect to database. %s", err))
     }
 
-    name := strings.ToLower(utils.GenerateName(10))
+    name := fmt.Sprintf("test_%s", strings.ToLower(utils.GenerateName(10)))
     if err := baseDb.Exec(fmt.Sprintf("CREATE DATABASE %s", name)).Error; err != nil {
         panic(fmt.Sprintf("Could not create tmp database %s due to %s.", name, err))
     }
@@ -107,9 +105,11 @@ func TestCaptureStart(t *testing.T) {
 
     // User not found.
     cs := rest.CaptureStart{
-        Type: "mltcap",
-        Station: "a station",
-        User: "111operator@dev.com",
+        Operation: rest.Operation {
+            Type: "capture_start",
+            Station: "a station",
+            User: "111operator@dev.com",
+        },
         FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
         CaptureID: "this.is.capture.id",
     }
@@ -120,9 +120,11 @@ func TestCaptureStart(t *testing.T) {
     }
 
     cs = rest.CaptureStart{
-        Type: "mltcap",
-        Station: "a station",
-        User: "operator@dev.com",
+        Operation: rest.Operation{
+            Type: "capture_start",
+            Station: "a station",
+            User: "operator@dev.com",
+        },
         FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
         CaptureID: "this.is.capture.id",
     }
@@ -135,10 +137,13 @@ func TestCaptureStop(t *testing.T) {
     baseDb, tmpDb, name := SwitchToTmpDb()
     defer DropTmpDB(baseDb, tmpDb, name)
 
-    start := rest.CaptureStart{
-        Type: "mltcap",
+    op := rest.Operation{
+        Type: "capture_start",
         Station: "a station",
         User: "operator@dev.com",
+    }
+    start := rest.CaptureStart{
+        Operation: op,
         FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
         CaptureID: "this.is.capture.id",
     }
@@ -146,9 +151,7 @@ func TestCaptureStop(t *testing.T) {
         t.Error("CaptureStart should succeed.", err)
     }
     start = rest.CaptureStart{
-        Type: "mltcap",
-        Station: "a station",
-        User: "operator@dev.com",
+        Operation: op,
         FileName: "heb_o_rav_bs-igeret_2016-09-14_lesson.mp4",
         CaptureID: "this.is.capture.id",
     }
@@ -158,11 +161,14 @@ func TestCaptureStop(t *testing.T) {
 
     sha1 := "abcd1234abcd1234abcd1234abcd1234abcd1234"
     var size uint64 = 123
+    stopOp := rest.Operation{
+        Type: "capture_stop",
+        Station: "a station",
+        User: "operator@dev.com",
+    }
     stop := rest.CaptureStop{
         CaptureStart: rest.CaptureStart{
-            Type: "mltcap",
-            Station: "a station",
-            User: "operator@dev.com",
+            Operation: stopOp,
             FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
             CaptureID: "this.is.capture.id",
         },
@@ -185,9 +191,7 @@ func TestCaptureStop(t *testing.T) {
 
     stop = rest.CaptureStop{
         CaptureStart: rest.CaptureStart{
-            Type: "mltcap",
-            Station: "a station",
-            User: "operator@dev.com",
+            Operation: stopOp,
             FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
             CaptureID: "this.is.capture.id",
         },
@@ -216,6 +220,134 @@ func TestParseFilename(t *testing.T) {
     _, err = ParseFileName("heb_o_rav_rb-1990-02-kishalon_201-09-14_lesson.mp4")
     if e := "could not parse date"; err == nil || !strings.Contains(err.Error(), e) {
         t.Error(fmt.Sprintf("ParseFileName should contain %s, got %s.", e, err))
+    }
+}
+
+func AddFile(FileName string, Sha1 string, Size uint64) error {
+    start := rest.CaptureStart{
+        Operation: rest.Operation{
+            Type: "capture_start",
+            Station: "a station",
+            User: "operator@dev.com",
+        },
+        FileName: FileName,
+        CaptureID: "this.is.capture.id",
+    }
+    if err := CaptureStart(start); err != nil {
+        return err
+    }
+
+    stop := rest.CaptureStop{
+        CaptureStart: rest.CaptureStart{
+            Operation: rest.Operation{
+                Type: "capture_stop",
+                Station: "a station",
+                User: "operator@dev.com",
+            },
+            FileName: FileName,
+            CaptureID: "this.is.capture.id",
+        },
+        Sha1: Sha1,
+        Size: Size,
+    }
+    if err := CaptureStop(stop); err != nil {
+        return err
+    }
+
+    return nil
+}
+
+func TestDemux(t *testing.T) {
+    baseDb, tmpDb, name := SwitchToTmpDb()
+    defer DropTmpDB(baseDb, tmpDb, name)
+
+    // Prepare file
+    sha1 := "abcdef123456"
+    if err := AddFile("lang_o_norav_part-a_2016-12-31_source.mp4", sha1, 111); err != nil {
+        t.Error("Could not create file.", err)
+    }
+
+    origFileName := "lang_o_norav_part-a_2016-12-31_orig.mp4"
+    proxyFileName := "lang_o_norav_part-a_2016-12-31_proxy.mp4"
+    demux := rest.Demux{
+        Operation: rest.Operation{
+            Station: "a station",
+            User: "operator@dev.com",
+        },
+        Sha1: "abcdef123456",
+        Original: rest.FileUpdate{
+            FileName: origFileName,
+            Sha1: "aaaaaa111111",
+            Size: 111,
+        },
+        Proxy: rest.FileUpdate{
+            FileName: proxyFileName,
+            Sha1: "bbbbbb222222",
+            Size: 222,
+        },
+    }
+    if err := Demux(demux); err != nil {
+        t.Error("Demux should succeed.", err)
+    }
+
+    orig := models.File{Name: origFileName}
+    db.Where(&orig).First(&orig)
+    if !orig.Sha1.Valid || hex.EncodeToString([]byte(orig.Sha1.String)) != demux.Original.Sha1 {
+        t.Error(fmt.Sprintf("Expected sha1 %s got %s", demux.Original.Sha1, orig.Sha1.String))
+    }
+    if orig.Size != demux.Original.Size {
+        t.Error(fmt.Sprintf("Expected size %d got %d", demux.Original.Size, orig.Size))
+    }
+    proxy := models.File{Name: proxyFileName}
+    db.Where(&proxy).First(&proxy)
+    if !proxy.Sha1.Valid || hex.EncodeToString([]byte(proxy.Sha1.String)) != demux.Proxy.Sha1 {
+        t.Error(fmt.Sprintf("Expected sha1 %s got %s", demux.Proxy.Sha1, proxy.Sha1.String))
+    }
+    if proxy.Size != demux.Proxy.Size {
+        t.Error(fmt.Sprintf("Expected size %d got %d", demux.Proxy.Size, proxy.Size))
+    }
+    sha1NullString, _ := Sha1ToNullString(sha1)
+    source := models.File{Sha1: sha1NullString}
+    db.Where(&source).First(&source)
+    if uint64(proxy.ParentID.Int64) != source.ID {
+        t.Error(fmt.Sprintf("Bad proxy parent id %d, expected %d", proxy.ParentID, source.ID))
+    }
+}
+
+func TestSend(t *testing.T) {
+    baseDb, tmpDb, name := SwitchToTmpDb()
+    defer DropTmpDB(baseDb, tmpDb, name)
+
+    // Prepare file
+    sha1 := "abcdef123456"
+    if err := AddFile("lang_o_norav_part-a_2016-12-31_source.mp4", sha1, 111); err != nil {
+        t.Error("Could not create file.", err)
+    }
+
+    destFileName := "lang_o_norav_part-a_2016-12-31_dest.mp4"
+    send := rest.Send{
+        Operation: rest.Operation{
+            Station: "a station",
+            User: "operator@dev.com",
+        },
+        Sha1: sha1,
+        Dest: rest.FileUpdate{
+            FileName: destFileName,
+            Sha1: "cccccc333333",
+            Size: 333,
+        },
+    }
+    if err := Send(send); err != nil {
+        t.Error("Send should succeed.", err)
+    }
+
+    dest := models.File{Name: destFileName}
+    db.Where(&dest).First(&dest)
+    if !dest.Sha1.Valid || hex.EncodeToString([]byte(dest.Sha1.String)) != send.Dest.Sha1 {
+        t.Error(fmt.Sprintf("Expected sha1 %s got %s", send.Dest.Sha1, dest.Sha1.String))
+    }
+    if dest.Size != send.Dest.Size {
+        t.Error(fmt.Sprintf("Expected size %d got %d", send.Dest.Size, dest.Size))
     }
 }
 
