@@ -114,7 +114,6 @@ CREATE TABLE files (
   sha1              BYTEA UNIQUE                                    NOT NULL,
   operation_id      BIGINT REFERENCES operations                    NULL,
   content_unit_id   BIGINT REFERENCES content_units                 NULL,
-  -- parent_id         BIGINT REFERENCES files                         NULL,
   created_at        TIMESTAMP WITH TIME ZONE DEFAULT now_utc()      NOT NULL,
   language          CHAR(2)                                         NULL,
   --   mm_duration       INTEGER                                        NULL,  -- multimedia playing time in seconds, should be in properties field

@@ -21,3 +21,11 @@ func GenerateName(n int) string {
     }
     return string(b)
 }
+
+func FilterErrors(errs []error) []error {
+    ret := make([]error, 0)
+    for _, e := range errs {
+        ret = append(ret, e)
+    }
+    return ret
+}
