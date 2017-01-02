@@ -128,21 +128,16 @@ func ValidateCapture(start rest.CaptureStart) (
 }
 
 func CaptureStart(start rest.CaptureStart) error {
-    fmt.Printf("Start 1")
     collectionType, contentUnitType, fileName, err := ValidateCapture(start)
     if err != nil {
         return DalError{err: fmt.Sprintf("Failed validating capture: %s", err.Error())}
     }
-
-    fmt.Printf("Start 2")
 
     var o models.Operation
     o, err = CreateOperation(start.Operation)
     if err != nil {
         return DalError{err: fmt.Sprintf("Failed creating operation: %s", err.Error())}
     }
-
-    fmt.Printf("Start 33")
 
     // Execute (change DB).
     var c = models.Collection{ExternalID: start.CaptureID}
@@ -161,7 +156,6 @@ func CaptureStart(start rest.CaptureStart) error {
             return DalError{err: fmt.Sprintf("Failed adding collection to db: %s", err.Error())}
         }
     }
-    fmt.Printf("Start done!")
 
     var cu = models.ContentUnit{
         Type: *contentUnitType,
@@ -180,7 +174,6 @@ func CaptureStart(start rest.CaptureStart) error {
         ContentUnit: cu,
         Name: fileName.Part,
     }
-    fmt.Printf("Start done!")
     if err := db.Create(&m2m).Error; err != nil {
         return DalError{err: fmt.Sprintf("Failed adding collections content unit relation to db: %s", err.Error())}
     }
@@ -188,7 +181,6 @@ func CaptureStart(start rest.CaptureStart) error {
     if err := db.Create(&o).Error; err != nil {
         return DalError{err: fmt.Sprintf("Failed adding operation to db: %s", err.Error())}
     }
-    fmt.Printf("Start done!")
 
     var f = models.File{
         UID: utils.GenerateUID(8),
@@ -199,8 +191,6 @@ func CaptureStart(start rest.CaptureStart) error {
     if err := db.Create(&f).Error; err != nil {
         return DalError{err: fmt.Sprintf("Failed adding file to db: %s", err.Error())}
     }
-
-    fmt.Printf("Start done!")
 
     return nil
 }
