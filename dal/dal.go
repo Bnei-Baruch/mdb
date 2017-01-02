@@ -28,6 +28,7 @@ func InitByUrl(url string) (*gorm.DB, error) {
     var err error
     fmt.Printf("Connecting to database: %s\n", url)
 	db, err = gorm.Open("postgres", url)
+    db.LogMode(true)
 	if err != nil {
         return nil, DalError{err: "Error opening db.", reason: err}
 	}
@@ -146,7 +147,7 @@ func CaptureStart(start rest.CaptureStart) error {
         c = models.Collection{
             ExternalID: start.CaptureID,
             UID: utils.GenerateUID(8),
-            Type: *collectionType,
+            TypeID: collectionType.ID,
             TranslatedContent: models.TranslatedContent{
                 Name: models.StringTranslation{Text: "Collection name"},
                 Description: models.StringTranslation{Text: "Collection description"},
@@ -158,7 +159,7 @@ func CaptureStart(start rest.CaptureStart) error {
     }
 
     var cu = models.ContentUnit{
-        Type: *contentUnitType,
+        TypeID: contentUnitType.ID,
         UID: utils.GenerateUID(8),
         TranslatedContent: models.TranslatedContent{
             Name: models.StringTranslation{Text: "Content unit name"},
@@ -305,7 +306,7 @@ func Demux(demux rest.Demux) error {
 
     fmt.Printf("Operation: %+v\n", o)
 
-    if err := db.Debug().Create(&origFile).Error; err != nil {
+    if err := db.Create(&origFile).Error; err != nil {
         return DalError{err: fmt.Sprintf("Failed creating orig file: %s", err.Error())}
     }
 

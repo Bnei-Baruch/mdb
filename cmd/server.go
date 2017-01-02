@@ -14,6 +14,8 @@ import (
 	"gopkg.in/gin-contrib/cors.v1"
 
 	"net/http"
+    "math/rand"
+    "time"
 )
 
 var serverCmd = &cobra.Command{
@@ -36,6 +38,7 @@ func serverDefaults() {
 }
 
 func serverFn(cmd *cobra.Command, args []string) {
+    rand.Seed(time.Now().UTC().UnixNano())
 	serverDefaults()
 
 	// Setup logging
@@ -59,6 +62,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()),
 		utils.ErrorHandlingMiddleware(),
+        utils.GinBodyLogMiddleware,
 		cors.Default(),
 		recovery)
 
