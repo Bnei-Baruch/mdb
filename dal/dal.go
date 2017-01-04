@@ -59,7 +59,7 @@ type FileName struct {
 }
 
 func ParseFileName(name string) (*FileName, error) {
-	format := "Expected file name is <lang>_o_<rav/norav>_<part-a>_<2006-01-02>_<anyhing else>.mp4"
+	format := "Expected file name is [lang]_o_[rav/norav]_[part-a]_[2006-01-02]_[anyhing else].mp4"
 	fn := FileName{
 		Name: name,
 		Base: filepath.Base(name),
@@ -88,7 +88,7 @@ func ParseFileName(name string) (*FileName, error) {
 	}
 	fn.DateStr = parts[4]
 
-	return &fn, nil
+    return &fn, nil
 }
 
 // Validates operation input and creates object (without inserting to db).
