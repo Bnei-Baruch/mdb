@@ -59,15 +59,16 @@ type FileName struct {
 }
 
 func ParseFileName(name string) (*FileName, error) {
+    format := "Expected file name is <lang>_o_<rav/norav>_<part-a>_<2006-01-02>_<anyhing else>.mp4"
     fn := FileName{
         Name: name,
         Base: filepath.Base(name),
-        Type: filepath.Ext(name)[1:],
+        Type: strings.Replace(filepath.Ext(name), ".", "", 1),
     }
     parts := strings.Split(strings.TrimSuffix(fn.Base, filepath.Ext(fn.Base)), "_")
     if len(parts) < 4 {
         return nil, DalError{err: fmt.Sprintf(
-            "Bad filename, expected at least 4 parts, found %d: %s", len(parts), parts)}
+            "Bad filename, expected at least 4 parts, found %d: %s. %s", len(parts), parts, format)}
     }
     fn.Language = parts[0]
     if parts[2] == "rav" {
@@ -76,14 +77,14 @@ func ParseFileName(name string) (*FileName, error) {
         fn.Rav = false
     } else {
         return nil, DalError{err: fmt.Sprintf(
-            "Bad filename, expected rav/norav got %s", parts[2])}
+            "Bad filename, expected rav/norav got %s. %s", parts[2], format)}
     }
     fn.Part = parts[3]
     var err error
     fn.Date, err = time.Parse("2006-01-02", parts[4])
     if err != nil {
         return nil, DalError{err: fmt.Sprintf(
-            "Bad filename, could not parse date (%s): %s", parts[4], err.Error())}
+            "Bad filename, could not parse date (%s): %s. %s", parts[4], err.Error(), format)}
     }
     fn.DateStr = parts[4]
 
