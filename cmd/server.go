@@ -62,7 +62,11 @@ func serverFn(cmd *cobra.Command, args []string) {
 		cors.Default(),
 		recovery)
 
+    dal.Init()
 	router.POST("/operations/capture_start", CaptureStartHandler)
+	router.POST("/operations/capture_stop", CaptureStopHandler)
+	router.POST("/operations/demux", DemuxHandler)
+	router.POST("/operations/send", SendHandler)
 
 	collections := router.Group("collections")
 	collections.POST("/", rest.CollectionsCreateHandler)
@@ -81,14 +85,43 @@ func serverFn(cmd *cobra.Command, args []string) {
 }
 
 // Handlers
+type HandlerFunc func() error
+
+func Handle(c *gin.Context, h HandlerFunc) {
+    if err := h(); err == nil {
+        c.JSON(http.StatusOK, gin.H{"status": "ok"})
+    } else {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "status": "error",
+            "error": err.Error(),
+        })
+    }
+}
+
 func CaptureStartHandler(c *gin.Context) {
 	var cs rest.CaptureStart
 	if c.BindJSON(&cs) == nil {
-        if err := dal.CaptureStart(cs); err != nil {
-            c.JSON(http.StatusOK, gin.H{"status": "ok"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
-        }
-	}
+        Handle(c, func() error { return dal.CaptureStart(cs) })
+    }
 }
 
+func CaptureStopHandler(c *gin.Context) {
+	var cs rest.CaptureStop
+	if c.BindJSON(&cs) == nil {
+        Handle(c, func() error { return dal.CaptureStop(cs) })
+    }
+}
+
+func DemuxHandler(c *gin.Context) {
+    var demux rest.Demux
+	if c.BindJSON(&demux) == nil {
+        Handle(c, func() error { return dal.Demux(demux) })
+    }
+}
+
+func SendHandler(c *gin.Context) {
+    var send rest.Send
+	if c.BindJSON(&send) == nil {
+        Handle(c, func() error { return dal.Send(send) })
+    }
+}

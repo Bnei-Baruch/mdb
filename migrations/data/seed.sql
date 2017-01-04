@@ -1,4 +1,5 @@
 -- rambler up
+
 INSERT INTO content_types (name) VALUES
   -- Collection Types
   ('DAILY_LESSON'),
@@ -27,4 +28,9 @@ INSERT INTO content_types (name) VALUES
   ('TEXT');
 
 INSERT INTO operation_types (name) VALUES
-  ('mltcap');
+  ('capture_start'),
+  ('capture_stop'),
+  ('demux'),
+  ('send');
+
+-- rambler down
