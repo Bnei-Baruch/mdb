@@ -7,7 +7,6 @@ import (
 )
 
 type (
-
 	User struct {
 		ID        uint64 `gorm:"primary_key"`
 		Email     string `gorm:"type:varchar(64);unique_index"`
@@ -21,13 +20,13 @@ type (
 
 	OperationType struct {
 		ID          uint64 `gorm:"primary_key"`
-        Name        string
-        Description string
+		Name        string
+		Description string
 	}
 
 	Operation struct {
 		ID        uint64 `gorm:"primary_key"`
-        UID       string
+		UID       string
 		Type      OperationType `gorm:"ForeignKey:TypeID`
 		TypeID    uint64
 		CreatedAt time.Time
@@ -48,7 +47,7 @@ type (
 		ID           uint64
 		UID          string
 		TypeID       uint64
-        Type         ContentType `gorm:"ForeignKey:TypeID"`
+		Type         ContentType `gorm:"ForeignKey:TypeID"`
 		CreatedAt    time.Time
 		Properties   JsonB
 		ExternalID   string
@@ -56,17 +55,17 @@ type (
 		TranslatedContent
 	}
 
-    ContentType struct {
-        ID          uint64
-        Name        string
-        Description string
-    }
+	ContentType struct {
+		ID          uint64
+		Name        string
+		Description string
+	}
 
 	ContentUnit struct {
 		ID          uint64
 		UID         string
-        TypeID      uint64
-        Type        ContentType `gorm:"ForeignKey:TypeID;"`
+		TypeID      uint64
+		Type        ContentType `gorm:"ForeignKey:TypeID;"`
 		TranslatedContent
 		CreatedAt   time.Time
 		Properties  JsonB
@@ -74,27 +73,27 @@ type (
 		Collections []Collection `gorm:"many2many:collections_content_units;AssociationForeignKey:ID;ForeignKey:ID;"`
 	}
 
-    CollectionsContentUnit struct {
-        CollectionID    uint64
-        Collection      Collection `gorm:"ForeignKey:CollectionID;"`
-        ContentUnitID   uint64
-        ContentUnit     ContentUnit `gorm:"ForeignKey:ContentUnitID;"`
-        Name            string
-    }
+	CollectionsContentUnit struct {
+		CollectionID  uint64
+		Collection    Collection `gorm:"ForeignKey:CollectionID;"`
+		ContentUnitID uint64
+		ContentUnit   ContentUnit `gorm:"ForeignKey:ContentUnitID;"`
+		Name          string
+	}
 
 	File struct {
-		ID              uint64
-		UID             string
-		Name            string
-		Size            uint64
-		Type            string
-		SubType         string
-		MimeType        string
-		Sha1            []byte
-		OperationID     uint64
-        Operation       Operation `gorm:"ForeignKey:OperationID`
-		ContentUnitID   uint64
-		ContentUnit     ContentUnit `gorm:"ForeignKey:ContentUnitID`
+		ID            uint64
+		UID           string
+		Name          string
+		Size          uint64
+		Type          string
+		SubType       string
+		MimeType      string
+		Sha1          []byte
+		OperationID   uint64
+		Operation     Operation `gorm:"ForeignKey:OperationID`
+		ContentUnitID uint64
+		ContentUnit   ContentUnit `gorm:"ForeignKey:ContentUnitID`
 		// ParentID        uint64
 		CreatedAt       time.Time
 		Language        string
@@ -116,10 +115,6 @@ type (
 
 type JsonB map[string]interface{}
 
-func (StringTranslation) TableName() string {
-	return "strings"
-}
-
 func (j JsonB) Value() (driver.Value, error) {
 	valueString, err := json.Marshal(j)
 	return string(valueString), err
@@ -131,4 +126,3 @@ func (j *JsonB) Scan(value interface{}) error {
 	}
 	return nil
 }
-
