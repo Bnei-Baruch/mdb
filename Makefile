@@ -18,4 +18,5 @@ test:
 lint:
 	@golint $(GO_FILES) || true
 
-
+fmt:
+	@gofmt -w $(shell find . -type f -name '*.go' -not -path "./vendor/*")

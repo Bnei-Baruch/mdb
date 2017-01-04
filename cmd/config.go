@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"fmt"
+	"github.com/spf13/cobra"
 	"io/ioutil"
 )
 
@@ -22,8 +22,8 @@ url="postgres://localhost/mdb?sslmode=disable&user=postgres"
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Generate configuration file template",
-	Long: "Write default configuration to given file or stdout",
-	Run: configFn,
+	Long:  "Write default configuration to given file or stdout",
+	Run:   configFn,
 }
 
 func init() {
