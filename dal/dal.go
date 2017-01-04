@@ -28,6 +28,7 @@ func InitByUrl(url string) (*gorm.DB, error) {
     var err error
     fmt.Printf("Connecting to database: %s\n", url)
 	db, err = gorm.Open("postgres", url)
+    db.LogMode(true)
 	if err != nil {
         return nil, DalError{err: "Error opening db.", reason: err}
 	}
@@ -58,15 +59,16 @@ type FileName struct {
 }
 
 func ParseFileName(name string) (*FileName, error) {
+    format := "Expected file name is <lang>_o_<rav/norav>_<part-a>_<2006-01-02>_<anyhing else>.mp4"
     fn := FileName{
         Name: name,
         Base: filepath.Base(name),
-        Type: filepath.Ext(name)[1:],
+        Type: strings.Replace(filepath.Ext(name), ".", "", 1),
     }
     parts := strings.Split(strings.TrimSuffix(fn.Base, filepath.Ext(fn.Base)), "_")
     if len(parts) < 4 {
         return nil, DalError{err: fmt.Sprintf(
-            "Bad filename, expected at least 4 parts, found %d: %s", len(parts), parts)}
+            "Bad filename, expected at least 4 parts, found %d: %s. %s", len(parts), parts, format)}
     }
     fn.Language = parts[0]
     if parts[2] == "rav" {
@@ -75,14 +77,14 @@ func ParseFileName(name string) (*FileName, error) {
         fn.Rav = false
     } else {
         return nil, DalError{err: fmt.Sprintf(
-            "Bad filename, expected rav/norav got %s", parts[2])}
+            "Bad filename, expected rav/norav got %s. %s", parts[2], format)}
     }
     fn.Part = parts[3]
     var err error
     fn.Date, err = time.Parse("2006-01-02", parts[4])
     if err != nil {
         return nil, DalError{err: fmt.Sprintf(
-            "Bad filename, could not parse date (%s): %s", parts[4], err.Error())}
+            "Bad filename, could not parse date (%s): %s. %s", parts[4], err.Error(), format)}
     }
     fn.DateStr = parts[4]
 
@@ -128,21 +130,16 @@ func ValidateCapture(start rest.CaptureStart) (
 }
 
 func CaptureStart(start rest.CaptureStart) error {
-    fmt.Printf("Start 1")
     collectionType, contentUnitType, fileName, err := ValidateCapture(start)
     if err != nil {
         return DalError{err: fmt.Sprintf("Failed validating capture: %s", err.Error())}
     }
-
-    fmt.Printf("Start 2")
 
     var o models.Operation
     o, err = CreateOperation(start.Operation)
     if err != nil {
         return DalError{err: fmt.Sprintf("Failed creating operation: %s", err.Error())}
     }
-
-    fmt.Printf("Start 33")
 
     // Execute (change DB).
     var c = models.Collection{ExternalID: start.CaptureID}
@@ -151,7 +148,7 @@ func CaptureStart(start rest.CaptureStart) error {
         c = models.Collection{
             ExternalID: start.CaptureID,
             UID: utils.GenerateUID(8),
-            Type: *collectionType,
+            TypeID: collectionType.ID,
             TranslatedContent: models.TranslatedContent{
                 Name: models.StringTranslation{Text: "Collection name"},
                 Description: models.StringTranslation{Text: "Collection description"},
@@ -161,10 +158,9 @@ func CaptureStart(start rest.CaptureStart) error {
             return DalError{err: fmt.Sprintf("Failed adding collection to db: %s", err.Error())}
         }
     }
-    fmt.Printf("Start done!")
 
     var cu = models.ContentUnit{
-        Type: *contentUnitType,
+        TypeID: contentUnitType.ID,
         UID: utils.GenerateUID(8),
         TranslatedContent: models.TranslatedContent{
             Name: models.StringTranslation{Text: "Content unit name"},
@@ -180,7 +176,6 @@ func CaptureStart(start rest.CaptureStart) error {
         ContentUnit: cu,
         Name: fileName.Part,
     }
-    fmt.Printf("Start done!")
     if err := db.Create(&m2m).Error; err != nil {
         return DalError{err: fmt.Sprintf("Failed adding collections content unit relation to db: %s", err.Error())}
     }
@@ -188,7 +183,6 @@ func CaptureStart(start rest.CaptureStart) error {
     if err := db.Create(&o).Error; err != nil {
         return DalError{err: fmt.Sprintf("Failed adding operation to db: %s", err.Error())}
     }
-    fmt.Printf("Start done!")
 
     var f = models.File{
         UID: utils.GenerateUID(8),
@@ -199,8 +193,6 @@ func CaptureStart(start rest.CaptureStart) error {
     if err := db.Create(&f).Error; err != nil {
         return DalError{err: fmt.Sprintf("Failed adding file to db: %s", err.Error())}
     }
-
-    fmt.Printf("Start done!")
 
     return nil
 }
@@ -315,7 +307,7 @@ func Demux(demux rest.Demux) error {
 
     fmt.Printf("Operation: %+v\n", o)
 
-    if err := db.Debug().Create(&origFile).Error; err != nil {
+    if err := db.Create(&origFile).Error; err != nil {
         return DalError{err: fmt.Sprintf("Failed creating orig file: %s", err.Error())}
     }
 

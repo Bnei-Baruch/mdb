@@ -222,6 +222,9 @@ func TestParseFilename(t *testing.T) {
     if e := "could not parse date"; err == nil || !strings.Contains(err.Error(), e) {
         t.Error(fmt.Sprintf("ParseFileName should contain %s, got %s.", e, err))
     }
+
+    // Make sure code does not crash.
+    ParseFileName("2017-01-04_02-40-19")
 }
 
 func AddFile(FileName string, Sha1 string, Size uint64) error {
