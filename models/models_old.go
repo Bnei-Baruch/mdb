@@ -22,7 +22,7 @@ type (
 		UpdatedAt    time.Time
 		Lang         string
 		PlaytimeSecs int
-		FileAssets   []FileAsset  `gorm:"many2many:containers_file_assets;"`
+		FileAssets   []FileAsset `gorm:"many2many:containers_file_assets;"`
 		Descriptions []ContainerDescription
 	}
 

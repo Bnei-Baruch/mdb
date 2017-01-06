@@ -1,5 +1,3 @@
--- rambler up
-
 INSERT INTO content_types (name) VALUES
   -- Collection Types
   ('DAILY_LESSON'),
@@ -26,11 +24,3 @@ INSERT INTO content_types (name) VALUES
   ('VIDEO_PROGRAM_CHAPTER'),
   ('FULL_LESSON'),
   ('TEXT');
-
-INSERT INTO operation_types (name) VALUES
-  ('capture_start'),
-  ('capture_stop'),
-  ('demux'),
-  ('send');
-
--- rambler down

@@ -71,6 +71,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	router.POST("/operations/capture_stop", CaptureStopHandler)
 	router.POST("/operations/demux", DemuxHandler)
 	router.POST("/operations/send", SendHandler)
+	router.POST("/operations/upload", UploadHandler)
 
 	collections := router.Group("collections")
 	collections.POST("/", rest.CollectionsCreateHandler)
@@ -127,5 +128,12 @@ func SendHandler(c *gin.Context) {
 	var send rest.Send
 	if c.BindJSON(&send) == nil {
 		Handle(c, func() error { return dal.Send(send) })
+	}
+}
+
+func UploadHandler(c *gin.Context) {
+	var upload rest.Upload
+	if c.BindJSON(&upload) == nil {
+		Handle(c, func() error { return dal.Upload(upload) })
 	}
 }

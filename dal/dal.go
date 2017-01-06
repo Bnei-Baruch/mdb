@@ -377,3 +377,26 @@ func Send(send rest.Send) error {
 
 	return nil
 }
+
+func Upload(upload rest.Upload) error {
+	o, err := CreateOperation("upload", upload.Operation)
+	if err != nil {
+		return err
+	}
+
+	sha1, err := Sha1ToNullString(upload.Sha1)
+	if err != nil {
+		return DalError{err: fmt.Sprintf("Cannot convert sha1 %s to []bytes.", upload.Sha1)}
+	}
+
+	f := models.File{Sha1: sha1}
+	if errs := db.Where(&f).First(&f).GetErrors(); len(errs) > 0 {
+		return DalError{err: fmt.Sprintf("Could not find file by Sha1 %s, got errors: %s", upload.Sha1, errs)}
+	}
+
+	if err := db.Create(&o).Error; err != nil {
+		return DalError{err: fmt.Sprintf("Failed adding operation to db: %s", err.Error())}
+	}
+
+    return nil
+}

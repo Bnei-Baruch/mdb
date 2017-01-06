@@ -38,4 +38,12 @@ type (
 		Sha1 string `json:"sha1" binding:"required,max=40"`
 		Dest FileUpdate
 	}
+
+	Upload struct {
+		Operation
+		FileUpdate
+		Url          string `json:"url" binding:"required"`
+		Duration     uint64 `json:"duration"`
+		ExistingSha1 string `json:"sha1" binding:"max=40"`
+	}
 )
