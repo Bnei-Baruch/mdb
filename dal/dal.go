@@ -190,11 +190,11 @@ func FindFileByExternalIDAndFileName(externalID sql.NullString, fileName string)
 		// 	"files.name = $1 and collections.external_id = $2 and "+
 		// 	"collections.id = collections_content_units.collection_id and "+
 		// 	"files.content_unit_id = collections_content_units.content_unit_id",
-        "select files.id from files, collections, collections_content_units where " +
-        "files.name = $1 and collections.external_id is NULL and " +
-        "collections.id = collections_content_units.collection_id and " +
-        "files.content_unit_id = collections_content_units.content_unit_id",
-		fileName/*, externalID*/).Scan(&id); err != nil {
+		"select files.id from files, collections, collections_content_units where "+
+			"files.name = $1 and collections.external_id is NULL and "+
+			"collections.id = collections_content_units.collection_id and "+
+			"files.content_unit_id = collections_content_units.content_unit_id",
+		fileName /*, externalID*/).Scan(&id); err != nil {
 		return f, DalError{err: fmt.Sprintf("Failed fetching file id due to %s", err.Error())}
 	}
 	f.ID = id
@@ -225,7 +225,7 @@ func CaptureStop(stop rest.CaptureStop) error {
 		return DalError{err: fmt.Sprintf("Cannot convert sha1 %s to []bytes.", stop.Sha1)}
 	}
 
-    f, err := FindFileByExternalIDAndFileName(/* stop.CaptureID */ sql.NullString{Valid:false}, stop.FileName)
+	f, err := FindFileByExternalIDAndFileName( /* stop.CaptureID */ sql.NullString{Valid: false}, stop.FileName)
 	if err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func CaptureStop(stop rest.CaptureStop) error {
 	f.Sha1 = sha1
 	f.Size = stop.Size
 
-    ccu := models.CollectionsContentUnit{ContentUnitID: f.ContentUnitID}
+	ccu := models.CollectionsContentUnit{ContentUnitID: f.ContentUnitID}
 	if errs := db.Where(&ccu).First(&ccu).GetErrors(); len(errs) > 0 {
 		return DalError{err: fmt.Sprintf("Could not get collection content unit %s", errs)}
 	}
