@@ -88,11 +88,11 @@ func ParseFileName(name string) (*FileName, error) {
 	}
 	fn.DateStr = parts[4]
 
-    return &fn, nil
+	return &fn, nil
 }
 
 // Validates operation input and creates object (without inserting to db).
-func CreateOperation(o rest.Operation) (models.Operation, error) {
+func CreateOperation(name string, o rest.Operation) (models.Operation, error) {
 	ret := models.Operation{UID: utils.GenerateUID(8), Station: o.Station}
 	var u = models.User{Email: o.User}
 	if db.Where(&u).First(&u).RecordNotFound() {
@@ -100,63 +100,48 @@ func CreateOperation(o rest.Operation) (models.Operation, error) {
 	}
 	ret.User = u
 
-	var t = models.OperationType{Name: o.Type}
+	var t = models.OperationType{Name: name}
 	if db.Where(&t).First(&t).RecordNotFound() {
-		return ret, DalError{err: fmt.Sprintf("Operation type %s not found.", o.Type)}
+		return ret, DalError{err: fmt.Sprintf("Operation type %s not found.", name)}
 	}
 	ret.Type = t
 
 	return ret, nil
 }
 
-func ValidateCapture(start rest.CaptureStart) (
-	*models.ContentType, *models.ContentType, *FileName, error) {
-	var dl = models.ContentType{Name: "DAILY_LESSON"}
-	if db.Where(&dl).First(&dl).RecordNotFound() {
-		return nil, nil, nil, DalError{err: "Failed fetching \"DAILY_LESSON\" content type from db"}
-	}
-
-	var lp = models.ContentType{Name: "LESSON_PART"}
-	if db.Where(&lp).First(&lp).RecordNotFound() {
-		return nil, nil, nil, DalError{err: "Failed fetching \"LESSON_PART\" content type from db"}
-	}
-
-	fn, err := ParseFileName(start.FileName)
-	if err != nil {
-		return nil, nil, nil, DalError{err: "Error parsing filename.", reason: err}
-	}
-
-	return &dl, &lp, fn, err
-}
-
 func CaptureStart(start rest.CaptureStart) error {
-	collectionType, contentUnitType, fileName, err := ValidateCapture(start)
-	if err != nil {
-		return DalError{err: fmt.Sprintf("Failed validating capture: %s", err.Error())}
+	var collectionType = models.ContentType{Name: "DAILY_LESSON"}
+	if db.Where(&collectionType).First(&collectionType).RecordNotFound() {
+		return DalError{err: "Failed fetching \"DAILY_LESSON\" content type from db"}
 	}
 
-	var o models.Operation
-	o, err = CreateOperation(start.Operation)
+	var contentUnitType = models.ContentType{Name: "LESSON_PART"}
+	if db.Where(&contentUnitType).First(&contentUnitType).RecordNotFound() {
+		return DalError{err: "Failed fetching \"LESSON_PART\" content type from db"}
+	}
+
+	o, err := CreateOperation("capture_start", start.Operation)
 	if err != nil {
 		return DalError{err: fmt.Sprintf("Failed creating operation: %s", err.Error())}
 	}
 
 	// Execute (change DB).
-	var c = models.Collection{ExternalID: start.CaptureID}
-	if db.Where(&c).First(&c).RecordNotFound() {
-		// Could not find collection by external id, create new.
-		c = models.Collection{
-			ExternalID: start.CaptureID,
-			UID:        utils.GenerateUID(8),
-			TypeID:     collectionType.ID,
-			TranslatedContent: models.TranslatedContent{
-				Name:        models.StringTranslation{Text: "Collection name"},
-				Description: models.StringTranslation{Text: "Collection description"},
-			},
-		}
-		if err := db.Create(&c).Error; err != nil {
-			return DalError{err: fmt.Sprintf("Failed adding collection to db: %s", err.Error())}
-		}
+	// var c = models.Collection{ExternalID: start.CaptureID}
+	// if db.Where(&c).First(&c).RecordNotFound() {
+	// Could not find collection by external id, create new.
+	c := models.Collection{
+		// CaptureID is unique per file, currently we are missing identifier per lesson.
+		// ExternalID: start.CaptureID,
+		ExternalID: sql.NullString{Valid: false},
+		UID:        utils.GenerateUID(8),
+		TypeID:     collectionType.ID,
+		TranslatedContent: models.TranslatedContent{
+			Name:        models.StringTranslation{Text: "Collection name"},
+			Description: models.StringTranslation{Text: "Collection description"},
+		},
+	}
+	if err := db.Create(&c).Error; err != nil {
+		return DalError{err: fmt.Sprintf("Failed adding collection to db: %s", err.Error())}
 	}
 
 	var cu = models.ContentUnit{
@@ -174,7 +159,6 @@ func CaptureStart(start rest.CaptureStart) error {
 	var m2m = models.CollectionsContentUnit{
 		Collection:  c,
 		ContentUnit: cu,
-		Name:        fileName.Part,
 	}
 	if err := db.Create(&m2m).Error; err != nil {
 		return DalError{err: fmt.Sprintf("Failed adding collections content unit relation to db: %s", err.Error())}
@@ -197,16 +181,20 @@ func CaptureStart(start rest.CaptureStart) error {
 	return nil
 }
 
-func FindFileByExternalIDAndFileName(externalID string, fileName string) (models.File, error) {
+func FindFileByExternalIDAndFileName(externalID sql.NullString, fileName string) (models.File, error) {
 	// Select file by ExternalID and FileName
 	var id uint64
 	f := models.File{}
 	if err := db.CommonDB().QueryRow(
+		// "select files.id from files, collections, collections_content_units where "+
+		// 	"files.name = $1 and collections.external_id = $2 and "+
+		// 	"collections.id = collections_content_units.collection_id and "+
+		// 	"files.content_unit_id = collections_content_units.content_unit_id",
 		"select files.id from files, collections, collections_content_units where "+
-			"files.name = $1 and collections.external_id = $2 and "+
+			"files.name = $1 and collections.external_id is NULL and "+
 			"collections.id = collections_content_units.collection_id and "+
 			"files.content_unit_id = collections_content_units.content_unit_id",
-		fileName, externalID).Scan(&id); err != nil {
+		fileName /*, externalID*/).Scan(&id); err != nil {
 		return f, DalError{err: fmt.Sprintf("Failed fetching file id due to %s", err.Error())}
 	}
 	f.ID = id
@@ -217,13 +205,17 @@ func FindFileByExternalIDAndFileName(externalID string, fileName string) (models
 }
 
 func CaptureStop(stop rest.CaptureStop) error {
-	_, _, _, err := ValidateCapture(stop.CaptureStart)
-	if err != nil {
-		return err
+	var collectionType = models.ContentType{Name: "DAILY_LESSON"}
+	if db.Where(&collectionType).First(&collectionType).RecordNotFound() {
+		return DalError{err: "Failed fetching \"DAILY_LESSON\" content type from db"}
 	}
 
-	var o models.Operation
-	o, err = CreateOperation(stop.Operation)
+	var contentUnitType = models.ContentType{Name: "LESSON_PART"}
+	if db.Where(&contentUnitType).First(&contentUnitType).RecordNotFound() {
+		return DalError{err: "Failed fetching \"LESSON_PART\" content type from db"}
+	}
+
+	o, err := CreateOperation("capture_stop", stop.Operation)
 	if err != nil {
 		return err
 	}
@@ -233,8 +225,7 @@ func CaptureStop(stop rest.CaptureStop) error {
 		return DalError{err: fmt.Sprintf("Cannot convert sha1 %s to []bytes.", stop.Sha1)}
 	}
 
-	// Execute (change DB).
-	f, err := FindFileByExternalIDAndFileName(stop.CaptureID, stop.FileName)
+	f, err := FindFileByExternalIDAndFileName( /* stop.CaptureID */ sql.NullString{Valid: false}, stop.FileName)
 	if err != nil {
 		return err
 	}
@@ -248,6 +239,17 @@ func CaptureStop(stop rest.CaptureStop) error {
 	}
 	f.Sha1 = sha1
 	f.Size = stop.Size
+
+	ccu := models.CollectionsContentUnit{ContentUnitID: f.ContentUnitID}
+	if errs := db.Where(&ccu).First(&ccu).GetErrors(); len(errs) > 0 {
+		return DalError{err: fmt.Sprintf("Could not get collection content unit %s", errs)}
+	}
+
+	// Execute (change DB).
+	if errs := db.Model(&ccu).Update(models.CollectionsContentUnit{Name: stop.Part}).GetErrors(); len(errs) > 0 {
+		return DalError{err: fmt.Sprintf("Failed updating collection content unit: %s", errs)}
+	}
+
 	if errs := utils.FilterErrors(db.Model(&f).Update(&f).GetErrors()); len(errs) > 0 {
 		return DalError{err: fmt.Sprintf("Failed updating file in db: %s", errs)}
 	}
@@ -275,7 +277,7 @@ func CreateFile(update rest.FileUpdate) (models.File, error) {
 }
 
 func Demux(demux rest.Demux) error {
-	o, err := CreateOperation(demux.Operation)
+	o, err := CreateOperation("demux", demux.Operation)
 	if err != nil {
 		return err
 	}
@@ -286,7 +288,6 @@ func Demux(demux rest.Demux) error {
 	}
 
 	f := models.File{Sha1: sha1}
-	db.Where(&f).First(&f)
 	if errs := db.Where(&f).First(&f).GetErrors(); len(errs) > 0 {
 		return DalError{err: fmt.Sprintf("Could not find file %+v by Sha1, got errors: %s", f, errs)}
 	}
@@ -337,7 +338,7 @@ func Sha1ToNullString(sha1 string) (sql.NullString, error) {
 }
 
 func Send(send rest.Send) error {
-	o, err := CreateOperation(send.Operation)
+	o, err := CreateOperation("send", send.Operation)
 	if err != nil {
 		return err
 	}
@@ -348,7 +349,6 @@ func Send(send rest.Send) error {
 	}
 
 	f := models.File{Sha1: sha1}
-	db.Where(&f).First(&f)
 	if errs := db.Where(&f).First(&f).GetErrors(); len(errs) > 0 {
 		return DalError{err: fmt.Sprintf("Could not find file %+v by Sha1, got errors: %s", f, errs)}
 	}
