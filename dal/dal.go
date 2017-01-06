@@ -246,7 +246,7 @@ func CaptureStop(stop rest.CaptureStop) error {
 	}
 
 	// Execute (change DB).
-	if errs := db.Model(&ccu).Update("name", stop.Part).GetErrors(); len(errs) > 0 {
+	if errs := db.Model(&ccu).Update(models.CollectionsContentUnit{Name: stop.Part}).GetErrors(); len(errs) > 0 {
 		return DalError{err: fmt.Sprintf("Failed updating collection content unit: %s", errs)}
 	}
 
