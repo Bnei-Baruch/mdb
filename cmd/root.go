@@ -13,8 +13,7 @@ var cfgFile string
 var RootCmd = &cobra.Command{
 	Use:   "mdb",
 	Short: "BB archive Metadata Database",
-	Long: `This system aims to be a single source of truth
-for all content produced by Bnei Baruch.`,
+	Long: `This system aims to be a single source of truth for all content produced by Bnei Baruch.`,
 }
 
 func Execute() {
@@ -37,6 +36,6 @@ func initConfig() {
 	viper.AddConfigPath(".")
 	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
-		fmt.Println("Could not read config, using: ", viper.ConfigFileUsed())
+		fmt.Println("Could not read config, using: ", viper.ConfigFileUsed(), err.Error())
 	}
 }

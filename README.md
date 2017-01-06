@@ -20,10 +20,14 @@ Run the server
 ```Shell
 mdb config <path>
 ```
- 
+
 Generate default configuration in the given path. If path is omitted STDOUT is used instead.
 **Note** that default value to config file is `config.toml` in project root directory.
 
+```Shell
+ mdb migration my-migration-name
+```
+Create new migration. (See Schema migrations section for more information).
 
 ```Shell
 mdb version
@@ -61,7 +65,12 @@ PRE_RELEASE=rc.1 misc/release.sh
 
 ## Schema Migrations
 We keep track of all changes to the MDB schema under `migrations`. 
-These are pure postgres sql scripts. Name pattern is `version_description.sql`.
+These are pure postgres sql scripts.
+To create a new migration file with name <my-migration-name> run in project root directory:
+```Shell
+mdb migration my-migration-name
+```
+This will create a migration file in migrations directory with name like: `2017-01-07_14:21:02_my-migration-name.sql`
 
 They play along well with [rambler](https://github.com/elwinar/rambler) A simple and language-independent SQL schema migration tool.
 Download the rambler executable for your system from the [release page](https://github.com/elwinar/rambler/releases).
@@ -78,7 +87,7 @@ Under `migrations` folder add a `rambler.json` config file. An example:
   "user": "",
   "password": "",
   "database": "mdb",
-  "directory": ".",
+  "directory": "migrations",
   "table": "migrations"
 }
 ```
@@ -88,7 +97,7 @@ Under `migrations` folder add a `rambler.json` config file. An example:
 On the command line:
 
 ```Shell
-rambler apply -a
+rambler -c migrations/rambler.json apply -a
 ```
 
 

@@ -3,14 +3,14 @@
 INSERT INTO content_types (name) VALUES
   -- Collection Types
   ('DAILY_LESSON'),
-  ('SHABBAT_LESSON'),
-  ('WEEKLY_YH'),
+  ('SATURDAY_LESSON'),
+  ('WEEKLY_FRIENDS_GATHERING'),
   ('CONGRESS'),
   ('VIDEO_PROGRAM'),
   ('LECTURE_SERIES'),
   ('MEALS'),
   ('HOLIDAY'),
-  ('PIKNIK'),
+  ('PICNIC'),
   ('UNITY_DAY'),
 
   -- Content Unit Types
@@ -21,7 +21,7 @@ INSERT INTO content_types (name) VALUES
   ('CAMPUS_LESSON'),
   ('LC_LESSON'),
   ('VIRTUAL_LESSON'),
-  ('YESHIVAT_HAVERIM'),
+  ('FRIENDS_GATHERING'),
   ('MEAL'),
   ('VIDEO_PROGRAM_CHAPTER'),
   ('FULL_LESSON'),
