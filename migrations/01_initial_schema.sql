@@ -51,7 +51,7 @@ CREATE TABLE operation_types (
 DROP TABLE IF EXISTS operations;
 CREATE TABLE operations (
   id         BIGSERIAL PRIMARY KEY,
-  uid         CHAR(8) UNIQUE                            NOT NULL,
+  uid        CHAR(8) UNIQUE                             NOT NULL,
   type_id    BIGINT REFERENCES operation_types          NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now_utc() NOT NULL,
   station    VARCHAR(255)                               NULL,
@@ -108,8 +108,8 @@ CREATE TABLE files (
   uid               CHAR(8) UNIQUE                                  NOT NULL,
   name              VARCHAR(255)                                    NOT NULL, -- physical file name
   size              BIGINT                                          NOT NULL, -- physical size in bytes
-  type              VARCHAR(16)                                     NOT NULL, --  audio, video, image, text
-  sub_type          VARCHAR(16)                                     NOT NULL, --  drawing, photo, song, lesson
+  type              VARCHAR(16)                                     NOT NULL, -- audio, video, image, text
+  sub_type          VARCHAR(16)                                     NOT NULL, -- drawing, photo, song, lesson
   mime_type         VARCHAR(255)                                    NULL,
   sha1              BYTEA UNIQUE                                    NOT NULL,
   operation_id      BIGINT REFERENCES operations                    NULL,
@@ -117,7 +117,7 @@ CREATE TABLE files (
   created_at        TIMESTAMP WITH TIME ZONE DEFAULT now_utc()      NOT NULL,
   language          CHAR(2)                                         NULL,
   --   mm_duration       INTEGER                                        NULL,  -- multimedia playing time in seconds, should be in properties field
-  --   vid_internal_id   VARCHAR(64)                                    NULL,   -- needs discussion with Amnon & Shaul maybe put in properties field
+  --   vid_internal_id   VARCHAR(64)                                    NULL,  -- needs discussion with Amnon & Shaul maybe put in properties field
   backup_count      SMALLINT DEFAULT 0                              NULL, -- number of existing backups
   first_backup_time TIMESTAMP WITH TIME ZONE                        NULL,
   properties        JSONB                                           NULL
