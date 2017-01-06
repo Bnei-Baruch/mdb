@@ -61,7 +61,12 @@ PRE_RELEASE=rc.1 misc/release.sh
 
 ## Schema Migrations
 We keep track of all changes to the MDB schema under `migrations`. 
-These are pure postgres sql scripts. Name pattern is `version_description.sql`.
+These are pure postgres sql scripts.
+To create a new migration file with name <my-migration-name> run in project root directory:
+```Shell
+mdb migration my-migration-name
+```
+This will create a migration file in migrations directory with name like: `2017-01-07_14:21:02_my-migration-name.sql`
 
 They play along well with [rambler](https://github.com/elwinar/rambler) A simple and language-independent SQL schema migration tool.
 Download the rambler executable for your system from the [release page](https://github.com/elwinar/rambler/releases).

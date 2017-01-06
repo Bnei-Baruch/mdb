@@ -116,10 +116,6 @@ type (
 
 type JsonB map[string]interface{}
 
-func (StringTranslation) TableName() string {
-	return "strings"
-}
-
 func (j JsonB) Value() (driver.Value, error) {
 	valueString, err := json.Marshal(j)
 	return string(valueString), err
