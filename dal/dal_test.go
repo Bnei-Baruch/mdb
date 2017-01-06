@@ -107,12 +107,12 @@ func TestCaptureStart(t *testing.T) {
 	// User not found.
 	cs := rest.CaptureStart{
 		Operation: rest.Operation{
-			Type:    "capture_start",
 			Station: "a station",
 			User:    "111operator@dev.com",
 		},
 		FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
 		CaptureID: "this.is.capture.id",
+        CaptureSource: "mltcap",
 	}
 
 	if err := CaptureStart(cs); err == nil ||
@@ -122,12 +122,12 @@ func TestCaptureStart(t *testing.T) {
 
 	cs = rest.CaptureStart{
 		Operation: rest.Operation{
-			Type:    "capture_start",
 			Station: "a station",
 			User:    "operator@dev.com",
 		},
 		FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
 		CaptureID: "this.is.capture.id",
+        CaptureSource: "mltcap",
 	}
 	if err := CaptureStart(cs); err != nil {
 		t.Error("CaptureStart should succeed.", err)
@@ -139,7 +139,6 @@ func TestCaptureStop(t *testing.T) {
 	defer DropTmpDB(baseDb, tmpDb, name)
 
 	op := rest.Operation{
-		Type:    "capture_start",
 		Station: "a station",
 		User:    "operator@dev.com",
 	}
@@ -147,6 +146,7 @@ func TestCaptureStop(t *testing.T) {
 		Operation: op,
 		FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
 		CaptureID: "this.is.capture.id",
+        CaptureSource: "mlpcap",
 	}
 	if err := CaptureStart(start); err != nil {
 		t.Error("CaptureStart should succeed.", err)
@@ -155,15 +155,16 @@ func TestCaptureStop(t *testing.T) {
 		Operation: op,
 		FileName:  "heb_o_rav_bs-igeret_2016-09-14_lesson.mp4",
 		CaptureID: "this.is.capture.id",
+        CaptureSource: "mlpcap",
 	}
 	if err := CaptureStart(start); err != nil {
 		t.Error("CaptureStart should succeed.", err)
 	}
 
 	sha1 := "abcd1234abcd1234abcd1234abcd1234abcd1234"
-	var size uint64 = 123
+    var size uint64 = 123
+    part := "full"
 	stopOp := rest.Operation{
-		Type:    "capture_stop",
 		Station: "a station",
 		User:    "operator@dev.com",
 	}
@@ -172,9 +173,11 @@ func TestCaptureStop(t *testing.T) {
 			Operation: stopOp,
 			FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
 			CaptureID: "this.is.capture.id",
+            CaptureSource: "mltcap",
 		},
 		Sha1: sha1,
 		Size: size,
+        Part: part,
 	}
 	if err := CaptureStop(stop); err != nil {
 		t.Error("CaptureStop should succeed.", err)
@@ -189,11 +192,21 @@ func TestCaptureStop(t *testing.T) {
 		t.Error(fmt.Sprintf("Expected size %d got %d", size, f.Size))
 	}
 
+    var cu models.ContentUnit
+    db.Model(&f).Related(&cu, "ContentUnit")
+
+    var ccu models.CollectionsContentUnit
+    db.Model(&cu).Related(&ccu, "CollectionsContentUnit")
+    if ccu.Name != part {
+        t.Error(fmt.Sprintf("Expected part %s, got %s", part, ccu.Name))
+    }
+
 	stop = rest.CaptureStop{
 		CaptureStart: rest.CaptureStart{
 			Operation: stopOp,
 			FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
 			CaptureID: "this.is.capture.id",
+            CaptureSource: "mltcap",
 		},
 		Sha1: "1111111111111111111111111111111111111111",
 		Size: 111,
@@ -228,7 +241,6 @@ func TestParseFilename(t *testing.T) {
 func AddFile(FileName string, Sha1 string, Size uint64) error {
 	start := rest.CaptureStart{
 		Operation: rest.Operation{
-			Type:    "capture_start",
 			Station: "a station",
 			User:    "operator@dev.com",
 		},
@@ -242,7 +254,6 @@ func AddFile(FileName string, Sha1 string, Size uint64) error {
 	stop := rest.CaptureStop{
 		CaptureStart: rest.CaptureStart{
 			Operation: rest.Operation{
-				Type:    "capture_stop",
 				Station: "a station",
 				User:    "operator@dev.com",
 			},
