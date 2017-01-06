@@ -1,10 +1,10 @@
 package rest
 
 import (
-	"gopkg.in/gin-gonic/gin.v1"
-	"net/http"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"gopkg.in/gin-gonic/gin.v1"
+	"net/http"
 )
 
 type CreateCollection struct {
@@ -29,4 +29,3 @@ func CollectionsCreateHandler(c *gin.Context) {
 	}
 
 }
-

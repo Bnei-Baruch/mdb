@@ -3,16 +3,21 @@ package utils
 import (
 	"github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
-	"time"
+
+	"bytes"
+	"fmt"
+	"io"
 	"net/http"
-	"github.com/stvp/rollbar"
+	"time"
+
 	"github.com/pkg/errors"
+	"github.com/stvp/rollbar"
 )
 
 func MdbLoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
-		path := c.Request.URL.Path  // some evil middleware modify this values
+		path := c.Request.URL.Path // some evil middleware modify this values
 
 		c.Next()
 
@@ -61,10 +66,53 @@ func ErrorHandlingMiddleware() gin.HandlerFunc {
 
 		if be := c.Errors.ByType(gin.ErrorTypeBind).Last(); be != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
-                "status": "error",
-                "error": be.Err.Error(),
-            })
+				"status": "error",
+				"error":  be.Err.Error(),
+			})
 		}
 	}
 }
 
+type bodyLogWriter struct {
+	gin.ResponseWriter
+	body *bytes.Buffer
+}
+
+func (w bodyLogWriter) Write(b []byte) (int, error) {
+	w.body.Write(b)
+	return w.ResponseWriter.Write(b)
+}
+
+type bodyLogReadCloser struct {
+	body   *bytes.Buffer
+	reader io.Reader
+	closer io.Closer
+}
+
+func (blr *bodyLogReadCloser) Close() error {
+	return blr.closer.Close()
+}
+
+func (blr bodyLogReadCloser) Read(p []byte) (n int, err error) {
+	return blr.reader.Read(p)
+}
+
+func GinBodyLogMiddleware(c *gin.Context) {
+	blr := &bodyLogReadCloser{
+		body:   bytes.NewBufferString(""),
+		closer: c.Request.Body,
+	}
+	blr.reader = io.TeeReader(c.Request.Body, blr.body)
+	c.Request.Body = blr
+
+	blw := &bodyLogWriter{
+		body:           bytes.NewBufferString(""),
+		ResponseWriter: c.Writer,
+	}
+	c.Writer = blw
+
+	c.Next()
+
+	fmt.Println("Request body: " + blr.body.String())
+	fmt.Println("Response body: " + blw.body.String())
+}
