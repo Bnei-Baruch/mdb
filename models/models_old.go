@@ -1,7 +1,7 @@
 package models
 
 import (
-"time"
+	"time"
 )
 
 type (
@@ -27,12 +27,10 @@ type (
 	}
 
 	ContainerDescription struct {
-		Id          int
-		Container   Container
-		ContainerID int
+		Id            int
+		Container     Container
+		ContainerID   int
 		ContainerDesc string
-		Lang string
+		Lang          string
 	}
 )
-
-
