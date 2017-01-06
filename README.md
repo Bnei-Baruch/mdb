@@ -20,10 +20,14 @@ Run the server
 ```Shell
 mdb config <path>
 ```
- 
+
 Generate default configuration in the given path. If path is omitted STDOUT is used instead.
 **Note** that default value to config file is `config.toml` in project root directory.
 
+```Shell
+ mdb migration my-migration-name
+```
+Create new migration. (See Schema migrations section for more information).
 
 ```Shell
 mdb version
@@ -83,7 +87,7 @@ Under `migrations` folder add a `rambler.json` config file. An example:
   "user": "",
   "password": "",
   "database": "mdb",
-  "directory": ".",
+  "directory": "migrations",
   "table": "migrations"
 }
 ```
@@ -93,7 +97,7 @@ Under `migrations` folder add a `rambler.json` config file. An example:
 On the command line:
 
 ```Shell
-rambler apply -a
+rambler -c migrations/rambler.json apply -a
 ```
 
 
