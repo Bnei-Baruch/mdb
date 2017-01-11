@@ -35,6 +35,7 @@ type (
 		Details   string        `json:"omitempty",gorm:"type:varchar(255)"`
 		User      User          `json:"omitempty"`
 		UserID    uint64        `json:"omitempty"`
+		Files     []File        `json:"omitempty",gorm:"many2many:files_collections;AssociationForeignKey:ID;ForeignKey:ID;"`
 	}
 
 	TranslatedContent struct {
@@ -101,6 +102,14 @@ type (
 		BackupCount     uint           `json:"omitempty"`
 		FirstBackupTime time.Time      `json:"omitempty"`
 		Properties      JsonB          `json:"omitempty"`
+		Operations      []Operation    `json:"omitempty",gorm:"many2many:files_collections;AssociationForeignKey:ID;ForeignKey:ID;"`
+	}
+
+	FilesOperations struct {
+		FileID      uint64    `json:"omitempty"`
+		File        File      `json:"omitempty",gorm:"ForeignKey:FileID;"`
+		OperationID uint64    `json:"omitempty"`
+		Operation   Operation `json:"omitempty",gorm:"ForeignKey:OperationID;"`
 	}
 
 	StringTranslation struct {

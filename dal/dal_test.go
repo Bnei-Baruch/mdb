@@ -287,16 +287,22 @@ func TestDemux(t *testing.T) {
 			Station: "a station",
 			User:    "operator@dev.com",
 		},
-		Sha1: "abcdef123456",
+		FileKey: rest.FileKey{
+			Sha1: "abcdef123456",
+		},
 		Original: rest.FileUpdate{
-			FileName: origFileName,
-			Sha1:     "aaaaaa111111",
-			Size:     111,
+			FileKey: rest.FileKey{
+				FileName: origFileName,
+				Sha1:     "aaaaaa111111",
+			},
+			Size: 111,
 		},
 		Proxy: rest.FileUpdate{
-			FileName: proxyFileName,
-			Sha1:     "bbbbbb222222",
-			Size:     222,
+			FileKey: rest.FileKey{
+				FileName: proxyFileName,
+				Sha1:     "bbbbbb222222",
+			},
+			Size: 222,
 		},
 	}
 	if err := Demux(demux); err != nil {
@@ -343,11 +349,15 @@ func TestSend(t *testing.T) {
 			Station: "a station",
 			User:    "operator@dev.com",
 		},
-		Sha1: sha1,
+		FileKey: rest.FileKey{
+			Sha1: sha1,
+		},
 		Dest: rest.FileUpdate{
-			FileName: destFileName,
-			Sha1:     "cccccc333333",
-			Size:     333,
+			FileKey: rest.FileKey{
+				FileName: destFileName,
+				Sha1:     "cccccc333333",
+			},
+			Size: 333,
 		},
 	}
 	if err := Send(send); err != nil {
@@ -382,12 +392,16 @@ func TestUpload(t *testing.T) {
 			User:    "operator@dev.com",
 		},
 		FileUpdate: rest.FileUpdate{
-			FileName: fileName,
-			Sha1:     sha1,
-			Size:     111,
+			FileKey: rest.FileKey{
+				FileName: fileName,
+				Sha1:     sha1,
+			},
+			Size: 111,
 		},
-		Url:          url,
-		ExistingSha1: "1234",
+		Url: url,
+		Existing: rest.FileKey{
+			Sha1: "1234",
+		},
 	}
 	if err := Upload(upload); err != nil {
 		t.Error("Upload should succeed.", err)
