@@ -73,8 +73,8 @@ func serverFn(cmd *cobra.Command, args []string) {
 	router.POST("/operations/send", SendHandler)
 	router.POST("/operations/upload", UploadHandler)
 
-    admin := router.Group("admin")
-    admin.StaticFile("/log", viper.GetString("server.log"))
+	admin := router.Group("admin")
+	admin.StaticFile("/log", viper.GetString("server.log"))
 
 	collections := router.Group("collections")
 	collections.POST("/", rest.CollectionsCreateHandler)

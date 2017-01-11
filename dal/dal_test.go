@@ -370,23 +370,23 @@ func TestUpload(t *testing.T) {
 
 	// Prepare file
 	sha1 := "abcdef123456"
-    fileName := "lang_o_norav_part-a_2016-12-31_source.mp4"
+	fileName := "lang_o_norav_part-a_2016-12-31_source.mp4"
 	if err := AddFile(fileName, sha1, 111); err != nil {
 		t.Error("Could not create file.", err)
 	}
 
-    url := "http://this/is/some/url"
+	url := "http://this/is/some/url"
 	upload := rest.Upload{
 		Operation: rest.Operation{
 			Station: "a station",
 			User:    "operator@dev.com",
 		},
-        FileUpdate: rest.FileUpdate{
+		FileUpdate: rest.FileUpdate{
 			FileName: fileName,
 			Sha1:     sha1,
 			Size:     111,
 		},
-        Url: url,
+		Url:          url,
 		ExistingSha1: "1234",
 	}
 	if err := Upload(upload); err != nil {
