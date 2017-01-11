@@ -98,24 +98,24 @@ func (blr bodyLogReadCloser) Read(p []byte) (n int, err error) {
 }
 
 func GinBodyLogMiddleware(c *gin.Context) {
-    blr := &bodyLogReadCloser{
-        body:   bytes.NewBufferString(""),
-        closer: c.Request.Body,
-    }
-    blw := &bodyLogWriter{
-        body:           bytes.NewBufferString(""),
-        ResponseWriter: c.Writer,
-    }
-    if "/admin/log" != c.Request.URL.Path {
-        blr.reader = io.TeeReader(c.Request.Body, blr.body)
-        c.Request.Body = blr
-        c.Writer = blw
-    }
+	blr := &bodyLogReadCloser{
+		body:   bytes.NewBufferString(""),
+		closer: c.Request.Body,
+	}
+	blw := &bodyLogWriter{
+		body:           bytes.NewBufferString(""),
+		ResponseWriter: c.Writer,
+	}
+	if "/admin/log" != c.Request.URL.Path {
+		blr.reader = io.TeeReader(c.Request.Body, blr.body)
+		c.Request.Body = blr
+		c.Writer = blw
+	}
 
 	c.Next()
 
-    if "/admin/log" != c.Request.URL.Path {
-        fmt.Println("Request body: " + blr.body.String())
-        fmt.Println("Response body: " + blw.body.String())
-    }
+	if "/admin/log" != c.Request.URL.Path {
+		fmt.Println("Request body: " + blr.body.String())
+		fmt.Println("Response body: " + blw.body.String())
+	}
 }

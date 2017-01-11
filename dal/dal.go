@@ -398,5 +398,5 @@ func Upload(upload rest.Upload) error {
 		return DalError{err: fmt.Sprintf("Failed adding operation to db: %s", err.Error())}
 	}
 
-    return nil
+	return nil
 }
