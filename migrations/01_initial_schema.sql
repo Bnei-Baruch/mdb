@@ -112,7 +112,7 @@ CREATE TABLE files (
   sub_type          VARCHAR(16)                                     NOT NULL, -- drawing, photo, song, lesson
   mime_type         VARCHAR(255)                                    NULL,
   sha1              BYTEA UNIQUE                                    NOT NULL,
-  operation_id      BIGINT REFERENCES operations                    NULL,
+  operation_id      BIGINT REFERENCES operations                    NULL, -- operation that created the file.
   content_unit_id   BIGINT REFERENCES content_units                 NULL,
   created_at        TIMESTAMP WITH TIME ZONE DEFAULT now_utc()      NOT NULL,
   language          CHAR(2)                                         NULL,
