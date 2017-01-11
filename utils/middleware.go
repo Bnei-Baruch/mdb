@@ -102,17 +102,20 @@ func GinBodyLogMiddleware(c *gin.Context) {
 		body:   bytes.NewBufferString(""),
 		closer: c.Request.Body,
 	}
-	blr.reader = io.TeeReader(c.Request.Body, blr.body)
-	c.Request.Body = blr
-
 	blw := &bodyLogWriter{
 		body:           bytes.NewBufferString(""),
 		ResponseWriter: c.Writer,
 	}
-	c.Writer = blw
+	if "/admin/log" != c.Request.URL.Path {
+		blr.reader = io.TeeReader(c.Request.Body, blr.body)
+		c.Request.Body = blr
+		c.Writer = blw
+	}
 
 	c.Next()
 
-	fmt.Println("Request body: " + blr.body.String())
-	fmt.Println("Response body: " + blw.body.String())
+	if "/admin/log" != c.Request.URL.Path {
+		fmt.Println("Request body: " + blr.body.String())
+		fmt.Println("Response body: " + blw.body.String())
+	}
 }
