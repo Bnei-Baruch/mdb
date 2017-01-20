@@ -1,0 +1,14 @@
+kmedia:
+  adapter: postgresql
+  encoding: utf8
+  database: kmedia
+  pool: 5
+  username: postgres
+  host: localhost
+mdb:
+  adapter: postgresql
+  encoding: utf8
+  database: mdb
+  pool: 5
+  username: postgres
+  host: localhost
