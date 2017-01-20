@@ -1,14 +1,15 @@
+default: &default
+  adapter: postgresql
+  encoding: utf8
+  pool: 5
+  username: postgres
+  host: localhost
+  password: ookkmm12
+
 kmedia:
-  adapter: postgresql
-  encoding: utf8
-  database: kmedia
-  pool: 5
-  username: postgres
-  host: localhost
+  <<: *default
+  database: kmedia_old
+
 mdb:
-  adapter: postgresql
-  encoding: utf8
+  <<: *default
   database: mdb
-  pool: 5
-  username: postgres
-  host: localhost
