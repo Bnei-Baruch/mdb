@@ -124,7 +124,13 @@ If not, we'll use gin.Recovery() to print stacktrace to console. Using rollbar i
 
 ## Documentation
 
-Documentation is based on tests and will be generated automatically with each `make build`. To generate static html documentation (`docs.html`) run:
+Documentation is based on tests and will be generated automatically with each `make build`. To generate static html documentation (`docs.html`) install:
+
+```Shell
+npm install -g aglio
+```
+
+Then run:
 
 ```Shell
 make api
@@ -151,10 +157,10 @@ sudo mv go /usr/local
 export GOROOT=/user/local/go
 ```
 
-### While at $HOME/go
+### While at /home/kolmanv/go
 
 ```Shell
-export GOPATH=$HOME/go
+export GOPATH=/home/kolmanv/go
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 git clone https://github.com/Bnei-Baruch/mdb.git
 ```
