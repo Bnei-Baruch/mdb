@@ -103,7 +103,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 // Handlers
 type HandlerFunc func() error
 
-// kukUKU Generic handler.
+// Generic handler.
 func Handle(c *gin.Context, h HandlerFunc) {
 	if err := h(); err == nil {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -115,18 +115,10 @@ func Handle(c *gin.Context, h HandlerFunc) {
 	}
 }
 
-// CaptureStart mark start of capturing process.
 func CaptureStartHandler(c *gin.Context) {
 	var cs rest.CaptureStart
 	if c.BindJSON(&cs) == nil {
-        if err := dal.CaptureStart(cs); err == nil {
-            c.JSON(http.StatusOK, gin.H{"status": "ok"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "status": "error",
-                "error":  err.Error(),
-            })
-        }
+        Handle(c, func() error { return dal.CaptureStart(cs) })
     }
 }
 
