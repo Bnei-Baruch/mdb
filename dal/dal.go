@@ -1,6 +1,7 @@
 package dal
 
 import (
+	"github.com/Bnei-Baruch/mdb/migrations"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/rest"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -8,7 +9,9 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -33,6 +36,75 @@ func InitByUrl(url string) (*gorm.DB, error) {
 		return nil, DalError{err: "Error opening db.", reason: err}
 	}
 	return db, nil
+}
+
+func RunMigrations(tmpDb *gorm.DB) {
+
+	var visit = func(path string, f os.FileInfo, err error) error {
+		match, _ := regexp.MatchString(".*\\.sql$", path)
+		if !match {
+			return nil
+		}
+
+		fmt.Printf("Applying migration %s\n", path)
+		m, err := migrations.NewMigration(path)
+		if err != nil {
+			fmt.Printf("Error migrating %s, %s", path, err.Error())
+			return err
+		}
+
+		for _, statement := range m.Up() {
+			if _, err := tmpDb.CommonDB().Exec(statement); err != nil {
+				return fmt.Errorf("Unable to apply migration %s: %s\nStatement: %s\n", m.Name, err, statement)
+			}
+		}
+
+		return nil
+	}
+
+	err := filepath.Walk("../migrations", visit)
+	if err != nil {
+		panic(fmt.Sprintf("Could not load and run all migrations. %s", err.Error()))
+	}
+
+}
+
+func InitTestConfig() {
+	viper.SetConfigName("config")
+	viper.AddConfigPath("../")
+	viper.AutomaticEnv()
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Println("Could not read config, using: ", viper.ConfigFileUsed(), err)
+	}
+}
+
+func SwitchToTmpDb() (*gorm.DB, *gorm.DB, string) {
+	InitTestConfig()
+
+	baseDb, err := Init()
+	if err != nil {
+		panic(fmt.Sprintf("Could not connect to database. %s", err))
+	}
+
+	name := fmt.Sprintf("test_%s", strings.ToLower(utils.GenerateName(10)))
+	if err := baseDb.Exec(fmt.Sprintf("CREATE DATABASE %s", name)).Error; err != nil {
+		panic(fmt.Sprintf("Could not create tmp database %s due to %s.", name, err))
+	}
+
+	url := viper.GetString("test.url-template")
+	var tmpDb *gorm.DB
+	tmpDb, err = InitByUrl(fmt.Sprintf(url, name))
+
+	RunMigrations(tmpDb)
+
+	return baseDb, tmpDb, name
+}
+
+func DropTmpDB(baseDb *gorm.DB, tmpDb *gorm.DB, name string) {
+	tmpDb.Close()
+	if err := baseDb.Exec(fmt.Sprintf("DROP DATABASE %s", name)).Error; err != nil {
+		panic(fmt.Sprintf("Could not drop test database. %s", err))
+	}
 }
 
 type DalError struct {

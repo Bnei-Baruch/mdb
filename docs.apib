@@ -1,0 +1,67 @@
+FORMAT: 1A
+HOST: http://10.102.3.112:8080
+
+# The API for MDB
+
+Meta database.
+
+# Group Cmd
+
+## /operations/capture_start
+
+### Func1 [POST]
+
+
++ Request (application/json)
+
+
+
+    + Body
+
+            {
+                "capture_source": "mltcap",
+                "station": "10.66.1.120",
+                "user": "operator@dev.com",
+                "file_name": "mlt_o_rav_2017-01-04_lesson_boker_part1",
+                "capture_id": "c1483491605226",
+                "size": 13860980880,
+                "sha1": "4d4ad60c11738630178a08560362a0b2c323f87a",
+                "created_at": 1484155956
+            }        
+
++ Response 200 (application/json; charset=utf-8)
+
+
+
+    + Body
+
+            {
+                "status": "ok"
+            }
+        
+
+
+
++ Request (application/json)
+
+
+
+    + Body
+
+            {
+                "bad": "json"
+            }        
+
++ Response 400 (application/json; charset=utf-8)
+
+
+
+    + Body
+
+            {
+                "error": "Key: 'CaptureStart.Operation.Station' Error:Field validation for 'Station' failed on the 'required' tag\nKey: 'CaptureStart.Operation.User' Error:Field validation for 'User' failed on the 'required' tag\nKey: 'CaptureStart.FileName' Error:Field validation for 'FileName' failed on the 'required' tag\nKey: 'CaptureStart.CaptureID' Error:Field validation for 'CaptureID' failed on the 'required' tag\nKey: 'CaptureStart.CaptureSource' Error:Field validation for 'CaptureSource' failed on the 'required' tag",
+                "status": "error"
+            }
+        
+
+

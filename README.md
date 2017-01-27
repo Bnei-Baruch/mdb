@@ -122,6 +122,13 @@ If not, we'll use gin.Recovery() to print stacktrace to console. Using rollbar i
 
  Check out the [docs](https://godoc.org/github.com/stvp/rollbar) for more info on how to use the Rollbar client.
 
+## Documentation
+
+Documentation is based on tests and will be generated automatically with each `make build`. To generate static html documentation (`docs.html`) run:
+
+```Shell
+make api
+```
 
 ## Installation details
 
