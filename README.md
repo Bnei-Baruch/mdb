@@ -151,10 +151,10 @@ sudo mv go /usr/local
 export GOROOT=/user/local/go
 ```
 
-### While at /home/kolmanv/go
+### While at $HOME/go
 
 ```Shell
-export GOPATH=/home/kolmanv/go
+export GOPATH=$HOME/go
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 git clone https://github.com/Bnei-Baruch/mdb.git
 ```
