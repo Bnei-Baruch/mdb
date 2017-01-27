@@ -22,7 +22,7 @@ lint:
 fmt:
 	@gofmt -w $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
-api: test
+api: 
 	cp docs.tmpl docs.apib; \
 	for f in ${APIB_FILES}; \
 	do \

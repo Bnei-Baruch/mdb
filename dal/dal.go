@@ -31,7 +31,7 @@ func InitByUrl(url string) (*gorm.DB, error) {
 	var err error
 	fmt.Printf("Connecting to database: %s\n", url)
 	db, err = gorm.Open("postgres", url)
-	db.LogMode(true)
+	// db.LogMode(true)
 	if err != nil {
 		return nil, DalError{err: "Error opening db.", reason: err}
 	}
@@ -78,6 +78,7 @@ func InitTestConfig() {
 	}
 }
 
+// Few methods to support tests in other packages.
 func SwitchToTmpDb() (*gorm.DB, *gorm.DB, string) {
 	InitTestConfig()
 
@@ -106,6 +107,39 @@ func DropTmpDB(baseDb *gorm.DB, tmpDb *gorm.DB, name string) {
 		panic(fmt.Sprintf("Could not drop test database. %s", err))
 	}
 }
+
+func AddTestFile(FileName string, Sha1 string, Size uint64) error {
+	start := rest.CaptureStart{
+		Operation: rest.Operation{
+			Station: "a station",
+			User:    "operator@dev.com",
+		},
+		FileName:  FileName,
+		CaptureID: "this.is.capture.id",
+	}
+	if err := CaptureStart(start); err != nil {
+		return err
+	}
+
+	stop := rest.CaptureStop{
+		CaptureStart: rest.CaptureStart{
+			Operation: rest.Operation{
+				Station: "a station",
+				User:    "operator@dev.com",
+			},
+			FileName:  FileName,
+			CaptureID: "this.is.capture.id",
+		},
+		Sha1: Sha1,
+		Size: Size,
+	}
+	if err := CaptureStop(stop); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 
 type DalError struct {
 	err    string

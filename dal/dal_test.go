@@ -162,45 +162,13 @@ func TestParseFilename(t *testing.T) {
 	ParseFileName("2017-01-04_02-40-19")
 }
 
-func AddFile(FileName string, Sha1 string, Size uint64) error {
-	start := rest.CaptureStart{
-		Operation: rest.Operation{
-			Station: "a station",
-			User:    "operator@dev.com",
-		},
-		FileName:  FileName,
-		CaptureID: "this.is.capture.id",
-	}
-	if err := CaptureStart(start); err != nil {
-		return err
-	}
-
-	stop := rest.CaptureStop{
-		CaptureStart: rest.CaptureStart{
-			Operation: rest.Operation{
-				Station: "a station",
-				User:    "operator@dev.com",
-			},
-			FileName:  FileName,
-			CaptureID: "this.is.capture.id",
-		},
-		Sha1: Sha1,
-		Size: Size,
-	}
-	if err := CaptureStop(stop); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func TestDemux(t *testing.T) {
 	baseDb, tmpDb, name := SwitchToTmpDb()
 	defer DropTmpDB(baseDb, tmpDb, name)
 
 	// Prepare file
 	sha1 := "abcdef123456"
-	if err := AddFile("lang_o_norav_part-a_2016-12-31_source.mp4", sha1, 111); err != nil {
+	if err := AddTestFile("lang_o_norav_part-a_2016-12-31_source.mp4", sha1, 111); err != nil {
 		t.Error("Could not create file.", err)
 	}
 
@@ -263,7 +231,7 @@ func TestSend(t *testing.T) {
 
 	// Prepare file
 	sha1 := "abcdef123456"
-	if err := AddFile("lang_o_norav_part-a_2016-12-31_source.mp4", sha1, 111); err != nil {
+	if err := AddTestFile("lang_o_norav_part-a_2016-12-31_source.mp4", sha1, 111); err != nil {
 		t.Error("Could not create file.", err)
 	}
 
@@ -305,7 +273,7 @@ func TestUpload(t *testing.T) {
 	// Prepare file
 	sha1 := "abcdef123456"
 	fileName := "lang_o_norav_part-a_2016-12-31_source.mp4"
-	if err := AddFile(fileName, sha1, 111); err != nil {
+	if err := AddTestFile(fileName, sha1, 111); err != nil {
 		t.Error("Could not create file.", err)
 	}
 
