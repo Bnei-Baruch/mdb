@@ -37,6 +37,8 @@ func serverDefaults() {
 	})
 }
 
+var router *gin.Engine
+
 func serverFn(cmd *cobra.Command, args []string) {
 	rand.Seed(time.Now().UTC().UnixNano())
 	serverDefaults()
@@ -51,7 +53,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	// Setup gin
 	gin.SetMode(viper.GetString("server.mode"))
-	router := gin.New()
+	router = gin.New()
 
 	var recovery gin.HandlerFunc
 	if len(rollbar.Token) > 0 {
@@ -73,8 +75,12 @@ func serverFn(cmd *cobra.Command, args []string) {
 	router.POST("/operations/send", SendHandler)
 	router.POST("/operations/upload", UploadHandler)
 
+    // Serve the log file.
 	admin := router.Group("admin")
 	admin.StaticFile("/log", viper.GetString("server.log"))
+
+    // Serve the auto generated docs.
+	router.StaticFile("/docs", viper.GetString("server.docs"))
 
 	collections := router.Group("collections")
 	collections.POST("/", rest.CollectionsCreateHandler)
@@ -84,7 +90,9 @@ func serverFn(cmd *cobra.Command, args []string) {
 	})
 
 	log.Infoln("Running application")
-	router.Run(viper.GetString("server.bind-address"))
+	if cmd != nil {
+		router.Run(viper.GetString("server.bind-address"))
+	}
 
 	// This would be reasonable once we'll have graceful shutdown implemented
 	//if len(rollbar.Token) > 0 {
@@ -92,51 +100,77 @@ func serverFn(cmd *cobra.Command, args []string) {
 	//}
 }
 
-// Handlers
-type HandlerFunc func() error
-
-func Handle(c *gin.Context, h HandlerFunc) {
-	if err := h(); err == nil {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	} else {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"status": "error",
-			"error":  err.Error(),
-		})
-	}
-}
-
+// Starts capturing file, i.e., morning lesson or other program.
 func CaptureStartHandler(c *gin.Context) {
 	var cs rest.CaptureStart
 	if c.BindJSON(&cs) == nil {
-		Handle(c, func() error { return dal.CaptureStart(cs) })
-	}
+        if err := dal.CaptureStart(cs); err == nil {
+            c.JSON(http.StatusOK, gin.H{"status": "ok"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "status": "error",
+                "error":  err.Error(),
+            })
+        }
+    }
 }
 
+// Stops capturing file, i.e., morning lesson or other program.
 func CaptureStopHandler(c *gin.Context) {
 	var cs rest.CaptureStop
 	if c.BindJSON(&cs) == nil {
-		Handle(c, func() error { return dal.CaptureStop(cs) })
+        if err := dal.CaptureStop(cs); err == nil {
+            c.JSON(http.StatusOK, gin.H{"status": "ok"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "status": "error",
+                "error":  err.Error(),
+            })
+        }
 	}
 }
 
+// Demux
 func DemuxHandler(c *gin.Context) {
 	var demux rest.Demux
 	if c.BindJSON(&demux) == nil {
-		Handle(c, func() error { return dal.Demux(demux) })
+        if err := dal.Demux(demux); err == nil {
+            c.JSON(http.StatusOK, gin.H{"status": "ok"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "status": "error",
+                "error":  err.Error(),
+            })
+        }
 	}
 }
 
+// Moves file from capture machine to other storage.
 func SendHandler(c *gin.Context) {
 	var send rest.Send
 	if c.BindJSON(&send) == nil {
-		Handle(c, func() error { return dal.Send(send) })
+        if err := dal.Send(send); err == nil {
+            c.JSON(http.StatusOK, gin.H{"status": "ok"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "status": "error",
+                "error":  err.Error(),
+            })
+        }
 	}
 }
 
+// Enabled file to be accessible from URL.
 func UploadHandler(c *gin.Context) {
 	var upload rest.Upload
 	if c.BindJSON(&upload) == nil {
-		Handle(c, func() error { return dal.Upload(upload) })
+        if err := dal.Upload(upload); err == nil {
+            c.JSON(http.StatusOK, gin.H{"status": "ok"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "status": "error",
+                "error":  err.Error(),
+            })
+        }
 	}
 }

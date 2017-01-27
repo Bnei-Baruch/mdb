@@ -97,6 +97,7 @@ type (
 		ContentUnitID   uint64         `json:"omitempty"`
 		ContentUnit     ContentUnit    `json:"omitempty",gorm:"ForeignKey:ContentUnitID"`
 		ParentID        sql.NullInt64  `json:"omitempty"`
+		FileCreatedAt   time.Time      `json:"omitempty"`
 		CreatedAt       time.Time      `json:"omitempty"`
 		Language        string         `json:"omitempty"`
 		BackupCount     uint           `json:"omitempty"`
