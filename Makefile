@@ -4,7 +4,7 @@ GIT_HASH      = $(shell git rev-parse HEAD)
 LDFLAGS       = -w -X $(IMPORT_PATH)/version.PreRelease=$(PRE_RELEASE)
 APIB_FILES    = $(shell find . -type f -path "./*/*.apib")
 
-build: clean test api
+build: clean test docs
 	@go build -ldflags '$(LDFLAGS)'
 
 clean:
@@ -22,7 +22,7 @@ lint:
 fmt:
 	@gofmt -w $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
-api: 
+docs: 
 	cp docs.tmpl docs.apib; \
 	for f in ${APIB_FILES}; \
 	do \

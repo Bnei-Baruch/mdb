@@ -5,12 +5,10 @@
 
 set -e
 
-# Replace docs host.
-sed -i 's/^HOST: .*$/HOST: poc.bbdomain.org:8080/g' docs.tmpl
-
 echo "Building..."
 make build
 
+version_full="$(./mdb version)"
 version="$(./mdb version | awk '{print $NF}')"
 [ -n "$version" ] || exit 1
 echo $version
@@ -19,6 +17,13 @@ git commit --allow-empty -a -m "Release $version"
 git tag "v$version"
 git push origin master
 git push origin "v$version"
+
+# Replace docs host.
+sed -i 's/^HOST: .*$/HOST: poc.bbdomain.org:8080/g' docs.tmpl
+sed -i 's/^Release: .*$/Release: ${version_full}/g' docs.tmpl
+
+echo "Updating docs..."
+make docs
 
 echo "Deploying to production"
 scp mdb archive@poc.bbdomain.org:/sites/mdb/"mdb-$version"
