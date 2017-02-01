@@ -8,7 +8,6 @@ set -e
 echo "Building..."
 make build
 
-version_full="$(./mdb version)"
 version="$(./mdb version | awk '{print $NF}')"
 [ -n "$version" ] || exit 1
 echo $version
@@ -20,7 +19,7 @@ git push origin "v$version"
 
 # Replace docs host.
 sed -i 's/^HOST: .*$/HOST: poc.bbdomain.org:8080/g' docs.tmpl
-sed -i 's/^Release: .*$/Release: ${version_full}/g' docs.tmpl
+sed -i "s/^Release: .*$/Release: ${version}/g" docs.tmpl
 
 echo "Updating docs..."
 make docs
