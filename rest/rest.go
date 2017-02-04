@@ -50,8 +50,8 @@ type (
 	Upload struct {
 		Operation
 		FileUpdate
-		Url      string `json:"url" binding:"required"`
-		Duration uint64 `json:"duration"`
-        Existing FileKey `binding:"structonly"`
+		Url      string  `json:"url" binding:"required"`
+		Duration uint64  `json:"duration"`
+		Existing FileKey `binding:"structonly"`
 	}
 )

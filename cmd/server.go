@@ -75,11 +75,11 @@ func serverFn(cmd *cobra.Command, args []string) {
 	router.POST("/operations/send", SendHandler)
 	router.POST("/operations/upload", UploadHandler)
 
-    // Serve the log file.
+	// Serve the log file.
 	admin := router.Group("admin")
 	admin.StaticFile("/log", viper.GetString("server.log"))
 
-    // Serve the auto generated docs.
+	// Serve the auto generated docs.
 	router.StaticFile("/docs", viper.GetString("server.docs"))
 
 	collections := router.Group("collections")
@@ -107,15 +107,15 @@ func serverFn(cmd *cobra.Command, args []string) {
 func CaptureStartHandler(c *gin.Context) {
 	var cs rest.CaptureStart
 	if c.BindJSON(&cs) == nil {
-        if err := dal.CaptureStart(cs); err == nil {
-            c.JSON(http.StatusOK, gin.H{"status": "ok"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "status": "error",
-                "error":  err.Error(),
-            })
-        }
-    }
+		if err := dal.CaptureStart(cs); err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status": "error",
+				"error":  err.Error(),
+			})
+		}
+	}
 }
 
 // Stops capturing file, i.e., morning lesson or other program.
@@ -125,14 +125,14 @@ func CaptureStartHandler(c *gin.Context) {
 func CaptureStopHandler(c *gin.Context) {
 	var cs rest.CaptureStop
 	if c.BindJSON(&cs) == nil {
-        if err := dal.CaptureStop(cs); err == nil {
-            c.JSON(http.StatusOK, gin.H{"status": "ok"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "status": "error",
-                "error":  err.Error(),
-            })
-        }
+		if err := dal.CaptureStop(cs); err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status": "error",
+				"error":  err.Error(),
+			})
+		}
 	}
 }
 
@@ -140,14 +140,14 @@ func CaptureStopHandler(c *gin.Context) {
 func DemuxHandler(c *gin.Context) {
 	var demux rest.Demux
 	if c.BindJSON(&demux) == nil {
-        if err := dal.Demux(demux); err == nil {
-            c.JSON(http.StatusOK, gin.H{"status": "ok"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "status": "error",
-                "error":  err.Error(),
-            })
-        }
+		if err := dal.Demux(demux); err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status": "error",
+				"error":  err.Error(),
+			})
+		}
 	}
 }
 
@@ -155,14 +155,14 @@ func DemuxHandler(c *gin.Context) {
 func SendHandler(c *gin.Context) {
 	var send rest.Send
 	if c.BindJSON(&send) == nil {
-        if err := dal.Send(send); err == nil {
-            c.JSON(http.StatusOK, gin.H{"status": "ok"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "status": "error",
-                "error":  err.Error(),
-            })
-        }
+		if err := dal.Send(send); err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status": "error",
+				"error":  err.Error(),
+			})
+		}
 	}
 }
 
@@ -170,13 +170,13 @@ func SendHandler(c *gin.Context) {
 func UploadHandler(c *gin.Context) {
 	var upload rest.Upload
 	if c.BindJSON(&upload) == nil {
-        if err := dal.Upload(upload); err == nil {
-            c.JSON(http.StatusOK, gin.H{"status": "ok"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "status": "error",
-                "error":  err.Error(),
-            })
-        }
+		if err := dal.Upload(upload); err == nil {
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status": "error",
+				"error":  err.Error(),
+			})
+		}
 	}
 }

@@ -234,20 +234,20 @@ func CaptureStart(start rest.CaptureStart) error {
 	// Execute (change DB).
 	var c = models.Collection{ExternalID: sql.NullString{Valid: true, String: start.CaptureID}}
 	if db.Where(&c).First(&c).RecordNotFound() {
-        // Could not find collection by external id, create new.
-        c = models.Collection{
-            ExternalID: sql.NullString{Valid: true, String: start.CaptureID},
-            UID:        utils.GenerateUID(8),
-            TypeID:     collectionType.ID,
-            TranslatedContent: models.TranslatedContent{
-                Name:        models.StringTranslation{Text: "Collection name"},
-                Description: models.StringTranslation{Text: "Collection description"},
-            },
-        }
-        if err := db.Create(&c).Error; err != nil {
-            return DalError{err: fmt.Sprintf("Failed adding collection to db: %s", err.Error())}
-        }
-    }
+		// Could not find collection by external id, create new.
+		c = models.Collection{
+			ExternalID: sql.NullString{Valid: true, String: start.CaptureID},
+			UID:        utils.GenerateUID(8),
+			TypeID:     collectionType.ID,
+			TranslatedContent: models.TranslatedContent{
+				Name:        models.StringTranslation{Text: "Collection name"},
+				Description: models.StringTranslation{Text: "Collection description"},
+			},
+		}
+		if err := db.Create(&c).Error; err != nil {
+			return DalError{err: fmt.Sprintf("Failed adding collection to db: %s", err.Error())}
+		}
+	}
 
 	var cu = models.ContentUnit{
 		TypeID: contentUnitType.ID,
@@ -326,7 +326,7 @@ func CaptureStop(stop rest.CaptureStop) error {
 		return DalError{err: fmt.Sprintf("Cannot convert sha1 %s to []bytes.", stop.Sha1)}
 	}
 
-    f, err := FindFileByExternalIDAndFileName(sql.NullString{Valid: true, String: stop.CaptureID}, stop.FileName)
+	f, err := FindFileByExternalIDAndFileName(sql.NullString{Valid: true, String: stop.CaptureID}, stop.FileName)
 	if err != nil {
 		return err
 	}

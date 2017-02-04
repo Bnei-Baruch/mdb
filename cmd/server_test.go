@@ -29,7 +29,7 @@ func TestCaptureStart(t *testing.T) {
 
 	fmt.Println("Testing capture start on server.")
 
-    res, err := Post("/operations/capture_start", `
+	res, err := Post("/operations/capture_start", `
         {
             "station": "10.66.1.120", 
             "user": "operator@dev.com", 
@@ -59,7 +59,7 @@ func TestCaptureStop(t *testing.T) {
 	fmt.Println("Testing capture stop.")
 
 	start := rest.CaptureStart{
-        Operation:     rest.Operation{Station: "a station", User: "operator@dev.com"},
+		Operation:     rest.Operation{Station: "a station", User: "operator@dev.com"},
 		FileName:      "mlt_o_rav_2017-01-04_lesson_boker_part1",
 		CaptureID:     "c1483491605226",
 		CaptureSource: "mlpcap",
@@ -90,8 +90,8 @@ func TestDemux(t *testing.T) {
 	fmt.Println("Testing demux.")
 
 	dal.AddTestFile("mlt_o_rav_2017-01-04_lesson_boker_source",
-        "4d4ad60c11738630178a08560362a0b2c323f87a",
-        123123)
+		"4d4ad60c11738630178a08560362a0b2c323f87a",
+		123123)
 
 	res, err := Post("/operations/demux", `
         {
@@ -125,8 +125,8 @@ func TestSend(t *testing.T) {
 	fmt.Println("Testing send.")
 
 	dal.AddTestFile("mlt_o_rav_2017-01-04_lesson_boker_source",
-        "4d4ad60c11738630178a08560362a0b2c323f87a",
-        123123)
+		"4d4ad60c11738630178a08560362a0b2c323f87a",
+		123123)
 
 	res, err := Post("/operations/send", `
         {
@@ -154,8 +154,8 @@ func TestUpload(t *testing.T) {
 	fmt.Println("Testing upload.")
 
 	dal.AddTestFile("mlt_o_rav_2017-01-04_lesson_boker_source",
-        "4d4ad60c11738630178a08560362a0b2c323f87a",
-        123123)
+		"4d4ad60c11738630178a08560362a0b2c323f87a",
+		123123)
 
 	res, err := Post("/operations/upload", `
         {
