@@ -1,9 +1,9 @@
 FORMAT: 1A
-HOST: poc.bbdomain.org:8080
+HOST: rt-dev.kbb1.com:8080
 
 # The API for MDB
 
-Release: 
+Release: <version>
 
 ## Important Info
 
@@ -28,6 +28,9 @@ We are still (Feb 2017) not not forcing `created_at`, but will start soon (March
 
 ### Capture Start Handler [POST]
 Starts capturing file, i.e., morning lesson or other program.
+
+`capture_id`: Unique identifier per collection, i.e., for morning lesson all
+parts of the lesson will have the same `capture_id`.
 
 
 + Request (application/json)
@@ -87,6 +90,9 @@ Starts capturing file, i.e., morning lesson or other program.
 
 ### Capture Stop Handler [POST]
 Stops capturing file, i.e., morning lesson or other program.
+
+`capture_id`: Unique identifier per collection, i.e., for morning lesson all
+parts of the lesson will have the same `capture_id`.
 
 
 + Request (application/json)
@@ -208,6 +214,36 @@ Moves file from capture machine to other storage.
 
 ### Upload Handler [POST]
 Enabled file to be accessible from URL.
+
+
++ Request (application/json)
+
+
+
+    + Body
+
+            {
+                "station": "10.66.1.120",
+                "user": "operator@dev.com",
+                "file_name": "mlt_o_rav_2017-01-04_lesson_boker_source",
+                "created_at": 1484155956,
+                "sha1": "4d4ad60c11738630178a08560362a0b2c323f87a",
+                "size": 123123,
+                "url": "http://some/url/file/was/uploaded/to",
+                "duration": 9878
+            }        
+
++ Response 200 (application/json; charset=utf-8)
+
+
+
+    + Body
+
+            {
+                "status": "ok"
+            }
+        
+
 
 
 + Request (application/json)

@@ -69,6 +69,7 @@ func RunMigrations(tmpDb *gorm.DB) {
 
 }
 
+// Few methods to support tests in other packages.
 func InitTestConfig() {
 	viper.SetConfigName("config")
 	viper.AddConfigPath("../")
@@ -78,7 +79,6 @@ func InitTestConfig() {
 	}
 }
 
-// Few methods to support tests in other packages.
 func SwitchToTmpDb() (*gorm.DB, *gorm.DB, string) {
 	InitTestConfig()
 
@@ -140,7 +140,7 @@ func AddTestFile(FileName string, Sha1 string, Size uint64) error {
 	return nil
 }
 
-
+// DAL implementation.
 type DalError struct {
 	err    string
 	reason error
@@ -232,22 +232,21 @@ func CaptureStart(start rest.CaptureStart) error {
 	}
 
 	// Execute (change DB).
-	// var c = models.Collection{ExternalID: start.CaptureID}
-	// if db.Where(&c).First(&c).RecordNotFound() {
-	// Could not find collection by external id, create new.
-	c := models.Collection{
-		// CaptureID is unique per file, currently we are missing identifier per lesson.
-		// ExternalID: start.CaptureID,
-		ExternalID: sql.NullString{Valid: false},
-		UID:        utils.GenerateUID(8),
-		TypeID:     collectionType.ID,
-		TranslatedContent: models.TranslatedContent{
-			Name:        models.StringTranslation{Text: "Collection name"},
-			Description: models.StringTranslation{Text: "Collection description"},
-		},
-	}
-	if err := db.Create(&c).Error; err != nil {
-		return DalError{err: fmt.Sprintf("Failed adding collection to db: %s", err.Error())}
+	var c = models.Collection{ExternalID: sql.NullString{Valid: true, String: start.CaptureID}}
+	if db.Where(&c).First(&c).RecordNotFound() {
+		// Could not find collection by external id, create new.
+		c = models.Collection{
+			ExternalID: sql.NullString{Valid: true, String: start.CaptureID},
+			UID:        utils.GenerateUID(8),
+			TypeID:     collectionType.ID,
+			TranslatedContent: models.TranslatedContent{
+				Name:        models.StringTranslation{Text: "Collection name"},
+				Description: models.StringTranslation{Text: "Collection description"},
+			},
+		}
+		if err := db.Create(&c).Error; err != nil {
+			return DalError{err: fmt.Sprintf("Failed adding collection to db: %s", err.Error())}
+		}
 	}
 
 	var cu = models.ContentUnit{
@@ -292,15 +291,11 @@ func FindFileByExternalIDAndFileName(externalID sql.NullString, fileName string)
 	var id uint64
 	f := models.File{}
 	if err := db.CommonDB().QueryRow(
-		// "select files.id from files, collections, collections_content_units where "+
-		// 	"files.name = $1 and collections.external_id = $2 and "+
-		// 	"collections.id = collections_content_units.collection_id and "+
-		// 	"files.content_unit_id = collections_content_units.content_unit_id",
 		"select files.id from files, collections, collections_content_units where "+
-			"files.name = $1 and collections.external_id is NULL and "+
+			"files.name = $1 and collections.external_id = $2 and "+
 			"collections.id = collections_content_units.collection_id and "+
 			"files.content_unit_id = collections_content_units.content_unit_id",
-		fileName /*, externalID*/).Scan(&id); err != nil {
+		fileName, externalID).Scan(&id); err != nil {
 		return f, DalError{err: fmt.Sprintf("Failed fetching file id due to %s", err.Error())}
 	}
 	f.ID = id
@@ -331,7 +326,7 @@ func CaptureStop(stop rest.CaptureStop) error {
 		return DalError{err: fmt.Sprintf("Cannot convert sha1 %s to []bytes.", stop.Sha1)}
 	}
 
-	f, err := FindFileByExternalIDAndFileName( /* stop.CaptureID */ sql.NullString{Valid: false}, stop.FileName)
+	f, err := FindFileByExternalIDAndFileName(sql.NullString{Valid: true, String: stop.CaptureID}, stop.FileName)
 	if err != nil {
 		return err
 	}
