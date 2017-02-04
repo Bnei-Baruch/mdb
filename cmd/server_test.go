@@ -166,6 +166,21 @@ func TestUpload(t *testing.T) {
             "sha1": "4d4ad60c11738630178a08560362a0b2c323f87a",
             "size": 123123,
             "url": "http://some/url/file/was/uploaded/to",
+            "duration": 9878
+        }`)
+	if err != nil || res == nil || res.StatusCode != 200 {
+		t.Error("Should succeed upload.", err)
+	}
+
+	res, err = Post("/operations/upload", `
+        {
+            "station": "10.66.1.120", 
+            "user": "operator@dev.com", 
+            "file_name": "mlt_o_rav_2017-01-04_lesson_boker_source", 
+            "created_at": 1484155956,
+            "sha1": "4d4ad60c11738630178a08560362a0b2c323f87a",
+            "size": 123123,
+            "url": "http://some/url/file/was/uploaded/to",
             "duration": 9878,
             "existing": {
                 "file_name": "mlt_o_rav_2017-01-04_lesson_boker_dest", 

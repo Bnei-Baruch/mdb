@@ -101,6 +101,9 @@ func serverFn(cmd *cobra.Command, args []string) {
 }
 
 // Starts capturing file, i.e., morning lesson or other program.
+//
+// `capture_id`: Unique identifier per collection, i.e., for morning lesson all
+// parts of the lesson will have the same `capture_id`.
 func CaptureStartHandler(c *gin.Context) {
 	var cs rest.CaptureStart
 	if c.BindJSON(&cs) == nil {
@@ -116,6 +119,9 @@ func CaptureStartHandler(c *gin.Context) {
 }
 
 // Stops capturing file, i.e., morning lesson or other program.
+//
+// `capture_id`: Unique identifier per collection, i.e., for morning lesson all
+// parts of the lesson will have the same `capture_id`.
 func CaptureStopHandler(c *gin.Context) {
 	var cs rest.CaptureStop
 	if c.BindJSON(&cs) == nil {

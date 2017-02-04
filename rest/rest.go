@@ -3,8 +3,8 @@ package rest
 type (
 	// Helping structures.
 	FileKey struct {
-		FileName  string `json:"file_name" binding:"required,max=255"`
-		Sha1      string `json:"sha1" binding:"required,max=40"`
+		FileName  string `json:"file_name" binding:"max=255"`
+		Sha1      string `json:"sha1" binding:"max=40"`
 		CreatedAt int64  `json:"created_at"`
 	}
 
@@ -52,6 +52,6 @@ type (
 		FileUpdate
 		Url      string `json:"url" binding:"required"`
 		Duration uint64 `json:"duration"`
-		Existing FileKey
+        Existing FileKey `binding:"structonly"`
 	}
 )
