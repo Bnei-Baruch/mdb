@@ -7,7 +7,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -118,4 +121,26 @@ func GinBodyLogMiddleware(c *gin.Context) {
 		fmt.Println("Request body: " + blr.body.String())
 		fmt.Println("Response body: " + blw.body.String())
 	}
+}
+
+func FixDoubleQuotesInInput(c *gin.Context) {
+	// TODO: Remove when input request fixed.
+	b, _ := ioutil.ReadAll(c.Request.Body)
+	body := string(b)
+	fmt.Printf("body:%s\n", body)
+	re := regexp.MustCompile("\"(\"[[:alnum:]]*\")\"")
+	if matches := re.FindStringSubmatch(body); len(matches) > 1 {
+		fmt.Printf("matches:%v\n", matches)
+		for _, m := range matches[1:] {
+			body = strings.Replace(
+				body,
+				fmt.Sprintf("\"%s\"", m),
+				fmt.Sprintf("%s", m),
+				1)
+		}
+	}
+	fmt.Printf("fixed:%s\n", body)
+	c.Request.Body = ioutil.NopCloser(bytes.NewReader([]byte(body)))
+
+	c.Next()
 }
