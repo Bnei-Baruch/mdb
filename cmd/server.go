@@ -63,7 +63,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	}
 
 	router.Use(
-        utils.MdbLoggerMiddleware(log.StandardLogger()),
+		utils.MdbLoggerMiddleware(log.StandardLogger()),
 		utils.ErrorHandlingMiddleware(),
 		utils.GinBodyLogMiddleware,
 		cors.Default(),
@@ -124,7 +124,7 @@ func CaptureStartHandler(c *gin.Context) {
 // `capture_id`: Unique identifier per collection, i.e., for morning lesson all
 // parts of the lesson will have the same `capture_id`.
 func CaptureStopHandler(c *gin.Context) {
-    utils.FixDoubleQuotesInInput(c)
+	utils.FixDoubleQuotesInInput(c)
 	var cs rest.CaptureStop
 	if c.BindJSON(&cs) == nil {
 		if err := dal.CaptureStop(cs); err == nil {
