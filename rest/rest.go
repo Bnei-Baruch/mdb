@@ -24,7 +24,7 @@ type (
 		FileName      string `json:"file_name" binding:"required,max=255"`
 		CreatedAt     int64  `json:"created_at"`
 		CaptureID     string `json:"capture_id" binding:"required,max=255"`
-		CaptureSource string `json:"capture_source" binding:"required"`
+		CaptureSource string `json:"capture_source"`
 	}
 
 	CaptureStop struct {
