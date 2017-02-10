@@ -13,6 +13,13 @@ import (
 	"time"
 )
 
+func TestSha1ToNullString(t *testing.T) {
+	_, err := Sha1ToNullString("abcd")
+	if err != nil {
+		t.Error(err.Error())
+	}
+}
+
 func TestInit(t *testing.T) {
 	InitTestConfig()
 
@@ -277,12 +284,14 @@ func TestUpload(t *testing.T) {
 		t.Error("Could not create file.", err)
 	}
 
+	o := rest.Operation{
+		Station: "a station",
+		User:    "operator@dev.com",
+	}
+
 	url := "http://this/is/some/url"
 	upload := rest.Upload{
-		Operation: rest.Operation{
-			Station: "a station",
-			User:    "operator@dev.com",
-		},
+		Operation: o,
 		FileUpdate: rest.FileUpdate{
 			FileKey: rest.FileKey{
 				FileName: fileName,
@@ -297,6 +306,33 @@ func TestUpload(t *testing.T) {
 	}
 	if err := Upload(upload); err != nil {
 		t.Error("Upload should succeed.", err)
+	}
+	f := models.File{Name: fileName}
+	db.Where(&f).First(&f)
+	if f.Properties["url"] != url {
+		t.Error(fmt.Sprintf("Expected url %s got %s", url, f.Properties["url"]))
+	}
+
+	// Upload non existing file.
+	otherUrl := "http://some/other/url"
+	upload = rest.Upload{
+		Operation: o,
+		FileUpdate: rest.FileUpdate{
+			FileKey: rest.FileKey{
+				FileName: "some_name",
+				Sha1:     "abcd",
+			},
+			Size: 111,
+		},
+		Url: otherUrl,
+	}
+	if err := Upload(upload); err != nil {
+		t.Error("Upload should succeed.", err)
+	}
+	f = models.File{Name: "some_name"}
+	db.Where(&f).First(&f)
+	if f.Properties["url"] != otherUrl {
+		t.Error(fmt.Sprintf("Expected url %s got %s", otherUrl, f.Properties["url"]))
 	}
 }
 
