@@ -103,7 +103,7 @@ type (
 		BackupCount     uint           `json:"omitempty"`
 		FirstBackupTime time.Time      `json:"omitempty"`
 		Properties      JsonB          `json:"omitempty"`
-		Operations      []Operation    `json:"omitempty",gorm:"many2many:files_collections;AssociationForeignKey:ID;ForeignKey:ID;"`
+		Operations      []Operation    `json:"omitempty",gorm:"many2many:files_operations;AssociationForeignKey:ID;ForeignKey:ID;"`
 	}
 
 	FilesOperations struct {

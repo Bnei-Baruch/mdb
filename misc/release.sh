@@ -32,3 +32,5 @@ ssh archive@poc.bbdomain.org "/sites/mdb/migrations/rambler --configuration=/sit
 ssh archive@poc.bbdomain.org "ln -sf /sites/mdb/mdb-$version /sites/mdb/mdb"
 ssh archive@poc.bbdomain.org "supervisorctl restart mdb"
 
+# Revert locally changed docs files.
+git reset --hard HEAD
