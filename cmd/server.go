@@ -13,6 +13,7 @@ import (
 	"gopkg.in/gin-contrib/cors.v1"
 	"gopkg.in/gin-gonic/gin.v1"
 
+	"fmt"
 	"math/rand"
 	"net/http"
 	"time"
@@ -76,9 +77,12 @@ func serverFn(cmd *cobra.Command, args []string) {
 	router.POST("/operations/send", SendHandler)
 	router.POST("/operations/upload", UploadHandler)
 
-	// Serve the log file.
+	// Serve the admin ui.
 	admin := router.Group("admin")
+	// TODO: Remove following when admin-ui enabled.
 	admin.StaticFile("/log", viper.GetString("server.log"))
+	fmt.Printf("Admin UI config: %s\n", viper.GetString("server.admin-ui"))
+	admin.StaticFile("/", viper.GetString("server.admin-ui"))
 
 	// Serve the auto generated docs.
 	router.StaticFile("/docs", viper.GetString("server.docs"))
