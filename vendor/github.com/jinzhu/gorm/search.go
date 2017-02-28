@@ -1,9 +1,6 @@
 package gorm
 
-import (
-	"fmt"
-	"regexp"
-)
+import "fmt"
 
 type search struct {
 	db               *DB
@@ -24,7 +21,7 @@ type search struct {
 	tableName        string
 	raw              bool
 	Unscoped         bool
-	ignoreOrderQuery bool
+	countingQuery    bool
 }
 
 type searchPreload struct {
@@ -73,13 +70,7 @@ func (s *search) Order(value interface{}, reorder ...bool) *search {
 	return s
 }
 
-var distinctSQLRegexp = regexp.MustCompile(`(?i)distinct[^a-z]+[a-z]+`)
-
 func (s *search) Select(query interface{}, args ...interface{}) *search {
-	if distinctSQLRegexp.MatchString(fmt.Sprint(query)) {
-		s.ignoreOrderQuery = true
-	}
-
 	s.selects = map[string]interface{}{"query": query, "args": args}
 	return s
 }

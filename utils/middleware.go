@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
 
 	"bytes"
@@ -17,14 +17,14 @@ import (
 	"github.com/stvp/rollbar"
 )
 
-func MdbLoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
+func MdbLoggerMiddleware(logger *log.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path // some evil middleware modify this values
 
 		c.Next()
 
-		logger.WithFields(logrus.Fields{
+		logger.WithFields(log.Fields{
 			"status":     c.Writer.Status(),
 			"method":     c.Request.Method,
 			"path":       path,
@@ -101,6 +101,11 @@ func (blr bodyLogReadCloser) Read(p []byte) (n int, err error) {
 }
 
 func GinBodyLogMiddleware(c *gin.Context) {
+	if !strings.HasPrefix(c.Request.URL.Path, "/operations/") {
+		c.Next()
+		return
+	}
+
 	blr := &bodyLogReadCloser{
 		body:   bytes.NewBufferString(""),
 		closer: c.Request.Body,
@@ -109,18 +114,14 @@ func GinBodyLogMiddleware(c *gin.Context) {
 		body:           bytes.NewBufferString(""),
 		ResponseWriter: c.Writer,
 	}
-	if "/admin/log" != c.Request.URL.Path {
-		blr.reader = io.TeeReader(c.Request.Body, blr.body)
-		c.Request.Body = blr
-		c.Writer = blw
-	}
+	blr.reader = io.TeeReader(c.Request.Body, blr.body)
+	c.Request.Body = blr
+	c.Writer = blw
 
 	c.Next()
 
-	if "/admin/log" != c.Request.URL.Path {
-		fmt.Println("Request body: " + blr.body.String())
-		fmt.Println("Response body: " + blw.body.String())
-	}
+	log.Infof("Request body:\n%s", blr.body.String())
+	log.Infof("Response body:\n%s", blw.body.String())
 }
 
 func FixDoubleQuotesInInput(c *gin.Context) {

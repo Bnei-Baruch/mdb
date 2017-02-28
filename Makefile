@@ -29,3 +29,8 @@ docs:
 	cat $$f >> docs.apib; \
 	done; \
 	aglio -i docs.apib -o docs.html --theme-template triple
+
+models:
+	rm -rf models
+	sqlboiler postgres
+	go test ./models
