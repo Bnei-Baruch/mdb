@@ -66,7 +66,7 @@ type (
 		ID                uint64      `json:"omitempty"`
 		UID               string      `json:"omitempty"`
 		TypeID            uint64      `json:"omitempty"`
-		Type              ContentType `json:"omitempty",gorm:"ForeignKey:TypeID;"`
+		ContentType       ContentType `json:"omitempty",gorm:"ForeignKey:TypeID;"`
 		TranslatedContent `json:"omitempty"`
 		CreatedAt         time.Time `json:"omitempty"`
 		Properties        JsonB     `json:"omitempty"`

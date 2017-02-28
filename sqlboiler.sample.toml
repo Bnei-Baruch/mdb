@@ -1,0 +1,9 @@
+blacklist=["migrations", "schema_migrations", "ckeditor_assets", "comments", "container_creation_patterns", "container_transcripts", "delayed_jobs", "departments", "dictionaries", "dictionary_descriptions", "label_descriptions", "labels" ]
+schema="public"
+[postgres]
+    dbname="kmedia"
+    host="localhost"
+    port=5432
+    user="postgres"
+    password=""
+    sslmode="disable"
