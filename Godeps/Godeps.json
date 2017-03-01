@@ -2,11 +2,18 @@
 	"ImportPath": "github.com/Bnei-Baruch/mdb",
 	"GoVersion": "go1.8",
 	"GodepVersion": "v79",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.11.0",
 			"Rev": "d26492970760ca5d33129d2d799e34be5c4782eb"
+		},
+		{
+			"ImportPath": "github.com/adams-sarah/test2doc",
+			"Rev": "e96044288938931a6a83c9aac8913aa47bce72ab"
 		},
 		{
 			"ImportPath": "github.com/fsnotify/fsnotify",

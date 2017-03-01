@@ -146,13 +146,13 @@ https://wiki.postgresql.org/wiki/Apt
 
 ```Shell
 sudo apt-get update
-sudo curl -O https://storage.googleapis.com/golang/go1.7.3linux-amd64.tar.gz
+sudo curl -O https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz
 ```
 
 Detailes can be found here: https://www.digitalocean.com/community/tutorials/how-to-install-go-1-6-on-ubuntu-14-04)
 
 ```Shell
-sudo tar -xvf go1.7.3.linux-amd64.tar.gz
+sudo tar -xvf go1.8.linux-amd64.tar.gz
 sudo mv go /usr/local
 export GOROOT=/user/local/go
 ```

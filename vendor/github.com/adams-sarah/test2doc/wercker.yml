@@ -1,0 +1,20 @@
+# use the default golang container from Docker Hub
+box: wercker/golang
+build:
+  steps:
+    - setup-go-workspace
+
+    # golint step!
+    # - wercker/golint
+
+    - script:
+        name: go get
+        code: |
+          go get ./...
+          go get github.com/adams-sarah/prettytest
+
+    - script:
+        name: go test
+        code: |
+          go test ./...
+
