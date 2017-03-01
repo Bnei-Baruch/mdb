@@ -50,6 +50,23 @@ func TestCaptureStopHandler(t *testing.T) {
 	assertJsonOK(t, w)
 }
 
+func TestUploadHandler(t *testing.T) {
+	input := UploadRequest{
+		Operation: Operation{
+			Station: "a station",
+			User:    "111operator@dev.com",
+		},
+		FileKey:  FileKey{FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4"},
+		Sha1:     "012356789abcdef012356789abcdef0123456789",
+		Size:     123,
+		Url:      "https://example.com/heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
+		Duration: 15,
+	}
+
+	w := testOperationHandler(UploadHandler, input)
+	assertJsonOK(t, w)
+}
+
 func testOperationHandler(handler gin.HandlerFunc, input interface{}) *httptest.ResponseRecorder {
 	r := gin.Default()
 	r.POST("/test", handler)

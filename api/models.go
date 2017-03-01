@@ -36,7 +36,7 @@ type (
 		CollectionUID string `json:"collection_uid" binding:"omitempty,base64"`
 		CaptureSource string `json:"capture_source"`
 		Sha1          string `json:"sha1" binding:"required,len=40,hexadecimal"`
-		Size          int64 `json:"size" binding:"required"`
+		Size          int64  `json:"size" binding:"required"`
 		ContentType   string `json:"content_type"`
 		Part          string `json:"part"`
 	}
@@ -56,10 +56,11 @@ type (
 
 	UploadRequest struct {
 		Operation
-		FileUpdate
-		Url      string  `json:"url" binding:"required"`
+		FileKey
+		Sha1     string `json:"sha1" binding:"required,len=40,hexadecimal"`
+		Size     int64  `json:"size" binding:"required"`
+		Url      string `json:"url" binding:"required"`
 		Duration int64  `json:"duration"`
-		Existing FileKey `binding:"structonly"`
 	}
 
 	// simple CRUD

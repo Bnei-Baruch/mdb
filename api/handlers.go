@@ -62,8 +62,8 @@ func UploadHandler(c *gin.Context) {
 func handleCaptureStart(exec boil.Executor, input interface{}) error {
 	r := input.(CaptureStartRequest)
 
-	// Create operation
-	props, err := json.Marshal(map[string]string{
+	log.Info("Creating operation")
+	props, _ := json.Marshal(map[string]string{
 		"workflow_id":    r.Operation.WorkflowID,
 		"collection_uid": r.CollectionUID,
 		"capture_source": r.CaptureSource,
@@ -73,21 +73,19 @@ func handleCaptureStart(exec boil.Executor, input interface{}) error {
 		return err
 	}
 
-	// Create file
+	log.Info("Creating file and associating to operation")
 	file := models.File{
 		UID:  utils.GenerateUID(8),
 		Name: r.FileName,
 	}
-	err = operation.AddFiles(exec, true, &file)
-
-	return err
+	return operation.AddFiles(exec, true, &file)
 }
 
 func handleCaptureStop(exec boil.Executor, input interface{}) error {
 	r := input.(CaptureStopRequest)
 
-	// Create operation
-	props, err := json.Marshal(map[string]string{
+	log.Info("Creating operation")
+	props, _ := json.Marshal(map[string]string{
 		"workflow_id":    r.Operation.WorkflowID,
 		"collection_uid": r.CollectionUID,
 		"capture_source": r.CaptureSource,
@@ -111,11 +109,18 @@ func handleCaptureStop(exec boil.Executor, input interface{}) error {
 		Size: r.Size,
 	}
 
-	// Find parent file (capture_start with same workflow_id)
+	log.Info("Looking up parent file, workflow_id=", r.Operation.WorkflowID)
 	var parentID int64
-	err = queries.Raw(exec, "SELECT file_id FROM files_operations INNER JOIN operations ON operation_id = id WHERE properties -> 'workflow_id' ? $1",
-		r.Operation.WorkflowID).QueryRow().Scan(&parentID)
+	err = queries.Raw(exec,
+		`SELECT file_id FROM files_operations
+		 INNER JOIN operations ON operation_id = id
+		 WHERE type_id=$1 AND properties -> 'workflow_id' ? $2`,
+		OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_START].ID,
+		r.Operation.WorkflowID).
+		QueryRow().
+		Scan(&parentID)
 	if err == nil {
+		log.Info("Found parent file id=", parentID)
 		file.ParentID = null.Int64From(parentID)
 	} else {
 		if err == sql.ErrNoRows {
@@ -126,8 +131,8 @@ func handleCaptureStop(exec boil.Executor, input interface{}) error {
 		}
 	}
 
-	err = operation.AddFiles(exec, true, &file)
-	return err
+	log.Info("Creating file and associating to operation")
+	return operation.AddFiles(exec, true, &file)
 }
 
 func handleDemux(exec boil.Executor, input interface{}) error {
@@ -139,7 +144,61 @@ func handleSend(exec boil.Executor, input interface{}) error {
 }
 
 func handleUpload(exec boil.Executor, input interface{}) error {
-	return nil
+	r := input.(UploadRequest)
+
+	log.Info("Creating operation")
+	props, _ := json.Marshal(map[string]string{
+		"workflow_id": r.Operation.WorkflowID,
+	})
+	operation, err := createOperation(exec, OP_UPLOAD, r.Operation, &props)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Looking up file, sha1=", r.Sha1)
+	sha1, err := hex.DecodeString(r.Sha1)
+	if err != nil {
+		return err
+	}
+	file, err := models.Files(exec, qm.Where("sha1=?", sha1)).One()
+	if err == nil {
+		log.Info("Found file")
+	} else {
+		if err != sql.ErrNoRows {
+			return err
+		}
+
+		log.Info("File not found, creating new.")
+		file = &models.File{
+			UID:  utils.GenerateUID(8),
+			Name: r.FileName,
+			Sha1: null.BytesFrom(sha1),
+			Size: r.Size,
+		}
+	}
+
+	log.Info("Setting file's properties")
+	var fileProps = make(map[string]interface{})
+	if file.Properties.Valid {
+		file.Properties.Unmarshal(&fileProps)
+	}
+	fileProps["url"] = r.Url
+	fileProps["duration"] = r.Duration
+	fpa, _ := json.Marshal(fileProps)
+	file.Properties = null.JSONFrom(fpa)
+
+	log.Info("Saving changes to DB")
+	if file.ID == 0 {
+		err = file.Insert(exec)
+	} else {
+		err = file.Update(exec, "properties")
+	}
+	if err != nil {
+		return err
+	}
+
+	log.Info("Associating file to operation")
+	return operation.AddFiles(exec, false, file)
 }
 
 // Helpers
@@ -156,8 +215,8 @@ func handleOperation(c *gin.Context, input interface{}, opHandler func(boil.Exec
 			tx.Commit()
 		} else {
 			log.Error("Error handling operation: ", err)
-			if err = tx.Rollback(); err != nil {
-				log.Error("Error rolling back DB transaction: ", err)
+			if txErr := tx.Rollback(); txErr != nil {
+				log.Error("Error rolling back DB transaction: ", txErr)
 			}
 		}
 	}
