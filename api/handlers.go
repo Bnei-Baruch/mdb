@@ -12,143 +12,168 @@ import (
 	"database/sql"
 	"github.com/Sirupsen/logrus"
 	"encoding/json"
+	log "github.com/Sirupsen/logrus"
+	"github.com/vattle/sqlboiler/queries"
+	"encoding/hex"
 )
-
 
 // Starts capturing file, i.e., morning lesson or other program.
 func CaptureStartHandler(c *gin.Context) {
-	var r CaptureStartRequest
-	if c.BindJSON(&r) != nil {
-		return
+	var i CaptureStartRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleCaptureStart)
 	}
-
-	// TODO: should be taken from Input soon (needs impl in WF)
-	// For now we only get lessons...
-	contentType := CT_LESSON_PART
-
-	// Start DB transaction
-	tx, err := boil.Begin()
-
-	// Create operation
-	props, err := json.Marshal(map[string]string{
-		"workflow_id": r.Operation.WorkflowID,
-		"collection_uid": r.CollectionUID,
-		"capture_source": r.CaptureSource,
-	})
-	operation, err := createOperation(tx, OP_CAPTURE_START, r.Operation, &props)
-	if err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error":  err.Error()})
-		return
-	}
-
-	// Create file
-	file := models.File{
-		UID:         utils.GenerateUID(8),
-		Name:        r.FileName,
-	}
-	err = operation.AddFiles(tx, true, &file)
-	if err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error":  err.Error()})
-		return
-	}
-
-	// Create content unit
-	cType, err := models.ContentTypesG(qm.Where("name=?", contentType)).One()
-	if err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error":  err.Error()})
-		return
-	}
-
-	name := models.StringTranslation{Text: DEFAULT_NAMES[contentType]}
-	if err = name.Insert(tx); err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error":  err.Error()})
-		return
-	}
-
-	cu := models.ContentUnit{
-		TypeID: cType.ID,
-		UID:    utils.GenerateUID(8),
-		NameID:        name.ID,
-	}
-	err = file.SetContentUnit(tx, true, &cu)
-	if err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error":  err.Error()})
-		return
-	}
-
-	tx.Commit()
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
 // Stops capturing file, i.e., morning lesson or other program.
-//
-// `capture_id`: Unique identifier per collection, i.e., for morning lesson all
-// parts of the lesson will have the same `capture_id`.
 func CaptureStopHandler(c *gin.Context) {
-	var r CaptureStopRequest
-	if c.BindJSON(&r) != nil {
-		return
+	var i CaptureStopRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleCaptureStop)
 	}
-
-	// DO logic here
-
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-// Demux
+// Demux original file to low resolution proxy
 func DemuxHandler(c *gin.Context) {
-	var r DemuxRequest
-	if c.BindJSON(&r) != nil {
-		return
+	var i DemuxRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleDemux)
 	}
-
-	// DO logic here
-
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
 // Moves file from capture machine to other storage.
 func SendHandler(c *gin.Context) {
-	var r SendRequest
-	if c.BindJSON(&r) != nil {
-		return
+	var i SendRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleSend)
 	}
-
-	// DO logic here
-
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
 // Enabled file to be accessible from URL.
 func UploadHandler(c *gin.Context) {
-	var r UploadRequest
-	if c.BindJSON(&r) != nil {
-		return
+	var i UploadRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleUpload)
 	}
-
-	// DO logic here
-
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+// Handler logic
+
+func handleCaptureStart(exec boil.Executor, input interface{}) error {
+	r := input.(CaptureStartRequest)
+
+	// Create operation
+	props, err := json.Marshal(map[string]string{
+		"workflow_id":    r.Operation.WorkflowID,
+		"collection_uid": r.CollectionUID,
+		"capture_source": r.CaptureSource,
+	})
+	operation, err := createOperation(exec, OP_CAPTURE_START, r.Operation, &props)
+	if err != nil {
+		return err
+	}
+
+	// Create file
+	file := models.File{
+		UID:  utils.GenerateUID(8),
+		Name: r.FileName,
+	}
+	err = operation.AddFiles(exec, true, &file)
+
+	return err
+}
+
+func handleCaptureStop(exec boil.Executor, input interface{}) error {
+	r := input.(CaptureStopRequest)
+
+	// Create operation
+	props, err := json.Marshal(map[string]string{
+		"workflow_id":    r.Operation.WorkflowID,
+		"collection_uid": r.CollectionUID,
+		"capture_source": r.CaptureSource,
+		"content_type":   r.ContentType,
+		"part":           r.Part,
+	})
+	operation, err := createOperation(exec, OP_CAPTURE_STOP, r.Operation, &props)
+	if err != nil {
+		return err
+	}
+
+	// Create file
+	sha1, err := hex.DecodeString(r.Sha1)
+	if err != nil {
+		return err
+	}
+	file := models.File{
+		UID:  utils.GenerateUID(8),
+		Name: r.FileName,
+		Sha1: null.BytesFrom(sha1),
+		Size: r.Size,
+	}
+
+	// Find parent file (capture_start with same workflow_id)
+	var parentID int64
+	err = queries.Raw(exec, "SELECT file_id FROM files_operations INNER JOIN operations ON operation_id = id WHERE properties -> 'workflow_id' ? $1",
+		r.Operation.WorkflowID).QueryRow().Scan(&parentID)
+	if err == nil {
+		file.ParentID = null.Int64From(parentID)
+	} else {
+		if err == sql.ErrNoRows {
+			logrus.Warnf("capture_start operation not found for workflow_id [%s]. Skipping.",
+				r.Operation.WorkflowID)
+		} else {
+			return err
+		}
+	}
+
+	err = operation.AddFiles(exec, true, &file)
+	return err
+}
+
+func handleDemux(exec boil.Executor, input interface{}) error {
+	return nil
+}
+
+func handleSend(exec boil.Executor, input interface{}) error {
+	return nil
+}
+
+func handleUpload(exec boil.Executor, input interface{}) error {
+	return nil
+}
 
 // Helpers
 
-func createOperation(exec boil.Executor, name string, o Operation, properties *[]byte) (*models.Operation, error) {
-	opType, err := models.OperationTypesG(qm.Where("name=?", name)).One()
-	if err != nil {
-		return nil, err
+// Generic operation handler.
+// 	* Manage DB transactions
+// 	* Call operation logic handler
+// 	* Render JSON response
+func handleOperation(c *gin.Context, input interface{}, opHandler func(boil.Executor, interface{}) error) {
+	tx, err := boil.Begin()
+	if err == nil {
+		err = opHandler(tx, input)
+		if err == nil {
+			tx.Commit()
+		} else {
+			log.Error("Error handling operation: ", err)
+			if err = tx.Rollback(); err != nil {
+				log.Error("Error rolling back DB transaction: ", err)
+			}
+		}
 	}
 
+	if err == nil {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
+	}
+}
+
+func createOperation(exec boil.Executor, name string, o Operation, properties *[]byte) (*models.Operation, error) {
 	operation := models.Operation{
-		TypeID: opType.ID,
-		UID: utils.GenerateUID(8),
-		Station: null.StringFrom(o.Station),
+		TypeID:     OPERATION_TYPE_REGISTRY.ByName[name].ID,
+		UID:        utils.GenerateUID(8),
+		Station:    null.StringFrom(o.Station),
 		Properties: null.JSONFromPtr(properties),
 	}
 

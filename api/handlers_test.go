@@ -15,10 +15,6 @@ import (
 )
 
 func TestCaptureStartHandler(t *testing.T) {
-	r := gin.Default()
-	r.POST("/test", CaptureStartHandler)
-
-	// User not found.
 	input := CaptureStartRequest{
 		Operation: Operation{
 			Station:    "a station",
@@ -29,11 +25,46 @@ func TestCaptureStartHandler(t *testing.T) {
 		CollectionUID: "abcdefgh",
 		CaptureSource: "mltcap",
 	}
+
+	w := testOperationHandler(CaptureStartHandler, input)
+	assertJsonOK(t, w)
+}
+
+func TestCaptureStopHandler(t *testing.T) {
+	input := CaptureStopRequest{
+		Operation: Operation{
+			Station:    "a station",
+			User:       "111operator@dev.com",
+			WorkflowID: "c12356789",
+		},
+		FileKey:       FileKey{FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4"},
+		CollectionUID: "abcdefgh",
+		CaptureSource: "mltcap",
+		Sha1:          "012356789abcdef012356789abcdef0123456789",
+		Size:          123,
+		ContentType:   "content_type",
+		Part:          "part",
+	}
+
+	w := testOperationHandler(CaptureStopHandler, input)
+	assertJsonOK(t, w)
+}
+
+func testOperationHandler(handler gin.HandlerFunc, input interface{}) *httptest.ResponseRecorder {
+	r := gin.Default()
+	r.POST("/test", handler)
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(input)
 	req, _ := http.NewRequest("POST", "/test", b)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
+	return w
+}
+
+func assertJsonOK(t *testing.T, w *httptest.ResponseRecorder) {
+	if w.Code != http.StatusOK {
+		t.Errorf("HTTP status_code should be 200, was: %d", w.Code)
+	}
 
 	if w.Body.String() != "{\"status\":\"ok\"}\n" {
 		t.Errorf("Response should be {\"status\":\"ok\"}, was: %s", w.Body.String())
@@ -44,37 +75,6 @@ func TestCaptureStartHandler(t *testing.T) {
 	}
 }
 
-//
-//import (
-//	"github.com/Bnei-Baruch/mdb/models"
-//
-//	"encoding/hex"
-//	"fmt"
-//	"math/rand"
-//	"os"
-//	"strings"
-//	"testing"
-//	"time"
-//	"github.com/edoshor/new_lang/db"
-//)
-//
-//func TestSha1ToNullString(t *testing.T) {
-//	_, err := Sha1ToNullString("abcd")
-//	if err != nil {
-//		t.Error(err.Error())
-//	}
-//}
-//
-//func TestInit(t *testing.T) {
-//	InitTestConfig()
-//
-//	if _, err := InitByUrl("bad://database-connection-url"); err == nil {
-//		t.Error("Expected not nil, got nil.")
-//	}
-//	if _, err := Init(); err != nil {
-//		t.Error("Expected nil, got ", err.Error())
-//	}
-//}
 //
 //func TestCaptureStart(t *testing.T) {
 //	baseDb, tmpDb, name := SwitchToTmpDb()
@@ -193,26 +193,6 @@ func TestCaptureStartHandler(t *testing.T) {
 //	}
 //}
 //
-//func TestParseFilename(t *testing.T) {
-//	fn, err := ParseFileName("heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4")
-//	if err != nil {
-//		t.Error("ParseFileName should succeed.")
-//	}
-//	if fn.Type != "mp4" {
-//		t.Error("Expected type to be mp4")
-//	}
-//	if fn.Part != "rb-1990-02-kishalon" {
-//		t.Error("Expected different part %s", fn.Part)
-//	}
-//
-//	_, err = ParseFileName("heb_o_rav_rb-1990-02-kishalon_201-09-14_lesson.mp4")
-//	if e := "could not parse date"; err == nil || !strings.Contains(err.Error(), e) {
-//		t.Error(fmt.Sprintf("ParseFileName should contain %s, got %s.", e, err))
-//	}
-//
-//	// Make sure code does not crash.
-//	ParseFileName("2017-01-04_02-40-19")
-//}
 //
 //func TestDemux(t *testing.T) {
 //	baseDb, tmpDb, name := SwitchToTmpDb()
@@ -385,6 +365,12 @@ func TestMain(m *testing.M) {
 	rand.Seed(time.Now().UTC().UnixNano())
 	gin.SetMode(gin.TestMode)
 	if err := utils.InitTestDB(); err != nil {
+		panic(err)
+	}
+	if err := CONTENT_TYPE_REGISTRY.Init(); err != nil {
+		panic(err)
+	}
+	if err := OPERATION_TYPE_REGISTRY.Init(); err != nil {
 		panic(err)
 	}
 	s := m.Run()

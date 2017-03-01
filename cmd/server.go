@@ -43,12 +43,9 @@ var router *gin.Engine
 
 func serverFn(cmd *cobra.Command, args []string) {
 	rand.Seed(time.Now().UTC().UnixNano())
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	serverDefaults()
 
-	// Setup logging
-	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
-
-	// Setup DB
 	log.Info("Setting up connection to MDB")
 	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	if err != nil {
@@ -57,6 +54,14 @@ func serverFn(cmd *cobra.Command, args []string) {
 	defer db.Close()
 	boil.SetDB(db)
 	boil.DebugMode = true
+
+	log.Info("Initializing type registries")
+	if err := api.CONTENT_TYPE_REGISTRY.Init(); err != nil {
+		log.Fatal(err)
+	}
+	if err := api.OPERATION_TYPE_REGISTRY.Init(); err != nil {
+		log.Fatal(err)
+	}
 
 	// Setup Rollbar
 	rollbar.Token = viper.GetString("server.rollbar-token")
