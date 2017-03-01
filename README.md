@@ -178,6 +178,8 @@ godep save
 
 ```cd admin-ui```
 
+  ```npm install```
+
   ```npm start```
     Starts the development server.
 

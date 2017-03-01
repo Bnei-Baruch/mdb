@@ -83,6 +83,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	admin.StaticFile("/log", viper.GetString("server.log"))
 	fmt.Printf("Admin UI config: %s\n", viper.GetString("server.admin-ui"))
 	admin.StaticFile("/", viper.GetString("server.admin-ui"))
+	admin.Static("/build", "./admin-ui/build/")
 
 	// Serve the auto generated docs.
 	router.StaticFile("/docs", viper.GetString("server.docs"))

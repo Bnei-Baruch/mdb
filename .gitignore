@@ -8,3 +8,6 @@ config.toml
 mdb
 visio.SQL
 */**/*.apib
+
+admin-ui/build/
+admin-ui/node_modules/
