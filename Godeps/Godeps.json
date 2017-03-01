@@ -1,12 +1,19 @@
 {
 	"ImportPath": "github.com/Bnei-Baruch/mdb",
-	"GoVersion": "go1.7",
-	"GodepVersion": "v74",
+	"GoVersion": "go1.8",
+	"GodepVersion": "v79",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.11.0",
 			"Rev": "d26492970760ca5d33129d2d799e34be5c4782eb"
+		},
+		{
+			"ImportPath": "github.com/adams-sarah/test2doc",
+			"Rev": "e96044288938931a6a83c9aac8913aa47bce72ab"
 		},
 		{
 			"ImportPath": "github.com/fsnotify/fsnotify",
@@ -176,7 +183,7 @@
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "73058b0420c0c24a7f9ec3eb6f624ac85d2ed035"
+			"Rev": "6b27048ae5e6ad1ef927e72e437531493de612fe"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
