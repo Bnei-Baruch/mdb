@@ -1,14 +1,13 @@
 package api
 
+import (
+	"time"
+	"fmt"
+	"strconv"
+)
+
 type (
 	// Common
-
-	FileKey struct {
-		FileName  string `json:"file_name" binding:"max=255"`
-		Sha1      string `json:"sha1" binding:"omitempty,len=40,hexadecimal"`
-		CreatedAt int64  `json:"created_at"`
-		UID       string `json:"uid" binding:"omitempty,len=8,base64"`
-	}
 
 	Operation struct {
 		Station    string `json:"station" binding:"required"`
@@ -16,51 +15,66 @@ type (
 		WorkflowID string `json:"workflow_id"`
 	}
 
-	FileUpdate struct {
-		FileKey
-		Size int64 `json:"size" binding:"required"`
+	File struct {
+		FileName  string     `json:"file_name" binding:"required,max=255"`
+		Sha1      string     `json:"sha1" binding:"required,len=40,hexadecimal"`
+		Size      int64      `json:"size" binding:"required"`
+		CreatedAt *Timestamp `json:"created_at" binding:"required"`
+		Type      string     `json:"type" binding:"max=16"`
+		SubType   string     `json:"sub_type" binding:"max=16"`
+		MimeType  string     `json:"mime_type" binding:"max=255"`
+		Language  string     `json:"language" binding:"omitempty,len=2"`
+	}
+
+	AVFile struct {
+		File
+		Duration float64 `json:"duration"`
 	}
 
 	// Operations
 
 	CaptureStartRequest struct {
 		Operation
-		FileKey
-		CollectionUID string `json:"collection_uid" binding:"omitempty,base64"`
+		FileName      string `json:"file_name" binding:"max=255"`
 		CaptureSource string `json:"capture_source"`
+		CollectionUID string `json:"collection_uid"`
 	}
 
 	CaptureStopRequest struct {
 		Operation
-		FileKey
-		CollectionUID string `json:"collection_uid" binding:"omitempty,base64"`
+		AVFile
 		CaptureSource string `json:"capture_source"`
-		Sha1          string `json:"sha1" binding:"required,len=40,hexadecimal"`
-		Size          int64  `json:"size" binding:"required"`
-		ContentType   string `json:"content_type"`
+		CollectionUID string `json:"collection_uid"`
 		Part          string `json:"part"`
 	}
 
 	DemuxRequest struct {
 		Operation
-		FileKey
-		Original FileUpdate
-		Proxy    FileUpdate
+		Sha1          string `json:"sha1" binding:"required,len=40,hexadecimal"`
+		Original      AVFile `json:"original"`
+		Proxy         AVFile `json:"proxy"`
+		CaptureSource string `json:"capture_source"`
+	}
+
+	TrimRequest struct {
+		Operation
+		OriginalSha1 string `json:"original_sha1" binding:"required,len=40,hexadecimal"`
+		ProxySha1    string `json:"proxy_sha1" binding:"required,len=40,hexadecimal"`
+		Original     AVFile `json:"original"`
+		Proxy        AVFile `json:"proxy"`
+		//InOut
 	}
 
 	SendRequest struct {
 		Operation
-		FileKey
-		Dest FileUpdate
+		Sha1 string `json:"sha1" binding:"required,len=40,hexadecimal"`
+		Dest File
 	}
 
 	UploadRequest struct {
 		Operation
-		FileKey
-		Sha1     string `json:"sha1" binding:"required,len=40,hexadecimal"`
-		Size     int64  `json:"size" binding:"required"`
-		Url      string `json:"url" binding:"required"`
-		Duration int64  `json:"duration"`
+		AVFile
+		Url string `json:"url" binding:"required"`
 	}
 
 	// simple CRUD
@@ -72,3 +86,26 @@ type (
 		Language    string `json:"language" binding:"len=2"`
 	}
 )
+
+// A time.Time like stucture with Unix timestamp JSON marshalling
+type Timestamp struct {
+	time.Time
+}
+
+func (t *Timestamp) MarshalJSON() ([]byte, error) {
+	ts := t.Time.Unix()
+	stamp := fmt.Sprint(ts)
+
+	return []byte(stamp), nil
+}
+
+func (t *Timestamp) UnmarshalJSON(b []byte) error {
+	ts, err := strconv.Atoi(string(b))
+	if err != nil {
+		return err
+	}
+
+	t.Time = time.Unix(int64(ts), 0)
+
+	return nil
+}

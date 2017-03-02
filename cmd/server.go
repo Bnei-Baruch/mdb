@@ -16,6 +16,7 @@ import (
 	"github.com/Bnei-Baruch/mdb/version"
 	"database/sql"
 	"github.com/vattle/sqlboiler/boil"
+	"github.com/Gurpartap/logrus-stack"
 )
 
 var serverCmd = &cobra.Command{
@@ -44,6 +45,7 @@ var router *gin.Engine
 func serverFn(cmd *cobra.Command, args []string) {
 	rand.Seed(time.Now().UTC().UnixNano())
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
+	log.AddHook(logrus_stack.StandardHook())
 	serverDefaults()
 
 	log.Info("Setting up connection to MDB")

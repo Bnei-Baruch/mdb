@@ -7,9 +7,17 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/Gurpartap/logrus-stack",
+			"Rev": "f9a07a6433014aff95d7c59a24fc3155ea7ce830"
+		},
+		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.11.0",
 			"Rev": "d26492970760ca5d33129d2d799e34be5c4782eb"
+		},
+		{
+			"ImportPath": "github.com/facebookgo/stack",
+			"Rev": "751773369052141c013c6e827a71e8f35c07879c"
 		},
 		{
 			"ImportPath": "github.com/fsnotify/fsnotify",
@@ -76,22 +84,9 @@
 			"Rev": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
 		},
 		{
-			"ImportPath": "github.com/jinzhu/gorm",
-			"Comment": "v1.0-79-g39165d4",
-			"Rev": "39165d498058a823126af3cbf4d2a3b0e1acf11e"
-		},
-		{
-			"ImportPath": "github.com/jinzhu/inflection",
-			"Rev": "74387dc39a75e970e7a3ae6a3386b5bd2e5c5cff"
-		},
-		{
 			"ImportPath": "github.com/kat-co/vala",
 			"Comment": "v1-10-g42e1d8b",
 			"Rev": "42e1d8b61f12b4fcadea0c062782e466924a3aaa"
-		},
-		{
-			"ImportPath": "github.com/kr/fs",
-			"Rev": "2788f0dbd16903de03cb8186e5c7d97b69ad387b"
 		},
 		{
 			"ImportPath": "github.com/lib/pq",
@@ -133,10 +128,6 @@
 			"ImportPath": "github.com/pkg/errors",
 			"Comment": "v0.8.0-3-gbfd5150",
 			"Rev": "bfd5150e4e41705ded2129ec33379de1cb90b513"
-		},
-		{
-			"ImportPath": "github.com/pkg/sftp",
-			"Rev": "4d0e916071f68db74f8a73926335f809396d6b42"
 		},
 		{
 			"ImportPath": "github.com/satori/go.uuid",
@@ -215,22 +206,6 @@
 			"ImportPath": "github.com/vattle/sqlboiler/types",
 			"Comment": "v2.1.7",
 			"Rev": "bfba60eaad30f691f1e3b83882b370223fa5416b"
-		},
-		{
-			"ImportPath": "golang.org/x/crypto/curve25519",
-			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
-		},
-		{
-			"ImportPath": "golang.org/x/crypto/ed25519",
-			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
-		},
-		{
-			"ImportPath": "golang.org/x/crypto/ed25519/internal/edwards25519",
-			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
-		},
-		{
-			"ImportPath": "golang.org/x/crypto/ssh",
-			"Rev": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",

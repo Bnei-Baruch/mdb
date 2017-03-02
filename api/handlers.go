@@ -15,6 +15,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/vattle/sqlboiler/queries"
 	"encoding/hex"
+	"fmt"
 )
 
 // Starts capturing file, i.e., morning lesson or other program.
@@ -63,12 +64,11 @@ func handleCaptureStart(exec boil.Executor, input interface{}) error {
 	r := input.(CaptureStartRequest)
 
 	log.Info("Creating operation")
-	props, _ := json.Marshal(map[string]string{
-		"workflow_id":    r.Operation.WorkflowID,
-		"collection_uid": r.CollectionUID,
+	props := map[string]interface{}{
 		"capture_source": r.CaptureSource,
-	})
-	operation, err := createOperation(exec, OP_CAPTURE_START, r.Operation, &props)
+		"collection_uid": r.CollectionUID,
+	}
+	operation, err := createOperation(exec, OP_CAPTURE_START, r.Operation, props)
 	if err != nil {
 		return err
 	}
@@ -85,14 +85,12 @@ func handleCaptureStop(exec boil.Executor, input interface{}) error {
 	r := input.(CaptureStopRequest)
 
 	log.Info("Creating operation")
-	props, _ := json.Marshal(map[string]string{
-		"workflow_id":    r.Operation.WorkflowID,
-		"collection_uid": r.CollectionUID,
+	props := map[string]interface{}{
 		"capture_source": r.CaptureSource,
-		"content_type":   r.ContentType,
+		"collection_uid": r.CollectionUID, // L_ID = backup capture id when lesson, capture_id when program (part=false)
 		"part":           r.Part,
-	})
-	operation, err := createOperation(exec, OP_CAPTURE_STOP, r.Operation, &props)
+	}
+	operation, err := createOperation(exec, OP_CAPTURE_STOP, r.Operation, props)
 	if err != nil {
 		return err
 	}
@@ -103,10 +101,11 @@ func handleCaptureStop(exec boil.Executor, input interface{}) error {
 		return err
 	}
 	file := models.File{
-		UID:  utils.GenerateUID(8),
-		Name: r.FileName,
-		Sha1: null.BytesFrom(sha1),
-		Size: r.Size,
+		UID:           utils.GenerateUID(8),
+		Name:          r.FileName,
+		Sha1:          null.BytesFrom(sha1),
+		Size:          r.Size,
+		FileCreatedAt: null.TimeFrom(r.CreatedAt.Time),
 	}
 
 	log.Info("Looking up parent file, workflow_id=", r.Operation.WorkflowID)
@@ -136,7 +135,53 @@ func handleCaptureStop(exec boil.Executor, input interface{}) error {
 }
 
 func handleDemux(exec boil.Executor, input interface{}) error {
-	return nil
+	r := input.(DemuxRequest)
+
+	log.Info("Looking up file, sha1=", r.Sha1)
+	sha1, err := hex.DecodeString(r.Sha1)
+	if err != nil {
+		return err
+	}
+	parent, err := models.Files(exec, qm.Where("sha1=?", sha1)).One()
+	if err == nil {
+		log.Info("Found file")
+	} else {
+		if err != sql.ErrNoRows {
+			return err
+		} else {
+			return FileNotFound{Sha1: r.Sha1}
+		}
+	}
+
+	log.Info("Creating operation")
+	props := map[string]interface{}{
+		"capture_source": r.CaptureSource,
+	}
+	operation, err := createOperation(exec, OP_DEMUX, r.Operation, props)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Creating original")
+	props = map[string]interface{}{
+		"duration": r.Original.Duration,
+	}
+	original, err := createFile(exec, parent, r.Original.File, props)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Creating proxy")
+	props = map[string]interface{}{
+		"duration": r.Proxy.Duration,
+	}
+	proxy, err := createFile(exec, parent, r.Proxy.File, props)
+	if err != nil {
+		return err
+	}
+
+	log.Info("Associating files to operation")
+	return operation.AddFiles(exec, false, parent, original, proxy)
 }
 
 func handleSend(exec boil.Executor, input interface{}) error {
@@ -147,10 +192,7 @@ func handleUpload(exec boil.Executor, input interface{}) error {
 	r := input.(UploadRequest)
 
 	log.Info("Creating operation")
-	props, _ := json.Marshal(map[string]string{
-		"workflow_id": r.Operation.WorkflowID,
-	})
-	operation, err := createOperation(exec, OP_UPLOAD, r.Operation, &props)
+	operation, err := createOperation(exec, OP_UPLOAD, r.Operation, nil)
 	if err != nil {
 		return err
 	}
@@ -170,10 +212,11 @@ func handleUpload(exec boil.Executor, input interface{}) error {
 
 		log.Info("File not found, creating new.")
 		file = &models.File{
-			UID:  utils.GenerateUID(8),
-			Name: r.FileName,
-			Sha1: null.BytesFrom(sha1),
-			Size: r.Size,
+			UID:           utils.GenerateUID(8),
+			Name:          r.FileName,
+			Sha1:          null.BytesFrom(sha1),
+			Size:          r.Size,
+			FileCreatedAt: null.TimeFrom(r.CreatedAt.Time),
 		}
 	}
 
@@ -224,20 +267,34 @@ func handleOperation(c *gin.Context, input interface{}, opHandler func(boil.Exec
 	if err == nil {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	} else {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
+		switch err.(type) {
+		case FileNotFound:
+			c.Error(err).SetType(gin.ErrorTypePublic)
+			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": err.Error()})
+		default:
+			c.Error(err).SetType(gin.ErrorTypePrivate)
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
+		}
 	}
 }
 
-func createOperation(exec boil.Executor, name string, o Operation, properties *[]byte) (*models.Operation, error) {
+type FileNotFound struct {
+	Sha1 string
+}
+
+func (f FileNotFound) Error() string {
+	return fmt.Sprintf("File not found, sha1 = %s", f.Sha1)
+}
+
+func createOperation(exec boil.Executor, name string, o Operation, properties map[string]interface{}) (*models.Operation, error) {
 	operation := models.Operation{
 		TypeID:     OPERATION_TYPE_REGISTRY.ByName[name].ID,
 		UID:        utils.GenerateUID(8),
 		Station:    null.StringFrom(o.Station),
-		Properties: null.JSONFromPtr(properties),
 	}
 
 	// Lookup user, skip if doesn't exist
-	user, err := models.UsersG(qm.Where("email=?", o.User)).One()
+	user, err := models.Users(exec, qm.Where("email=?", o.User)).One()
 	if err == nil {
 		operation.UserID = null.Int64From(user.ID)
 	} else {
@@ -248,5 +305,53 @@ func createOperation(exec boil.Executor, name string, o Operation, properties *[
 		}
 	}
 
+	// Handle properties
+	if o.WorkflowID != "" {
+		if properties == nil {
+			properties = make(map[string]interface{})
+		}
+		properties["workflow_id"] = o.WorkflowID
+	}
+	if properties != nil {
+		props, err := json.Marshal(properties)
+		if err != nil {
+			return nil, err
+		}
+		operation.Properties = null.JSONFrom(props)
+	}
+
 	return &operation, operation.Insert(exec)
+}
+
+func createFile(exec boil.Executor, parent *models.File, f File, properties map[string]interface{}) (*models.File, error) {
+	sha1, err := hex.DecodeString(f.Sha1)
+	if err != nil {
+		return nil, err
+	}
+
+	file := models.File{
+		UID:           utils.GenerateUID(8),
+		Name:          f.FileName,
+		Sha1:          null.BytesFrom(sha1),
+		Size:          f.Size,
+		FileCreatedAt: null.TimeFrom(f.CreatedAt.Time),
+		Type:          f.Type,
+		SubType:       f.SubType,
+		MimeType:      null.StringFrom(f.MimeType),
+		Language:      null.StringFrom(f.Language),
+	}
+	if parent != nil {
+		file.ParentID = null.Int64From(parent.ID)
+	}
+
+	// Handle properties
+	if properties != nil {
+		props, err := json.Marshal(properties)
+		if err != nil {
+			return nil, err
+		}
+		file.Properties = null.JSONFrom(props)
+	}
+	
+	return &file, file.Insert(exec)
 }
