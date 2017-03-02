@@ -25,12 +25,12 @@ echo "Updating docs..."
 make docs
 
 echo "Deploying to production"
-scp mdb archive@poc.bbdomain.org:/sites/mdb/"mdb-$version"
-scp docs/docs.html archive@poc.bbdomain.org:/sites/mdb/docs.html
-scp migrations/*.sql archive@poc.bbdomain.org:/sites/mdb/migrations/
-ssh archive@poc.bbdomain.org "/sites/mdb/migrations/rambler --configuration=/sites/mdb/migrations/rambler.json apply --all"
-ssh archive@poc.bbdomain.org "ln -sf /sites/mdb/mdb-$version /sites/mdb/mdb"
-ssh archive@poc.bbdomain.org "supervisorctl restart mdb"
+scp mdb archive@app.mdb.bbdomain.org:/sites/mdb/"mdb-$version"
+scp docs/docs.html archive@app.mdb.bbdomain.org:/sites/mdb/docs.html
+scp migrations/*.sql archive@app.mdb.bbdomain.org:/sites/mdb/migrations/
+ssh archive@app.mdb.bbdomain.org "/sites/mdb/migrations/rambler --configuration=/sites/mdb/migrations/rambler.json apply --all"
+ssh archive@app.mdb.bbdomain.org "ln -sf /sites/mdb/mdb-$version /sites/mdb/mdb"
+ssh archive@app.mdb.bbdomain.org "supervisorctl restart mdb"
 
 # Revert locally changed docs files.
 git reset --hard HEAD
