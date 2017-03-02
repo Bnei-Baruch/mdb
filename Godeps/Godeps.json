@@ -16,6 +16,18 @@
 			"Rev": "d26492970760ca5d33129d2d799e34be5c4782eb"
 		},
 		{
+			"ImportPath": "github.com/adams-sarah/test2doc/doc",
+			"Rev": "e96044288938931a6a83c9aac8913aa47bce72ab"
+		},
+		{
+			"ImportPath": "github.com/adams-sarah/test2doc/doc/parse",
+			"Rev": "e96044288938931a6a83c9aac8913aa47bce72ab"
+		},
+		{
+			"ImportPath": "github.com/edoshor/test2doc/test",
+			"Rev": "f77801361ec7fba12c1af30fd39cfd793527cdfe"
+		},
+		{
 			"ImportPath": "github.com/facebookgo/stack",
 			"Rev": "751773369052141c013c6e827a71e8f35c07879c"
 		},

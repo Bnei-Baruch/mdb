@@ -4,16 +4,20 @@ import (
 	"testing"
 	"time"
 	"os"
-	"math/rand"
 
 	"gopkg.in/gin-gonic/gin.v1"
 	"net/http"
-	"net/http/httptest"
 	"bytes"
 	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/Gurpartap/logrus-stack"
-	log "github.com/Sirupsen/logrus"
+	"github.com/edoshor/test2doc/test"
+	"net/url"
+	"path"
+)
+
+var (
+	router     *gin.Engine
+	testServer *test.Server
 )
 
 func TestCaptureStartHandler(t *testing.T) {
@@ -28,8 +32,11 @@ func TestCaptureStartHandler(t *testing.T) {
 		CollectionUID: "abcdefgh",
 	}
 
-	w := testOperationHandler(CaptureStartHandler, input)
-	assertJsonOK(t, w)
+	resp, err := testOperation(OP_CAPTURE_START, input)
+	if err != nil {
+		t.Error("Unknown error: ", err)
+	}
+	assertJsonOK(t, resp)
 }
 
 func TestCaptureStopHandler(t *testing.T) {
@@ -45,10 +52,10 @@ func TestCaptureStopHandler(t *testing.T) {
 				Sha1:      "012356789abcdef012356789abcdef0123456789",
 				Size:      98737,
 				CreatedAt: &Timestamp{time.Now()},
-				Type: "type",
-				SubType: "subtype",
-				MimeType: "mime_type",
-				Language: LANG_MULTI,
+				Type:      "type",
+				SubType:   "subtype",
+				MimeType:  "mime_type",
+				Language:  LANG_MULTI,
 			},
 			Duration: 892.1900,
 		},
@@ -57,8 +64,11 @@ func TestCaptureStopHandler(t *testing.T) {
 		Part:          "part",
 	}
 
-	w := testOperationHandler(CaptureStopHandler, input)
-	assertJsonOK(t, w)
+	resp, err := testOperation(OP_CAPTURE_STOP, input)
+	if err != nil {
+		t.Error("Unknown error: ", err)
+	}
+	assertJsonOK(t, resp)
 }
 
 func TestDemuxHandler(t *testing.T) {
@@ -68,17 +78,17 @@ func TestDemuxHandler(t *testing.T) {
 			User:    "operator@dev.com",
 		},
 		CaptureSource: "mltbackup",
-		Sha1:      "012356789abcdef012356789abcdef0123456789",
+		Sha1:          "012356789abcdef012356789abcdef0123456789",
 		Original: AVFile{
 			File: File{
 				FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_o.mp4",
 				Sha1:      "0987654321fedcba0987654321fedcba09876543",
 				Size:      19837,
 				CreatedAt: &Timestamp{time.Now()},
-				Type: "type",
-				SubType: "subtype",
-				MimeType: "mime_type",
-				Language: LANG_MULTI,
+				Type:      "type",
+				SubType:   "subtype",
+				MimeType:  "mime_type",
+				Language:  LANG_MULTI,
 			},
 			Duration: 892.1900,
 		},
@@ -88,17 +98,20 @@ func TestDemuxHandler(t *testing.T) {
 				Sha1:      "0987654321fedcba0987654321fedcba87654321",
 				Size:      837,
 				CreatedAt: &Timestamp{time.Now()},
-				Type: "type",
-				SubType: "subtype",
-				MimeType: "mime_type",
-				Language: LANG_HEBREW,
+				Type:      "type",
+				SubType:   "subtype",
+				MimeType:  "mime_type",
+				Language:  LANG_HEBREW,
 			},
 			Duration: 892.1900,
 		},
 	}
 
-	w := testOperationHandler(DemuxHandler, input)
-	assertJsonOK(t, w)
+	resp, err := testOperation(OP_DEMUX, input)
+	if err != nil {
+		t.Error("Unknown error: ", err)
+	}
+	assertJsonOK(t, resp)
 }
 
 func TestUploadHandler(t *testing.T) {
@@ -119,40 +132,61 @@ func TestUploadHandler(t *testing.T) {
 		Url: "https://example.com/heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
 	}
 
-	w := testOperationHandler(UploadHandler, input)
-	assertJsonOK(t, w)
+	resp, err := testOperation(OP_UPLOAD, input)
+	if err != nil {
+		t.Error("Unknown error: ", err)
+	}
+	assertJsonOK(t, resp)
 }
 
-func testOperationHandler(handler gin.HandlerFunc, input interface{}) *httptest.ResponseRecorder {
-	r := gin.New()
-	r.Use(utils.ErrorHandlingMiddleware(), gin.Recovery())
-	r.POST("/operations/test", handler)
+func testOperation(name string, input interface{}) (*http.Response, error) {
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(input)
-	req, _ := http.NewRequest("POST", "/operations/test", b)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	return w
+	u, _ := url.Parse(testServer.URL)
+	u.Path = path.Join(u.Path, "operations", name)
+	return http.Post(u.String(), "application/json", b)
 }
 
-func assertJsonOK(t *testing.T, w *httptest.ResponseRecorder) {
-	if w.Code != http.StatusOK {
-		t.Errorf("HTTP status_code should be 200, was: %d", w.Code)
+func assertJsonOK(t *testing.T, resp *http.Response) {
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("HTTP status_code should be 200, was: %d", resp.StatusCode)
 	}
 
-	if body := w.Body.String(); body != "{\"status\":\"ok\"}\n" {
-		t.Errorf("Response should be {\"status\":\"ok\"}, was: %s", body)
-	}
-
-	if h := w.HeaderMap.Get("Content-Type"); h != "application/json; charset=utf-8" {
+	if h := resp.Header.Get("Content-Type"); h != "application/json; charset=utf-8" {
 		t.Errorf("Content-Type should be application/json, was %s", h)
 	}
+
+	var body map[string]interface{}
+	defer resp.Body.Close()
+	err := json.NewDecoder(resp.Body).Decode(&body)
+	if err != nil {
+		t.Error("Error parsing JSON response: ", err)
+	}
+
+	if body["status"] != "ok" {
+		t.Error("Unexpected response: ", body)
+	}
+}
+
+// For now leave this empty. When needed make sure code
+// extracts variables from request url.
+func Vars(req *http.Request) map[string]string {
+	return make(map[string]string)
 }
 
 func TestMain(m *testing.M) {
-	rand.Seed(time.Now().UTC().UnixNano())
-	log.AddHook(logrus_stack.StandardHook())
 	gin.SetMode(gin.TestMode)
+	router = gin.New()
+	router.Use(utils.ErrorHandlingMiddleware(), gin.Recovery())
+	SetupRoutes(router)
+
+	test.RegisterURLVarExtractor(Vars)
+	var err error
+	testServer, err = test.NewServer(router)
+	if err != nil {
+		panic(err.Error())
+	}
+
 	if err := utils.InitTestDB(); err != nil {
 		panic(err)
 	}
@@ -162,7 +196,9 @@ func TestMain(m *testing.M) {
 	if err := OPERATION_TYPE_REGISTRY.Init(); err != nil {
 		panic(err)
 	}
+
 	s := m.Run()
 	utils.DestroyTestDB()
+	testServer.Finish()
 	os.Exit(s)
 }

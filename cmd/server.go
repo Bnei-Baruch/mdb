@@ -40,8 +40,6 @@ func serverDefaults() {
 	})
 }
 
-var router *gin.Engine
-
 func serverFn(cmd *cobra.Command, args []string) {
 	rand.Seed(time.Now().UTC().UnixNano())
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
@@ -72,7 +70,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	// Setup gin
 	gin.SetMode(viper.GetString("server.mode"))
-	router = gin.New()
+	router := gin.New()
 
 	var recovery gin.HandlerFunc
 	if len(rollbar.Token) > 0 {
@@ -88,25 +86,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 		cors.Default(),
 		recovery)
 
-	router.POST("/operations/capture_start", api.CaptureStartHandler)
-	router.POST("/operations/capture_stop", api.CaptureStopHandler)
-	router.POST("/operations/demux", api.DemuxHandler)
-	router.POST("/operations/send", api.SendHandler)
-	router.POST("/operations/upload", api.UploadHandler)
-
-	// Serve the log file.
-	admin := router.Group("admin")
-	admin.StaticFile("/log", viper.GetString("server.log"))
-
-	// Serve the auto generated docs.
-	router.StaticFile("/docs", viper.GetString("server.docs"))
-
-	collections := router.Group("collections")
-	collections.POST("/", api.CollectionsCreateHandler)
-
-	router.GET("/recover", func(c *gin.Context) {
-		panic("test recover")
-	})
+	api.SetupRoutes(router)
 
 	log.Infoln("Running application")
 	if cmd != nil {
