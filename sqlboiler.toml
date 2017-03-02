@@ -1,0 +1,9 @@
+no-hooks=true
+no-auto-timestamps=true
+blacklist=["migrations"]
+[postgres]
+  dbname="mdb"
+  host="localhost"
+  port=5432
+  user="edos"
+  sslmode="disable"

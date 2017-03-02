@@ -8,3 +8,4 @@ config.toml
 mdb
 visio.SQL
 */**/*.apib
+*.dump.sql

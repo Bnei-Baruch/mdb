@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"github.com/Bnei-Baruch/mdb/dal"
-	"github.com/Bnei-Baruch/mdb/rest"
-	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/Bnei-Baruch/mdb/version"
+	"math/rand"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -13,9 +11,11 @@ import (
 	"gopkg.in/gin-contrib/cors.v1"
 	"gopkg.in/gin-gonic/gin.v1"
 
-	"math/rand"
-	"net/http"
-	"time"
+	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/Bnei-Baruch/mdb/version"
+	"database/sql"
+	"github.com/vattle/sqlboiler/boil"
 )
 
 var serverCmd = &cobra.Command{
@@ -34,26 +34,41 @@ func serverDefaults() {
 		"mode":                "debug",
 		"rollbar-token":       "",
 		"rollbar-environment": "development",
+		"log":                 "./logs/mdb.log",
+		"docs":                "./docs.html",
 	})
 }
 
-var router *gin.Engine
-
 func serverFn(cmd *cobra.Command, args []string) {
 	rand.Seed(time.Now().UTC().UnixNano())
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	serverDefaults()
 
-	// Setup logging
-	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
+	log.Info("Setting up connection to MDB")
+	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	boil.SetDB(db)
+	boil.DebugMode = viper.GetString("server.mode") == "debug"
 
-	// Setup rollbar
+	log.Info("Initializing type registries")
+	if err := api.CONTENT_TYPE_REGISTRY.Init(); err != nil {
+		log.Fatal(err)
+	}
+	if err := api.OPERATION_TYPE_REGISTRY.Init(); err != nil {
+		log.Fatal(err)
+	}
+
+	// Setup Rollbar
 	rollbar.Token = viper.GetString("server.rollbar-token")
 	rollbar.Environment = viper.GetString("server.rollbar-environment")
 	rollbar.CodeVersion = version.Version
 
 	// Setup gin
 	gin.SetMode(viper.GetString("server.mode"))
-	router = gin.New()
+	router := gin.New()
 
 	var recovery gin.HandlerFunc
 	if len(rollbar.Token) > 0 {
@@ -69,26 +84,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 		cors.Default(),
 		recovery)
 
-	dal.Init()
-	router.POST("/operations/capture_start", CaptureStartHandler)
-	router.POST("/operations/capture_stop", CaptureStopHandler)
-	router.POST("/operations/demux", DemuxHandler)
-	router.POST("/operations/send", SendHandler)
-	router.POST("/operations/upload", UploadHandler)
-
-	// Serve the log file.
-	admin := router.Group("admin")
-	admin.StaticFile("/log", viper.GetString("server.log"))
-
-	// Serve the auto generated docs.
-	router.StaticFile("/docs", viper.GetString("server.docs"))
-
-	collections := router.Group("collections")
-	collections.POST("/", rest.CollectionsCreateHandler)
-
-	router.GET("/recover", func(c *gin.Context) {
-		panic("test recover")
-	})
+	api.SetupRoutes(router)
 
 	log.Infoln("Running application")
 	if cmd != nil {
@@ -99,86 +95,4 @@ func serverFn(cmd *cobra.Command, args []string) {
 	//if len(rollbar.Token) > 0 {
 	//	rollbar.Wait()
 	//}
-}
-
-// Starts capturing file, i.e., morning lesson or other program.
-//
-// `capture_id`: Unique identifier per collection, i.e., for morning lesson all
-// parts of the lesson will have the same `capture_id`.
-func CaptureStartHandler(c *gin.Context) {
-	var cs rest.CaptureStart
-	if c.BindJSON(&cs) == nil {
-		if err := dal.CaptureStart(cs); err == nil {
-			c.JSON(http.StatusOK, gin.H{"status": "ok"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status": "error",
-				"error":  err.Error(),
-			})
-		}
-	}
-}
-
-// Stops capturing file, i.e., morning lesson or other program.
-//
-// `capture_id`: Unique identifier per collection, i.e., for morning lesson all
-// parts of the lesson will have the same `capture_id`.
-func CaptureStopHandler(c *gin.Context) {
-	utils.FixDoubleQuotesInInput(c)
-	var cs rest.CaptureStop
-	if c.BindJSON(&cs) == nil {
-		if err := dal.CaptureStop(cs); err == nil {
-			c.JSON(http.StatusOK, gin.H{"status": "ok"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status": "error",
-				"error":  err.Error(),
-			})
-		}
-	}
-}
-
-// Demux
-func DemuxHandler(c *gin.Context) {
-	var demux rest.Demux
-	if c.BindJSON(&demux) == nil {
-		if err := dal.Demux(demux); err == nil {
-			c.JSON(http.StatusOK, gin.H{"status": "ok"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status": "error",
-				"error":  err.Error(),
-			})
-		}
-	}
-}
-
-// Moves file from capture machine to other storage.
-func SendHandler(c *gin.Context) {
-	var send rest.Send
-	if c.BindJSON(&send) == nil {
-		if err := dal.Send(send); err == nil {
-			c.JSON(http.StatusOK, gin.H{"status": "ok"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status": "error",
-				"error":  err.Error(),
-			})
-		}
-	}
-}
-
-// Enabled file to be accessible from URL.
-func UploadHandler(c *gin.Context) {
-	var upload rest.Upload
-	if c.BindJSON(&upload) == nil {
-		if err := dal.Upload(upload); err == nil {
-			c.JSON(http.StatusOK, gin.H{"status": "ok"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"status": "error",
-				"error":  err.Error(),
-			})
-		}
-	}
 }
