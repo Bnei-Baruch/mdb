@@ -1,10 +1,10 @@
 package utils
 
 import (
+	"github.com/pkg/errors"
 	"path/filepath"
 	"strings"
 	"time"
-	"github.com/pkg/errors"
 )
 
 type FileName struct {

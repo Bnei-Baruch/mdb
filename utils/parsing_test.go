@@ -1,9 +1,9 @@
 package utils
 
 import (
-	"testing"
-	"strings"
 	"fmt"
+	"strings"
+	"testing"
 )
 
 func TestParseFilename(t *testing.T) {

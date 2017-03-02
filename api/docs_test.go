@@ -1,16 +1,16 @@
 package api
 
 import (
+	"os"
 	"testing"
 	"time"
-	"os"
 
-	"gopkg.in/gin-gonic/gin.v1"
-	"net/http"
 	"bytes"
 	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/edoshor/test2doc/test"
+	"gopkg.in/gin-gonic/gin.v1"
+	"net/http"
 	"net/url"
 	"path"
 )

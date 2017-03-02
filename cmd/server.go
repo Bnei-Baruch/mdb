@@ -11,10 +11,10 @@ import (
 	"gopkg.in/gin-contrib/cors.v1"
 	"gopkg.in/gin-gonic/gin.v1"
 
+	"database/sql"
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/Bnei-Baruch/mdb/version"
-	"database/sql"
 	"github.com/vattle/sqlboiler/boil"
 )
 
@@ -34,8 +34,8 @@ func serverDefaults() {
 		"mode":                "debug",
 		"rollbar-token":       "",
 		"rollbar-environment": "development",
-		"log":                 "./logs/mdb.log",
-		"docs":                "./docs.html",
+		"log":  "./logs/mdb.log",
+		"docs": "./docs.html",
 	})
 }
 

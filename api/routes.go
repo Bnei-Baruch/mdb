@@ -1,8 +1,8 @@
 package api
 
 import (
-	"gopkg.in/gin-gonic/gin.v1"
 	"github.com/spf13/viper"
+	"gopkg.in/gin-gonic/gin.v1"
 )
 
 func SetupRoutes(router *gin.Engine) {

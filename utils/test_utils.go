@@ -1,15 +1,15 @@
 package utils
 
 import (
-	"os"
-	"regexp"
+	"database/sql"
 	"fmt"
 	"github.com/Bnei-Baruch/mdb/migrations"
-	"path/filepath"
 	"github.com/spf13/viper"
-	"strings"
-	"database/sql"
 	"github.com/vattle/sqlboiler/boil"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 var testDB string

@@ -1,21 +1,21 @@
 package api
 
 import (
-	_ "github.com/lib/pq"
-	"gopkg.in/gin-gonic/gin.v1"
-	"net/http"
+	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"gopkg.in/nullbio/null.v6"
-	"github.com/vattle/sqlboiler/queries/qm"
-	"github.com/vattle/sqlboiler/boil"
-	"database/sql"
 	"github.com/Sirupsen/logrus"
-	"encoding/json"
 	log "github.com/Sirupsen/logrus"
+	_ "github.com/lib/pq"
+	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/queries"
-	"encoding/hex"
-	"fmt"
+	"github.com/vattle/sqlboiler/queries/qm"
+	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/nullbio/null.v6"
+	"net/http"
 )
 
 // Starts capturing file, i.e., morning lesson or other program.
@@ -288,9 +288,9 @@ func (f FileNotFound) Error() string {
 
 func createOperation(exec boil.Executor, name string, o Operation, properties map[string]interface{}) (*models.Operation, error) {
 	operation := models.Operation{
-		TypeID:     OPERATION_TYPE_REGISTRY.ByName[name].ID,
-		UID:        utils.GenerateUID(8),
-		Station:    null.StringFrom(o.Station),
+		TypeID:  OPERATION_TYPE_REGISTRY.ByName[name].ID,
+		UID:     utils.GenerateUID(8),
+		Station: null.StringFrom(o.Station),
 	}
 
 	// Lookup user, skip if doesn't exist
@@ -352,6 +352,6 @@ func createFile(exec boil.Executor, parent *models.File, f File, properties map[
 		}
 		file.Properties = null.JSONFrom(props)
 	}
-	
+
 	return &file, file.Insert(exec)
 }
