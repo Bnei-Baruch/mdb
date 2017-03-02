@@ -16,7 +16,6 @@ import (
 	"github.com/Bnei-Baruch/mdb/version"
 	"database/sql"
 	"github.com/vattle/sqlboiler/boil"
-	"github.com/Gurpartap/logrus-stack"
 )
 
 var serverCmd = &cobra.Command{
@@ -43,7 +42,6 @@ func serverDefaults() {
 func serverFn(cmd *cobra.Command, args []string) {
 	rand.Seed(time.Now().UTC().UnixNano())
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
-	log.AddHook(logrus_stack.StandardHook())
 	serverDefaults()
 
 	log.Info("Setting up connection to MDB")
@@ -53,7 +51,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	}
 	defer db.Close()
 	boil.SetDB(db)
-	boil.DebugMode = true
+	boil.DebugMode = viper.GetString("server.mode") == "debug"
 
 	log.Info("Initializing type registries")
 	if err := api.CONTENT_TYPE_REGISTRY.Init(); err != nil {

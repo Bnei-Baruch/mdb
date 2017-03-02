@@ -7,10 +7,6 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "github.com/Gurpartap/logrus-stack",
-			"Rev": "f9a07a6433014aff95d7c59a24fc3155ea7ce830"
-		},
-		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.11.0",
 			"Rev": "d26492970760ca5d33129d2d799e34be5c4782eb"
@@ -26,10 +22,6 @@
 		{
 			"ImportPath": "github.com/edoshor/test2doc/test",
 			"Rev": "f77801361ec7fba12c1af30fd39cfd793527cdfe"
-		},
-		{
-			"ImportPath": "github.com/facebookgo/stack",
-			"Rev": "751773369052141c013c6e827a71e8f35c07879c"
 		},
 		{
 			"ImportPath": "github.com/fsnotify/fsnotify",
