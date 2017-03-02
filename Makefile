@@ -4,7 +4,7 @@ GIT_HASH      = $(shell git rev-parse HEAD)
 LDFLAGS       = -w -X $(IMPORT_PATH)/version.PreRelease=$(PRE_RELEASE)
 APIB_FILES    = $(shell find . -type f -path "./*/*.apib" -not -path "./docs/*")
 
-build: clean test docs
+build: clean test
 	@go build -ldflags '$(LDFLAGS)'
 
 clean:
