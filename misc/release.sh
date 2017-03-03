@@ -18,7 +18,7 @@ git push origin master
 git push origin "v$version"
 
 # Replace docs host.
-sed -i 's/^HOST: .*$/HOST: app.mdb.bbdomain.org:8080/g' docs/docs.tmpl
+sed -i 's/^HOST: .*$/HOST: app.mdb.bbdomain.org/g' docs/docs.tmpl
 sed -i "s/^Release: .*$/Release: ${version}/g" docs/docs.tmpl
 
 echo "Updating docs..."
