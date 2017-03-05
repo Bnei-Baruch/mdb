@@ -108,35 +108,3 @@ func runMigrations(db *sql.DB) error {
 
 	return filepath.Walk("../migrations", visit)
 }
-
-//func AddTestFile(FileName string, Sha1 string, Size uint64) error {
-//	start := CaptureStart{
-//		Operation: Operation{
-//			Station: "a station",
-//			User:    "operator@dev.com",
-//		},
-//		FileName:  FileName,
-//		CaptureID: "this.is.capture.id",
-//	}
-//	if err := CaptureStart(start); err != nil {
-//		return err
-//	}
-//
-//	stop := CaptureStop{
-//		CaptureStart: CaptureStart{
-//			Operation: Operation{
-//				Station: "a station",
-//				User:    "operator@dev.com",
-//			},
-//			FileName:  FileName,
-//			CaptureID: "this.is.capture.id",
-//		},
-//		Sha1: Sha1,
-//		Size: Size,
-//	}
-//	if err := CaptureStop(stop); err != nil {
-//		return err
-//	}
-//
-//	return nil
-//}

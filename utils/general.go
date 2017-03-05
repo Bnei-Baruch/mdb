@@ -1,9 +1,16 @@
 package utils
 
-import "math/rand"
+import (
+	"math/rand"
+	"time"
+)
 
 const uidBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const lettersBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
+}
 
 func GenerateUID(n int) string {
 	b := make([]byte, n)
