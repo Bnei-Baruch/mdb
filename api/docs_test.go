@@ -121,9 +121,9 @@ func TestTrimHandler(t *testing.T) {
 			User:       "operator@dev.com",
 			WorkflowID: "t12356789",
 		},
-		TrimSource:   "trim_source",
-		OriginalSha1: "0987654321fedcba0987654321fedcba09876543",
-		ProxySha1:    "0987654321fedcba0987654321fedcba87654321",
+		CaptureSource: "capture_source",
+		OriginalSha1:  "0987654321fedcba0987654321fedcba09876543",
+		ProxySha1:     "0987654321fedcba0987654321fedcba87654321",
 		Original: AVFile{
 			File: File{
 				FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_o_trim.mp4",

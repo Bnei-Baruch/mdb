@@ -195,7 +195,7 @@ func handleTrim(exec boil.Executor, input interface{}) error {
 
 	log.Info("Creating operation")
 	props := map[string]interface{}{
-		"trim_source": r.TrimSource,
+		"capture_source": r.CaptureSource,
 		"in":          r.In,
 		"out":         r.Out,
 	}
