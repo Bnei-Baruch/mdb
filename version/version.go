@@ -7,7 +7,7 @@ var (
 	Major      = 0
 	Minor      = 3
 	Patch      = 1
-	PreRelease = "dev"
+	PreRelease = "" // Set this via makefile. See docs for more info on release process
 )
 
 var Version = fmt.Sprintf("%d.%d.%d", Major, Minor, Patch)

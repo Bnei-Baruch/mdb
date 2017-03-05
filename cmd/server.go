@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"math/rand"
-	"time"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -40,9 +37,10 @@ func serverDefaults() {
 }
 
 func serverFn(cmd *cobra.Command, args []string) {
-	rand.Seed(time.Now().UTC().UnixNano())
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	serverDefaults()
+
+	log.Infof("Starting MDB API server version %s", version.Version)
 
 	log.Info("Setting up connection to MDB")
 	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
