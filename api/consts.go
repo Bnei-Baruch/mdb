@@ -34,6 +34,7 @@ const (
 	OP_CAPTURE_START = "capture_start"
 	OP_CAPTURE_STOP  = "capture_stop"
 	OP_DEMUX         = "demux"
+	OP_TRIM          = "trim"
 	OP_SEND          = "send"
 	OP_UPLOAD        = "upload"
 

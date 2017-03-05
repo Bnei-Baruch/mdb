@@ -9,6 +9,7 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/operations/capture_start", CaptureStartHandler)
 	router.POST("/operations/capture_stop", CaptureStopHandler)
 	router.POST("/operations/demux", DemuxHandler)
+	router.POST("/operations/trim", TrimHandler)
 	router.POST("/operations/send", SendHandler)
 	router.POST("/operations/upload", UploadHandler)
 

@@ -62,7 +62,9 @@ type (
 		ProxySha1    string `json:"proxy_sha1" binding:"required,len=40,hexadecimal"`
 		Original     AVFile `json:"original"`
 		Proxy        AVFile `json:"proxy"`
-		//InOut
+		In           []float64 `json:"in"`
+		Out          []float64 `json:"out"`
+		TrimSource   string `json:"trim_source"`
 	}
 
 	SendRequest struct {

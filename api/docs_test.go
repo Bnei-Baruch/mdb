@@ -114,6 +114,53 @@ func TestDemuxHandler(t *testing.T) {
 	assertJsonOK(t, resp)
 }
 
+func TestTrimHandler(t *testing.T) {
+	input := TrimRequest{
+		Operation: Operation{
+			Station:    "Trim station",
+			User:       "operator@dev.com",
+			WorkflowID: "t12356789",
+		},
+		TrimSource:   "trim_source",
+		OriginalSha1: "0987654321fedcba0987654321fedcba09876543",
+		ProxySha1:    "0987654321fedcba0987654321fedcba87654321",
+		Original: AVFile{
+			File: File{
+				FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_o_trim.mp4",
+				Sha1:      "0987654321fedcba0987654321fedcba11111111",
+				Size:      19800,
+				CreatedAt: &Timestamp{time.Now()},
+				Type:      "type",
+				SubType:   "subtype",
+				MimeType:  "mime_type",
+				Language:  LANG_MULTI,
+			},
+			Duration: 871,
+		},
+		Proxy: AVFile{
+			File: File{
+				FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_p_trim.mp4",
+				Sha1:      "0987654321fedcba0987654321fedcba22222222",
+				Size:      694,
+				CreatedAt: &Timestamp{time.Now()},
+				Type:      "type",
+				SubType:   "subtype",
+				MimeType:  "mime_type",
+				Language:  LANG_HEBREW,
+			},
+			Duration: 871,
+		},
+		In:  []float64{0.00, 198.23},
+		Out: []float64{10.50, 207.31},
+	}
+
+	resp, err := testOperation(OP_TRIM, input)
+	if err != nil {
+		t.Error("Unknown error: ", err)
+	}
+	assertJsonOK(t, resp)
+}
+
 func TestUploadHandler(t *testing.T) {
 	input := UploadRequest{
 		Operation: Operation{
