@@ -10,15 +10,15 @@
 		},
 		{
 			"ImportPath": "github.com/adams-sarah/test2doc/doc",
-			"Rev": "e96044288938931a6a83c9aac8913aa47bce72ab"
+			"Rev": "da8da908883066abea518609b80da5a0031071cb"
 		},
 		{
 			"ImportPath": "github.com/adams-sarah/test2doc/doc/parse",
-			"Rev": "e96044288938931a6a83c9aac8913aa47bce72ab"
+			"Rev": "da8da908883066abea518609b80da5a0031071cb"
 		},
 		{
 			"ImportPath": "github.com/adams-sarah/test2doc/test",
-			"Rev": "e96044288938931a6a83c9aac8913aa47bce72ab"
+			"Rev": "da8da908883066abea518609b80da5a0031071cb"
 		},
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",

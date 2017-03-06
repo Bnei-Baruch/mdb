@@ -3,13 +3,14 @@ package utils
 import (
 	"database/sql"
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/migrations"
-	"github.com/spf13/viper"
-	"github.com/vattle/sqlboiler/boil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/Bnei-Baruch/mdb/migrations"
+	"github.com/spf13/viper"
+	"github.com/vattle/sqlboiler/boil"
 
 	// List all test dependencies here until this bug is fixed in godeps
 	// which should allow us to use `godeps save -t`
@@ -25,13 +26,15 @@ import (
 	_ "github.com/vattle/sqlboiler/strmangle"
 )
 
-var testDB string
+type TestDBManager struct {
+	testDB string
+}
 
-func InitTestDB() error {
-	testDB = fmt.Sprintf("test_%s", strings.ToLower(GenerateName(10)))
-	fmt.Println("Initializing test DB: ", testDB)
+func (m *TestDBManager) InitTestDB() error {
+	m.testDB = fmt.Sprintf("test_%s", strings.ToLower(GenerateName(10)))
+	fmt.Println("Initializing test DB: ", m.testDB)
 
-	initConfig()
+	m.initConfig()
 
 	// Open connection to RDBMS
 	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
@@ -40,19 +43,19 @@ func InitTestDB() error {
 	}
 
 	// Create a new temporary test database
-	if _, err := db.Exec("CREATE DATABASE " + testDB); err != nil {
+	if _, err := db.Exec("CREATE DATABASE " + m.testDB); err != nil {
 		return err
 	}
 
 	// Close first connection and connect to temp database
 	db.Close()
-	db, err = sql.Open("postgres", fmt.Sprintf(viper.GetString("test.url-template"), testDB))
+	db, err = sql.Open("postgres", fmt.Sprintf(viper.GetString("test.url-template"), m.testDB))
 	if err != nil {
 		return err
 	}
 
 	// Run migrations
-	runMigrations(db)
+	m.runMigrations(db)
 
 	// Setup SQLBoiler
 	boil.SetDB(db)
@@ -61,28 +64,31 @@ func InitTestDB() error {
 	return nil
 }
 
-func DestroyTestDB() {
-	fmt.Println("Destroying testDB: ", testDB)
+func (m *TestDBManager) DestroyTestDB() error {
+	fmt.Println("Destroying testDB: ", m.testDB)
 
 	// Close temp DB
-	boil.GetDB().(*sql.DB).Close()
+	err := boil.GetDB().(*sql.DB).Close()
+	if err != nil {
+		return err
+	}
 
 	// Connect to MDB
 	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	if err != nil {
-		fmt.Println("Error reconnecting to MDB: ", err)
-		panic(err)
+		return err
 	}
 
 	// Drop test DB
-	_, err = db.Exec("DROP DATABASE " + testDB)
+	_, err = db.Exec("DROP DATABASE " + m.testDB)
 	if err != nil {
-		fmt.Println("Error droping test DB: ", testDB, err)
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
-func initConfig() {
+func (m *TestDBManager) initConfig() {
 	viper.SetDefault("test", map[string]interface{}{
 		"url-template": "postgres://localhost/%s?sslmode=disable&?user=postgres",
 		"debug-sql":    true,
@@ -96,7 +102,7 @@ func initConfig() {
 	}
 }
 
-func runMigrations(db *sql.DB) error {
+func (m *TestDBManager) runMigrations(db *sql.DB) error {
 	var visit = func(path string, f os.FileInfo, err error) error {
 		match, _ := regexp.MatchString(".*\\.sql$", path)
 		if !match {
