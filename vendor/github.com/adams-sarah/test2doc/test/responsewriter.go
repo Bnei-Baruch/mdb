@@ -45,9 +45,9 @@ func (rw *ResponseWriter) setHandlerInfo() {
 
 	var pc uintptr
 	var file, fnName string
-	var ok, fnInPkg, sawPkg bool
+	var ok bool
 
-	// iterate until we find the top level func in this pkg (the handler)
+	// iterate until we find a func in this pkg (the handler)
 	for i < max {
 		pc, file, _, ok = runtime.Caller(i)
 		if !ok {
@@ -58,15 +58,10 @@ func (rw *ResponseWriter) setHandlerInfo() {
 		fn := runtime.FuncForPC(pc)
 		fnName = fn.Name()
 
-		fnInPkg = parse.IsFuncInPkg(fnName)
-		if sawPkg && !fnInPkg {
-			pc, file, _, ok = runtime.Caller(i - 1)
-			fn := runtime.FuncForPC(pc)
-			fnName = fn.Name()
+		if parse.IsFuncInPkg(fnName) {
 			break
 		}
 
-		sawPkg = fnInPkg
 		i++
 	}
 
