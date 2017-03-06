@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 	log "github.com/Sirupsen/logrus"
@@ -14,7 +16,6 @@ import (
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/nullbio/null.v6"
-	"net/http"
 )
 
 // Start capture of AV file, i.e. morning lesson, tv program, etc...
@@ -196,8 +197,8 @@ func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, error
 	log.Info("Creating operation")
 	props := map[string]interface{}{
 		"capture_source": r.CaptureSource,
-		"in":          r.In,
-		"out":         r.Out,
+		"in":             r.In,
+		"out":            r.Out,
 	}
 	operation, err := createOperation(exec, OP_TRIM, r.Operation, props)
 	if err != nil {
@@ -243,7 +244,7 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, err
 	if err != nil {
 		if _, ok := err.(FileNotFound); ok {
 			log.Info("File not found, creating new.")
-			file, err = createFile(exec, nil,r.File, nil)
+			file, err = createFile(exec, nil, r.File, nil)
 		} else {
 			return nil, err
 		}
@@ -364,8 +365,13 @@ func createFile(exec boil.Executor, parent *models.File, f File, properties map[
 		FileCreatedAt: null.TimeFrom(f.CreatedAt.Time),
 		Type:          f.Type,
 		SubType:       f.SubType,
-		MimeType:      null.StringFrom(f.MimeType),
-		Language:      null.StringFrom(f.Language),
+	}
+
+	if f.MimeType != "" {
+		file.MimeType = null.StringFrom(f.MimeType)
+	}
+	if f.Language != "" {
+		file.Language = null.StringFrom(f.Language)
 	}
 	if parent != nil {
 		file.ParentID = null.Int64From(parent.ID)

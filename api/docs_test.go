@@ -1,18 +1,18 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"testing"
 	"time"
 
-	"bytes"
-	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/adams-sarah/test2doc/test"
 	"gopkg.in/gin-gonic/gin.v1"
-	"net/http"
-	"net/url"
-	"path"
 )
 
 var (
