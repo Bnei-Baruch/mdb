@@ -84,6 +84,80 @@ func (suite *HandlersSuite) TestHandleCaptureStart() {
 	suite.False(f.Sha1.Valid, "File: SHA1")
 }
 
+func (suite *HandlersSuite) TestHandleCaptureStop() {
+	// Prepare capture_start operation
+	opStart, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: "c12356789",
+		},
+		FileName:      "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
+		CaptureSource: "mltcap",
+		CollectionUID: "abcdefgh",
+	})
+	suite.Require().Nil(err)
+	suite.Require().Nil(opStart.L.LoadFiles(suite.tx, true, opStart))
+	parent := opStart.R.Files[0]
+
+	// Do capture_stop operation
+	input := CaptureStopRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: "c12356789",
+		},
+		AVFile: AVFile{
+			File: File{
+				FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
+				Sha1:      "012356789abcdef012356789abcdef0123456789",
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				Type:      "type",
+				SubType:   "subtype",
+				MimeType:  "mime_type",
+				Language:  LANG_MULTI,
+			},
+			Duration: 892.1900,
+		},
+		CaptureSource: "mltcap",
+		CollectionUID: "abcdefgh",
+		Part:          "part",
+	}
+
+	op, err := handleCaptureStop(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_STOP].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	var props map[string]interface{}
+	err = op.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Operation.WorkflowID, props["workflow_id"], "properties: workflow_id")
+	suite.Equal(input.CaptureSource, props["capture_source"], "properties: capture_source")
+	suite.Equal(input.CollectionUID, props["collection_uid"], "properties: collection_uid")
+	suite.Equal(input.Part, props["part"], "properties: part")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 1, "Number of files")
+	f := op.R.Files[0]
+	suite.Equal(input.FileName, f.Name, "File: Name")
+	suite.Equal(input.Sha1, hex.EncodeToString(f.Sha1.Bytes), "File: SHA1")
+	suite.Equal(input.Size, f.Size, "File: Size")
+	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File: FileCreatedAt")
+	suite.Equal(parent.ID, f.ParentID.Int64, "File Parent.ID")
+
+	err = f.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Duration, props["duration"], "File props: duration")
+}
+
 func (suite *HandlersSuite) TestCreateOperation() {
 	// test minimal input
 	o := Operation{

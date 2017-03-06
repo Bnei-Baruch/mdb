@@ -111,6 +111,7 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 	}
 
 	log.Info("Looking up parent file, workflow_id=", r.Operation.WorkflowID)
+	var parent *models.File
 	var parentID int64
 	err = queries.Raw(exec,
 		`SELECT file_id FROM files_operations
@@ -120,7 +121,9 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 		r.Operation.WorkflowID).
 		QueryRow().
 		Scan(&parentID)
-	if err != nil {
+	if err == nil {
+		parent = &models.File{ID: parentID}
+	} else {
 		if err == sql.ErrNoRows {
 			log.Warnf("capture_start operation not found for workflow_id [%s]. Skipping.",
 				r.Operation.WorkflowID)
@@ -133,7 +136,7 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 	props = map[string]interface{}{
 		"duration": r.Duration,
 	}
-	file, err := createFile(exec, &models.File{ID: parentID}, r.File, props)
+	file, err := createFile(exec, parent, r.File, props)
 	if err != nil {
 		return nil, err
 	}
