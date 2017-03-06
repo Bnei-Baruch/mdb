@@ -5,5 +5,6 @@ blacklist=["migrations"]
   dbname="mdb"
   host="localhost"
   port=5432
-  user="edos"
+  user="some user name"
+  pass="some pass word"
   sslmode="disable"

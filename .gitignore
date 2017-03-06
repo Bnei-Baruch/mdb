@@ -4,10 +4,14 @@
 mdb
 *.swp
 config.toml
+sqlboiler.toml
 **/rambler.json
+
 mdb
 visio.SQL
-*/**/*.apib
 *.dump.sql
+
+*/**/*.apib
+
 admin-ui/build/
 admin-ui/node_modules/
