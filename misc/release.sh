@@ -18,19 +18,19 @@ git push origin master
 git push origin "v$version"
 
 # Replace docs host.
-sed -i 's/^HOST: .*$/HOST: poc.bbdomain.org:8080/g' docs.tmpl
-sed -i "s/^Release: .*$/Release: ${version}/g" docs.tmpl
+sed -i 's/^HOST: .*$/HOST: app.mdb.bbdomain.org/g' docs/docs.tmpl
+sed -i "s/^Release: .*$/Release: ${version}/g" docs/docs.tmpl
 
 echo "Updating docs..."
 make docs
 
 echo "Deploying to production"
-scp mdb archive@poc.bbdomain.org:/sites/mdb/"mdb-$version"
-scp docs.html archive@poc.bbdomain.org:/sites/mdb/docs.html
-scp migrations/*.sql archive@poc.bbdomain.org:/sites/mdb/migrations/
-ssh archive@poc.bbdomain.org "/sites/mdb/migrations/rambler --configuration=/sites/mdb/migrations/rambler.json apply --all"
-ssh archive@poc.bbdomain.org "ln -sf /sites/mdb/mdb-$version /sites/mdb/mdb"
-ssh archive@poc.bbdomain.org "supervisorctl restart mdb"
+scp mdb archive@app.mdb.bbdomain.org:/sites/mdb/"mdb-$version"
+scp docs/docs.html archive@app.mdb.bbdomain.org:/sites/mdb/docs.html
+scp migrations/*.sql archive@app.mdb.bbdomain.org:/sites/mdb/migrations/
+ssh archive@app.mdb.bbdomain.org "/sites/mdb/migrations/rambler --configuration=/sites/mdb/migrations/rambler.json apply --all"
+ssh archive@app.mdb.bbdomain.org "ln -sf /sites/mdb/mdb-$version /sites/mdb/mdb"
+ssh archive@app.mdb.bbdomain.org "supervisorctl restart mdb"
 
 # Revert locally changed docs files.
 git reset --hard HEAD
