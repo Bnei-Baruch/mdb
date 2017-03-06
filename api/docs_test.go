@@ -57,7 +57,7 @@ func TestDocs(t *testing.T) {
 	suite.Run(t, new(DocsSuite))
 }
 
-func (suite *DocsSuite) TestCaptureStartHandler() {
+func (suite *DocsSuite) Test1CaptureStartHandler() {
 	input := CaptureStartRequest{
 		Operation: Operation{
 			Station:    "Capture station",
@@ -74,7 +74,7 @@ func (suite *DocsSuite) TestCaptureStartHandler() {
 	suite.assertJsonOK(resp)
 }
 
-func (suite *DocsSuite) TestCaptureStopHandler() {
+func (suite *DocsSuite) Test2CaptureStopHandler() {
 	input := CaptureStopRequest{
 		Operation: Operation{
 			Station:    "Capture station",
@@ -104,7 +104,7 @@ func (suite *DocsSuite) TestCaptureStopHandler() {
 	suite.assertJsonOK(resp)
 }
 
-func (suite *DocsSuite) TestDemuxHandler() {
+func (suite *DocsSuite) Test3DemuxHandler() {
 	input := DemuxRequest{
 		Operation: Operation{
 			Station: "Demux Station",
@@ -145,7 +145,7 @@ func (suite *DocsSuite) TestDemuxHandler() {
 	suite.assertJsonOK(resp)
 }
 
-func (suite *DocsSuite) TestTrimHandler() {
+func (suite *DocsSuite) Test4TrimHandler() {
 	input := TrimRequest{
 		Operation: Operation{
 			Station:    "Trim station",
@@ -190,7 +190,30 @@ func (suite *DocsSuite) TestTrimHandler() {
 	suite.assertJsonOK(resp)
 }
 
-func (suite *DocsSuite) TestUploadHandler() {
+func (suite *DocsSuite) Test5SendHandler() {
+	input := SendRequest{
+		Operation: Operation{
+			Station:    "Trim station",
+			User:       "operator@dev.com",
+			WorkflowID: "t12356789",
+		},
+		Original: Rename{
+			Sha1:     "0987654321fedcba0987654321fedcba11111111",
+			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_o.mp4",
+		},
+		Proxy: Rename{
+			Sha1:     "0987654321fedcba0987654321fedcba22222222",
+			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_p.mp4",
+		},
+		WorkflowType: "workflow_type",
+	}
+
+	resp, err := suite.testOperation(OP_SEND, input)
+	suite.Require().Nil(err)
+	suite.assertJsonOK(resp)
+}
+
+func (suite *DocsSuite) Test6UploadHandler() {
 	input := UploadRequest{
 		Operation: Operation{
 			Station: "Upload station",
@@ -230,4 +253,5 @@ func (suite *DocsSuite) assertJsonOK(resp *http.Response) {
 	err := json.NewDecoder(resp.Body).Decode(&body)
 	suite.Require().Nil(err)
 	suite.Equal("ok", body["status"], "HTTP body.status")
+	suite.Nil(body["error"], "HTTP body.error")
 }

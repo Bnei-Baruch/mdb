@@ -231,7 +231,51 @@ func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, error
 }
 
 func handleSend(exec boil.Executor, input interface{}) (*models.Operation, error) {
-	return nil, nil
+	r := input.(SendRequest)
+
+	// Original
+	original, _, err := findFileBySHA1(exec, r.Original.Sha1)
+	if err != nil {
+		return nil, err
+	}
+	if original.Name == r.Original.FileName {
+		log.Info("Original's name hasn't change")
+	} else {
+		log.Info("Renaming original")
+		original.Name = r.Original.FileName
+		err = original.Update(exec, "name")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Proxy
+	proxy, _, err := findFileBySHA1(exec, r.Proxy.Sha1)
+	if err != nil {
+		return nil, err
+	}
+	if proxy.Name == r.Proxy.FileName {
+		log.Info("Proxy's name hasn't change")
+	} else {
+		log.Info("Renaming proxy")
+		proxy.Name = r.Proxy.FileName
+		err = proxy.Update(exec, "name")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	log.Info("Creating operation")
+	props := map[string]interface{}{
+		"worklow_type": r.WorkflowType,
+	}
+	operation, err := createOperation(exec, OP_SEND, r.Operation, props)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("Associating files to operation")
+	return operation, operation.AddFiles(exec, false, original, proxy)
 }
 
 func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, error) {

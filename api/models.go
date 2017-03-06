@@ -31,6 +31,11 @@ type (
 		Duration float64 `json:"duration"`
 	}
 
+	Rename struct {
+		Sha1     string     `json:"sha1" binding:"required,len=40,hexadecimal"`
+		FileName string     `json:"file_name" binding:"required,max=255"`
+	}
+
 	// Operations
 
 	CaptureStartRequest struct {
@@ -69,8 +74,9 @@ type (
 
 	SendRequest struct {
 		Operation
-		Sha1 string `json:"sha1" binding:"required,len=40,hexadecimal"`
-		Dest File
+		Original     Rename    `json:"original"`
+		Proxy        Rename    `json:"proxy"`
+		WorkflowType string `json:"workflow_type"`
 	}
 
 	UploadRequest struct {
