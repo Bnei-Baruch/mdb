@@ -1,11 +1,6 @@
 package cmd
 
 import (
-	"github.com/Bnei-Baruch/mdb/dal"
-	"github.com/Bnei-Baruch/mdb/rest"
-	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/Bnei-Baruch/mdb/version"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -13,9 +8,11 @@ import (
 	"gopkg.in/gin-contrib/cors.v1"
 	"gopkg.in/gin-gonic/gin.v1"
 
-	"math/rand"
-	"net/http"
-	"time"
+	"database/sql"
+	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/Bnei-Baruch/mdb/version"
+	"github.com/vattle/sqlboiler/boil"
 )
 
 var serverCmd = &cobra.Command{
@@ -34,17 +31,35 @@ func serverDefaults() {
 		"mode":                "debug",
 		"rollbar-token":       "",
 		"rollbar-environment": "development",
+		"log":  "./logs/mdb.log",
+		"docs": "./docs.html",
 	})
 }
 
 func serverFn(cmd *cobra.Command, args []string) {
-	rand.Seed(time.Now().UTC().UnixNano())
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	serverDefaults()
 
-	// Setup logging
-	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
+	log.Infof("Starting MDB API server version %s", version.Version)
 
-	// Setup rollbar
+	log.Info("Setting up connection to MDB")
+	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	boil.SetDB(db)
+	boil.DebugMode = viper.GetString("server.mode") == "debug"
+
+	log.Info("Initializing type registries")
+	if err := api.CONTENT_TYPE_REGISTRY.Init(); err != nil {
+		log.Fatal(err)
+	}
+	if err := api.OPERATION_TYPE_REGISTRY.Init(); err != nil {
+		log.Fatal(err)
+	}
+
+	// Setup Rollbar
 	rollbar.Token = viper.GetString("server.rollbar-token")
 	rollbar.Environment = viper.GetString("server.rollbar-environment")
 	rollbar.CodeVersion = version.Version
@@ -60,72 +75,22 @@ func serverFn(cmd *cobra.Command, args []string) {
 		recovery = gin.Recovery()
 	}
 
-	router.Use(utils.MdbLoggerMiddleware(log.StandardLogger()),
+	router.Use(
+		utils.MdbLoggerMiddleware(log.StandardLogger()),
 		utils.ErrorHandlingMiddleware(),
 		utils.GinBodyLogMiddleware,
 		cors.Default(),
 		recovery)
 
-	dal.Init()
-	router.POST("/operations/capture_start", CaptureStartHandler)
-	router.POST("/operations/capture_stop", CaptureStopHandler)
-	router.POST("/operations/demux", DemuxHandler)
-	router.POST("/operations/send", SendHandler)
-
-	collections := router.Group("collections")
-	collections.POST("/", rest.CollectionsCreateHandler)
-
-	router.GET("/recover", func(c *gin.Context) {
-		panic("test recover")
-	})
+	api.SetupRoutes(router)
 
 	log.Infoln("Running application")
-	router.Run(viper.GetString("server.bind-address"))
+	if cmd != nil {
+		router.Run(viper.GetString("server.bind-address"))
+	}
 
 	// This would be reasonable once we'll have graceful shutdown implemented
 	//if len(rollbar.Token) > 0 {
 	//	rollbar.Wait()
 	//}
-}
-
-// Handlers
-type HandlerFunc func() error
-
-func Handle(c *gin.Context, h HandlerFunc) {
-	if err := h(); err == nil {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	} else {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"status": "error",
-			"error":  err.Error(),
-		})
-	}
-}
-
-func CaptureStartHandler(c *gin.Context) {
-	var cs rest.CaptureStart
-	if c.BindJSON(&cs) == nil {
-		Handle(c, func() error { return dal.CaptureStart(cs) })
-	}
-}
-
-func CaptureStopHandler(c *gin.Context) {
-	var cs rest.CaptureStop
-	if c.BindJSON(&cs) == nil {
-		Handle(c, func() error { return dal.CaptureStop(cs) })
-	}
-}
-
-func DemuxHandler(c *gin.Context) {
-	var demux rest.Demux
-	if c.BindJSON(&demux) == nil {
-		Handle(c, func() error { return dal.Demux(demux) })
-	}
-}
-
-func SendHandler(c *gin.Context) {
-	var send rest.Send
-	if c.BindJSON(&send) == nil {
-		Handle(c, func() error { return dal.Send(send) })
-	}
 }

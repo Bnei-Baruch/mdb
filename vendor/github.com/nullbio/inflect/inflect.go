@@ -9,14 +9,14 @@ import (
 	"unicode/utf8"
 )
 
-// used by rulesets
+// Rule is used by rulesets
 type Rule struct {
 	suffix      string
 	replacement string
 	exact       bool
 }
 
-// a Ruleset is the config of pluralization rules
+// Ruleset is the config of pluralization rules
 // you can extend the rules with the Add* methods
 type Ruleset struct {
 	uncountables   map[string]bool
@@ -27,7 +27,7 @@ type Ruleset struct {
 	acronymMatcher *regexp.Regexp
 }
 
-// create a blank ruleset. Unless you are going to
+// NewRuleset creates a blank ruleset. Unless you are going to
 // build your own rules from scratch you probably
 // won't need this and can just use the defaultRuleset
 // via the global inflect.* methods
@@ -41,7 +41,7 @@ func NewRuleset() *Ruleset {
 	return rs
 }
 
-// create a new ruleset and load it with the default
+// NewDefaultRuleset creates a new ruleset and load it with the default
 // set of common English pluralization rules
 func NewDefaultRuleset() *Ruleset {
 	rs := NewRuleset()
@@ -129,6 +129,10 @@ func NewDefaultRuleset() *Ruleset {
 	rs.AddPluralExact("oxen", "oxen", true)
 	rs.AddPluralExact("quiz", "quizzes", true)
 	rs.AddSingular("s", "")
+	rs.AddSingular("ss", "ss")
+	rs.AddSingular("as", "as")
+	rs.AddSingular("us", "us")
+	rs.AddSingular("is", "is")
 	rs.AddSingular("news", "news")
 	rs.AddSingular("ta", "tum")
 	rs.AddSingular("ia", "ium")
@@ -220,6 +224,17 @@ func NewDefaultRuleset() *Ruleset {
 	rs.AddIrregular("sex", "sexes")
 	rs.AddIrregular("move", "moves")
 	rs.AddIrregular("zombie", "zombies")
+	rs.AddSingularExact("a", "a", true)
+	rs.AddSingularExact("i", "i", true)
+	rs.AddSingularExact("is", "is", true)
+	rs.AddSingularExact("us", "us", true)
+	rs.AddSingularExact("as", "as", true)
+	rs.AddPluralExact("a", "a", true)
+	rs.AddPluralExact("i", "i", true)
+	rs.AddPluralExact("is", "is", true)
+	rs.AddPluralExact("us", "us", true)
+	rs.AddPluralExact("as", "as", true)
+	rs.AddUncountable("fu")
 	rs.AddUncountable("equipment")
 	rs.AddUncountable("information")
 	rs.AddUncountable("rice")
@@ -233,16 +248,17 @@ func NewDefaultRuleset() *Ruleset {
 	return rs
 }
 
+// Uncountables returns the uncountables ruleset
 func (rs *Ruleset) Uncountables() map[string]bool {
 	return rs.uncountables
 }
 
-// add a pluralization rule
+// AddPlural adds a pluralization rule
 func (rs *Ruleset) AddPlural(suffix, replacement string) {
 	rs.AddPluralExact(suffix, replacement, false)
 }
 
-// add a pluralization rule with full string match
+// AddPluralExact adds a pluralization rule with full string match
 func (rs *Ruleset) AddPluralExact(suffix, replacement string, exact bool) {
 	// remove uncountable
 	delete(rs.uncountables, suffix)
@@ -255,12 +271,12 @@ func (rs *Ruleset) AddPluralExact(suffix, replacement string, exact bool) {
 	rs.plurals = append([]*Rule{r}, rs.plurals...)
 }
 
-// add a singular rule
+// AddSingular adds a singular rule
 func (rs *Ruleset) AddSingular(suffix, replacement string) {
 	rs.AddSingularExact(suffix, replacement, false)
 }
 
-// same as AddSingular but you can set `exact` to force
+// AddSingularExact is the same as AddSingular but you can set `exact` to force
 // a full string match
 func (rs *Ruleset) AddSingularExact(suffix, replacement string, exact bool) {
 	// remove from uncountable
@@ -273,7 +289,7 @@ func (rs *Ruleset) AddSingularExact(suffix, replacement string, exact bool) {
 	rs.singulars = append([]*Rule{r}, rs.singulars...)
 }
 
-// Human rules are applied by humanize to show more friendly
+// AddHuman added rules are applied by humanize to show more friendly
 // versions of words
 func (rs *Ruleset) AddHuman(suffix, replacement string) {
 	r := new(Rule)
@@ -282,7 +298,7 @@ func (rs *Ruleset) AddHuman(suffix, replacement string) {
 	rs.humans = append([]*Rule{r}, rs.humans...)
 }
 
-// Add any inconsistant pluralizing/sinularizing rules
+// AddIrregular adds any inconsistant pluralizing/sinularizing rules
 // to the set here.
 func (rs *Ruleset) AddIrregular(singular, plural string) {
 	delete(rs.uncountables, singular)
@@ -292,7 +308,7 @@ func (rs *Ruleset) AddIrregular(singular, plural string) {
 	rs.AddSingular(plural, singular)
 }
 
-// if you use acronym you may need to add them to the ruleset
+// AddAcronym - if you use acronym you may need to add them to the ruleset
 // to prevent Underscored words of things like "HTML" coming out
 // as "h_t_m_l"
 func (rs *Ruleset) AddAcronym(word string) {
@@ -302,7 +318,7 @@ func (rs *Ruleset) AddAcronym(word string) {
 	rs.acronyms = append(rs.acronyms, r)
 }
 
-// add a word to this ruleset that has the same singular and plural form
+// AddUncountable adds a word to this ruleset that has the same singular and plural form
 // for example: "rice"
 func (rs *Ruleset) AddUncountable(word string) {
 	rs.uncountables[strings.ToLower(word)] = true
@@ -317,7 +333,7 @@ func (rs *Ruleset) isUncountable(word string) bool {
 	return false
 }
 
-// returns the plural form of a singular word
+// Pluralize returns the plural form of a singular word
 func (rs *Ruleset) Pluralize(word string) string {
 	if len(word) == 0 {
 		return word
@@ -339,7 +355,7 @@ func (rs *Ruleset) Pluralize(word string) string {
 	return word + "s"
 }
 
-// returns the singular form of a plural word
+// Singularize returns the singular form of a plural word
 func (rs *Ruleset) Singularize(word string) string {
 	if len(word) == 0 {
 		return word
@@ -361,24 +377,24 @@ func (rs *Ruleset) Singularize(word string) string {
 	return word
 }
 
-// uppercase first character
+// Capitalize will uppercase first character
 func (rs *Ruleset) Capitalize(word string) string {
 	return strings.ToUpper(word[:1]) + word[1:]
 }
 
-// "dino_party" -> "DinoParty"
+// Camelize "dino_party" -> "DinoParty"
 func (rs *Ruleset) Camelize(word string) string {
 	words := splitAtCaseChangeWithTitlecase(word)
 	return strings.Join(words, "")
 }
 
-// same as Camelcase but with first letter downcased
+// CamelizeDownFirst is the same as Camelcase but with first letter downcased
 func (rs *Ruleset) CamelizeDownFirst(word string) string {
 	word = Camelize(word)
 	return strings.ToLower(word[:1]) + word[1:]
 }
 
-// Captitilize every word in sentance "hello there" -> "Hello There"
+// Titleize captitilizes every word in sentance "hello there" -> "Hello There"
 func (rs *Ruleset) Titleize(word string) string {
 	words := splitAtCaseChangeWithTitlecase(word)
 	return strings.Join(words, " ")
@@ -398,12 +414,12 @@ func (rs *Ruleset) seperatedWords(word, sep string) string {
 	return strings.Join(words, sep)
 }
 
-// lowercase underscore version "BigBen" -> "big_ben"
+// Underscore returns the lowercase underscore version "BigBen" -> "big_ben"
 func (rs *Ruleset) Underscore(word string) string {
 	return rs.seperatedWords(word, "_")
 }
 
-// First letter of sentance captitilized
+// Humanize converts the first letter of sentence captitilized
 // Uses custom friendly replacements via AddHuman()
 func (rs *Ruleset) Humanize(word string) string {
 	word = replaceLast(word, "_id", "") // strip foreign key kinds
@@ -415,33 +431,33 @@ func (rs *Ruleset) Humanize(word string) string {
 	return strings.ToUpper(sentance[:1]) + sentance[1:]
 }
 
-// an underscored foreign key name "Person" -> "person_id"
+// ForeignKey returns an underscored foreign key name "Person" -> "person_id"
 func (rs *Ruleset) ForeignKey(word string) string {
 	return rs.Underscore(rs.Singularize(word)) + "_id"
 }
 
-// a foreign key (with an underscore) "Person" -> "personid"
+// ForeignKeyCondensed returns a foreign key (with an underscore) "Person" -> "personid"
 func (rs *Ruleset) ForeignKeyCondensed(word string) string {
 	return rs.Underscore(word) + "id"
 }
 
-// Rails style pluralized table names: "SuperPerson" -> "super_people"
+// Tableize returns a rails style pluralized table names: "SuperPerson" -> "super_people"
 func (rs *Ruleset) Tableize(word string) string {
 	return rs.Pluralize(rs.Underscore(rs.Typeify(word)))
 }
 
-var notUrlSafe *regexp.Regexp = regexp.MustCompile(`[^\w\d\-_ ]`)
+var notURLSafe = regexp.MustCompile(`[^\w\d\-_ ]`)
 
-// param safe dasherized names like "my-param"
+// Parameterize returns a param safe dasherized names like "my-param"
 func (rs *Ruleset) Parameterize(word string) string {
 	return ParameterizeJoin(word, "-")
 }
 
-// param safe dasherized names with custom seperator
+// ParameterizeJoin returns a param safe dasherized names with custom seperator
 func (rs *Ruleset) ParameterizeJoin(word, sep string) string {
 	word = strings.ToLower(word)
 	word = rs.Asciify(word)
-	word = notUrlSafe.ReplaceAllString(word, "")
+	word = notURLSafe.ReplaceAllString(word, "")
 	word = strings.Replace(word, " ", sep, -1)
 	if len(sep) > 0 {
 		squash, err := regexp.Compile(sep + "+")
@@ -453,7 +469,7 @@ func (rs *Ruleset) ParameterizeJoin(word, sep string) string {
 	return word
 }
 
-var lookalikes map[string]*regexp.Regexp = map[string]*regexp.Regexp{
+var lookalikes = map[string]*regexp.Regexp{
 	"A":  regexp.MustCompile(`À|Á|Â|Ã|Ä|Å`),
 	"AE": regexp.MustCompile(`Æ`),
 	"C":  regexp.MustCompile(`Ç`),
@@ -479,7 +495,7 @@ var lookalikes map[string]*regexp.Regexp = map[string]*regexp.Regexp{
 	"y":  regexp.MustCompile(`ý|ÿ`),
 }
 
-// transforms latin characters like é -> e
+// Asciify transforms latin characters like é -> e
 func (rs *Ruleset) Asciify(word string) string {
 	for repl, regex := range lookalikes {
 		word = regex.ReplaceAllString(word, repl)
@@ -487,20 +503,20 @@ func (rs *Ruleset) Asciify(word string) string {
 	return word
 }
 
-var tablePrefix *regexp.Regexp = regexp.MustCompile(`^[^.]*\.`)
+var tablePrefix = regexp.MustCompile(`^[^.]*\.`)
 
-// "something_like_this" -> "SomethingLikeThis"
+// Typeify converts "something_like_this" -> "SomethingLikeThis"
 func (rs *Ruleset) Typeify(word string) string {
 	word = tablePrefix.ReplaceAllString(word, "")
 	return rs.Camelize(rs.Singularize(word))
 }
 
-// "SomeText" -> "some-text"
+// Dasherize converts "SomeText" -> "some-text"
 func (rs *Ruleset) Dasherize(word string) string {
 	return rs.seperatedWords(word, "-")
 }
 
-// "1031" -> "1031st"
+// Ordinalize converts "1031" -> "1031st"
 func (rs *Ruleset) Ordinalize(str string) string {
 	number, err := strconv.Atoi(str)
 	if err != nil {
@@ -532,98 +548,122 @@ func init() {
 	defaultRuleset = NewDefaultRuleset()
 }
 
+// Uncountables returns the uncountable ruleset
 func Uncountables() map[string]bool {
 	return defaultRuleset.Uncountables()
 }
 
+// AddPlural to the default ruleset
 func AddPlural(suffix, replacement string) {
 	defaultRuleset.AddPlural(suffix, replacement)
 }
 
+// AddSingular to the default ruleset
 func AddSingular(suffix, replacement string) {
 	defaultRuleset.AddSingular(suffix, replacement)
 }
 
+// AddHuman to the default ruleset
 func AddHuman(suffix, replacement string) {
 	defaultRuleset.AddHuman(suffix, replacement)
 }
 
+// AddIrregular to the default ruleset
 func AddIrregular(singular, plural string) {
 	defaultRuleset.AddIrregular(singular, plural)
 }
 
+// AddAcronym to the default ruleset
 func AddAcronym(word string) {
 	defaultRuleset.AddAcronym(word)
 }
 
+// AddUncountable to the default ruleset
 func AddUncountable(word string) {
 	defaultRuleset.AddUncountable(word)
 }
 
+// Pluralize word
 func Pluralize(word string) string {
 	return defaultRuleset.Pluralize(word)
 }
 
+// Singularize word
 func Singularize(word string) string {
 	return defaultRuleset.Singularize(word)
 }
 
+// Capitalize word
 func Capitalize(word string) string {
 	return defaultRuleset.Capitalize(word)
 }
 
+// Camelize word
 func Camelize(word string) string {
 	return defaultRuleset.Camelize(word)
 }
 
+// CamelizeDownFirst word
 func CamelizeDownFirst(word string) string {
 	return defaultRuleset.CamelizeDownFirst(word)
 }
 
+// Titleize word
 func Titleize(word string) string {
 	return defaultRuleset.Titleize(word)
 }
 
+// Underscore word
 func Underscore(word string) string {
 	return defaultRuleset.Underscore(word)
 }
 
+// Humanize word
 func Humanize(word string) string {
 	return defaultRuleset.Humanize(word)
 }
 
+// ForeignKey word
 func ForeignKey(word string) string {
 	return defaultRuleset.ForeignKey(word)
 }
 
+// ForeignKeyCondensed word
 func ForeignKeyCondensed(word string) string {
 	return defaultRuleset.ForeignKeyCondensed(word)
 }
 
+// Tableize word
 func Tableize(word string) string {
 	return defaultRuleset.Tableize(word)
 }
 
+// Parameterize word
 func Parameterize(word string) string {
 	return defaultRuleset.Parameterize(word)
 }
 
+// ParameterizeJoin word using sep
 func ParameterizeJoin(word, sep string) string {
 	return defaultRuleset.ParameterizeJoin(word, sep)
 }
 
+// Typeify word
 func Typeify(word string) string {
 	return defaultRuleset.Typeify(word)
 }
 
+// Dasherize word
 func Dasherize(word string) string {
 	return defaultRuleset.Dasherize(word)
 }
 
+// Ordinalize word
 func Ordinalize(word string) string {
 	return defaultRuleset.Ordinalize(word)
 }
 
+// Asciify word
 func Asciify(word string) string {
 	return defaultRuleset.Asciify(word)
 }

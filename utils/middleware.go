@@ -1,27 +1,30 @@
 package utils
 
 import (
-	"github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/gin-gonic/gin.v1"
 
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stvp/rollbar"
 )
 
-func MdbLoggerMiddleware(logger *logrus.Logger) gin.HandlerFunc {
+func MdbLoggerMiddleware(logger *log.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path // some evil middleware modify this values
 
 		c.Next()
 
-		logger.WithFields(logrus.Fields{
+		logger.WithFields(log.Fields{
 			"status":     c.Writer.Status(),
 			"method":     c.Request.Method,
 			"path":       path,
@@ -98,21 +101,47 @@ func (blr bodyLogReadCloser) Read(p []byte) (n int, err error) {
 }
 
 func GinBodyLogMiddleware(c *gin.Context) {
+	if !strings.HasPrefix(c.Request.URL.Path, "/operations/") {
+		c.Next()
+		return
+	}
+
 	blr := &bodyLogReadCloser{
 		body:   bytes.NewBufferString(""),
 		closer: c.Request.Body,
 	}
-	blr.reader = io.TeeReader(c.Request.Body, blr.body)
-	c.Request.Body = blr
-
 	blw := &bodyLogWriter{
 		body:           bytes.NewBufferString(""),
 		ResponseWriter: c.Writer,
 	}
+	blr.reader = io.TeeReader(c.Request.Body, blr.body)
+	c.Request.Body = blr
 	c.Writer = blw
 
 	c.Next()
 
-	fmt.Println("Request body: " + blr.body.String())
-	fmt.Println("Response body: " + blw.body.String())
+	log.Infof("Request body:\n%s", blr.body.String())
+	log.Infof("Response body:\n%s", blw.body.String())
+}
+
+func FixDoubleQuotesInInput(c *gin.Context) {
+	// TODO: Remove when input request fixed.
+	b, _ := ioutil.ReadAll(c.Request.Body)
+	body := string(b)
+	fmt.Printf("body:%s\n", body)
+	re := regexp.MustCompile("\"(\"[[:alnum:]]*\")\"")
+	if matches := re.FindStringSubmatch(body); len(matches) > 1 {
+		fmt.Printf("matches:%v\n", matches)
+		for _, m := range matches[1:] {
+			body = strings.Replace(
+				body,
+				fmt.Sprintf("\"%s\"", m),
+				fmt.Sprintf("%s", m),
+				1)
+		}
+	}
+	fmt.Printf("fixed:%s\n", body)
+	c.Request.Body = ioutil.NopCloser(bytes.NewReader([]byte(body)))
+
+	c.Next()
 }
