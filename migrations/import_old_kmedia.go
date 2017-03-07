@@ -84,6 +84,21 @@ func ImportOldKmedia() {
 	// lesson part (containers) -> content unit
 	// files (file_assets) -> files
 
+	// VirtualLesson.limit(1).each do |vl|
+	// 	name = "Morning lesson"
+	// 	cl = Collection.create
+	// 	cl.set_name('ENG',name)
+	// 	vl.containers.each do |con|
+	// 		cu = ContentUnit.create(name: con.name, description)
+	// 		cu -> cl
+	// 		con.file_assets.each do |fa|
+	// 			f = File.create(fa)
+	// 			f -> cu
+	// 			op = OpAddFiles(f)
+	// 		end
+	// 	end
+	// end
+
 	Q("Virtual Lessons")
 	vls, err := kmodels.VirtualLessons(KMediaDB, Limit(10), Load("Containers", "ContainerDescriptions")).All()
 	if err != nil {
