@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 	log "github.com/Sirupsen/logrus"
@@ -14,7 +16,6 @@ import (
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/nullbio/null.v6"
-	"net/http"
 )
 
 // Start capture of AV file, i.e. morning lesson, tv program, etc...
@@ -74,7 +75,7 @@ func UploadHandler(c *gin.Context) {
 
 // Handler logic
 
-func handleCaptureStart(exec boil.Executor, input interface{}) error {
+func handleCaptureStart(exec boil.Executor, input interface{}) (*models.Operation, error) {
 	r := input.(CaptureStartRequest)
 
 	log.Info("Creating operation")
@@ -84,7 +85,7 @@ func handleCaptureStart(exec boil.Executor, input interface{}) error {
 	}
 	operation, err := createOperation(exec, OP_CAPTURE_START, r.Operation, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Creating file and associating to operation")
@@ -92,10 +93,10 @@ func handleCaptureStart(exec boil.Executor, input interface{}) error {
 		UID:  utils.GenerateUID(8),
 		Name: r.FileName,
 	}
-	return operation.AddFiles(exec, true, &file)
+	return operation, operation.AddFiles(exec, true, &file)
 }
 
-func handleCaptureStop(exec boil.Executor, input interface{}) error {
+func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation, error) {
 	r := input.(CaptureStopRequest)
 
 	log.Info("Creating operation")
@@ -106,10 +107,11 @@ func handleCaptureStop(exec boil.Executor, input interface{}) error {
 	}
 	operation, err := createOperation(exec, OP_CAPTURE_STOP, r.Operation, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Looking up parent file, workflow_id=", r.Operation.WorkflowID)
+	var parent *models.File
 	var parentID int64
 	err = queries.Raw(exec,
 		`SELECT file_id FROM files_operations
@@ -119,12 +121,14 @@ func handleCaptureStop(exec boil.Executor, input interface{}) error {
 		r.Operation.WorkflowID).
 		QueryRow().
 		Scan(&parentID)
-	if err != nil {
+	if err == nil {
+		parent = &models.File{ID: parentID}
+	} else {
 		if err == sql.ErrNoRows {
 			log.Warnf("capture_start operation not found for workflow_id [%s]. Skipping.",
 				r.Operation.WorkflowID)
 		} else {
-			return err
+			return nil, err
 		}
 	}
 
@@ -132,21 +136,21 @@ func handleCaptureStop(exec boil.Executor, input interface{}) error {
 	props = map[string]interface{}{
 		"duration": r.Duration,
 	}
-	file, err := createFile(exec, &models.File{ID: parentID}, r.File, props)
+	file, err := createFile(exec, parent, r.File, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Associating file to operation")
-	return operation.AddFiles(exec, false, file)
+	return operation, operation.AddFiles(exec, false, file)
 }
 
-func handleDemux(exec boil.Executor, input interface{}) error {
+func handleDemux(exec boil.Executor, input interface{}) (*models.Operation, error) {
 	r := input.(DemuxRequest)
 
 	parent, _, err := findFileBySHA1(exec, r.Sha1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Creating operation")
@@ -155,7 +159,7 @@ func handleDemux(exec boil.Executor, input interface{}) error {
 	}
 	operation, err := createOperation(exec, OP_DEMUX, r.Operation, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Creating original")
@@ -164,7 +168,7 @@ func handleDemux(exec boil.Executor, input interface{}) error {
 	}
 	original, err := createFile(exec, parent, r.Original.File, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Creating proxy")
@@ -173,35 +177,35 @@ func handleDemux(exec boil.Executor, input interface{}) error {
 	}
 	proxy, err := createFile(exec, parent, r.Proxy.File, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Associating files to operation")
-	return operation.AddFiles(exec, false, parent, original, proxy)
+	return operation, operation.AddFiles(exec, false, parent, original, proxy)
 }
 
-func handleTrim(exec boil.Executor, input interface{}) error {
+func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, error) {
 	r := input.(TrimRequest)
 
 	original, _, err := findFileBySHA1(exec, r.OriginalSha1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	proxy, _, err := findFileBySHA1(exec, r.ProxySha1)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Creating operation")
 	props := map[string]interface{}{
 		"capture_source": r.CaptureSource,
-		"in":          r.In,
-		"out":         r.Out,
+		"in":             r.In,
+		"out":            r.Out,
 	}
 	operation, err := createOperation(exec, OP_TRIM, r.Operation, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Creating trimmed original")
@@ -210,7 +214,7 @@ func handleTrim(exec boil.Executor, input interface{}) error {
 	}
 	originalTrim, err := createFile(exec, original, r.Original.File, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Creating trimmed proxy")
@@ -219,33 +223,77 @@ func handleTrim(exec boil.Executor, input interface{}) error {
 	}
 	proxyTrim, err := createFile(exec, proxy, r.Proxy.File, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Associating files to operation")
-	return operation.AddFiles(exec, false, original, originalTrim, proxy, proxyTrim)
+	return operation, operation.AddFiles(exec, false, original, originalTrim, proxy, proxyTrim)
 }
 
-func handleSend(exec boil.Executor, input interface{}) error {
-	return nil
+func handleSend(exec boil.Executor, input interface{}) (*models.Operation, error) {
+	r := input.(SendRequest)
+
+	// Original
+	original, _, err := findFileBySHA1(exec, r.Original.Sha1)
+	if err != nil {
+		return nil, err
+	}
+	if original.Name == r.Original.FileName {
+		log.Info("Original's name hasn't change")
+	} else {
+		log.Info("Renaming original")
+		original.Name = r.Original.FileName
+		err = original.Update(exec, "name")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Proxy
+	proxy, _, err := findFileBySHA1(exec, r.Proxy.Sha1)
+	if err != nil {
+		return nil, err
+	}
+	if proxy.Name == r.Proxy.FileName {
+		log.Info("Proxy's name hasn't change")
+	} else {
+		log.Info("Renaming proxy")
+		proxy.Name = r.Proxy.FileName
+		err = proxy.Update(exec, "name")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	log.Info("Creating operation")
+	props := map[string]interface{}{
+		"worklow_type": r.WorkflowType,
+	}
+	operation, err := createOperation(exec, OP_SEND, r.Operation, props)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("Associating files to operation")
+	return operation, operation.AddFiles(exec, false, original, proxy)
 }
 
-func handleUpload(exec boil.Executor, input interface{}) error {
+func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, error) {
 	r := input.(UploadRequest)
 
 	log.Info("Creating operation")
 	operation, err := createOperation(exec, OP_UPLOAD, r.Operation, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	file, _, err := findFileBySHA1(exec, r.Sha1)
 	if err != nil {
 		if _, ok := err.(FileNotFound); ok {
 			log.Info("File not found, creating new.")
-			file, err = createFile(exec, nil,r.File, nil)
+			file, err = createFile(exec, nil, r.File, nil)
 		} else {
-			return err
+			return nil, err
 		}
 	}
 
@@ -262,11 +310,11 @@ func handleUpload(exec boil.Executor, input interface{}) error {
 	log.Info("Saving changes to DB")
 	err = file.Update(exec, "properties")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Info("Associating file to operation")
-	return operation.AddFiles(exec, false, file)
+	return operation, operation.AddFiles(exec, false, file)
 }
 
 // Helpers
@@ -275,10 +323,12 @@ func handleUpload(exec boil.Executor, input interface{}) error {
 // 	* Manage DB transactions
 // 	* Call operation logic handler
 // 	* Render JSON response
-func handleOperation(c *gin.Context, input interface{}, opHandler func(boil.Executor, interface{}) error) {
+func handleOperation(c *gin.Context, input interface{},
+	opHandler func(boil.Executor, interface{}) (*models.Operation, error)) {
+
 	tx, err := boil.Begin()
 	if err == nil {
-		err = opHandler(tx, input)
+		_, err = opHandler(tx, input)
 		if err == nil {
 			tx.Commit()
 		} else {
@@ -362,8 +412,13 @@ func createFile(exec boil.Executor, parent *models.File, f File, properties map[
 		FileCreatedAt: null.TimeFrom(f.CreatedAt.Time),
 		Type:          f.Type,
 		SubType:       f.SubType,
-		MimeType:      null.StringFrom(f.MimeType),
-		Language:      null.StringFrom(f.Language),
+	}
+
+	if f.MimeType != "" {
+		file.MimeType = null.StringFrom(f.MimeType)
+	}
+	if f.Language != "" {
+		file.Language = null.StringFrom(f.Language)
 	}
 	if parent != nil {
 		file.ParentID = null.Int64From(parent.ID)

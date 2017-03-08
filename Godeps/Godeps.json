@@ -2,9 +2,6 @@
 	"ImportPath": "github.com/Bnei-Baruch/mdb",
 	"GoVersion": "go1.8",
 	"GodepVersion": "v79",
-	"Packages": [
-		"./..."
-	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -12,20 +9,21 @@
 			"Rev": "d26492970760ca5d33129d2d799e34be5c4782eb"
 		},
 		{
-			"ImportPath": "github.com/adams-sarah/test2doc",
-			"Rev": "e96044288938931a6a83c9aac8913aa47bce72ab"
-		},
-		{
 			"ImportPath": "github.com/adams-sarah/test2doc/doc",
-			"Rev": "e96044288938931a6a83c9aac8913aa47bce72ab"
+			"Rev": "da8da908883066abea518609b80da5a0031071cb"
 		},
 		{
 			"ImportPath": "github.com/adams-sarah/test2doc/doc/parse",
-			"Rev": "e96044288938931a6a83c9aac8913aa47bce72ab"
+			"Rev": "da8da908883066abea518609b80da5a0031071cb"
 		},
 		{
-			"ImportPath": "github.com/edoshor/test2doc/test",
-			"Rev": "f77801361ec7fba12c1af30fd39cfd793527cdfe"
+			"ImportPath": "github.com/adams-sarah/test2doc/test",
+			"Rev": "da8da908883066abea518609b80da5a0031071cb"
+		},
+		{
+			"ImportPath": "github.com/davecgh/go-spew/spew",
+			"Comment": "v1.1.0",
+			"Rev": "346938d642f2ec3594ed81d874461961cd0faa76"
 		},
 		{
 			"ImportPath": "github.com/fsnotify/fsnotify",
@@ -138,6 +136,11 @@
 			"Rev": "bfd5150e4e41705ded2129ec33379de1cb90b513"
 		},
 		{
+			"ImportPath": "github.com/pmezard/go-difflib/difflib",
+			"Comment": "v1.0.0",
+			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
+		},
+		{
 			"ImportPath": "github.com/satori/go.uuid",
 			"Comment": "v1.1.0-6-gb061729",
 			"Rev": "b061729afc07e77a8aa4fad0a2fd840958f1942a"
@@ -169,6 +172,30 @@
 		{
 			"ImportPath": "github.com/spf13/viper",
 			"Rev": "7538d73b4eb9511d85a9f1dfef202eeb8ac260f4"
+		},
+		{
+			"ImportPath": "github.com/stretchr/objx",
+			"Rev": "1a9d0bb9f541897e62256577b352fdbc1fb4fd94"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify",
+			"Comment": "v1.1.4-27-g4d4bfba",
+			"Rev": "4d4bfba8f1d1027c4fdbe371823030df51419987"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/assert",
+			"Comment": "v1.1.4-27-g4d4bfba",
+			"Rev": "4d4bfba8f1d1027c4fdbe371823030df51419987"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/http",
+			"Comment": "v1.1.4-27-g4d4bfba",
+			"Rev": "4d4bfba8f1d1027c4fdbe371823030df51419987"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/mock",
+			"Comment": "v1.1.4-27-g4d4bfba",
+			"Rev": "4d4bfba8f1d1027c4fdbe371823030df51419987"
 		},
 		{
 			"ImportPath": "github.com/stvp/rollbar",

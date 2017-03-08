@@ -31,6 +31,11 @@ type (
 		Duration float64 `json:"duration"`
 	}
 
+	Rename struct {
+		Sha1     string     `json:"sha1" binding:"required,len=40,hexadecimal"`
+		FileName string     `json:"file_name" binding:"required,max=255"`
+	}
+
 	// Operations
 
 	CaptureStartRequest struct {
@@ -58,19 +63,20 @@ type (
 
 	TrimRequest struct {
 		Operation
-		OriginalSha1  string 	`json:"original_sha1" binding:"required,len=40,hexadecimal"`
-		ProxySha1     string 	`json:"proxy_sha1" binding:"required,len=40,hexadecimal"`
-		Original      AVFile 	`json:"original"`
-		Proxy         AVFile 	`json:"proxy"`
+		OriginalSha1  string    `json:"original_sha1" binding:"required,len=40,hexadecimal"`
+		ProxySha1     string    `json:"proxy_sha1" binding:"required,len=40,hexadecimal"`
+		Original      AVFile    `json:"original"`
+		Proxy         AVFile    `json:"proxy"`
 		In            []float64 `json:"in"`
 		Out           []float64 `json:"out"`
-		CaptureSource string 	`json:"capture_source"`
+		CaptureSource string    `json:"capture_source"`
 	}
 
 	SendRequest struct {
 		Operation
-		Sha1 string `json:"sha1" binding:"required,len=40,hexadecimal"`
-		Dest File
+		Original     Rename    `json:"original"`
+		Proxy        Rename    `json:"proxy"`
+		WorkflowType string `json:"workflow_type"`
 	}
 
 	UploadRequest struct {
