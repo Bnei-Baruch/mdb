@@ -1,10 +1,11 @@
 package cmd
 
 import (
+	"database/sql"
+
+	"github.com/Bnei-Baruch/mdb/importer"
 	"github.com/spf13/cobra"
-	"github.com/Bnei-Baruch/mdb/migrations"
-	_ "github.com/y0ssar1an/q"
-	"github.com/jmoiron/sqlx"
+	"github.com/spf13/viper"
 )
 
 func init() {
@@ -12,7 +13,7 @@ func init() {
 		Use:   "kmedia",
 		Short: "Migrate kmedia to MDB",
 		Run: func(cmd *cobra.Command, args []string) {
-			migrations.ImportOldKmedia()
+			importer.ImportKmedia()
 		},
 	}
 	RootCmd.AddCommand(command)
@@ -31,8 +32,13 @@ func init() {
 // go run main.go kmedia-fkeys
 // sqlboiler -o gmodels_old -p gmodels --no-hooks --no-tests postgres
 func createForeignKeys() {
-	db := sqlx.MustConnect("postgres", "host=localhost user=postgres dbname=kmedia sslmode=disable")
-	db.MustExec(`
+	db, err := sql.Open("postgres", viper.GetString("kmedia.url"))
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(`
 
 ALTER TABLE languages DROP CONSTRAINT IF EXISTS code3_unique CASCADE;
 ALTER TABLE languages ADD CONSTRAINT code3_unique UNIQUE (code3);
@@ -50,7 +56,7 @@ ALTER TABLE catalogs_containers ADD CONSTRAINT containers_fkey FOREIGN KEY (cont
 DO $$
 	BEGIN
 		ALTER TABLE catalog_descriptions RENAME COLUMN lang TO lang_id;
-		EXCEPTION WHEN others THEN RAISE NOTICE '%', 'Already Exists';
+		EXCEPTION WHEN OTHERS THEN RAISE NOTICE '%', 'Already Exists';
 	END
 $$ LANGUAGE plpgsql;
 ALTER TABLE catalog_descriptions DROP CONSTRAINT IF EXISTS catalogs_fkey;
@@ -69,7 +75,7 @@ ALTER TABLE catalogs_container_description_patterns ADD CONSTRAINT container_des
 DO $$
 	BEGIN
 		ALTER TABLE containers RENAME COLUMN lang TO lang_id;
-		EXCEPTION WHEN others THEN RAISE NOTICE '%', 'Already Exists';
+		EXCEPTION WHEN OTHERS THEN RAISE NOTICE '%', 'Already Exists';
 	END
 $$ LANGUAGE plpgsql;
 ALTER TABLE containers DROP CONSTRAINT IF EXISTS languages_fkey;
@@ -82,7 +88,7 @@ ALTER TABLE containers ADD CONSTRAINT virtual_lessons_fkey FOREIGN KEY (virtual_
 DO $$
 	BEGIN
 		ALTER TABLE container_descriptions RENAME COLUMN lang TO lang_id;
-		EXCEPTION WHEN others THEN RAISE NOTICE '%', 'Already Exists';
+		EXCEPTION WHEN OTHERS THEN RAISE NOTICE '%', 'Already Exists';
 	END
 $$ LANGUAGE plpgsql;
 ALTER TABLE container_descriptions DROP CONSTRAINT IF EXISTS languages_fkey;
@@ -111,13 +117,13 @@ ALTER TABLE file_asset_descriptions ADD CONSTRAINT file_asset_descriptions_fkey 
 DO $$
 	BEGIN
 		ALTER TABLE file_assets RENAME COLUMN lang TO lang_id;
-		EXCEPTION WHEN others THEN RAISE NOTICE '%', 'Already Exists';
+		EXCEPTION WHEN OTHERS THEN RAISE NOTICE '%', 'Already Exists';
 	END
 $$ LANGUAGE plpgsql;
 DO $$
 	BEGIN
 		ALTER TABLE file_assets RENAME COLUMN servername TO servername_id;
-		EXCEPTION WHEN others THEN RAISE NOTICE '%', 'Already Exists';
+		EXCEPTION WHEN OTHERS THEN RAISE NOTICE '%', 'Already Exists';
 	END
 $$ LANGUAGE plpgsql;
 ALTER TABLE file_assets DROP CONSTRAINT IF EXISTS languages_fkey;
@@ -133,4 +139,7 @@ ALTER TABLE roles_users ADD CONSTRAINT role_user_pkey PRIMARY KEY (role_id, user
 ALTER TABLE roles_users DROP CONSTRAINT IF EXISTS roles_fkey;
 ALTER TABLE roles_users ADD CONSTRAINT users_fkey FOREIGN KEY (user_id) REFERENCES users(id) NOT VALID;
 	`)
+	if err != nil {
+		panic(err)
+	}
 }

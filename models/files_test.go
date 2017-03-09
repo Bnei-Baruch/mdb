@@ -321,6 +321,80 @@ func testFilesInsertWhitelist(t *testing.T) {
 	}
 }
 
+func testFileToManyParentFiles(t *testing.T) {
+	var err error
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c File
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	randomize.Struct(seed, &b, fileDBTypes, false, fileColumnsWithDefault...)
+	randomize.Struct(seed, &c, fileDBTypes, false, fileColumnsWithDefault...)
+
+	b.ParentID.Valid = true
+	c.ParentID.Valid = true
+	b.ParentID.Int64 = a.ID
+	c.ParentID.Int64 = a.ID
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	file, err := a.ParentFiles(tx).All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range file {
+		if v.ParentID.Int64 == b.ParentID.Int64 {
+			bFound = true
+		}
+		if v.ParentID.Int64 == c.ParentID.Int64 {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := FileSlice{&a}
+	if err = a.L.LoadParentFiles(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.ParentFiles); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.ParentFiles = nil
+	if err = a.L.LoadParentFiles(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.ParentFiles); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", file)
+	}
+}
+
 func testFileToManyOperations(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
@@ -397,301 +471,6 @@ func testFileToManyOperations(t *testing.T) {
 
 	if t.Failed() {
 		t.Logf("%#v", operation)
-	}
-}
-
-func testFileToManyParentFiles(t *testing.T) {
-	var err error
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a File
-	var b, c File
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize File struct: %s", err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	randomize.Struct(seed, &b, fileDBTypes, false, fileColumnsWithDefault...)
-	randomize.Struct(seed, &c, fileDBTypes, false, fileColumnsWithDefault...)
-
-	b.ParentID.Valid = true
-	c.ParentID.Valid = true
-	b.ParentID.Int64 = a.ID
-	c.ParentID.Int64 = a.ID
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	file, err := a.ParentFiles(tx).All()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bFound, cFound := false, false
-	for _, v := range file {
-		if v.ParentID.Int64 == b.ParentID.Int64 {
-			bFound = true
-		}
-		if v.ParentID.Int64 == c.ParentID.Int64 {
-			cFound = true
-		}
-	}
-
-	if !bFound {
-		t.Error("expected to find b")
-	}
-	if !cFound {
-		t.Error("expected to find c")
-	}
-
-	slice := FileSlice{&a}
-	if err = a.L.LoadParentFiles(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.ParentFiles); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	a.R.ParentFiles = nil
-	if err = a.L.LoadParentFiles(tx, true, &a); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.ParentFiles); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	if t.Failed() {
-		t.Logf("%#v", file)
-	}
-}
-
-func testFileToManyAddOpOperations(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a File
-	var b, c, d, e Operation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*Operation{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	foreignersSplitByInsertion := [][]*Operation{
-		{&b, &c},
-		{&d, &e},
-	}
-
-	for i, x := range foreignersSplitByInsertion {
-		err = a.AddOperations(tx, i != 0, x...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		first := x[0]
-		second := x[1]
-
-		if first.R.Files[0] != &a {
-			t.Error("relationship was not added properly to the slice")
-		}
-		if second.R.Files[0] != &a {
-			t.Error("relationship was not added properly to the slice")
-		}
-
-		if a.R.Operations[i*2] != first {
-			t.Error("relationship struct slice not set to correct value")
-		}
-		if a.R.Operations[i*2+1] != second {
-			t.Error("relationship struct slice not set to correct value")
-		}
-
-		count, err := a.Operations(tx).Count()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := int64((i + 1) * 2); count != want {
-			t.Error("want", want, "got", count)
-		}
-	}
-}
-
-func testFileToManySetOpOperations(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a File
-	var b, c, d, e Operation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*Operation{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err = a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	err = a.SetOperations(tx, false, &b, &c)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err := a.Operations(tx).Count()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	err = a.SetOperations(tx, true, &d, &e)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err = a.Operations(tx).Count()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	if len(b.R.Files) != 0 {
-		t.Error("relationship was not removed properly from the slice")
-	}
-	if len(c.R.Files) != 0 {
-		t.Error("relationship was not removed properly from the slice")
-	}
-	if d.R.Files[0] != &a {
-		t.Error("relationship was not added properly to the slice")
-	}
-	if e.R.Files[0] != &a {
-		t.Error("relationship was not added properly to the slice")
-	}
-
-	if a.R.Operations[0] != &d {
-		t.Error("relationship struct slice not set to correct value")
-	}
-	if a.R.Operations[1] != &e {
-		t.Error("relationship struct slice not set to correct value")
-	}
-}
-
-func testFileToManyRemoveOpOperations(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a File
-	var b, c, d, e Operation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*Operation{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	err = a.AddOperations(tx, true, foreigners...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err := a.Operations(tx).Count()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 4 {
-		t.Error("count was wrong:", count)
-	}
-
-	err = a.RemoveOperations(tx, foreigners[:2]...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err = a.Operations(tx).Count()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	if len(b.R.Files) != 0 {
-		t.Error("relationship was not removed properly from the slice")
-	}
-	if len(c.R.Files) != 0 {
-		t.Error("relationship was not removed properly from the slice")
-	}
-	if d.R.Files[0] != &a {
-		t.Error("relationship was not added properly to the foreign struct")
-	}
-	if e.R.Files[0] != &a {
-		t.Error("relationship was not added properly to the foreign struct")
-	}
-
-	if len(a.R.Operations) != 2 {
-		t.Error("should have preserved two relationships")
-	}
-
-	// Removal doesn't do a stable deletion for performance so we have to flip the order
-	if a.R.Operations[1] != &d {
-		t.Error("relationship to d should have been preserved")
-	}
-	if a.R.Operations[0] != &e {
-		t.Error("relationship to e should have been preserved")
 	}
 }
 
@@ -939,6 +718,227 @@ func testFileToManyRemoveOpParentFiles(t *testing.T) {
 		t.Error("relationship to d should have been preserved")
 	}
 	if a.R.ParentFiles[0] != &e {
+		t.Error("relationship to e should have been preserved")
+	}
+}
+
+func testFileToManyAddOpOperations(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Operation
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Operation{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*Operation{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddOperations(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if first.R.Files[0] != &a {
+			t.Error("relationship was not added properly to the slice")
+		}
+		if second.R.Files[0] != &a {
+			t.Error("relationship was not added properly to the slice")
+		}
+
+		if a.R.Operations[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.Operations[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.Operations(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+
+func testFileToManySetOpOperations(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Operation
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Operation{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.SetOperations(tx, false, &b, &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.Operations(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.SetOperations(tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.Operations(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if len(b.R.Files) != 0 {
+		t.Error("relationship was not removed properly from the slice")
+	}
+	if len(c.R.Files) != 0 {
+		t.Error("relationship was not removed properly from the slice")
+	}
+	if d.R.Files[0] != &a {
+		t.Error("relationship was not added properly to the slice")
+	}
+	if e.R.Files[0] != &a {
+		t.Error("relationship was not added properly to the slice")
+	}
+
+	if a.R.Operations[0] != &d {
+		t.Error("relationship struct slice not set to correct value")
+	}
+	if a.R.Operations[1] != &e {
+		t.Error("relationship struct slice not set to correct value")
+	}
+}
+
+func testFileToManyRemoveOpOperations(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Operation
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Operation{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.AddOperations(tx, true, foreigners...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.Operations(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.RemoveOperations(tx, foreigners[:2]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.Operations(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if len(b.R.Files) != 0 {
+		t.Error("relationship was not removed properly from the slice")
+	}
+	if len(c.R.Files) != 0 {
+		t.Error("relationship was not removed properly from the slice")
+	}
+	if d.R.Files[0] != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+	if e.R.Files[0] != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+
+	if len(a.R.Operations) != 2 {
+		t.Error("should have preserved two relationships")
+	}
+
+	// Removal doesn't do a stable deletion for performance so we have to flip the order
+	if a.R.Operations[1] != &d {
+		t.Error("relationship to d should have been preserved")
+	}
+	if a.R.Operations[0] != &e {
 		t.Error("relationship to e should have been preserved")
 	}
 }

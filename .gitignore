@@ -1,10 +1,12 @@
 .idea/
 .logs/
-mdb
+
 *.swp
+*.log
 config.toml
-**/rambler.json
-visio.SQL
 sqlboiler.toml
+**/rambler.json
 */**/*.apib
 *.dump.sql
+visio.SQL
+mdb

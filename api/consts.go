@@ -37,6 +37,7 @@ const (
 	OP_TRIM          = "trim"
 	OP_SEND          = "send"
 	OP_UPLOAD        = "upload"
+	OP_IMPORT_KMEDIA = "import_kmedia"
 
 	// Languages
 	LANG_ENGLISH    = "en"

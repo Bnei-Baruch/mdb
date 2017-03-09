@@ -1,0 +1,11 @@
+no-hooks=true
+no-tests=true
+output="kmodels"
+pkgname="kmodels"
+blacklist=["schema_migrations", "delayed_jobs", "container_creation_patterns"]
+[postgres]
+  dbname="kmedia"
+  host="localhost"
+  port=5432
+  user="postgres"
+  sslmode="disable"

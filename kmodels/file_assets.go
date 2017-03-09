@@ -34,6 +34,7 @@ type FileAsset struct {
 	Secure       null.Int    `boil:"secure" json:"secure,omitempty" toml:"secure" yaml:"secure,omitempty"`
 	PlaytimeSecs null.Int    `boil:"playtime_secs" json:"playtime_secs,omitempty" toml:"playtime_secs" yaml:"playtime_secs,omitempty"`
 	UserID       null.Int    `boil:"user_id" json:"user_id,omitempty" toml:"user_id" yaml:"user_id,omitempty"`
+	Sha1         null.String `boil:"sha1" json:"sha1,omitempty" toml:"sha1" yaml:"sha1,omitempty"`
 
 	R *fileAssetR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L fileAssetL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -44,16 +45,16 @@ type fileAssetR struct {
 	Lang                      *Language
 	User                      *User
 	Servername                *Server
-	Containers                ContainerSlice
 	FileFileAssetDescriptions FileAssetDescriptionSlice
+	Containers                ContainerSlice
 }
 
 // fileAssetL is where Load methods for each relationship are stored.
 type fileAssetL struct{}
 
 var (
-	fileAssetColumns               = []string{"id", "name", "lang_id", "asset_type", "date", "size", "servername_id", "status", "created_at", "updated_at", "lastuser", "clicks", "secure", "playtime_secs", "user_id"}
-	fileAssetColumnsWithoutDefault = []string{"name", "lang_id", "asset_type", "date", "size", "status", "created_at", "updated_at", "lastuser", "playtime_secs", "user_id"}
+	fileAssetColumns               = []string{"id", "name", "lang_id", "asset_type", "date", "size", "servername_id", "status", "created_at", "updated_at", "lastuser", "clicks", "secure", "playtime_secs", "user_id", "sha1"}
+	fileAssetColumnsWithoutDefault = []string{"name", "lang_id", "asset_type", "date", "size", "status", "created_at", "updated_at", "lastuser", "playtime_secs", "user_id", "sha1"}
 	fileAssetColumnsWithDefault    = []string{"id", "servername_id", "clicks", "secure"}
 	fileAssetPrimaryKeyColumns     = []string{"id"}
 )
@@ -244,6 +245,30 @@ func (o *FileAsset) Servername(exec boil.Executor, mods ...qm.QueryMod) serverQu
 	return query
 }
 
+// FileFileAssetDescriptionsG retrieves all the file_asset_description's file asset descriptions via file_id column.
+func (o *FileAsset) FileFileAssetDescriptionsG(mods ...qm.QueryMod) fileAssetDescriptionQuery {
+	return o.FileFileAssetDescriptions(boil.GetDB(), mods...)
+}
+
+// FileFileAssetDescriptions retrieves all the file_asset_description's file asset descriptions with an executor via file_id column.
+func (o *FileAsset) FileFileAssetDescriptions(exec boil.Executor, mods ...qm.QueryMod) fileAssetDescriptionQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
+	}
+
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"file_id\"=?", o.ID),
+	)
+
+	query := FileAssetDescriptions(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"file_asset_descriptions\" as \"a\"")
+	return query
+}
+
 // ContainersG retrieves all the container's containers.
 func (o *FileAsset) ContainersG(mods ...qm.QueryMod) containerQuery {
 	return o.Containers(boil.GetDB(), mods...)
@@ -266,30 +291,6 @@ func (o *FileAsset) Containers(exec boil.Executor, mods ...qm.QueryMod) containe
 
 	query := Containers(exec, queryMods...)
 	queries.SetFrom(query.Query, "\"containers\" as \"a\"")
-	return query
-}
-
-// FileFileAssetDescriptionsG retrieves all the file_asset_description's file asset descriptions via file_id column.
-func (o *FileAsset) FileFileAssetDescriptionsG(mods ...qm.QueryMod) fileAssetDescriptionQuery {
-	return o.FileFileAssetDescriptions(boil.GetDB(), mods...)
-}
-
-// FileFileAssetDescriptions retrieves all the file_asset_description's file asset descriptions with an executor via file_id column.
-func (o *FileAsset) FileFileAssetDescriptions(exec boil.Executor, mods ...qm.QueryMod) fileAssetDescriptionQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("\"a\".\"file_id\"=?", o.ID),
-	)
-
-	query := FileAssetDescriptions(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"file_asset_descriptions\" as \"a\"")
 	return query
 }
 
@@ -491,6 +492,71 @@ func (fileAssetL) LoadServername(e boil.Executor, singular bool, maybeFileAsset 
 	return nil
 }
 
+// LoadFileFileAssetDescriptions allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (fileAssetL) LoadFileFileAssetDescriptions(e boil.Executor, singular bool, maybeFileAsset interface{}) error {
+	var slice []*FileAsset
+	var object *FileAsset
+
+	count := 1
+	if singular {
+		object = maybeFileAsset.(*FileAsset)
+	} else {
+		slice = *maybeFileAsset.(*FileAssetSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &fileAssetR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &fileAssetR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from \"file_asset_descriptions\" where \"file_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load file_asset_descriptions")
+	}
+	defer results.Close()
+
+	var resultSlice []*FileAssetDescription
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice file_asset_descriptions")
+	}
+
+	if singular {
+		object.R.FileFileAssetDescriptions = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.FileID {
+				local.R.FileFileAssetDescriptions = append(local.R.FileFileAssetDescriptions, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // LoadContainers allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (fileAssetL) LoadContainers(e boil.Executor, singular bool, maybeFileAsset interface{}) error {
@@ -564,71 +630,6 @@ func (fileAssetL) LoadContainers(e boil.Executor, singular bool, maybeFileAsset 
 		for _, local := range slice {
 			if local.ID == localJoinCol {
 				local.R.Containers = append(local.R.Containers, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadFileFileAssetDescriptions allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (fileAssetL) LoadFileFileAssetDescriptions(e boil.Executor, singular bool, maybeFileAsset interface{}) error {
-	var slice []*FileAsset
-	var object *FileAsset
-
-	count := 1
-	if singular {
-		object = maybeFileAsset.(*FileAsset)
-	} else {
-		slice = *maybeFileAsset.(*FileAssetSlice)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &fileAssetR{}
-		}
-		args[0] = object.ID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &fileAssetR{}
-			}
-			args[i] = obj.ID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select * from \"file_asset_descriptions\" where \"file_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load file_asset_descriptions")
-	}
-	defer results.Close()
-
-	var resultSlice []*FileAssetDescription
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice file_asset_descriptions")
-	}
-
-	if singular {
-		object.R.FileFileAssetDescriptions = resultSlice
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.ID == foreign.FileID {
-				local.R.FileFileAssetDescriptions = append(local.R.FileFileAssetDescriptions, foreign)
 				break
 			}
 		}
@@ -1048,6 +1049,90 @@ func (o *FileAsset) RemoveServername(exec boil.Executor, related *Server) error 
 	return nil
 }
 
+// AddFileFileAssetDescriptionsG adds the given related objects to the existing relationships
+// of the file_asset, optionally inserting them as new records.
+// Appends related to o.R.FileFileAssetDescriptions.
+// Sets related.R.File appropriately.
+// Uses the global database handle.
+func (o *FileAsset) AddFileFileAssetDescriptionsG(insert bool, related ...*FileAssetDescription) error {
+	return o.AddFileFileAssetDescriptions(boil.GetDB(), insert, related...)
+}
+
+// AddFileFileAssetDescriptionsP adds the given related objects to the existing relationships
+// of the file_asset, optionally inserting them as new records.
+// Appends related to o.R.FileFileAssetDescriptions.
+// Sets related.R.File appropriately.
+// Panics on error.
+func (o *FileAsset) AddFileFileAssetDescriptionsP(exec boil.Executor, insert bool, related ...*FileAssetDescription) {
+	if err := o.AddFileFileAssetDescriptions(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddFileFileAssetDescriptionsGP adds the given related objects to the existing relationships
+// of the file_asset, optionally inserting them as new records.
+// Appends related to o.R.FileFileAssetDescriptions.
+// Sets related.R.File appropriately.
+// Uses the global database handle and panics on error.
+func (o *FileAsset) AddFileFileAssetDescriptionsGP(insert bool, related ...*FileAssetDescription) {
+	if err := o.AddFileFileAssetDescriptions(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddFileFileAssetDescriptions adds the given related objects to the existing relationships
+// of the file_asset, optionally inserting them as new records.
+// Appends related to o.R.FileFileAssetDescriptions.
+// Sets related.R.File appropriately.
+func (o *FileAsset) AddFileFileAssetDescriptions(exec boil.Executor, insert bool, related ...*FileAssetDescription) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.FileID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"file_asset_descriptions\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"file_id"}),
+				strmangle.WhereClause("\"", "\"", 2, fileAssetDescriptionPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.FileID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &fileAssetR{
+			FileFileAssetDescriptions: related,
+		}
+	} else {
+		o.R.FileFileAssetDescriptions = append(o.R.FileFileAssetDescriptions, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &fileAssetDescriptionR{
+				File: o,
+			}
+		} else {
+			rel.R.File = o
+		}
+	}
+	return nil
+}
+
 // AddContainersG adds the given related objects to the existing relationships
 // of the file_asset, optionally inserting them as new records.
 // Appends related to o.R.Containers.
@@ -1277,90 +1362,6 @@ func removeContainersFromFileAssetsSlice(o *FileAsset, related []*Container) {
 			break
 		}
 	}
-}
-
-// AddFileFileAssetDescriptionsG adds the given related objects to the existing relationships
-// of the file_asset, optionally inserting them as new records.
-// Appends related to o.R.FileFileAssetDescriptions.
-// Sets related.R.File appropriately.
-// Uses the global database handle.
-func (o *FileAsset) AddFileFileAssetDescriptionsG(insert bool, related ...*FileAssetDescription) error {
-	return o.AddFileFileAssetDescriptions(boil.GetDB(), insert, related...)
-}
-
-// AddFileFileAssetDescriptionsP adds the given related objects to the existing relationships
-// of the file_asset, optionally inserting them as new records.
-// Appends related to o.R.FileFileAssetDescriptions.
-// Sets related.R.File appropriately.
-// Panics on error.
-func (o *FileAsset) AddFileFileAssetDescriptionsP(exec boil.Executor, insert bool, related ...*FileAssetDescription) {
-	if err := o.AddFileFileAssetDescriptions(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddFileFileAssetDescriptionsGP adds the given related objects to the existing relationships
-// of the file_asset, optionally inserting them as new records.
-// Appends related to o.R.FileFileAssetDescriptions.
-// Sets related.R.File appropriately.
-// Uses the global database handle and panics on error.
-func (o *FileAsset) AddFileFileAssetDescriptionsGP(insert bool, related ...*FileAssetDescription) {
-	if err := o.AddFileFileAssetDescriptions(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddFileFileAssetDescriptions adds the given related objects to the existing relationships
-// of the file_asset, optionally inserting them as new records.
-// Appends related to o.R.FileFileAssetDescriptions.
-// Sets related.R.File appropriately.
-func (o *FileAsset) AddFileFileAssetDescriptions(exec boil.Executor, insert bool, related ...*FileAssetDescription) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.FileID = o.ID
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"file_asset_descriptions\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"file_id"}),
-				strmangle.WhereClause("\"", "\"", 2, fileAssetDescriptionPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.ID}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.FileID = o.ID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &fileAssetR{
-			FileFileAssetDescriptions: related,
-		}
-	} else {
-		o.R.FileFileAssetDescriptions = append(o.R.FileFileAssetDescriptions, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &fileAssetDescriptionR{
-				File: o,
-			}
-		} else {
-			rel.R.File = o
-		}
-	}
-	return nil
 }
 
 // FileAssetsG retrieves all records.

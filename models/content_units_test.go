@@ -321,13 +321,13 @@ func testContentUnitsInsertWhitelist(t *testing.T) {
 	}
 }
 
-func testContentUnitToManyContentUnitsPersons(t *testing.T) {
+func testContentUnitToManyFiles(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a ContentUnit
-	var b, c ContentUnitsPerson
+	var b, c File
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
@@ -338,11 +338,13 @@ func testContentUnitToManyContentUnitsPersons(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	randomize.Struct(seed, &b, contentUnitsPersonDBTypes, false, contentUnitsPersonColumnsWithDefault...)
-	randomize.Struct(seed, &c, contentUnitsPersonDBTypes, false, contentUnitsPersonColumnsWithDefault...)
+	randomize.Struct(seed, &b, fileDBTypes, false, fileColumnsWithDefault...)
+	randomize.Struct(seed, &c, fileDBTypes, false, fileColumnsWithDefault...)
 
-	b.ContentUnitID = a.ID
-	c.ContentUnitID = a.ID
+	b.ContentUnitID.Valid = true
+	c.ContentUnitID.Valid = true
+	b.ContentUnitID.Int64 = a.ID
+	c.ContentUnitID.Int64 = a.ID
 	if err = b.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
@@ -350,17 +352,17 @@ func testContentUnitToManyContentUnitsPersons(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	contentUnitsPerson, err := a.ContentUnitsPersons(tx).All()
+	file, err := a.Files(tx).All()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
-	for _, v := range contentUnitsPerson {
-		if v.ContentUnitID == b.ContentUnitID {
+	for _, v := range file {
+		if v.ContentUnitID.Int64 == b.ContentUnitID.Int64 {
 			bFound = true
 		}
-		if v.ContentUnitID == c.ContentUnitID {
+		if v.ContentUnitID.Int64 == c.ContentUnitID.Int64 {
 			cFound = true
 		}
 	}
@@ -373,23 +375,23 @@ func testContentUnitToManyContentUnitsPersons(t *testing.T) {
 	}
 
 	slice := ContentUnitSlice{&a}
-	if err = a.L.LoadContentUnitsPersons(tx, false, &slice); err != nil {
+	if err = a.L.LoadFiles(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.ContentUnitsPersons); got != 2 {
+	if got := len(a.R.Files); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	a.R.ContentUnitsPersons = nil
-	if err = a.L.LoadContentUnitsPersons(tx, true, &a); err != nil {
+	a.R.Files = nil
+	if err = a.L.LoadFiles(tx, true, &a); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.ContentUnitsPersons); got != 2 {
+	if got := len(a.R.Files); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
 	if t.Failed() {
-		t.Logf("%#v", contentUnitsPerson)
+		t.Logf("%#v", file)
 	}
 }
 
@@ -465,13 +467,13 @@ func testContentUnitToManyCollectionsContentUnits(t *testing.T) {
 	}
 }
 
-func testContentUnitToManyFiles(t *testing.T) {
+func testContentUnitToManyContentUnitI18ns(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a ContentUnit
-	var b, c File
+	var b, c ContentUnitI18n
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
@@ -482,13 +484,11 @@ func testContentUnitToManyFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	randomize.Struct(seed, &b, fileDBTypes, false, fileColumnsWithDefault...)
-	randomize.Struct(seed, &c, fileDBTypes, false, fileColumnsWithDefault...)
+	randomize.Struct(seed, &b, contentUnitI18nDBTypes, false, contentUnitI18nColumnsWithDefault...)
+	randomize.Struct(seed, &c, contentUnitI18nDBTypes, false, contentUnitI18nColumnsWithDefault...)
 
-	b.ContentUnitID.Valid = true
-	c.ContentUnitID.Valid = true
-	b.ContentUnitID.Int64 = a.ID
-	c.ContentUnitID.Int64 = a.ID
+	b.ContentUnitID = a.ID
+	c.ContentUnitID = a.ID
 	if err = b.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
@@ -496,17 +496,17 @@ func testContentUnitToManyFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	file, err := a.Files(tx).All()
+	contentUnitI18n, err := a.ContentUnitI18ns(tx).All()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
-	for _, v := range file {
-		if v.ContentUnitID.Int64 == b.ContentUnitID.Int64 {
+	for _, v := range contentUnitI18n {
+		if v.ContentUnitID == b.ContentUnitID {
 			bFound = true
 		}
-		if v.ContentUnitID.Int64 == c.ContentUnitID.Int64 {
+		if v.ContentUnitID == c.ContentUnitID {
 			cFound = true
 		}
 	}
@@ -519,174 +519,26 @@ func testContentUnitToManyFiles(t *testing.T) {
 	}
 
 	slice := ContentUnitSlice{&a}
-	if err = a.L.LoadFiles(tx, false, &slice); err != nil {
+	if err = a.L.LoadContentUnitI18ns(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.Files); got != 2 {
+	if got := len(a.R.ContentUnitI18ns); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	a.R.Files = nil
-	if err = a.L.LoadFiles(tx, true, &a); err != nil {
+	a.R.ContentUnitI18ns = nil
+	if err = a.L.LoadContentUnitI18ns(tx, true, &a); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.Files); got != 2 {
+	if got := len(a.R.ContentUnitI18ns); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
 	if t.Failed() {
-		t.Logf("%#v", file)
+		t.Logf("%#v", contentUnitI18n)
 	}
 }
 
-func testContentUnitToManyAddOpContentUnitsPersons(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a ContentUnit
-	var b, c, d, e ContentUnitsPerson
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*ContentUnitsPerson{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, contentUnitsPersonDBTypes, false, strmangle.SetComplement(contentUnitsPersonPrimaryKeyColumns, contentUnitsPersonColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	foreignersSplitByInsertion := [][]*ContentUnitsPerson{
-		{&b, &c},
-		{&d, &e},
-	}
-
-	for i, x := range foreignersSplitByInsertion {
-		err = a.AddContentUnitsPersons(tx, i != 0, x...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		first := x[0]
-		second := x[1]
-
-		if a.ID != first.ContentUnitID {
-			t.Error("foreign key was wrong value", a.ID, first.ContentUnitID)
-		}
-		if a.ID != second.ContentUnitID {
-			t.Error("foreign key was wrong value", a.ID, second.ContentUnitID)
-		}
-
-		if first.R.ContentUnit != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-		if second.R.ContentUnit != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-
-		if a.R.ContentUnitsPersons[i*2] != first {
-			t.Error("relationship struct slice not set to correct value")
-		}
-		if a.R.ContentUnitsPersons[i*2+1] != second {
-			t.Error("relationship struct slice not set to correct value")
-		}
-
-		count, err := a.ContentUnitsPersons(tx).Count()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := int64((i + 1) * 2); count != want {
-			t.Error("want", want, "got", count)
-		}
-	}
-}
-func testContentUnitToManyAddOpCollectionsContentUnits(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a ContentUnit
-	var b, c, d, e CollectionsContentUnit
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*CollectionsContentUnit{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, collectionsContentUnitDBTypes, false, strmangle.SetComplement(collectionsContentUnitPrimaryKeyColumns, collectionsContentUnitColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	foreignersSplitByInsertion := [][]*CollectionsContentUnit{
-		{&b, &c},
-		{&d, &e},
-	}
-
-	for i, x := range foreignersSplitByInsertion {
-		err = a.AddCollectionsContentUnits(tx, i != 0, x...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		first := x[0]
-		second := x[1]
-
-		if a.ID != first.ContentUnitID {
-			t.Error("foreign key was wrong value", a.ID, first.ContentUnitID)
-		}
-		if a.ID != second.ContentUnitID {
-			t.Error("foreign key was wrong value", a.ID, second.ContentUnitID)
-		}
-
-		if first.R.ContentUnit != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-		if second.R.ContentUnit != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-
-		if a.R.CollectionsContentUnits[i*2] != first {
-			t.Error("relationship struct slice not set to correct value")
-		}
-		if a.R.CollectionsContentUnits[i*2+1] != second {
-			t.Error("relationship struct slice not set to correct value")
-		}
-
-		count, err := a.CollectionsContentUnits(tx).Count()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := int64((i + 1) * 2); count != want {
-			t.Error("want", want, "got", count)
-		}
-	}
-}
 func testContentUnitToManyAddOpFiles(t *testing.T) {
 	var err error
 
@@ -935,108 +787,154 @@ func testContentUnitToManyRemoveOpFiles(t *testing.T) {
 	}
 }
 
-func testContentUnitToOneStringTranslationUsingDescription(t *testing.T) {
+func testContentUnitToManyAddOpCollectionsContentUnits(t *testing.T) {
+	var err error
+
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
-	var local ContentUnit
-	var foreign StringTranslation
+	var a ContentUnit
+	var b, c, d, e CollectionsContentUnit
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
+	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
 	}
-	if err := randomize.Struct(seed, &foreign, stringTranslationDBTypes, true, stringTranslationColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize StringTranslation struct: %s", err)
+	foreigners := []*CollectionsContentUnit{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, collectionsContentUnitDBTypes, false, strmangle.SetComplement(collectionsContentUnitPrimaryKeyColumns, collectionsContentUnitColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	local.DescriptionID.Valid = true
-
-	if err := foreign.Insert(tx); err != nil {
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	local.DescriptionID.Int64 = foreign.ID
-	if err := local.Insert(tx); err != nil {
-		t.Fatal(err)
+	foreignersSplitByInsertion := [][]*CollectionsContentUnit{
+		{&b, &c},
+		{&d, &e},
 	}
 
-	check, err := local.Description(tx).One()
-	if err != nil {
-		t.Fatal(err)
-	}
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddCollectionsContentUnits(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if check.ID != foreign.ID {
-		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
-	}
+		first := x[0]
+		second := x[1]
 
-	slice := ContentUnitSlice{&local}
-	if err = local.L.LoadDescription(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.Description == nil {
-		t.Error("struct should have been eager loaded")
-	}
+		if a.ID != first.ContentUnitID {
+			t.Error("foreign key was wrong value", a.ID, first.ContentUnitID)
+		}
+		if a.ID != second.ContentUnitID {
+			t.Error("foreign key was wrong value", a.ID, second.ContentUnitID)
+		}
 
-	local.R.Description = nil
-	if err = local.L.LoadDescription(tx, true, &local); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.Description == nil {
-		t.Error("struct should have been eager loaded")
+		if first.R.ContentUnit != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.ContentUnit != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.CollectionsContentUnits[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.CollectionsContentUnits[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.CollectionsContentUnits(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
 	}
 }
+func testContentUnitToManyAddOpContentUnitI18ns(t *testing.T) {
+	var err error
 
-func testContentUnitToOneStringTranslationUsingName(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
-	var local ContentUnit
-	var foreign StringTranslation
+	var a ContentUnit
+	var b, c, d, e ContentUnitI18n
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
+	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
 	}
-	if err := randomize.Struct(seed, &foreign, stringTranslationDBTypes, true, stringTranslationColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize StringTranslation struct: %s", err)
+	foreigners := []*ContentUnitI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, contentUnitI18nDBTypes, false, strmangle.SetComplement(contentUnitI18nPrimaryKeyColumns, contentUnitI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	if err := foreign.Insert(tx); err != nil {
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	local.NameID = foreign.ID
-	if err := local.Insert(tx); err != nil {
-		t.Fatal(err)
+	foreignersSplitByInsertion := [][]*ContentUnitI18n{
+		{&b, &c},
+		{&d, &e},
 	}
 
-	check, err := local.Name(tx).One()
-	if err != nil {
-		t.Fatal(err)
-	}
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddContentUnitI18ns(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if check.ID != foreign.ID {
-		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
-	}
+		first := x[0]
+		second := x[1]
 
-	slice := ContentUnitSlice{&local}
-	if err = local.L.LoadName(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.Name == nil {
-		t.Error("struct should have been eager loaded")
-	}
+		if a.ID != first.ContentUnitID {
+			t.Error("foreign key was wrong value", a.ID, first.ContentUnitID)
+		}
+		if a.ID != second.ContentUnitID {
+			t.Error("foreign key was wrong value", a.ID, second.ContentUnitID)
+		}
 
-	local.R.Name = nil
-	if err = local.L.LoadName(tx, true, &local); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.Name == nil {
-		t.Error("struct should have been eager loaded")
+		if first.R.ContentUnit != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.ContentUnit != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.ContentUnitI18ns[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.ContentUnitI18ns[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.ContentUnitI18ns(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
 	}
 }
-
 func testContentUnitToOneContentTypeUsingType(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
@@ -1087,169 +985,6 @@ func testContentUnitToOneContentTypeUsingType(t *testing.T) {
 	}
 }
 
-func testContentUnitToOneSetOpStringTranslationUsingDescription(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a ContentUnit
-	var b, c StringTranslation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &c, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	for i, x := range []*StringTranslation{&b, &c} {
-		err = a.SetDescription(tx, i != 0, x)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if a.R.Description != x {
-			t.Error("relationship struct not set to correct value")
-		}
-
-		if x.R.DescriptionContentUnits[0] != &a {
-			t.Error("failed to append to foreign relationship struct")
-		}
-		if a.DescriptionID.Int64 != x.ID {
-			t.Error("foreign key was wrong value", a.DescriptionID.Int64)
-		}
-
-		zero := reflect.Zero(reflect.TypeOf(a.DescriptionID.Int64))
-		reflect.Indirect(reflect.ValueOf(&a.DescriptionID.Int64)).Set(zero)
-
-		if err = a.Reload(tx); err != nil {
-			t.Fatal("failed to reload", err)
-		}
-
-		if a.DescriptionID.Int64 != x.ID {
-			t.Error("foreign key was wrong value", a.DescriptionID.Int64, x.ID)
-		}
-	}
-}
-
-func testContentUnitToOneRemoveOpStringTranslationUsingDescription(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a ContentUnit
-	var b StringTranslation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.SetDescription(tx, true, &b); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.RemoveDescription(tx, &b); err != nil {
-		t.Error("failed to remove relationship")
-	}
-
-	count, err := a.Description(tx).Count()
-	if err != nil {
-		t.Error(err)
-	}
-	if count != 0 {
-		t.Error("want no relationships remaining")
-	}
-
-	if a.R.Description != nil {
-		t.Error("R struct entry should be nil")
-	}
-
-	if a.DescriptionID.Valid {
-		t.Error("foreign key value should be nil")
-	}
-
-	if len(b.R.DescriptionContentUnits) != 0 {
-		t.Error("failed to remove a from b's relationships")
-	}
-}
-
-func testContentUnitToOneSetOpStringTranslationUsingName(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a ContentUnit
-	var b, c StringTranslation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &c, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	for i, x := range []*StringTranslation{&b, &c} {
-		err = a.SetName(tx, i != 0, x)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if a.R.Name != x {
-			t.Error("relationship struct not set to correct value")
-		}
-
-		if x.R.NameContentUnits[0] != &a {
-			t.Error("failed to append to foreign relationship struct")
-		}
-		if a.NameID != x.ID {
-			t.Error("foreign key was wrong value", a.NameID)
-		}
-
-		zero := reflect.Zero(reflect.TypeOf(a.NameID))
-		reflect.Indirect(reflect.ValueOf(&a.NameID)).Set(zero)
-
-		if err = a.Reload(tx); err != nil {
-			t.Fatal("failed to reload", err)
-		}
-
-		if a.NameID != x.ID {
-			t.Error("foreign key was wrong value", a.NameID, x.ID)
-		}
-	}
-}
 func testContentUnitToOneSetOpContentTypeUsingType(t *testing.T) {
 	var err error
 
@@ -1376,7 +1111,7 @@ func testContentUnitsSelect(t *testing.T) {
 }
 
 var (
-	contentUnitDBTypes = map[string]string{`CreatedAt`: `timestamp with time zone`, `DescriptionID`: `bigint`, `ID`: `bigint`, `NameID`: `bigint`, `Properties`: `jsonb`, `TypeID`: `bigint`, `UID`: `character`}
+	contentUnitDBTypes = map[string]string{`CreatedAt`: `timestamp with time zone`, `ID`: `bigint`, `Properties`: `jsonb`, `TypeID`: `bigint`, `UID`: `character`}
 	_                  = bytes.MinRead
 )
 

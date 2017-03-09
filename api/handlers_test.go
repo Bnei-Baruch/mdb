@@ -164,7 +164,7 @@ func (suite *HandlersSuite) TestCreateOperation() {
 		Station: "station",
 		User:    "operator@dev.com",
 	}
-	op, err := createOperation(suite.tx, OP_CAPTURE_START, o, nil)
+	op, err := CreateOperation(suite.tx, OP_CAPTURE_START, o, nil)
 	suite.Require().Nil(err)
 	suite.Require().Nil(op.Reload(suite.tx))
 
@@ -177,7 +177,7 @@ func (suite *HandlersSuite) TestCreateOperation() {
 
 	// test with unknown user
 	o.User = "unknown@example.com"
-	op, err = createOperation(suite.tx, OP_CAPTURE_START, o, nil)
+	op, err = CreateOperation(suite.tx, OP_CAPTURE_START, o, nil)
 	suite.Require().Nil(err)
 	suite.Require().Nil(op.Reload(suite.tx))
 	suite.False(op.UserID.Valid)
@@ -185,7 +185,7 @@ func (suite *HandlersSuite) TestCreateOperation() {
 
 	// test with workflow_id
 	o.WorkflowID = "workflow_id"
-	op, err = createOperation(suite.tx, OP_CAPTURE_START, o, nil)
+	op, err = CreateOperation(suite.tx, OP_CAPTURE_START, o, nil)
 	suite.Require().Nil(err)
 	suite.Require().Nil(op.Reload(suite.tx))
 
@@ -197,7 +197,7 @@ func (suite *HandlersSuite) TestCreateOperation() {
 
 	// test with custom props
 	customProps := suite.getCustomProps()
-	op, err = createOperation(suite.tx, OP_CAPTURE_START, o, customProps)
+	op, err = CreateOperation(suite.tx, OP_CAPTURE_START, o, customProps)
 	suite.Require().Nil(err)
 	suite.Require().Nil(op.Reload(suite.tx))
 
@@ -214,7 +214,7 @@ func (suite *HandlersSuite) TestCreateFile() {
 		Sha1:      "012356789abcdef012356789abcdef0123456789",
 		Size:      math.MaxInt64,
 	}
-	file, err := createFile(suite.tx, nil, f, nil)
+	file, err := CreateFile(suite.tx, nil, f, nil)
 	suite.Require().Nil(err)
 	suite.Require().Nil(file.Reload(suite.tx))
 
@@ -242,7 +242,7 @@ func (suite *HandlersSuite) TestCreateFile() {
 		MimeType:  "mimetype",
 		Language:  LANG_RUSSIAN,
 	}
-	file2, err := createFile(suite.tx, file, f2, nil)
+	file2, err := CreateFile(suite.tx, file, f2, nil)
 	suite.Require().Nil(err)
 	suite.Require().Nil(file2.Reload(suite.tx))
 
@@ -265,7 +265,7 @@ func (suite *HandlersSuite) TestCreateFile() {
 		Size:      1,
 	}
 	customProps := suite.getCustomProps()
-	file3, err := createFile(suite.tx, nil, f3, customProps)
+	file3, err := CreateFile(suite.tx, nil, f3, customProps)
 	suite.Require().Nil(err)
 	suite.Require().Nil(file3.Reload(suite.tx))
 
@@ -282,7 +282,7 @@ func (suite *HandlersSuite) TestFindFileBySHA1() {
 	)
 
 	// test with empty table
-	file, sha1b, err := findFileBySHA1(suite.tx, sha1)
+	file, sha1b, err := FindFileBySHA1(suite.tx, sha1)
 	suite.Exactly(FileNotFound{Sha1: sha1}, err, "empty error")
 	suite.Equal(sha1, hex.EncodeToString(sha1b), "empty.sha1 bytes")
 	suite.Nil(file, "empty.file")
@@ -294,15 +294,15 @@ func (suite *HandlersSuite) TestFindFileBySHA1() {
 		Sha1:      sha1,
 		Size:      math.MaxInt64,
 	}
-	newFile, err := createFile(suite.tx, nil, fm, nil)
+	newFile, err := CreateFile(suite.tx, nil, fm, nil)
 	suite.Require().Nil(err)
-	file, _, err = findFileBySHA1(suite.tx, sha1)
+	file, _, err = FindFileBySHA1(suite.tx, sha1)
 	suite.Require().Nil(err)
 	suite.NotNil(file)
 	suite.Equal(newFile.ID, file.ID)
 
 	// test miss with non empty table
-	file, sha1b, err = findFileBySHA1(suite.tx, unknown_sha1)
+	file, sha1b, err = FindFileBySHA1(suite.tx, unknown_sha1)
 	suite.Exactly(FileNotFound{Sha1: unknown_sha1}, err, "miss error")
 	suite.Equal(unknown_sha1, hex.EncodeToString(sha1b), "miss.sha1 bytes")
 	suite.Nil(file)

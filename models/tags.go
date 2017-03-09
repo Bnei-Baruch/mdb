@@ -20,7 +20,6 @@ import (
 // Tag is an object representing the database table.
 type Tag struct {
 	ID          int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
-	LabelID     int64       `boil:"label_id" json:"label_id" toml:"label_id" yaml:"label_id"`
 	Description null.String `boil:"description" json:"description,omitempty" toml:"description" yaml:"description,omitempty"`
 	ParentID    null.Int64  `boil:"parent_id" json:"parent_id,omitempty" toml:"parent_id" yaml:"parent_id,omitempty"`
 
@@ -30,17 +29,17 @@ type Tag struct {
 
 // tagR is where relationships are stored.
 type tagR struct {
-	Label      *StringTranslation
 	Parent     *Tag
 	ParentTags TagSlice
+	TagsI18ns  TagsI18nSlice
 }
 
 // tagL is where Load methods for each relationship are stored.
 type tagL struct{}
 
 var (
-	tagColumns               = []string{"id", "label_id", "description", "parent_id"}
-	tagColumnsWithoutDefault = []string{"label_id", "description", "parent_id"}
+	tagColumns               = []string{"id", "description", "parent_id"}
+	tagColumnsWithoutDefault = []string{"description", "parent_id"}
 	tagColumnsWithDefault    = []string{"id"}
 	tagPrimaryKeyColumns     = []string{"id"}
 )
@@ -174,25 +173,6 @@ func (q tagQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-// LabelG pointed to by the foreign key.
-func (o *Tag) LabelG(mods ...qm.QueryMod) stringTranslationQuery {
-	return o.Label(boil.GetDB(), mods...)
-}
-
-// Label pointed to by the foreign key.
-func (o *Tag) Label(exec boil.Executor, mods ...qm.QueryMod) stringTranslationQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("id=?", o.LabelID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	query := StringTranslations(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"string_translations\"")
-
-	return query
-}
-
 // ParentG pointed to by the foreign key.
 func (o *Tag) ParentG(mods ...qm.QueryMod) tagQuery {
 	return o.Parent(boil.GetDB(), mods...)
@@ -236,70 +216,28 @@ func (o *Tag) ParentTags(exec boil.Executor, mods ...qm.QueryMod) tagQuery {
 	return query
 }
 
-// LoadLabel allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (tagL) LoadLabel(e boil.Executor, singular bool, maybeTag interface{}) error {
-	var slice []*Tag
-	var object *Tag
+// TagsI18nsG retrieves all the tags_i18n's tags i18n.
+func (o *Tag) TagsI18nsG(mods ...qm.QueryMod) tagsI18nQuery {
+	return o.TagsI18ns(boil.GetDB(), mods...)
+}
 
-	count := 1
-	if singular {
-		object = maybeTag.(*Tag)
-	} else {
-		slice = *maybeTag.(*TagSlice)
-		count = len(slice)
+// TagsI18ns retrieves all the tags_i18n's tags i18n with an executor.
+func (o *Tag) TagsI18ns(exec boil.Executor, mods ...qm.QueryMod) tagsI18nQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
 	}
 
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &tagR{}
-		}
-		args[0] = object.LabelID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &tagR{}
-			}
-			args[i] = obj.LabelID
-		}
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
 	}
 
-	query := fmt.Sprintf(
-		"select * from \"string_translations\" where \"id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"tag_id\"=?", o.ID),
 	)
 
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load StringTranslation")
-	}
-	defer results.Close()
-
-	var resultSlice []*StringTranslation
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice StringTranslation")
-	}
-
-	if singular && len(resultSlice) != 0 {
-		object.R.Label = resultSlice[0]
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.LabelID == foreign.ID {
-				local.R.Label = foreign
-				break
-			}
-		}
-	}
-
-	return nil
+	query := TagsI18ns(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"tags_i18n\" as \"a\"")
+	return query
 }
 
 // LoadParent allows an eager lookup of values, cached into the
@@ -433,77 +371,66 @@ func (tagL) LoadParentTags(e boil.Executor, singular bool, maybeTag interface{})
 	return nil
 }
 
-// SetLabelG of the tag to the related item.
-// Sets o.R.Label to related.
-// Adds o to related.R.LabelTags.
-// Uses the global database handle.
-func (o *Tag) SetLabelG(insert bool, related *StringTranslation) error {
-	return o.SetLabel(boil.GetDB(), insert, related)
-}
+// LoadTagsI18ns allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (tagL) LoadTagsI18ns(e boil.Executor, singular bool, maybeTag interface{}) error {
+	var slice []*Tag
+	var object *Tag
 
-// SetLabelP of the tag to the related item.
-// Sets o.R.Label to related.
-// Adds o to related.R.LabelTags.
-// Panics on error.
-func (o *Tag) SetLabelP(exec boil.Executor, insert bool, related *StringTranslation) {
-	if err := o.SetLabel(exec, insert, related); err != nil {
-		panic(boil.WrapErr(err))
+	count := 1
+	if singular {
+		object = maybeTag.(*Tag)
+	} else {
+		slice = *maybeTag.(*TagSlice)
+		count = len(slice)
 	}
-}
 
-// SetLabelGP of the tag to the related item.
-// Sets o.R.Label to related.
-// Adds o to related.R.LabelTags.
-// Uses the global database handle and panics on error.
-func (o *Tag) SetLabelGP(insert bool, related *StringTranslation) {
-	if err := o.SetLabel(boil.GetDB(), insert, related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetLabel of the tag to the related item.
-// Sets o.R.Label to related.
-// Adds o to related.R.LabelTags.
-func (o *Tag) SetLabel(exec boil.Executor, insert bool, related *StringTranslation) error {
-	var err error
-	if insert {
-		if err = related.Insert(exec); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &tagR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &tagR{}
+			}
+			args[i] = obj.ID
 		}
 	}
 
-	updateQuery := fmt.Sprintf(
-		"UPDATE \"tags\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"label_id"}),
-		strmangle.WhereClause("\"", "\"", 2, tagPrimaryKeyColumns),
+	query := fmt.Sprintf(
+		"select * from \"tags_i18n\" where \"tag_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
 	)
-	values := []interface{}{related.ID, o.ID}
-
 	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, updateQuery)
-		fmt.Fprintln(boil.DebugWriter, values)
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
 	}
 
-	if _, err = exec.Exec(updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load tags_i18n")
+	}
+	defer results.Close()
+
+	var resultSlice []*TagsI18n
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice tags_i18n")
 	}
 
-	o.LabelID = related.ID
+	if singular {
+		object.R.TagsI18ns = resultSlice
+		return nil
+	}
 
-	if o.R == nil {
-		o.R = &tagR{
-			Label: related,
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.TagID {
+				local.R.TagsI18ns = append(local.R.TagsI18ns, foreign)
+				break
+			}
 		}
-	} else {
-		o.R.Label = related
-	}
-
-	if related.R == nil {
-		related.R = &stringTranslationR{
-			LabelTags: TagSlice{o},
-		}
-	} else {
-		related.R.LabelTags = append(related.R.LabelTags, o)
 	}
 
 	return nil
@@ -864,6 +791,90 @@ func (o *Tag) RemoveParentTags(exec boil.Executor, related ...*Tag) error {
 		}
 	}
 
+	return nil
+}
+
+// AddTagsI18nsG adds the given related objects to the existing relationships
+// of the tag, optionally inserting them as new records.
+// Appends related to o.R.TagsI18ns.
+// Sets related.R.Tag appropriately.
+// Uses the global database handle.
+func (o *Tag) AddTagsI18nsG(insert bool, related ...*TagsI18n) error {
+	return o.AddTagsI18ns(boil.GetDB(), insert, related...)
+}
+
+// AddTagsI18nsP adds the given related objects to the existing relationships
+// of the tag, optionally inserting them as new records.
+// Appends related to o.R.TagsI18ns.
+// Sets related.R.Tag appropriately.
+// Panics on error.
+func (o *Tag) AddTagsI18nsP(exec boil.Executor, insert bool, related ...*TagsI18n) {
+	if err := o.AddTagsI18ns(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddTagsI18nsGP adds the given related objects to the existing relationships
+// of the tag, optionally inserting them as new records.
+// Appends related to o.R.TagsI18ns.
+// Sets related.R.Tag appropriately.
+// Uses the global database handle and panics on error.
+func (o *Tag) AddTagsI18nsGP(insert bool, related ...*TagsI18n) {
+	if err := o.AddTagsI18ns(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddTagsI18ns adds the given related objects to the existing relationships
+// of the tag, optionally inserting them as new records.
+// Appends related to o.R.TagsI18ns.
+// Sets related.R.Tag appropriately.
+func (o *Tag) AddTagsI18ns(exec boil.Executor, insert bool, related ...*TagsI18n) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.TagID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"tags_i18n\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"tag_id"}),
+				strmangle.WhereClause("\"", "\"", 2, tagsI18nPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.TagID, rel.Language}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.TagID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &tagR{
+			TagsI18ns: related,
+		}
+	} else {
+		o.R.TagsI18ns = append(o.R.TagsI18ns, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &tagsI18nR{
+				Tag: o,
+			}
+		} else {
+			rel.R.Tag = o
+		}
+	}
 	return nil
 }
 

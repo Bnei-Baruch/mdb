@@ -30,9 +30,9 @@ type Language struct {
 
 // languageR is where relationships are stored.
 type languageR struct {
+	LangContainers            ContainerSlice
 	LangCatalogDescriptions   CatalogDescriptionSlice
 	LangContainerDescriptions ContainerDescriptionSlice
-	LangContainers            ContainerSlice
 	LangFileAssets            FileAssetSlice
 }
 
@@ -175,6 +175,30 @@ func (q languageQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
+// LangContainersG retrieves all the container's containers via lang_id column.
+func (o *Language) LangContainersG(mods ...qm.QueryMod) containerQuery {
+	return o.LangContainers(boil.GetDB(), mods...)
+}
+
+// LangContainers retrieves all the container's containers with an executor via lang_id column.
+func (o *Language) LangContainers(exec boil.Executor, mods ...qm.QueryMod) containerQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
+	}
+
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"lang_id\"=?", o.Code3),
+	)
+
+	query := Containers(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"containers\" as \"a\"")
+	return query
+}
+
 // LangCatalogDescriptionsG retrieves all the catalog_description's catalog descriptions via lang_id column.
 func (o *Language) LangCatalogDescriptionsG(mods ...qm.QueryMod) catalogDescriptionQuery {
 	return o.LangCatalogDescriptions(boil.GetDB(), mods...)
@@ -223,30 +247,6 @@ func (o *Language) LangContainerDescriptions(exec boil.Executor, mods ...qm.Quer
 	return query
 }
 
-// LangContainersG retrieves all the container's containers via lang_id column.
-func (o *Language) LangContainersG(mods ...qm.QueryMod) containerQuery {
-	return o.LangContainers(boil.GetDB(), mods...)
-}
-
-// LangContainers retrieves all the container's containers with an executor via lang_id column.
-func (o *Language) LangContainers(exec boil.Executor, mods ...qm.QueryMod) containerQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("\"a\".\"lang_id\"=?", o.Code3),
-	)
-
-	query := Containers(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"containers\" as \"a\"")
-	return query
-}
-
 // LangFileAssetsG retrieves all the file_asset's file assets via lang_id column.
 func (o *Language) LangFileAssetsG(mods ...qm.QueryMod) fileAssetQuery {
 	return o.LangFileAssets(boil.GetDB(), mods...)
@@ -269,6 +269,71 @@ func (o *Language) LangFileAssets(exec boil.Executor, mods ...qm.QueryMod) fileA
 	query := FileAssets(exec, queryMods...)
 	queries.SetFrom(query.Query, "\"file_assets\" as \"a\"")
 	return query
+}
+
+// LoadLangContainers allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (languageL) LoadLangContainers(e boil.Executor, singular bool, maybeLanguage interface{}) error {
+	var slice []*Language
+	var object *Language
+
+	count := 1
+	if singular {
+		object = maybeLanguage.(*Language)
+	} else {
+		slice = *maybeLanguage.(*LanguageSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &languageR{}
+		}
+		args[0] = object.Code3
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &languageR{}
+			}
+			args[i] = obj.Code3
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from \"containers\" where \"lang_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load containers")
+	}
+	defer results.Close()
+
+	var resultSlice []*Container
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice containers")
+	}
+
+	if singular {
+		object.R.LangContainers = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.Code3.String == foreign.LangID.String {
+				local.R.LangContainers = append(local.R.LangContainers, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 // LoadLangCatalogDescriptions allows an eager lookup of values, cached into the
@@ -401,71 +466,6 @@ func (languageL) LoadLangContainerDescriptions(e boil.Executor, singular bool, m
 	return nil
 }
 
-// LoadLangContainers allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (languageL) LoadLangContainers(e boil.Executor, singular bool, maybeLanguage interface{}) error {
-	var slice []*Language
-	var object *Language
-
-	count := 1
-	if singular {
-		object = maybeLanguage.(*Language)
-	} else {
-		slice = *maybeLanguage.(*LanguageSlice)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &languageR{}
-		}
-		args[0] = object.Code3
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &languageR{}
-			}
-			args[i] = obj.Code3
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select * from \"containers\" where \"lang_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load containers")
-	}
-	defer results.Close()
-
-	var resultSlice []*Container
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice containers")
-	}
-
-	if singular {
-		object.R.LangContainers = resultSlice
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.Code3.String == foreign.LangID.String {
-				local.R.LangContainers = append(local.R.LangContainers, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
 // LoadLangFileAssets allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (languageL) LoadLangFileAssets(e boil.Executor, singular bool, maybeLanguage interface{}) error {
@@ -525,6 +525,227 @@ func (languageL) LoadLangFileAssets(e boil.Executor, singular bool, maybeLanguag
 				local.R.LangFileAssets = append(local.R.LangFileAssets, foreign)
 				break
 			}
+		}
+	}
+
+	return nil
+}
+
+// AddLangContainersG adds the given related objects to the existing relationships
+// of the language, optionally inserting them as new records.
+// Appends related to o.R.LangContainers.
+// Sets related.R.Lang appropriately.
+// Uses the global database handle.
+func (o *Language) AddLangContainersG(insert bool, related ...*Container) error {
+	return o.AddLangContainers(boil.GetDB(), insert, related...)
+}
+
+// AddLangContainersP adds the given related objects to the existing relationships
+// of the language, optionally inserting them as new records.
+// Appends related to o.R.LangContainers.
+// Sets related.R.Lang appropriately.
+// Panics on error.
+func (o *Language) AddLangContainersP(exec boil.Executor, insert bool, related ...*Container) {
+	if err := o.AddLangContainers(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddLangContainersGP adds the given related objects to the existing relationships
+// of the language, optionally inserting them as new records.
+// Appends related to o.R.LangContainers.
+// Sets related.R.Lang appropriately.
+// Uses the global database handle and panics on error.
+func (o *Language) AddLangContainersGP(insert bool, related ...*Container) {
+	if err := o.AddLangContainers(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddLangContainers adds the given related objects to the existing relationships
+// of the language, optionally inserting them as new records.
+// Appends related to o.R.LangContainers.
+// Sets related.R.Lang appropriately.
+func (o *Language) AddLangContainers(exec boil.Executor, insert bool, related ...*Container) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.LangID.String = o.Code3.String
+			rel.LangID.Valid = true
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"containers\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"lang_id"}),
+				strmangle.WhereClause("\"", "\"", 2, containerPrimaryKeyColumns),
+			)
+			values := []interface{}{o.Code3, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.LangID.String = o.Code3.String
+			rel.LangID.Valid = true
+		}
+	}
+
+	if o.R == nil {
+		o.R = &languageR{
+			LangContainers: related,
+		}
+	} else {
+		o.R.LangContainers = append(o.R.LangContainers, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &containerR{
+				Lang: o,
+			}
+		} else {
+			rel.R.Lang = o
+		}
+	}
+	return nil
+}
+
+// SetLangContainersG removes all previously related items of the
+// language replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Lang's LangContainers accordingly.
+// Replaces o.R.LangContainers with related.
+// Sets related.R.Lang's LangContainers accordingly.
+// Uses the global database handle.
+func (o *Language) SetLangContainersG(insert bool, related ...*Container) error {
+	return o.SetLangContainers(boil.GetDB(), insert, related...)
+}
+
+// SetLangContainersP removes all previously related items of the
+// language replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Lang's LangContainers accordingly.
+// Replaces o.R.LangContainers with related.
+// Sets related.R.Lang's LangContainers accordingly.
+// Panics on error.
+func (o *Language) SetLangContainersP(exec boil.Executor, insert bool, related ...*Container) {
+	if err := o.SetLangContainers(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetLangContainersGP removes all previously related items of the
+// language replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Lang's LangContainers accordingly.
+// Replaces o.R.LangContainers with related.
+// Sets related.R.Lang's LangContainers accordingly.
+// Uses the global database handle and panics on error.
+func (o *Language) SetLangContainersGP(insert bool, related ...*Container) {
+	if err := o.SetLangContainers(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetLangContainers removes all previously related items of the
+// language replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Lang's LangContainers accordingly.
+// Replaces o.R.LangContainers with related.
+// Sets related.R.Lang's LangContainers accordingly.
+func (o *Language) SetLangContainers(exec boil.Executor, insert bool, related ...*Container) error {
+	query := "update \"containers\" set \"lang_id\" = null where \"lang_id\" = $1"
+	values := []interface{}{o.Code3}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.LangContainers {
+			rel.LangID.Valid = false
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.Lang = nil
+		}
+
+		o.R.LangContainers = nil
+	}
+	return o.AddLangContainers(exec, insert, related...)
+}
+
+// RemoveLangContainersG relationships from objects passed in.
+// Removes related items from R.LangContainers (uses pointer comparison, removal does not keep order)
+// Sets related.R.Lang.
+// Uses the global database handle.
+func (o *Language) RemoveLangContainersG(related ...*Container) error {
+	return o.RemoveLangContainers(boil.GetDB(), related...)
+}
+
+// RemoveLangContainersP relationships from objects passed in.
+// Removes related items from R.LangContainers (uses pointer comparison, removal does not keep order)
+// Sets related.R.Lang.
+// Panics on error.
+func (o *Language) RemoveLangContainersP(exec boil.Executor, related ...*Container) {
+	if err := o.RemoveLangContainers(exec, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveLangContainersGP relationships from objects passed in.
+// Removes related items from R.LangContainers (uses pointer comparison, removal does not keep order)
+// Sets related.R.Lang.
+// Uses the global database handle and panics on error.
+func (o *Language) RemoveLangContainersGP(related ...*Container) {
+	if err := o.RemoveLangContainers(boil.GetDB(), related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveLangContainers relationships from objects passed in.
+// Removes related items from R.LangContainers (uses pointer comparison, removal does not keep order)
+// Sets related.R.Lang.
+func (o *Language) RemoveLangContainers(exec boil.Executor, related ...*Container) error {
+	var err error
+	for _, rel := range related {
+		rel.LangID.Valid = false
+		if rel.R != nil {
+			rel.R.Lang = nil
+		}
+		if err = rel.Update(exec, "lang_id"); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.LangContainers {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.LangContainers)
+			if ln > 1 && i < ln-1 {
+				o.R.LangContainers[i] = o.R.LangContainers[ln-1]
+			}
+			o.R.LangContainers = o.R.LangContainers[:ln-1]
+			break
 		}
 	}
 
@@ -966,227 +1187,6 @@ func (o *Language) RemoveLangContainerDescriptions(exec boil.Executor, related .
 				o.R.LangContainerDescriptions[i] = o.R.LangContainerDescriptions[ln-1]
 			}
 			o.R.LangContainerDescriptions = o.R.LangContainerDescriptions[:ln-1]
-			break
-		}
-	}
-
-	return nil
-}
-
-// AddLangContainersG adds the given related objects to the existing relationships
-// of the language, optionally inserting them as new records.
-// Appends related to o.R.LangContainers.
-// Sets related.R.Lang appropriately.
-// Uses the global database handle.
-func (o *Language) AddLangContainersG(insert bool, related ...*Container) error {
-	return o.AddLangContainers(boil.GetDB(), insert, related...)
-}
-
-// AddLangContainersP adds the given related objects to the existing relationships
-// of the language, optionally inserting them as new records.
-// Appends related to o.R.LangContainers.
-// Sets related.R.Lang appropriately.
-// Panics on error.
-func (o *Language) AddLangContainersP(exec boil.Executor, insert bool, related ...*Container) {
-	if err := o.AddLangContainers(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddLangContainersGP adds the given related objects to the existing relationships
-// of the language, optionally inserting them as new records.
-// Appends related to o.R.LangContainers.
-// Sets related.R.Lang appropriately.
-// Uses the global database handle and panics on error.
-func (o *Language) AddLangContainersGP(insert bool, related ...*Container) {
-	if err := o.AddLangContainers(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddLangContainers adds the given related objects to the existing relationships
-// of the language, optionally inserting them as new records.
-// Appends related to o.R.LangContainers.
-// Sets related.R.Lang appropriately.
-func (o *Language) AddLangContainers(exec boil.Executor, insert bool, related ...*Container) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.LangID.String = o.Code3.String
-			rel.LangID.Valid = true
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"containers\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"lang_id"}),
-				strmangle.WhereClause("\"", "\"", 2, containerPrimaryKeyColumns),
-			)
-			values := []interface{}{o.Code3, rel.ID}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.LangID.String = o.Code3.String
-			rel.LangID.Valid = true
-		}
-	}
-
-	if o.R == nil {
-		o.R = &languageR{
-			LangContainers: related,
-		}
-	} else {
-		o.R.LangContainers = append(o.R.LangContainers, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &containerR{
-				Lang: o,
-			}
-		} else {
-			rel.R.Lang = o
-		}
-	}
-	return nil
-}
-
-// SetLangContainersG removes all previously related items of the
-// language replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Lang's LangContainers accordingly.
-// Replaces o.R.LangContainers with related.
-// Sets related.R.Lang's LangContainers accordingly.
-// Uses the global database handle.
-func (o *Language) SetLangContainersG(insert bool, related ...*Container) error {
-	return o.SetLangContainers(boil.GetDB(), insert, related...)
-}
-
-// SetLangContainersP removes all previously related items of the
-// language replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Lang's LangContainers accordingly.
-// Replaces o.R.LangContainers with related.
-// Sets related.R.Lang's LangContainers accordingly.
-// Panics on error.
-func (o *Language) SetLangContainersP(exec boil.Executor, insert bool, related ...*Container) {
-	if err := o.SetLangContainers(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetLangContainersGP removes all previously related items of the
-// language replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Lang's LangContainers accordingly.
-// Replaces o.R.LangContainers with related.
-// Sets related.R.Lang's LangContainers accordingly.
-// Uses the global database handle and panics on error.
-func (o *Language) SetLangContainersGP(insert bool, related ...*Container) {
-	if err := o.SetLangContainers(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetLangContainers removes all previously related items of the
-// language replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Lang's LangContainers accordingly.
-// Replaces o.R.LangContainers with related.
-// Sets related.R.Lang's LangContainers accordingly.
-func (o *Language) SetLangContainers(exec boil.Executor, insert bool, related ...*Container) error {
-	query := "update \"containers\" set \"lang_id\" = null where \"lang_id\" = $1"
-	values := []interface{}{o.Code3}
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, query)
-		fmt.Fprintln(boil.DebugWriter, values)
-	}
-
-	_, err := exec.Exec(query, values...)
-	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
-	}
-
-	if o.R != nil {
-		for _, rel := range o.R.LangContainers {
-			rel.LangID.Valid = false
-			if rel.R == nil {
-				continue
-			}
-
-			rel.R.Lang = nil
-		}
-
-		o.R.LangContainers = nil
-	}
-	return o.AddLangContainers(exec, insert, related...)
-}
-
-// RemoveLangContainersG relationships from objects passed in.
-// Removes related items from R.LangContainers (uses pointer comparison, removal does not keep order)
-// Sets related.R.Lang.
-// Uses the global database handle.
-func (o *Language) RemoveLangContainersG(related ...*Container) error {
-	return o.RemoveLangContainers(boil.GetDB(), related...)
-}
-
-// RemoveLangContainersP relationships from objects passed in.
-// Removes related items from R.LangContainers (uses pointer comparison, removal does not keep order)
-// Sets related.R.Lang.
-// Panics on error.
-func (o *Language) RemoveLangContainersP(exec boil.Executor, related ...*Container) {
-	if err := o.RemoveLangContainers(exec, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveLangContainersGP relationships from objects passed in.
-// Removes related items from R.LangContainers (uses pointer comparison, removal does not keep order)
-// Sets related.R.Lang.
-// Uses the global database handle and panics on error.
-func (o *Language) RemoveLangContainersGP(related ...*Container) {
-	if err := o.RemoveLangContainers(boil.GetDB(), related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveLangContainers relationships from objects passed in.
-// Removes related items from R.LangContainers (uses pointer comparison, removal does not keep order)
-// Sets related.R.Lang.
-func (o *Language) RemoveLangContainers(exec boil.Executor, related ...*Container) error {
-	var err error
-	for _, rel := range related {
-		rel.LangID.Valid = false
-		if rel.R != nil {
-			rel.R.Lang = nil
-		}
-		if err = rel.Update(exec, "lang_id"); err != nil {
-			return err
-		}
-	}
-	if o.R == nil {
-		return nil
-	}
-
-	for _, rel := range related {
-		for i, ri := range o.R.LangContainers {
-			if rel != ri {
-				continue
-			}
-
-			ln := len(o.R.LangContainers)
-			if ln > 1 && i < ln-1 {
-				o.R.LangContainers[i] = o.R.LangContainers[ln-1]
-			}
-			o.R.LangContainers = o.R.LangContainers[:ln-1]
 			break
 		}
 	}

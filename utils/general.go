@@ -12,6 +12,13 @@ func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
+// panic if err != nil
+func Must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func GenerateUID(n int) string {
 	b := make([]byte, n)
 	for i := range b {

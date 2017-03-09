@@ -44,8 +44,8 @@ type User struct {
 // userR is where relationships are stored.
 type userR struct {
 	Catalogs   CatalogSlice
-	RolesUsers RolesUserSlice
 	FileAssets FileAssetSlice
+	RolesUsers RolesUserSlice
 }
 
 // userL is where Load methods for each relationship are stored.
@@ -211,30 +211,6 @@ func (o *User) Catalogs(exec boil.Executor, mods ...qm.QueryMod) catalogQuery {
 	return query
 }
 
-// RolesUsersG retrieves all the roles_user's roles users.
-func (o *User) RolesUsersG(mods ...qm.QueryMod) rolesUserQuery {
-	return o.RolesUsers(boil.GetDB(), mods...)
-}
-
-// RolesUsers retrieves all the roles_user's roles users with an executor.
-func (o *User) RolesUsers(exec boil.Executor, mods ...qm.QueryMod) rolesUserQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("\"a\".\"user_id\"=?", o.ID),
-	)
-
-	query := RolesUsers(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"roles_users\" as \"a\"")
-	return query
-}
-
 // FileAssetsG retrieves all the file_asset's file assets.
 func (o *User) FileAssetsG(mods ...qm.QueryMod) fileAssetQuery {
 	return o.FileAssets(boil.GetDB(), mods...)
@@ -256,6 +232,30 @@ func (o *User) FileAssets(exec boil.Executor, mods ...qm.QueryMod) fileAssetQuer
 
 	query := FileAssets(exec, queryMods...)
 	queries.SetFrom(query.Query, "\"file_assets\" as \"a\"")
+	return query
+}
+
+// RolesUsersG retrieves all the roles_user's roles users.
+func (o *User) RolesUsersG(mods ...qm.QueryMod) rolesUserQuery {
+	return o.RolesUsers(boil.GetDB(), mods...)
+}
+
+// RolesUsers retrieves all the roles_user's roles users with an executor.
+func (o *User) RolesUsers(exec boil.Executor, mods ...qm.QueryMod) rolesUserQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
+	}
+
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"user_id\"=?", o.ID),
+	)
+
+	query := RolesUsers(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"roles_users\" as \"a\"")
 	return query
 }
 
@@ -324,71 +324,6 @@ func (userL) LoadCatalogs(e boil.Executor, singular bool, maybeUser interface{})
 	return nil
 }
 
-// LoadRolesUsers allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (userL) LoadRolesUsers(e boil.Executor, singular bool, maybeUser interface{}) error {
-	var slice []*User
-	var object *User
-
-	count := 1
-	if singular {
-		object = maybeUser.(*User)
-	} else {
-		slice = *maybeUser.(*UserSlice)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &userR{}
-		}
-		args[0] = object.ID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &userR{}
-			}
-			args[i] = obj.ID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select * from \"roles_users\" where \"user_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load roles_users")
-	}
-	defer results.Close()
-
-	var resultSlice []*RolesUser
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice roles_users")
-	}
-
-	if singular {
-		object.R.RolesUsers = resultSlice
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.ID == foreign.UserID {
-				local.R.RolesUsers = append(local.R.RolesUsers, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
 // LoadFileAssets allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (userL) LoadFileAssets(e boil.Executor, singular bool, maybeUser interface{}) error {
@@ -446,6 +381,71 @@ func (userL) LoadFileAssets(e boil.Executor, singular bool, maybeUser interface{
 		for _, local := range slice {
 			if local.ID == foreign.UserID.Int {
 				local.R.FileAssets = append(local.R.FileAssets, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadRolesUsers allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (userL) LoadRolesUsers(e boil.Executor, singular bool, maybeUser interface{}) error {
+	var slice []*User
+	var object *User
+
+	count := 1
+	if singular {
+		object = maybeUser.(*User)
+	} else {
+		slice = *maybeUser.(*UserSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &userR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from \"roles_users\" where \"user_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load roles_users")
+	}
+	defer results.Close()
+
+	var resultSlice []*RolesUser
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice roles_users")
+	}
+
+	if singular {
+		object.R.RolesUsers = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.UserID {
+				local.R.RolesUsers = append(local.R.RolesUsers, foreign)
 				break
 			}
 		}
@@ -675,90 +675,6 @@ func (o *User) RemoveCatalogs(exec boil.Executor, related ...*Catalog) error {
 	return nil
 }
 
-// AddRolesUsersG adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.RolesUsers.
-// Sets related.R.User appropriately.
-// Uses the global database handle.
-func (o *User) AddRolesUsersG(insert bool, related ...*RolesUser) error {
-	return o.AddRolesUsers(boil.GetDB(), insert, related...)
-}
-
-// AddRolesUsersP adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.RolesUsers.
-// Sets related.R.User appropriately.
-// Panics on error.
-func (o *User) AddRolesUsersP(exec boil.Executor, insert bool, related ...*RolesUser) {
-	if err := o.AddRolesUsers(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddRolesUsersGP adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.RolesUsers.
-// Sets related.R.User appropriately.
-// Uses the global database handle and panics on error.
-func (o *User) AddRolesUsersGP(insert bool, related ...*RolesUser) {
-	if err := o.AddRolesUsers(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddRolesUsers adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.RolesUsers.
-// Sets related.R.User appropriately.
-func (o *User) AddRolesUsers(exec boil.Executor, insert bool, related ...*RolesUser) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.UserID = o.ID
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"roles_users\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"user_id"}),
-				strmangle.WhereClause("\"", "\"", 2, rolesUserPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.RoleID, rel.UserID}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.UserID = o.ID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &userR{
-			RolesUsers: related,
-		}
-	} else {
-		o.R.RolesUsers = append(o.R.RolesUsers, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &rolesUserR{
-				User: o,
-			}
-		} else {
-			rel.R.User = o
-		}
-	}
-	return nil
-}
-
 // AddFileAssetsG adds the given related objects to the existing relationships
 // of the user, optionally inserting them as new records.
 // Appends related to o.R.FileAssets.
@@ -977,6 +893,90 @@ func (o *User) RemoveFileAssets(exec boil.Executor, related ...*FileAsset) error
 		}
 	}
 
+	return nil
+}
+
+// AddRolesUsersG adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.RolesUsers.
+// Sets related.R.User appropriately.
+// Uses the global database handle.
+func (o *User) AddRolesUsersG(insert bool, related ...*RolesUser) error {
+	return o.AddRolesUsers(boil.GetDB(), insert, related...)
+}
+
+// AddRolesUsersP adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.RolesUsers.
+// Sets related.R.User appropriately.
+// Panics on error.
+func (o *User) AddRolesUsersP(exec boil.Executor, insert bool, related ...*RolesUser) {
+	if err := o.AddRolesUsers(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddRolesUsersGP adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.RolesUsers.
+// Sets related.R.User appropriately.
+// Uses the global database handle and panics on error.
+func (o *User) AddRolesUsersGP(insert bool, related ...*RolesUser) {
+	if err := o.AddRolesUsers(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddRolesUsers adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.RolesUsers.
+// Sets related.R.User appropriately.
+func (o *User) AddRolesUsers(exec boil.Executor, insert bool, related ...*RolesUser) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.UserID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"roles_users\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"user_id"}),
+				strmangle.WhereClause("\"", "\"", 2, rolesUserPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.RoleID, rel.UserID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.UserID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userR{
+			RolesUsers: related,
+		}
+	} else {
+		o.R.RolesUsers = append(o.R.RolesUsers, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &rolesUserR{
+				User: o,
+			}
+		} else {
+			rel.R.User = o
+		}
+	}
 	return nil
 }
 

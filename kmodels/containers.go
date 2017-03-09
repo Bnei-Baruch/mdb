@@ -50,8 +50,8 @@ type containerR struct {
 	ContentType           *ContentType
 	VirtualLesson         *VirtualLesson
 	Catalogs              CatalogSlice
-	FileAssets            FileAssetSlice
 	ContainerDescriptions ContainerDescriptionSlice
+	FileAssets            FileAssetSlice
 	Labels                LabelSlice
 }
 
@@ -276,6 +276,30 @@ func (o *Container) Catalogs(exec boil.Executor, mods ...qm.QueryMod) catalogQue
 	return query
 }
 
+// ContainerDescriptionsG retrieves all the container_description's container descriptions.
+func (o *Container) ContainerDescriptionsG(mods ...qm.QueryMod) containerDescriptionQuery {
+	return o.ContainerDescriptions(boil.GetDB(), mods...)
+}
+
+// ContainerDescriptions retrieves all the container_description's container descriptions with an executor.
+func (o *Container) ContainerDescriptions(exec boil.Executor, mods ...qm.QueryMod) containerDescriptionQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
+	}
+
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"container_id\"=?", o.ID),
+	)
+
+	query := ContainerDescriptions(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"container_descriptions\" as \"a\"")
+	return query
+}
+
 // FileAssetsG retrieves all the file_asset's file assets.
 func (o *Container) FileAssetsG(mods ...qm.QueryMod) fileAssetQuery {
 	return o.FileAssets(boil.GetDB(), mods...)
@@ -298,30 +322,6 @@ func (o *Container) FileAssets(exec boil.Executor, mods ...qm.QueryMod) fileAsse
 
 	query := FileAssets(exec, queryMods...)
 	queries.SetFrom(query.Query, "\"file_assets\" as \"a\"")
-	return query
-}
-
-// ContainerDescriptionsG retrieves all the container_description's container descriptions.
-func (o *Container) ContainerDescriptionsG(mods ...qm.QueryMod) containerDescriptionQuery {
-	return o.ContainerDescriptions(boil.GetDB(), mods...)
-}
-
-// ContainerDescriptions retrieves all the container_description's container descriptions with an executor.
-func (o *Container) ContainerDescriptions(exec boil.Executor, mods ...qm.QueryMod) containerDescriptionQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("\"a\".\"container_id\"=?", o.ID),
-	)
-
-	query := ContainerDescriptions(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"container_descriptions\" as \"a\"")
 	return query
 }
 
@@ -629,87 +629,6 @@ func (containerL) LoadCatalogs(e boil.Executor, singular bool, maybeContainer in
 	return nil
 }
 
-// LoadFileAssets allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (containerL) LoadFileAssets(e boil.Executor, singular bool, maybeContainer interface{}) error {
-	var slice []*Container
-	var object *Container
-
-	count := 1
-	if singular {
-		object = maybeContainer.(*Container)
-	} else {
-		slice = *maybeContainer.(*ContainerSlice)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &containerR{}
-		}
-		args[0] = object.ID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &containerR{}
-			}
-			args[i] = obj.ID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select \"a\".*, \"b\".\"container_id\" from \"file_assets\" as \"a\" inner join \"containers_file_assets\" as \"b\" on \"a\".\"id\" = \"b\".\"file_asset_id\" where \"b\".\"container_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load file_assets")
-	}
-	defer results.Close()
-
-	var resultSlice []*FileAsset
-
-	var localJoinCols []int
-	for results.Next() {
-		one := new(FileAsset)
-		var localJoinCol int
-
-		err = results.Scan(&one.ID, &one.Name, &one.LangID, &one.AssetType, &one.Date, &one.Size, &one.ServernameID, &one.Status, &one.CreatedAt, &one.UpdatedAt, &one.Lastuser, &one.Clicks, &one.Secure, &one.PlaytimeSecs, &one.UserID, &localJoinCol)
-		if err = results.Err(); err != nil {
-			return errors.Wrap(err, "failed to plebian-bind eager loaded slice file_assets")
-		}
-
-		resultSlice = append(resultSlice, one)
-		localJoinCols = append(localJoinCols, localJoinCol)
-	}
-
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "failed to plebian-bind eager loaded slice file_assets")
-	}
-
-	if singular {
-		object.R.FileAssets = resultSlice
-		return nil
-	}
-
-	for i, foreign := range resultSlice {
-		localJoinCol := localJoinCols[i]
-		for _, local := range slice {
-			if local.ID == localJoinCol {
-				local.R.FileAssets = append(local.R.FileAssets, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
 // LoadContainerDescriptions allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (containerL) LoadContainerDescriptions(e boil.Executor, singular bool, maybeContainer interface{}) error {
@@ -767,6 +686,87 @@ func (containerL) LoadContainerDescriptions(e boil.Executor, singular bool, mayb
 		for _, local := range slice {
 			if local.ID == foreign.ContainerID {
 				local.R.ContainerDescriptions = append(local.R.ContainerDescriptions, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadFileAssets allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (containerL) LoadFileAssets(e boil.Executor, singular bool, maybeContainer interface{}) error {
+	var slice []*Container
+	var object *Container
+
+	count := 1
+	if singular {
+		object = maybeContainer.(*Container)
+	} else {
+		slice = *maybeContainer.(*ContainerSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &containerR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &containerR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select \"a\".*, \"b\".\"container_id\" from \"file_assets\" as \"a\" inner join \"containers_file_assets\" as \"b\" on \"a\".\"id\" = \"b\".\"file_asset_id\" where \"b\".\"container_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load file_assets")
+	}
+	defer results.Close()
+
+	var resultSlice []*FileAsset
+
+	var localJoinCols []int
+	for results.Next() {
+		one := new(FileAsset)
+		var localJoinCol int
+
+		err = results.Scan(&one.ID, &one.Name, &one.LangID, &one.AssetType, &one.Date, &one.Size, &one.ServernameID, &one.Status, &one.CreatedAt, &one.UpdatedAt, &one.Lastuser, &one.Clicks, &one.Secure, &one.PlaytimeSecs, &one.UserID, &one.Sha1, &localJoinCol)
+		if err = results.Err(); err != nil {
+			return errors.Wrap(err, "failed to plebian-bind eager loaded slice file_assets")
+		}
+
+		resultSlice = append(resultSlice, one)
+		localJoinCols = append(localJoinCols, localJoinCol)
+	}
+
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "failed to plebian-bind eager loaded slice file_assets")
+	}
+
+	if singular {
+		object.R.FileAssets = resultSlice
+		return nil
+	}
+
+	for i, foreign := range resultSlice {
+		localJoinCol := localJoinCols[i]
+		for _, local := range slice {
+			if local.ID == localJoinCol {
+				local.R.FileAssets = append(local.R.FileAssets, foreign)
 				break
 			}
 		}
@@ -1498,6 +1498,90 @@ func removeCatalogsFromContainersSlice(o *Container, related []*Catalog) {
 	}
 }
 
+// AddContainerDescriptionsG adds the given related objects to the existing relationships
+// of the container, optionally inserting them as new records.
+// Appends related to o.R.ContainerDescriptions.
+// Sets related.R.Container appropriately.
+// Uses the global database handle.
+func (o *Container) AddContainerDescriptionsG(insert bool, related ...*ContainerDescription) error {
+	return o.AddContainerDescriptions(boil.GetDB(), insert, related...)
+}
+
+// AddContainerDescriptionsP adds the given related objects to the existing relationships
+// of the container, optionally inserting them as new records.
+// Appends related to o.R.ContainerDescriptions.
+// Sets related.R.Container appropriately.
+// Panics on error.
+func (o *Container) AddContainerDescriptionsP(exec boil.Executor, insert bool, related ...*ContainerDescription) {
+	if err := o.AddContainerDescriptions(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddContainerDescriptionsGP adds the given related objects to the existing relationships
+// of the container, optionally inserting them as new records.
+// Appends related to o.R.ContainerDescriptions.
+// Sets related.R.Container appropriately.
+// Uses the global database handle and panics on error.
+func (o *Container) AddContainerDescriptionsGP(insert bool, related ...*ContainerDescription) {
+	if err := o.AddContainerDescriptions(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddContainerDescriptions adds the given related objects to the existing relationships
+// of the container, optionally inserting them as new records.
+// Appends related to o.R.ContainerDescriptions.
+// Sets related.R.Container appropriately.
+func (o *Container) AddContainerDescriptions(exec boil.Executor, insert bool, related ...*ContainerDescription) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ContainerID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"container_descriptions\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"container_id"}),
+				strmangle.WhereClause("\"", "\"", 2, containerDescriptionPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ContainerID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &containerR{
+			ContainerDescriptions: related,
+		}
+	} else {
+		o.R.ContainerDescriptions = append(o.R.ContainerDescriptions, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &containerDescriptionR{
+				Container: o,
+			}
+		} else {
+			rel.R.Container = o
+		}
+	}
+	return nil
+}
+
 // AddFileAssetsG adds the given related objects to the existing relationships
 // of the container, optionally inserting them as new records.
 // Appends related to o.R.FileAssets.
@@ -1727,90 +1811,6 @@ func removeFileAssetsFromContainersSlice(o *Container, related []*FileAsset) {
 			break
 		}
 	}
-}
-
-// AddContainerDescriptionsG adds the given related objects to the existing relationships
-// of the container, optionally inserting them as new records.
-// Appends related to o.R.ContainerDescriptions.
-// Sets related.R.Container appropriately.
-// Uses the global database handle.
-func (o *Container) AddContainerDescriptionsG(insert bool, related ...*ContainerDescription) error {
-	return o.AddContainerDescriptions(boil.GetDB(), insert, related...)
-}
-
-// AddContainerDescriptionsP adds the given related objects to the existing relationships
-// of the container, optionally inserting them as new records.
-// Appends related to o.R.ContainerDescriptions.
-// Sets related.R.Container appropriately.
-// Panics on error.
-func (o *Container) AddContainerDescriptionsP(exec boil.Executor, insert bool, related ...*ContainerDescription) {
-	if err := o.AddContainerDescriptions(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddContainerDescriptionsGP adds the given related objects to the existing relationships
-// of the container, optionally inserting them as new records.
-// Appends related to o.R.ContainerDescriptions.
-// Sets related.R.Container appropriately.
-// Uses the global database handle and panics on error.
-func (o *Container) AddContainerDescriptionsGP(insert bool, related ...*ContainerDescription) {
-	if err := o.AddContainerDescriptions(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddContainerDescriptions adds the given related objects to the existing relationships
-// of the container, optionally inserting them as new records.
-// Appends related to o.R.ContainerDescriptions.
-// Sets related.R.Container appropriately.
-func (o *Container) AddContainerDescriptions(exec boil.Executor, insert bool, related ...*ContainerDescription) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.ContainerID = o.ID
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"container_descriptions\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"container_id"}),
-				strmangle.WhereClause("\"", "\"", 2, containerDescriptionPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.ID}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.ContainerID = o.ID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &containerR{
-			ContainerDescriptions: related,
-		}
-	} else {
-		o.R.ContainerDescriptions = append(o.R.ContainerDescriptions, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &containerDescriptionR{
-				Container: o,
-			}
-		} else {
-			rel.R.Container = o
-		}
-	}
-	return nil
 }
 
 // AddLabelsG adds the given related objects to the existing relationships
