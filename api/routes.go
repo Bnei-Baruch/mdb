@@ -6,6 +6,7 @@ import (
 )
 
 func SetupRoutes(router *gin.Engine) {
+    // Operations API
 	router.POST("/operations/capture_start", CaptureStartHandler)
 	router.POST("/operations/capture_stop", CaptureStopHandler)
 	router.POST("/operations/demux", DemuxHandler)
@@ -13,9 +14,17 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/operations/send", SendHandler)
 	router.POST("/operations/upload", UploadHandler)
 
-	// Serve the log file.
+    // Admin API
 	admin := router.Group("admin")
-	admin.StaticFile("/log", viper.GetString("server.log"))
+
+    // Serving admin UI
+	admin.StaticFile("/", viper.GetString("server.admin-ui"))
+	admin.Static("/build", "./admin-ui/build/")
+
+    // Admin rest handlers.
+    admin.GET("/rest/files", AdminFilesHandler)
+	admin.StaticFile("/rest/log", viper.GetString("server.log"))
+
 
 	// Serve the auto generated docs.
 	router.StaticFile("/docs", viper.GetString("server.docs"))

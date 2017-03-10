@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+    "fmt"
 	"net/http"
 	"net/url"
 	"path"
@@ -242,6 +243,33 @@ func (suite *DocsSuite) testOperation(name string, input interface{}) (*http.Res
 	u, _ := url.Parse(suite.testServer.URL)
 	u.Path = path.Join(u.Path, "operations", name)
 	return http.Post(u.String(), "application/json", b)
+}
+
+func (suite *DocsSuite) TestAdminFiles() {
+    suite.testJsonOKforGet("admin/rest/files")
+}
+
+func (suite *DocsSuite) testTextOKforGet(route string, contentType string) {
+	suite.assertTextOK(suite.testGet(route, contentType), contentType)
+}
+
+func (suite *DocsSuite) testJsonOKforGet(route string) {
+	suite.assertJsonOK(suite.testGet(route, "application/json"))
+}
+
+func (suite *DocsSuite) testGet (route string, contentType string) *http.Response {
+	u, _ := url.Parse(suite.testServer.URL)
+	u.Path = path.Join(u.Path, route)
+    req, _ := http.NewRequest("GET", u.String(), nil)
+    req.Header.Set("Content-Type", contentType)
+    res, _ := http.DefaultClient.Do(req)
+    return res
+}
+
+func (suite *DocsSuite) assertTextOK(resp *http.Response, contentType string) {
+	suite.Equal(http.StatusOK, resp.StatusCode, "HTTP status")
+	suite.Equal(fmt.Sprintf("%s; charset=utf-8", contentType),
+        resp.Header.Get("Content-Type"), "HTTP Content-Type")
 }
 
 func (suite *DocsSuite) assertJsonOK(resp *http.Response) {
