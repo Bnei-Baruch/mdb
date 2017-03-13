@@ -28,8 +28,21 @@ func (f *MarshableFile) MarshalJSON() ([]byte, error) {
     })
 }
 
+// AdminFilesHandler should also support following:
+// query - text string to search in file properties.
+// limit - nax number of files to fetch.
+// first - offset (for pagination)
+// http://.../files?sort=X,query=Y,first=Z,limit=W
+
 // Gets list of all files.
 func AdminFilesHandler(c *gin.Context) {
+
+    sort := c.DefaultQuery("sort", "date")
+    query := c.DefaultQuery("query", "*")
+    first := c.DefaultQuery("first", "0")
+    limit := c.DefaultQuery("limit", "30")
+
+
 	tx, err := boil.Begin()
     var filesSlice []*models.File
 	if err == nil {

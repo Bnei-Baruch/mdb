@@ -1,5 +1,6 @@
 .App {
   text-align: center;
+  margin-top: 7em;
 }
 
 .App-logo {
@@ -21,4 +22,14 @@
 @keyframes App-logo-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+#file-search {
+  margin-top: 5em;
 }
