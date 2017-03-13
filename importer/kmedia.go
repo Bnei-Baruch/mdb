@@ -141,6 +141,7 @@ func ImportKmedia() {
 	log.Info("Setting up connection to MDB")
 	mdb, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	utils.Must(err)
+	utils.Must(mdb.Ping())
 	defer mdb.Close()
 	boil.SetDB(mdb)
 	//boil.DebugMode = true
@@ -148,6 +149,7 @@ func ImportKmedia() {
 	log.Info("Setting up connection to Kmedia")
 	kmedia, err := sql.Open("postgres", viper.GetString("kmedia.url"))
 	utils.Must(err)
+	utils.Must(kmedia.Ping())
 	defer kmedia.Close()
 
 	log.Info("Initializing static data from MDB")
@@ -467,9 +469,9 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 		if _, ok := err.(api.FileNotFound); ok {
 			shouldCreate := true
 
-			 //For unknown file assets with valid sha1 do second lookup before we create a new file.
-			 //This time with the fake sha1, if exists we replace fake hash with valid hash.
-			 //Note: this paragraph should not be executed on first import.
+			//For unknown file assets with valid sha1 do second lookup before we create a new file.
+			//This time with the fake sha1, if exists we replace fake hash with valid hash.
+			//Note: this paragraph should not be executed on first import.
 			if fileAsset.Sha1.Valid {
 				file, _, err = api.FindFileBySHA1(exec,
 					fmt.Sprintf("%x", sha1.Sum([]byte(strconv.Itoa(fileAsset.ID)))))

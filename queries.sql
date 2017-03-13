@@ -16,4 +16,4 @@ FROM collections c INNER JOIN collections_content_units ccu ON c.id = ccu.collec
   INNER JOIN content_units cu ON ccu.content_unit_id = cu.id
   INNER JOIN content_unit_i18n cui ON cu.id = cui.content_unit_id AND cui.language = 'en'
   LEFT JOIN files f ON cu.id = f.content_unit_id AND f.language = 'en'
-ORDER BY c.properties -> 'film_date' DESC, ccu.name::int;
+ORDER BY c.properties -> 'film_date' DESC, ccu.name :: INT;
