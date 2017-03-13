@@ -16,7 +16,6 @@ Issues:
 * Collection i18n (see relevant TODO)
 * Censor workflow information in container (see relevant TODO)
 * Removing stale data from MDB (see relevant TODO)
-* file_assets with missing / bad asset_type (Grisha)
 * file_assets missing SHA1 (Vova)
 * SHA1 for files with physical size = 0 (Vova)
 * file_assets associated with many containers (m2m)

@@ -4,7 +4,7 @@ output="kmodels"
 pkgname="kmodels"
 blacklist=["schema_migrations", "delayed_jobs", "container_creation_patterns"]
 [postgres]
-  dbname="kmedia"
+  dbname="kabbalahmedia"
   host="localhost"
   port=5432
   user="postgres"

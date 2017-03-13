@@ -57,6 +57,7 @@ var MEDIA_TYPES = map[string]MediaType{
 	"zip":  {Extension: "zip", Type: "image", SubType: "", MimeType: "application/zip"},
 	"7z":   {Extension: "7z", Type: "image", SubType: "", MimeType: "application/x-7z-compressed"},
 	"rar":  {Extension: "rar", Type: "image", SubType: "", MimeType: "application/x-rar-compressed"},
+	"sfk":  {Extension: "sfk", Type: "image", SubType: "", MimeType: ""},
 	"doc":  {Extension: "doc", Type: "text", SubType: "", MimeType: "application/msword"},
 	"docx": {Extension: "docx", Type: "text", SubType: "", MimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
 	"htm":  {Extension: "htm", Type: "text", SubType: "", MimeType: "text/html"},
@@ -66,6 +67,7 @@ var MEDIA_TYPES = map[string]MediaType{
 	"rtf":  {Extension: "rtf", Type: "text", SubType: "", MimeType: "text/rtf"},
 	"txt":  {Extension: "txt", Type: "text", SubType: "", MimeType: "text/plain"},
 	"fb2":  {Extension: "fb2", Type: "text", SubType: "", MimeType: "text/xml"},
+	"rb":  {Extension: "rb", Type: "text", SubType: "", MimeType: "application/x-rocketbook"},
 	"xls":  {Extension: "xls", Type: "sheet", SubType: "", MimeType: "application/vnd.ms-excel"},
 	"swf":  {Extension: "swf", Type: "banner", SubType: "", MimeType: "application/x-shockwave-flash"},
 	"ppt":  {Extension: "ppt", Type: "presentation", SubType: "", MimeType: "application/vnd.ms-powerpoint"},
@@ -256,6 +258,10 @@ func ImportKmedia() {
 	}
 
 	// TODO: clean mdb stale data that no longer exists in kmedia
+	// This would require some good understanding of how data can go stale.
+	// Files are removed from kmedia ?
+	// Containers merged ? what happens to old container ? removed / flagged ?
+	// Lessons change ?
 
 	stats.dump()
 
@@ -453,23 +459,45 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 		stats.FileAssetsMissingSHA1++
 	}
 
-	file, _, err := api.FindFileBySHA1(exec, hash)
+	//file, _, err := api.FindFileBySHA1(exec, hash)
+	file, hashB, err := api.FindFileBySHA1(exec, hash)
 	if err == nil {
 		stats.FilesUpdated++
 	} else {
 		if _, ok := err.(api.FileNotFound); ok {
-			// Create new file
-			f := api.File{
-				FileName:  fileAsset.Name.String,
-				Sha1:      hash,
-				Size:      int64(fileAsset.Size.Int),
-				CreatedAt: &api.Timestamp{Time: fileAsset.Date.Time},
+			shouldCreate := true
+
+			 //For unknown file assets with valid sha1 do second lookup before we create a new file.
+			 //This time with the fake sha1, if exists we replace fake hash with valid hash.
+			 //Note: this paragraph should not be executed on first import.
+			if fileAsset.Sha1.Valid {
+				file, _, err = api.FindFileBySHA1(exec,
+					fmt.Sprintf("%x", sha1.Sum([]byte(strconv.Itoa(fileAsset.ID)))))
+				if err == nil {
+					file.Sha1 = null.BytesFrom(hashB)
+					shouldCreate = false
+					stats.FilesUpdated++
+				} else {
+					if _, ok := err.(api.FileNotFound); !ok {
+						return nil, err
+					}
+				}
 			}
-			file, err = api.CreateFile(exec, nil, f, nil)
-			if err != nil {
-				return nil, err
+
+			if shouldCreate {
+				// Create new file
+				f := api.File{
+					FileName:  fileAsset.Name.String,
+					Sha1:      hash,
+					Size:      int64(fileAsset.Size.Int),
+					CreatedAt: &api.Timestamp{Time: fileAsset.Date.Time},
+				}
+				file, err = api.CreateFile(exec, nil, f, nil)
+				if err != nil {
+					return nil, err
+				}
+				stats.FilesCreated++
 			}
-			stats.FilesCreated++
 		} else {
 			return nil, err
 		}
