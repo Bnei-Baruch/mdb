@@ -1,7 +1,9 @@
 package utils
 
 import (
+    "fmt"
 	"math/rand"
+    "strings"
 	"time"
 )
 
@@ -27,4 +29,17 @@ func GenerateName(n int) string {
 		b[i+1] = uidBytes[rand.Intn(len(uidBytes))]
 	}
 	return string(b)
+}
+
+func CombineErr(errors ...error) error {
+    trueErrors := []string{}
+    for _, err := range errors {
+        if err != nil {
+            trueErrors = append(trueErrors, err.Error())
+        }
+    }
+    if len(trueErrors) > 0 {
+        return fmt.Errorf(strings.Join(trueErrors, "; "))
+    }
+    return nil
 }

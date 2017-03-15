@@ -10,6 +10,7 @@ class Files extends Component {
             searchText: '',
         }
 
+        this.getFiles('');
     }
 
     handleSearchChange = (e) => {
@@ -34,11 +35,16 @@ class Files extends Component {
     }
 
     getFiles = (searchText) => {
-        Promise.resolve([{name: '1'}, {name: '2'}]).then((files) => {
-            this.setState({
-                files,
+        return fetch('http://rt-dev.kbb1.com:8080/admin/rest/files')
+        .then((response) => {
+            return response.json().then(json => {
+                if (json.status && json.status === 'ok') {
+                    this.setState({files: json.files});
+                } else {
+                    console.error('Error fetching files');
+                }
             });
-        });
+        })
     }
 
     handleSearchCancel = () => {
@@ -55,11 +61,9 @@ class Files extends Component {
 
         const fileRows = files.map((file, idx) => (
             <tr key={idx}>
-                <td>{'desc'}</td>
-                <td className='right aligned'>{'some'}</td>
-                <td className='right aligned'>{'info'}</td>
-                <td className='right aligned'>{'fu'}</td>
-                <td className='right aligned'>{'c'}</td>
+                <td>{file.uid}</td>
+                <td>{file.name}</td>
+                <td className='right aligned'>{file.file_created_at}</td>
             </tr>
         ));
 
@@ -89,11 +93,9 @@ class Files extends Component {
                             </th>
                         </tr>
                         <tr>
-                            <th className='eight wide'>Description</th>
-                            <th>Kcal</th>
-                            <th>Protein (g)</th>
-                            <th>Fat (g)</th>
-                            <th>Carbs (g)</th>
+                            <th>UID</th>
+                            <th className='eight wide'>Name</th>
+                            <th>created at</th>
                         </tr>
                     </thead>
                 <tbody>
