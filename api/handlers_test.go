@@ -107,18 +107,15 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 			User:       "operator@dev.com",
 			WorkflowID: "c12356789",
 		},
-		AVFile: AVFile{
-			File: File{
-				FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
-				Sha1:      "012356789abcdef012356789abcdef0123456789",
-				Size:      98737,
-				CreatedAt: &Timestamp{Time: time.Now()},
-				Type:      "type",
-				SubType:   "subtype",
-				MimeType:  "mime_type",
-				Language:  LANG_MULTI,
-			},
-			Duration: 892.1900,
+		File: File{
+			FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
+			Sha1:      "012356789abcdef012356789abcdef0123456789",
+			Size:      98737,
+			CreatedAt: &Timestamp{Time: time.Now()},
+			Type:      "type",
+			SubType:   "subtype",
+			MimeType:  "mime_type",
+			Language:  LANG_MULTI,
 		},
 		CaptureSource: "mltcap",
 		CollectionUID: "abcdefgh",
@@ -152,10 +149,95 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 	suite.Equal(input.Size, f.Size, "File: Size")
 	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File: FileCreatedAt")
 	suite.Equal(parent.ID, f.ParentID.Int64, "File Parent.ID")
+	suite.False(f.Properties.Valid, "properties")
+}
 
-	err = f.Properties.Unmarshal(&props)
+func (suite *HandlersSuite) TestHandleDemux() {
+	// Create dummy parent file
+	fi := File{
+		FileName:  "dummy parent file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef0123456789",
+		Size:      math.MaxInt64,
+	}
+	file, err := CreateFile(suite.tx, nil, fi, nil)
 	suite.Require().Nil(err)
-	suite.Equal(input.Duration, props["duration"], "File props: duration")
+	suite.Require().NotNil(file)
+
+	// Do capture_stop operation
+	input := DemuxRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		Sha1: fi.Sha1,
+		Original: AVFile{
+			File: File{
+				FileName:  "original.mp4",
+				Sha1:      "012356789abcdef012356789abcdef9876543210",
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		Proxy: AVFile{
+			File: File{
+				FileName:  "proxy.mp4",
+				Sha1:      "987653210abcdef012356789abcdef9876543210",
+				Size:      987,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 891.8800,
+		},
+		CaptureSource: "mltcap",
+	}
+
+	op, err := handleDemux(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_DEMUX].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	var props map[string]interface{}
+	err = op.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.CaptureSource, props["capture_source"], "properties: capture_source")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 3, "Number of files")
+	fm := make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	parent := fm[fi.FileName]
+
+	// Check original
+	original := fm[input.Original.FileName]
+	suite.Equal(input.Original.FileName, original.Name, "Original: Name")
+	suite.Equal(input.Original.Sha1, hex.EncodeToString(original.Sha1.Bytes), "Original: SHA1")
+	suite.Equal(input.Original.Size, original.Size, "Original: Size")
+	suite.Equal(input.Original.CreatedAt.Time.Unix(), original.FileCreatedAt.Time.Unix(), "Original: FileCreatedAt")
+	suite.Equal(parent.ID, original.ParentID.Int64, "Original Parent.ID")
+	err = original.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Original.Duration, props["duration"], "Original props: duration")
+
+	// Check proxy
+	proxy := fm[input.Proxy.FileName]
+	suite.Equal(input.Proxy.FileName, proxy.Name, "Proxy: Name")
+	suite.Equal(input.Proxy.Sha1, hex.EncodeToString(proxy.Sha1.Bytes), "Proxy: SHA1")
+	suite.Equal(input.Proxy.Size, proxy.Size, "Proxy: Size")
+	suite.Equal(input.Proxy.CreatedAt.Time.Unix(), proxy.FileCreatedAt.Time.Unix(), "Proxy: FileCreatedAt")
+	suite.Equal(parent.ID, proxy.ParentID.Int64, "Proxy Parent.ID")
+	err = proxy.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Proxy.Duration, props["duration"], "Proxy props: duration")
 }
 
 func (suite *HandlersSuite) TestCreateOperation() {

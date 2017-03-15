@@ -133,10 +133,7 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 	}
 
 	log.Info("Creating file")
-	props = map[string]interface{}{
-		"duration": r.Duration,
-	}
-	file, err := CreateFile(exec, parent, r.File, props)
+	file, err := CreateFile(exec, parent, r.File, nil)
 	if err != nil {
 		return nil, err
 	}

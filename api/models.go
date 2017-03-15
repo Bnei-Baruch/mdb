@@ -47,7 +47,7 @@ type (
 
 	CaptureStopRequest struct {
 		Operation
-		AVFile
+		File
 		CaptureSource string `json:"capture_source"`
 		CollectionUID string `json:"collection_uid"`
 		Part          string `json:"part"`
