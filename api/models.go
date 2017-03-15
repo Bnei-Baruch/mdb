@@ -32,8 +32,8 @@ type (
 	}
 
 	Rename struct {
-		Sha1     string     `json:"sha1" binding:"required,len=40,hexadecimal"`
-		FileName string     `json:"file_name" binding:"required,max=255"`
+		Sha1     string `json:"sha1" binding:"required,len=40,hexadecimal"`
+		FileName string `json:"file_name" binding:"required,max=255"`
 	}
 
 	// Operations
@@ -74,8 +74,8 @@ type (
 
 	SendRequest struct {
 		Operation
-		Original     Rename    `json:"original"`
-		Proxy        Rename    `json:"proxy"`
+		Original     Rename `json:"original"`
+		Proxy        Rename `json:"proxy"`
 		WorkflowType string `json:"workflow_type"`
 	}
 

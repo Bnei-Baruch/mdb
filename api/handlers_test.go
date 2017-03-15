@@ -160,11 +160,10 @@ func (suite *HandlersSuite) TestHandleDemux() {
 		Sha1:      "012356789abcdef012356789abcdef0123456789",
 		Size:      math.MaxInt64,
 	}
-	file, err := CreateFile(suite.tx, nil, fi, nil)
+	_, err := CreateFile(suite.tx, nil, fi, nil)
 	suite.Require().Nil(err)
-	suite.Require().NotNil(file)
 
-	// Do capture_stop operation
+	// Do demux operation
 	input := DemuxRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
@@ -238,6 +237,183 @@ func (suite *HandlersSuite) TestHandleDemux() {
 	err = proxy.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
 	suite.Equal(input.Proxy.Duration, props["duration"], "Proxy props: duration")
+}
+
+func (suite *HandlersSuite) TestHandleTrim() {
+	// Create dummy original and proxy parent files
+	ofi := File{
+		FileName:  "dummy original parent file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+	}
+	_, err := CreateFile(suite.tx, nil, ofi, nil)
+	suite.Require().Nil(err)
+
+	pfi := File{
+		FileName:  "dummy proxy parent file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "987653210abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+	}
+	_, err = CreateFile(suite.tx, nil, pfi, nil)
+	suite.Require().Nil(err)
+
+	// Do trim operation
+	input := TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: ofi.Sha1,
+		ProxySha1:    pfi.Sha1,
+		Original: AVFile{
+			File: File{
+				FileName:  "original_trim.mp4",
+				Sha1:      "012356789abcdef012356789abcdef1111111111",
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		Proxy: AVFile{
+			File: File{
+				FileName:  "proxy_trim.mp4",
+				Sha1:      "987653210abcdef012356789abcdef2222222222",
+				Size:      987,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 891.8800,
+		},
+		CaptureSource: "mltcap",
+		In:            []float64{10.05, 249.43},
+		Out:           []float64{240.51, 899.27},
+	}
+
+	op, err := handleTrim(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_TRIM].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	var props map[string]interface{}
+	err = op.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.CaptureSource, props["capture_source"], "properties: capture_source")
+	for i, v := range input.In {
+		suite.Equal(v, props["in"].([]interface{})[i], "properties: in[%d]", i)
+	}
+	for i, v := range input.Out {
+		suite.Equal(v, props["out"].([]interface{})[i], "properties: out[%d]", i)
+	}
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 4, "Number of files")
+	fm := make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	originalParent := fm[ofi.FileName]
+	proxyParent := fm[pfi.FileName]
+
+	// Check original
+	original := fm[input.Original.FileName]
+	suite.Equal(input.Original.FileName, original.Name, "Original: Name")
+	suite.Equal(input.Original.Sha1, hex.EncodeToString(original.Sha1.Bytes), "Original: SHA1")
+	suite.Equal(input.Original.Size, original.Size, "Original: Size")
+	suite.Equal(input.Original.CreatedAt.Time.Unix(), original.FileCreatedAt.Time.Unix(), "Original: FileCreatedAt")
+	suite.Equal(originalParent.ID, original.ParentID.Int64, "Original Parent.ID")
+	err = original.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Original.Duration, props["duration"], "Original props: duration")
+
+	// Check proxy
+	proxy := fm[input.Proxy.FileName]
+	suite.Equal(input.Proxy.FileName, proxy.Name, "Proxy: Name")
+	suite.Equal(input.Proxy.Sha1, hex.EncodeToString(proxy.Sha1.Bytes), "Proxy: SHA1")
+	suite.Equal(input.Proxy.Size, proxy.Size, "Proxy: Size")
+	suite.Equal(input.Proxy.CreatedAt.Time.Unix(), proxy.FileCreatedAt.Time.Unix(), "Proxy: FileCreatedAt")
+	suite.Equal(proxyParent.ID, proxy.ParentID.Int64, "Proxy Parent.ID")
+	err = proxy.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Proxy.Duration, props["duration"], "Proxy props: duration")
+}
+
+func (suite *HandlersSuite) TestHandleSend() {
+	// Create dummy original and proxy trimmed files
+	ofi := File{
+		FileName:  "dummy original trimmed file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+	}
+	_, err := CreateFile(suite.tx, nil, ofi, nil)
+	suite.Require().Nil(err)
+
+	pfi := File{
+		FileName:  "dummy proxy trimmed file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "987653210abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+	}
+	_, err = CreateFile(suite.tx, nil, pfi, nil)
+	suite.Require().Nil(err)
+
+	// Do send operation
+	input := SendRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		Original: Rename{
+			Sha1:     ofi.Sha1,
+			FileName: "original_renamed.mp4",
+		},
+		Proxy: Rename{
+			Sha1:     pfi.Sha1,
+			FileName: "proxy_renamed.mp4",
+		},
+		WorkflowType: "workflow_type",
+	}
+
+	op, err := handleSend(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_SEND].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	var props map[string]interface{}
+	err = op.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.WorkflowType, props["worklow_type"], "properties: worklow_type")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 2, "Number of files")
+	fm := make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	// Check original
+	original := fm[input.Original.FileName]
+	suite.Equal(input.Original.FileName, original.Name, "Original: Name")
+	suite.Equal(input.Original.Sha1, hex.EncodeToString(original.Sha1.Bytes), "Original: SHA1")
+
+	// Check proxy
+	proxy := fm[input.Proxy.FileName]
+	suite.Equal(input.Proxy.FileName, proxy.Name, "Proxy: Name")
+	suite.Equal(input.Proxy.Sha1, hex.EncodeToString(proxy.Sha1.Bytes), "Proxy: SHA1")
 }
 
 func (suite *HandlersSuite) TestCreateOperation() {
