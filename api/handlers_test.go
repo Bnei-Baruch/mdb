@@ -7,11 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/stretchr/testify/suite"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/queries/qm"
+
+	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type HandlersSuite struct {
@@ -414,6 +415,110 @@ func (suite *HandlersSuite) TestHandleSend() {
 	proxy := fm[input.Proxy.FileName]
 	suite.Equal(input.Proxy.FileName, proxy.Name, "Proxy: Name")
 	suite.Equal(input.Proxy.Sha1, hex.EncodeToString(proxy.Sha1.Bytes), "Proxy: SHA1")
+}
+
+func (suite *HandlersSuite) TestHandleConvert() {
+	// Create dummy input file
+	fi := File{
+		FileName:  "dummy input file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+	}
+	_, err := CreateFile(suite.tx, nil, fi, nil)
+	suite.Require().Nil(err)
+
+	// Do convert operation
+	input := ConvertRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		Sha1: fi.Sha1,
+		Output: []AVFile{
+			{
+				File: File{
+					FileName:  "heb_file.mp4",
+					Sha1:      "0987654321fedcba0987654321fedcba33333333",
+					Size:      694,
+					CreatedAt: &Timestamp{Time: time.Now()},
+					Type:      "type1",
+					SubType:   "subtype1",
+					MimeType:  "mime_type1",
+					Language:  LANG_HEBREW,
+				},
+				Duration: 871,
+			},
+			{
+				File: File{
+					FileName:  "eng_file.mp4",
+					Sha1:      "0987654321fedcba0987654321fedcba44444444",
+					Size:      694,
+					CreatedAt: &Timestamp{Time: time.Now()},
+					Type:      "type2",
+					SubType:   "subtype2",
+					MimeType:  "mime_type2",
+					Language:  LANG_ENGLISH,
+				},
+				Duration: 871,
+			},
+			{
+				File: File{
+					FileName:  "rus_file.mp4",
+					Sha1:      "0987654321fedcba0987654321fedcba55555555",
+					Size:      694,
+					CreatedAt: &Timestamp{Time: time.Now()},
+					Type:      "type3",
+					SubType:   "subtype3",
+					MimeType:  "mime_type3",
+					Language:  LANG_RUSSIAN,
+				},
+				Duration: 871,
+			},
+		},
+	}
+
+	op, err := handleConvert(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_CONVERT].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	suite.False(op.Properties.Valid, "Operation properties")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 4, "Number of files")
+	fm := make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	// Check input
+	in := fm[fi.FileName]
+	suite.Equal(fi.Sha1, hex.EncodeToString(in.Sha1.Bytes), "In: SHA1")
+
+	// Check output
+	var props map[string]interface{}
+	for i, x := range input.Output {
+		f := fm[x.FileName]
+		suite.Equal(x.FileName, f.Name, "Output[%d]: Name", i)
+		suite.Equal(x.Sha1, hex.EncodeToString(f.Sha1.Bytes), "Output[%d]: SHA1", i)
+		suite.Equal(x.Size, f.Size, "Output[%d]: Size", i)
+		suite.Equal(x.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "Output[%d]: FileCreatedAt", i)
+		suite.Equal(x.Type, f.Type, "Output[%d]: Type", i)
+		suite.Equal(x.SubType, f.SubType, "Output[%d]: SubType", i)
+		suite.Equal(x.MimeType, f.MimeType.String, "Output[%d]: MimeType", i)
+		suite.Equal(x.Language, f.Language.String, "Output[%d]: Language", i)
+		suite.Equal(in.ID, f.ParentID.Int64, "Output[%d] Parent.ID", i)
+		err = f.Properties.Unmarshal(&props)
+		suite.Require().Nil(err)
+		suite.Equal(x.Duration, props["duration"], "Output[%d] props: duration", i)
+	}
 }
 
 func (suite *HandlersSuite) TestCreateOperation() {

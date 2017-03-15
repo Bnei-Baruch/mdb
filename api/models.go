@@ -79,6 +79,12 @@ type (
 		WorkflowType string `json:"workflow_type"`
 	}
 
+	ConvertRequest struct {
+		Operation
+		Sha1   string   `json:"sha1" binding:"required,len=40,hexadecimal"`
+		Output []AVFile `json:"output"`
+	}
+
 	UploadRequest struct {
 		Operation
 		AVFile

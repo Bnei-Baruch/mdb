@@ -64,6 +64,15 @@ func SendHandler(c *gin.Context) {
 	}
 }
 
+// Files converted to low resolution web formats, language splitting, etc...
+func ConvertHandler(c *gin.Context) {
+	log.Info(OP_CONVERT)
+	var i ConvertRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleConvert)
+	}
+}
+
 // File uploaded to a public accessible URL
 func UploadHandler(c *gin.Context) {
 	log.Info(OP_UPLOAD)
@@ -184,15 +193,18 @@ func handleDemux(exec boil.Executor, input interface{}) (*models.Operation, erro
 func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, error) {
 	r := input.(TrimRequest)
 
+	// Fetch parent files
 	original, _, err := FindFileBySHA1(exec, r.OriginalSha1)
 	if err != nil {
 		return nil, err
 	}
-
 	proxy, _, err := FindFileBySHA1(exec, r.ProxySha1)
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: in case of re-trim with the exact same parameters we already have the files in DB.
+	// No need to return an error, a warning in the log is enough.
 
 	log.Info("Creating operation")
 	props := map[string]interface{}{
@@ -273,6 +285,38 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, error
 
 	log.Info("Associating files to operation")
 	return operation, operation.AddFiles(exec, false, original, proxy)
+}
+
+func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, error) {
+	r := input.(ConvertRequest)
+
+	in, _, err := FindFileBySHA1(exec, r.Sha1)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("Creating operation")
+	operation, err := CreateOperation(exec, OP_CONVERT, r.Operation, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("Creating output files")
+	files := make([]*models.File, len(r.Output)+1)
+	files[0] = in
+	props := make(map[string]interface{})
+	for i, x := range r.Output {
+		props["duration"] = x.Duration
+		f, err := CreateFile(exec, in, x.File, props)
+		if err == nil {
+			files[i+1] = f
+		} else {
+			return nil, err
+		}
+	}
+
+	log.Info("Associating files to operation")
+	return operation, operation.AddFiles(exec, false, files...)
 }
 
 func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, error) {

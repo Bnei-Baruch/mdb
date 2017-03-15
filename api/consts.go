@@ -36,6 +36,7 @@ const (
 	OP_DEMUX         = "demux"
 	OP_TRIM          = "trim"
 	OP_SEND          = "send"
+	OP_CONVERT       = "convert"
 	OP_UPLOAD        = "upload"
 	OP_IMPORT_KMEDIA = "import_kmedia"
 

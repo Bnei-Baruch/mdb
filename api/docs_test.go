@@ -210,7 +210,62 @@ func (suite *DocsSuite) Test5SendHandler() {
 	suite.assertJsonOK(resp)
 }
 
-func (suite *DocsSuite) Test6UploadHandler() {
+func (suite *DocsSuite) Test6ConvertHandler() {
+	input := ConvertRequest{
+		Operation: Operation{
+			Station: "Convert station",
+			User:    "operator@dev.com",
+		},
+		Sha1: "0987654321fedcba0987654321fedcba11111111",
+		Output: []AVFile{
+			{
+				File: File{
+					FileName:  "heb_file.mp4",
+					Sha1:      "0987654321fedcba0987654321fedcba33333333",
+					Size:      694,
+					CreatedAt: &Timestamp{Time: time.Now()},
+					Type:      "type",
+					SubType:   "subtype",
+					MimeType:  "mime_type",
+					Language:  LANG_HEBREW,
+				},
+				Duration: 871,
+			},
+			{
+				File: File{
+					FileName:  "eng_file.mp4",
+					Sha1:      "0987654321fedcba0987654321fedcba44444444",
+					Size:      694,
+					CreatedAt: &Timestamp{Time: time.Now()},
+					Type:      "type",
+					SubType:   "subtype",
+					MimeType:  "mime_type",
+					Language:  LANG_ENGLISH,
+				},
+				Duration: 871,
+			},
+			{
+				File: File{
+					FileName:  "rus_file.mp4",
+					Sha1:      "0987654321fedcba0987654321fedcba55555555",
+					Size:      694,
+					CreatedAt: &Timestamp{Time: time.Now()},
+					Type:      "type",
+					SubType:   "subtype",
+					MimeType:  "mime_type",
+					Language:  LANG_RUSSIAN,
+				},
+				Duration: 871,
+			},
+		},
+	}
+
+	resp, err := suite.testOperation(OP_CONVERT, input)
+	suite.Require().Nil(err)
+	suite.assertJsonOK(resp)
+}
+
+func (suite *DocsSuite) Test7UploadHandler() {
 	input := UploadRequest{
 		Operation: Operation{
 			Station: "Upload station",
