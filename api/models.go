@@ -95,7 +95,7 @@ type (
 	}
 )
 
-// A time.Time like stucture with Unix timestamp JSON marshalling
+// A time.Time like structure with Unix timestamp JSON marshalling
 type Timestamp struct {
 	time.Time
 }
