@@ -14,28 +14,20 @@ class Files extends Component {
     }
 
     handleSearchChange = (e) => {
-        const searchText = e.target.value;
+        this.searchChange(e.target.value);
+    }
 
+    searchChange = (searchText) => {
         this.setState({
             searchText,
+            showRemoveIcon: searchText !== '',
         });
 
-        if (searchText === '') {
-            this.setState({
-                files: [],
-                showRemoveIcon: false,
-            });
-        } else {
-            this.setState({
-                showRemoveIcon: true,
-            });
-
-            this.getFiles(searchText);
-        }
+        this.getFiles(searchText);
     }
 
     getFiles = (searchText) => {
-        return fetch('http://rt-dev.kbb1.com:8080/admin/rest/files')
+        return fetch('http://rt-dev.kbb1.com:8080/admin/rest/files?query=' + searchText)
         .then((response) => {
             return response.json().then(json => {
                 if (json.status && json.status === 'ok') {
@@ -48,11 +40,7 @@ class Files extends Component {
     }
 
     handleSearchCancel = () => {
-        this.setState({
-            files: [],
-            showRemoveIcon: false,
-            searchText: '',
-        });
+        this.searchChange('');
     }
 
     render() {

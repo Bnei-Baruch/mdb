@@ -41,7 +41,7 @@ type Params struct {
 
 func (p *Params) read(c *gin.Context) error {
     p.sort = c.DefaultQuery("sort", "date")
-    p.query = c.DefaultQuery("query", "*")
+    p.query = c.DefaultQuery("query", "")
     var err1, err2 error
     p.offset, err1 = strconv.Atoi(c.DefaultQuery("offset", "0"))
     p.limit, err2 = strconv.Atoi(c.DefaultQuery("limit", "30"))
@@ -95,7 +95,7 @@ func AdminFilesHandler(c *gin.Context) {
 func getFiles(exec boil.Executor, p Params) ([]*models.File, error) {
 	log.Info("Looking up files")
     // Like does not works here well! fix. Return no files.
-    f, err := models.Files(exec, qm.Where("name like ?", p.query), qm.Limit(p.limit), qm.Offset(p.offset)).All()
+    f, err := models.Files(exec, qm.Where(fmt.Sprintf("name like '%%%s%%'", p.query)), qm.Limit(p.limit), qm.Offset(p.offset)).All()
 	if err == nil {
 		return f, nil
 	} else {
