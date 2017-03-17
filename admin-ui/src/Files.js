@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import Spinner from './Spinner';
 
 class Files extends Component {
     constructor(props) {
@@ -8,39 +9,48 @@ class Files extends Component {
             files: [],
             showRemoveIcon: false,
             searchText: '',
+            loadingFiles: false,
+            error: '',
         }
+    }
 
+    componentDidMount = () => {
         this.getFiles('');
     }
 
     handleSearchChange = (e) => {
-        this.searchChange(e.target.value);
+        this.getFiles(e.target.value);
     }
 
-    searchChange = (searchText) => {
-        this.setState({
-            searchText,
-            showRemoveIcon: searchText !== '',
-        });
-
-        this.getFiles(searchText);
+    handleSearchCancel = () => {
+        this.getFiles('');
     }
 
     getFiles = (searchText) => {
+        this.setState({
+            loadingFiles: true,
+            searchText,
+            showRemoveIcon: searchText !== '',
+        });
         return fetch('http://rt-dev.kbb1.com:8080/admin/rest/files?query=' + searchText)
         .then((response) => {
+            if (!response.ok) {
+                throw Error('Error loading files, response not ok.');
+            }
+            this.setState({loadingFiles: false});
             return response.json().then(json => {
                 if (json.status && json.status === 'ok') {
                     this.setState({files: json.files});
                 } else {
-                    console.error('Error fetching files');
+                    throw Error('Error loading files, got bad status.');
                 }
             });
+        }).catch((e) => {
+            this.setState({
+                loadingFiles: false,
+                error: 'Error loading files: ' + e
+            });
         })
-    }
-
-    handleSearchCancel = () => {
-        this.searchChange('');
     }
 
     render() {
@@ -77,6 +87,8 @@ class Files extends Component {
                                     onClick={this.handleSearchCancel}
                                     style={removeIconStyle}
                                 />
+                                {this.state.loadingFiles ? <span><Spinner /> Searching...</span> : null}
+                                {!!this.state.error ? <span style={{color: 'red'}}>{this.state.error}</span> : null}
                                 </div>
                             </th>
                         </tr>
