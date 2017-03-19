@@ -19,14 +19,11 @@ import (
 
 // Collection is an object representing the database table.
 type Collection struct {
-	ID            int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
-	UID           string      `boil:"uid" json:"uid" toml:"uid" yaml:"uid"`
-	TypeID        int64       `boil:"type_id" json:"type_id" toml:"type_id" yaml:"type_id"`
-	NameID        int64       `boil:"name_id" json:"name_id" toml:"name_id" yaml:"name_id"`
-	DescriptionID null.Int64  `boil:"description_id" json:"description_id,omitempty" toml:"description_id" yaml:"description_id,omitempty"`
-	CreatedAt     time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	Properties    null.JSON   `boil:"properties" json:"properties,omitempty" toml:"properties" yaml:"properties,omitempty"`
-	ExternalID    null.String `boil:"external_id" json:"external_id,omitempty" toml:"external_id" yaml:"external_id,omitempty"`
+	ID         int64     `boil:"id" json:"id" toml:"id" yaml:"id"`
+	UID        string    `boil:"uid" json:"uid" toml:"uid" yaml:"uid"`
+	TypeID     int64     `boil:"type_id" json:"type_id" toml:"type_id" yaml:"type_id"`
+	CreatedAt  time.Time `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	Properties null.JSON `boil:"properties" json:"properties,omitempty" toml:"properties" yaml:"properties,omitempty"`
 
 	R *collectionR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L collectionL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -34,18 +31,17 @@ type Collection struct {
 
 // collectionR is where relationships are stored.
 type collectionR struct {
-	Description             *StringTranslation
-	Name                    *StringTranslation
 	Type                    *ContentType
 	CollectionsContentUnits CollectionsContentUnitSlice
+	CollectionI18ns         CollectionI18nSlice
 }
 
 // collectionL is where Load methods for each relationship are stored.
 type collectionL struct{}
 
 var (
-	collectionColumns               = []string{"id", "uid", "type_id", "name_id", "description_id", "created_at", "properties", "external_id"}
-	collectionColumnsWithoutDefault = []string{"uid", "type_id", "name_id", "description_id", "properties", "external_id"}
+	collectionColumns               = []string{"id", "uid", "type_id", "created_at", "properties"}
+	collectionColumnsWithoutDefault = []string{"uid", "type_id", "properties"}
 	collectionColumnsWithDefault    = []string{"id", "created_at"}
 	collectionPrimaryKeyColumns     = []string{"id"}
 )
@@ -179,44 +175,6 @@ func (q collectionQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-// DescriptionG pointed to by the foreign key.
-func (o *Collection) DescriptionG(mods ...qm.QueryMod) stringTranslationQuery {
-	return o.Description(boil.GetDB(), mods...)
-}
-
-// Description pointed to by the foreign key.
-func (o *Collection) Description(exec boil.Executor, mods ...qm.QueryMod) stringTranslationQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("id=?", o.DescriptionID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	query := StringTranslations(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"string_translations\"")
-
-	return query
-}
-
-// NameG pointed to by the foreign key.
-func (o *Collection) NameG(mods ...qm.QueryMod) stringTranslationQuery {
-	return o.Name(boil.GetDB(), mods...)
-}
-
-// Name pointed to by the foreign key.
-func (o *Collection) Name(exec boil.Executor, mods ...qm.QueryMod) stringTranslationQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("id=?", o.NameID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	query := StringTranslations(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"string_translations\"")
-
-	return query
-}
-
 // TypeG pointed to by the foreign key.
 func (o *Collection) TypeG(mods ...qm.QueryMod) contentTypeQuery {
 	return o.Type(boil.GetDB(), mods...)
@@ -260,136 +218,28 @@ func (o *Collection) CollectionsContentUnits(exec boil.Executor, mods ...qm.Quer
 	return query
 }
 
-// LoadDescription allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (collectionL) LoadDescription(e boil.Executor, singular bool, maybeCollection interface{}) error {
-	var slice []*Collection
-	var object *Collection
-
-	count := 1
-	if singular {
-		object = maybeCollection.(*Collection)
-	} else {
-		slice = *maybeCollection.(*CollectionSlice)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &collectionR{}
-		}
-		args[0] = object.DescriptionID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &collectionR{}
-			}
-			args[i] = obj.DescriptionID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select * from \"string_translations\" where \"id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load StringTranslation")
-	}
-	defer results.Close()
-
-	var resultSlice []*StringTranslation
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice StringTranslation")
-	}
-
-	if singular && len(resultSlice) != 0 {
-		object.R.Description = resultSlice[0]
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.DescriptionID.Int64 == foreign.ID {
-				local.R.Description = foreign
-				break
-			}
-		}
-	}
-
-	return nil
+// CollectionI18nsG retrieves all the collection_i18n's collection i18n.
+func (o *Collection) CollectionI18nsG(mods ...qm.QueryMod) collectionI18nQuery {
+	return o.CollectionI18ns(boil.GetDB(), mods...)
 }
 
-// LoadName allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (collectionL) LoadName(e boil.Executor, singular bool, maybeCollection interface{}) error {
-	var slice []*Collection
-	var object *Collection
-
-	count := 1
-	if singular {
-		object = maybeCollection.(*Collection)
-	} else {
-		slice = *maybeCollection.(*CollectionSlice)
-		count = len(slice)
+// CollectionI18ns retrieves all the collection_i18n's collection i18n with an executor.
+func (o *Collection) CollectionI18ns(exec boil.Executor, mods ...qm.QueryMod) collectionI18nQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
 	}
 
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &collectionR{}
-		}
-		args[0] = object.NameID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &collectionR{}
-			}
-			args[i] = obj.NameID
-		}
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
 	}
 
-	query := fmt.Sprintf(
-		"select * from \"string_translations\" where \"id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"collection_id\"=?", o.ID),
 	)
 
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load StringTranslation")
-	}
-	defer results.Close()
-
-	var resultSlice []*StringTranslation
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice StringTranslation")
-	}
-
-	if singular && len(resultSlice) != 0 {
-		object.R.Name = resultSlice[0]
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.NameID == foreign.ID {
-				local.R.Name = foreign
-				break
-			}
-		}
-	}
-
-	return nil
+	query := CollectionI18ns(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"collection_i18n\" as \"a\"")
+	return query
 }
 
 // LoadType allows an eager lookup of values, cached into the
@@ -523,214 +373,66 @@ func (collectionL) LoadCollectionsContentUnits(e boil.Executor, singular bool, m
 	return nil
 }
 
-// SetDescriptionG of the collection to the related item.
-// Sets o.R.Description to related.
-// Adds o to related.R.DescriptionCollections.
-// Uses the global database handle.
-func (o *Collection) SetDescriptionG(insert bool, related *StringTranslation) error {
-	return o.SetDescription(boil.GetDB(), insert, related)
-}
+// LoadCollectionI18ns allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (collectionL) LoadCollectionI18ns(e boil.Executor, singular bool, maybeCollection interface{}) error {
+	var slice []*Collection
+	var object *Collection
 
-// SetDescriptionP of the collection to the related item.
-// Sets o.R.Description to related.
-// Adds o to related.R.DescriptionCollections.
-// Panics on error.
-func (o *Collection) SetDescriptionP(exec boil.Executor, insert bool, related *StringTranslation) {
-	if err := o.SetDescription(exec, insert, related); err != nil {
-		panic(boil.WrapErr(err))
+	count := 1
+	if singular {
+		object = maybeCollection.(*Collection)
+	} else {
+		slice = *maybeCollection.(*CollectionSlice)
+		count = len(slice)
 	}
-}
 
-// SetDescriptionGP of the collection to the related item.
-// Sets o.R.Description to related.
-// Adds o to related.R.DescriptionCollections.
-// Uses the global database handle and panics on error.
-func (o *Collection) SetDescriptionGP(insert bool, related *StringTranslation) {
-	if err := o.SetDescription(boil.GetDB(), insert, related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetDescription of the collection to the related item.
-// Sets o.R.Description to related.
-// Adds o to related.R.DescriptionCollections.
-func (o *Collection) SetDescription(exec boil.Executor, insert bool, related *StringTranslation) error {
-	var err error
-	if insert {
-		if err = related.Insert(exec); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &collectionR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &collectionR{}
+			}
+			args[i] = obj.ID
 		}
 	}
 
-	updateQuery := fmt.Sprintf(
-		"UPDATE \"collections\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"description_id"}),
-		strmangle.WhereClause("\"", "\"", 2, collectionPrimaryKeyColumns),
+	query := fmt.Sprintf(
+		"select * from \"collection_i18n\" where \"collection_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
 	)
-	values := []interface{}{related.ID, o.ID}
-
 	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, updateQuery)
-		fmt.Fprintln(boil.DebugWriter, values)
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
 	}
 
-	if _, err = exec.Exec(updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load collection_i18n")
+	}
+	defer results.Close()
+
+	var resultSlice []*CollectionI18n
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice collection_i18n")
 	}
 
-	o.DescriptionID.Int64 = related.ID
-	o.DescriptionID.Valid = true
-
-	if o.R == nil {
-		o.R = &collectionR{
-			Description: related,
-		}
-	} else {
-		o.R.Description = related
-	}
-
-	if related.R == nil {
-		related.R = &stringTranslationR{
-			DescriptionCollections: CollectionSlice{o},
-		}
-	} else {
-		related.R.DescriptionCollections = append(related.R.DescriptionCollections, o)
-	}
-
-	return nil
-}
-
-// RemoveDescriptionG relationship.
-// Sets o.R.Description to nil.
-// Removes o from all passed in related items' relationships struct (Optional).
-// Uses the global database handle.
-func (o *Collection) RemoveDescriptionG(related *StringTranslation) error {
-	return o.RemoveDescription(boil.GetDB(), related)
-}
-
-// RemoveDescriptionP relationship.
-// Sets o.R.Description to nil.
-// Removes o from all passed in related items' relationships struct (Optional).
-// Panics on error.
-func (o *Collection) RemoveDescriptionP(exec boil.Executor, related *StringTranslation) {
-	if err := o.RemoveDescription(exec, related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveDescriptionGP relationship.
-// Sets o.R.Description to nil.
-// Removes o from all passed in related items' relationships struct (Optional).
-// Uses the global database handle and panics on error.
-func (o *Collection) RemoveDescriptionGP(related *StringTranslation) {
-	if err := o.RemoveDescription(boil.GetDB(), related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveDescription relationship.
-// Sets o.R.Description to nil.
-// Removes o from all passed in related items' relationships struct (Optional).
-func (o *Collection) RemoveDescription(exec boil.Executor, related *StringTranslation) error {
-	var err error
-
-	o.DescriptionID.Valid = false
-	if err = o.Update(exec, "description_id"); err != nil {
-		o.DescriptionID.Valid = true
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	o.R.Description = nil
-	if related == nil || related.R == nil {
+	if singular {
+		object.R.CollectionI18ns = resultSlice
 		return nil
 	}
 
-	for i, ri := range related.R.DescriptionCollections {
-		if o.DescriptionID.Int64 != ri.DescriptionID.Int64 {
-			continue
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.CollectionID {
+				local.R.CollectionI18ns = append(local.R.CollectionI18ns, foreign)
+				break
+			}
 		}
-
-		ln := len(related.R.DescriptionCollections)
-		if ln > 1 && i < ln-1 {
-			related.R.DescriptionCollections[i] = related.R.DescriptionCollections[ln-1]
-		}
-		related.R.DescriptionCollections = related.R.DescriptionCollections[:ln-1]
-		break
-	}
-	return nil
-}
-
-// SetNameG of the collection to the related item.
-// Sets o.R.Name to related.
-// Adds o to related.R.NameCollections.
-// Uses the global database handle.
-func (o *Collection) SetNameG(insert bool, related *StringTranslation) error {
-	return o.SetName(boil.GetDB(), insert, related)
-}
-
-// SetNameP of the collection to the related item.
-// Sets o.R.Name to related.
-// Adds o to related.R.NameCollections.
-// Panics on error.
-func (o *Collection) SetNameP(exec boil.Executor, insert bool, related *StringTranslation) {
-	if err := o.SetName(exec, insert, related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetNameGP of the collection to the related item.
-// Sets o.R.Name to related.
-// Adds o to related.R.NameCollections.
-// Uses the global database handle and panics on error.
-func (o *Collection) SetNameGP(insert bool, related *StringTranslation) {
-	if err := o.SetName(boil.GetDB(), insert, related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetName of the collection to the related item.
-// Sets o.R.Name to related.
-// Adds o to related.R.NameCollections.
-func (o *Collection) SetName(exec boil.Executor, insert bool, related *StringTranslation) error {
-	var err error
-	if insert {
-		if err = related.Insert(exec); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
-		}
-	}
-
-	updateQuery := fmt.Sprintf(
-		"UPDATE \"collections\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"name_id"}),
-		strmangle.WhereClause("\"", "\"", 2, collectionPrimaryKeyColumns),
-	)
-	values := []interface{}{related.ID, o.ID}
-
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, updateQuery)
-		fmt.Fprintln(boil.DebugWriter, values)
-	}
-
-	if _, err = exec.Exec(updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
-	}
-
-	o.NameID = related.ID
-
-	if o.R == nil {
-		o.R = &collectionR{
-			Name: related,
-		}
-	} else {
-		o.R.Name = related
-	}
-
-	if related.R == nil {
-		related.R = &stringTranslationR{
-			NameCollections: CollectionSlice{o},
-		}
-	} else {
-		related.R.NameCollections = append(related.R.NameCollections, o)
 	}
 
 	return nil
@@ -887,6 +589,90 @@ func (o *Collection) AddCollectionsContentUnits(exec boil.Executor, insert bool,
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &collectionsContentUnitR{
+				Collection: o,
+			}
+		} else {
+			rel.R.Collection = o
+		}
+	}
+	return nil
+}
+
+// AddCollectionI18nsG adds the given related objects to the existing relationships
+// of the collection, optionally inserting them as new records.
+// Appends related to o.R.CollectionI18ns.
+// Sets related.R.Collection appropriately.
+// Uses the global database handle.
+func (o *Collection) AddCollectionI18nsG(insert bool, related ...*CollectionI18n) error {
+	return o.AddCollectionI18ns(boil.GetDB(), insert, related...)
+}
+
+// AddCollectionI18nsP adds the given related objects to the existing relationships
+// of the collection, optionally inserting them as new records.
+// Appends related to o.R.CollectionI18ns.
+// Sets related.R.Collection appropriately.
+// Panics on error.
+func (o *Collection) AddCollectionI18nsP(exec boil.Executor, insert bool, related ...*CollectionI18n) {
+	if err := o.AddCollectionI18ns(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddCollectionI18nsGP adds the given related objects to the existing relationships
+// of the collection, optionally inserting them as new records.
+// Appends related to o.R.CollectionI18ns.
+// Sets related.R.Collection appropriately.
+// Uses the global database handle and panics on error.
+func (o *Collection) AddCollectionI18nsGP(insert bool, related ...*CollectionI18n) {
+	if err := o.AddCollectionI18ns(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddCollectionI18ns adds the given related objects to the existing relationships
+// of the collection, optionally inserting them as new records.
+// Appends related to o.R.CollectionI18ns.
+// Sets related.R.Collection appropriately.
+func (o *Collection) AddCollectionI18ns(exec boil.Executor, insert bool, related ...*CollectionI18n) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.CollectionID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"collection_i18n\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"collection_id"}),
+				strmangle.WhereClause("\"", "\"", 2, collectionI18nPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.CollectionID, rel.Language}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.CollectionID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &collectionR{
+			CollectionI18ns: related,
+		}
+	} else {
+		o.R.CollectionI18ns = append(o.R.CollectionI18ns, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &collectionI18nR{
 				Collection: o,
 			}
 		} else {

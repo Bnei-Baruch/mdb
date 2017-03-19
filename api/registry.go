@@ -9,6 +9,7 @@ var (
 
 type ContentTypeRegistry struct {
 	ByName map[string]*models.ContentType
+	ByID map[int64]*models.ContentType  // DO NOT REMOVE: Used by ETL's in archive site
 }
 
 func (r *ContentTypeRegistry) Init() error {
@@ -18,8 +19,10 @@ func (r *ContentTypeRegistry) Init() error {
 	}
 
 	r.ByName = make(map[string]*models.ContentType)
+	r.ByID = make(map[int64]*models.ContentType)
 	for _, t := range types {
 		r.ByName[t.Name] = t
+		r.ByID[t.ID] = t
 	}
 
 	return nil

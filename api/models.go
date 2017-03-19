@@ -32,8 +32,8 @@ type (
 	}
 
 	Rename struct {
-		Sha1     string     `json:"sha1" binding:"required,len=40,hexadecimal"`
-		FileName string     `json:"file_name" binding:"required,max=255"`
+		Sha1     string `json:"sha1" binding:"required,len=40,hexadecimal"`
+		FileName string `json:"file_name" binding:"required,max=255"`
 	}
 
 	// Operations
@@ -47,7 +47,7 @@ type (
 
 	CaptureStopRequest struct {
 		Operation
-		AVFile
+		File
 		CaptureSource string `json:"capture_source"`
 		CollectionUID string `json:"collection_uid"`
 		Part          string `json:"part"`
@@ -74,9 +74,15 @@ type (
 
 	SendRequest struct {
 		Operation
-		Original     Rename    `json:"original"`
-		Proxy        Rename    `json:"proxy"`
+		Original     Rename `json:"original"`
+		Proxy        Rename `json:"proxy"`
 		WorkflowType string `json:"workflow_type"`
+	}
+
+	ConvertRequest struct {
+		Operation
+		Sha1   string   `json:"sha1" binding:"required,len=40,hexadecimal"`
+		Output []AVFile `json:"output"`
 	}
 
 	UploadRequest struct {
@@ -95,7 +101,7 @@ type (
 	}
 )
 
-// A time.Time like stucture with Unix timestamp JSON marshalling
+// A time.Time like structure with Unix timestamp JSON marshalling
 type Timestamp struct {
 	time.Time
 }

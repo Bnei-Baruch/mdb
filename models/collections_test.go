@@ -393,6 +393,78 @@ func testCollectionToManyCollectionsContentUnits(t *testing.T) {
 	}
 }
 
+func testCollectionToManyCollectionI18ns(t *testing.T) {
+	var err error
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a Collection
+	var b, c CollectionI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, collectionDBTypes, true, collectionColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Collection struct: %s", err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	randomize.Struct(seed, &b, collectionI18nDBTypes, false, collectionI18nColumnsWithDefault...)
+	randomize.Struct(seed, &c, collectionI18nDBTypes, false, collectionI18nColumnsWithDefault...)
+
+	b.CollectionID = a.ID
+	c.CollectionID = a.ID
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	collectionI18n, err := a.CollectionI18ns(tx).All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range collectionI18n {
+		if v.CollectionID == b.CollectionID {
+			bFound = true
+		}
+		if v.CollectionID == c.CollectionID {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := CollectionSlice{&a}
+	if err = a.L.LoadCollectionI18ns(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.CollectionI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.CollectionI18ns = nil
+	if err = a.L.LoadCollectionI18ns(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.CollectionI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", collectionI18n)
+	}
+}
+
 func testCollectionToManyAddOpCollectionsContentUnits(t *testing.T) {
 	var err error
 
@@ -467,108 +539,80 @@ func testCollectionToManyAddOpCollectionsContentUnits(t *testing.T) {
 		}
 	}
 }
-func testCollectionToOneStringTranslationUsingDescription(t *testing.T) {
+func testCollectionToManyAddOpCollectionI18ns(t *testing.T) {
+	var err error
+
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
-	var local Collection
-	var foreign StringTranslation
+	var a Collection
+	var b, c, d, e CollectionI18n
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, collectionDBTypes, true, collectionColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Collection struct: %s", err)
+	if err = randomize.Struct(seed, &a, collectionDBTypes, false, strmangle.SetComplement(collectionPrimaryKeyColumns, collectionColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
 	}
-	if err := randomize.Struct(seed, &foreign, stringTranslationDBTypes, true, stringTranslationColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize StringTranslation struct: %s", err)
+	foreigners := []*CollectionI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, collectionI18nDBTypes, false, strmangle.SetComplement(collectionI18nPrimaryKeyColumns, collectionI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	local.DescriptionID.Valid = true
-
-	if err := foreign.Insert(tx); err != nil {
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	local.DescriptionID.Int64 = foreign.ID
-	if err := local.Insert(tx); err != nil {
-		t.Fatal(err)
+	foreignersSplitByInsertion := [][]*CollectionI18n{
+		{&b, &c},
+		{&d, &e},
 	}
 
-	check, err := local.Description(tx).One()
-	if err != nil {
-		t.Fatal(err)
-	}
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddCollectionI18ns(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if check.ID != foreign.ID {
-		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
-	}
+		first := x[0]
+		second := x[1]
 
-	slice := CollectionSlice{&local}
-	if err = local.L.LoadDescription(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.Description == nil {
-		t.Error("struct should have been eager loaded")
-	}
+		if a.ID != first.CollectionID {
+			t.Error("foreign key was wrong value", a.ID, first.CollectionID)
+		}
+		if a.ID != second.CollectionID {
+			t.Error("foreign key was wrong value", a.ID, second.CollectionID)
+		}
 
-	local.R.Description = nil
-	if err = local.L.LoadDescription(tx, true, &local); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.Description == nil {
-		t.Error("struct should have been eager loaded")
+		if first.R.Collection != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.Collection != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.CollectionI18ns[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.CollectionI18ns[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.CollectionI18ns(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
 	}
 }
-
-func testCollectionToOneStringTranslationUsingName(t *testing.T) {
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var local Collection
-	var foreign StringTranslation
-
-	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, collectionDBTypes, true, collectionColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Collection struct: %s", err)
-	}
-	if err := randomize.Struct(seed, &foreign, stringTranslationDBTypes, true, stringTranslationColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize StringTranslation struct: %s", err)
-	}
-
-	if err := foreign.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	local.NameID = foreign.ID
-	if err := local.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	check, err := local.Name(tx).One()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if check.ID != foreign.ID {
-		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
-	}
-
-	slice := CollectionSlice{&local}
-	if err = local.L.LoadName(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.Name == nil {
-		t.Error("struct should have been eager loaded")
-	}
-
-	local.R.Name = nil
-	if err = local.L.LoadName(tx, true, &local); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.Name == nil {
-		t.Error("struct should have been eager loaded")
-	}
-}
-
 func testCollectionToOneContentTypeUsingType(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
@@ -619,169 +663,6 @@ func testCollectionToOneContentTypeUsingType(t *testing.T) {
 	}
 }
 
-func testCollectionToOneSetOpStringTranslationUsingDescription(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a Collection
-	var b, c StringTranslation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, collectionDBTypes, false, strmangle.SetComplement(collectionPrimaryKeyColumns, collectionColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &c, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	for i, x := range []*StringTranslation{&b, &c} {
-		err = a.SetDescription(tx, i != 0, x)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if a.R.Description != x {
-			t.Error("relationship struct not set to correct value")
-		}
-
-		if x.R.DescriptionCollections[0] != &a {
-			t.Error("failed to append to foreign relationship struct")
-		}
-		if a.DescriptionID.Int64 != x.ID {
-			t.Error("foreign key was wrong value", a.DescriptionID.Int64)
-		}
-
-		zero := reflect.Zero(reflect.TypeOf(a.DescriptionID.Int64))
-		reflect.Indirect(reflect.ValueOf(&a.DescriptionID.Int64)).Set(zero)
-
-		if err = a.Reload(tx); err != nil {
-			t.Fatal("failed to reload", err)
-		}
-
-		if a.DescriptionID.Int64 != x.ID {
-			t.Error("foreign key was wrong value", a.DescriptionID.Int64, x.ID)
-		}
-	}
-}
-
-func testCollectionToOneRemoveOpStringTranslationUsingDescription(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a Collection
-	var b StringTranslation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, collectionDBTypes, false, strmangle.SetComplement(collectionPrimaryKeyColumns, collectionColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.SetDescription(tx, true, &b); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = a.RemoveDescription(tx, &b); err != nil {
-		t.Error("failed to remove relationship")
-	}
-
-	count, err := a.Description(tx).Count()
-	if err != nil {
-		t.Error(err)
-	}
-	if count != 0 {
-		t.Error("want no relationships remaining")
-	}
-
-	if a.R.Description != nil {
-		t.Error("R struct entry should be nil")
-	}
-
-	if a.DescriptionID.Valid {
-		t.Error("foreign key value should be nil")
-	}
-
-	if len(b.R.DescriptionCollections) != 0 {
-		t.Error("failed to remove a from b's relationships")
-	}
-}
-
-func testCollectionToOneSetOpStringTranslationUsingName(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a Collection
-	var b, c StringTranslation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, collectionDBTypes, false, strmangle.SetComplement(collectionPrimaryKeyColumns, collectionColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &c, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	for i, x := range []*StringTranslation{&b, &c} {
-		err = a.SetName(tx, i != 0, x)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if a.R.Name != x {
-			t.Error("relationship struct not set to correct value")
-		}
-
-		if x.R.NameCollections[0] != &a {
-			t.Error("failed to append to foreign relationship struct")
-		}
-		if a.NameID != x.ID {
-			t.Error("foreign key was wrong value", a.NameID)
-		}
-
-		zero := reflect.Zero(reflect.TypeOf(a.NameID))
-		reflect.Indirect(reflect.ValueOf(&a.NameID)).Set(zero)
-
-		if err = a.Reload(tx); err != nil {
-			t.Fatal("failed to reload", err)
-		}
-
-		if a.NameID != x.ID {
-			t.Error("foreign key was wrong value", a.NameID, x.ID)
-		}
-	}
-}
 func testCollectionToOneSetOpContentTypeUsingType(t *testing.T) {
 	var err error
 
@@ -908,7 +789,7 @@ func testCollectionsSelect(t *testing.T) {
 }
 
 var (
-	collectionDBTypes = map[string]string{`CreatedAt`: `timestamp with time zone`, `DescriptionID`: `bigint`, `ExternalID`: `character varying`, `ID`: `bigint`, `NameID`: `bigint`, `Properties`: `jsonb`, `TypeID`: `bigint`, `UID`: `character`}
+	collectionDBTypes = map[string]string{`CreatedAt`: `timestamp with time zone`, `ID`: `bigint`, `Properties`: `jsonb`, `TypeID`: `bigint`, `UID`: `character`}
 	_                 = bytes.MinRead
 )
 

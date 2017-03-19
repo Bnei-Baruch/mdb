@@ -1,0 +1,22 @@
+Implementation notes for the import from kmedia
+-----------------------------------------------
+
+Basic Schema Mappings
+---------------------
+
+Virtual Lesson -> Collection
+Container      -> Content Unit
+File Asset     -> File
+
+
+Minimal import unit is a lesson with all its parts and files in. This is a single `import_kmedia` operation.
+Each such operation is a single DB transaction.
+
+Issues:
+* Collection i18n (see relevant TODO)
+* Censor workflow information in container (see relevant TODO)
+* Removing stale data from MDB (see relevant TODO)
+* file_assets missing SHA1 (Vova)
+* SHA1 for files with physical size = 0 (Vova)
+* file_assets associated with many containers (m2m)
+* containers with virtual_lesson_id = 0 (unassociated data, 16459 containers [5063 lessons], 110299 files [17674 lessons])

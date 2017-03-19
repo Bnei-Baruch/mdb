@@ -12,6 +12,7 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/operations/demux", DemuxHandler)
 	router.POST("/operations/trim", TrimHandler)
 	router.POST("/operations/send", SendHandler)
+	router.POST("/operations/convert", ConvertHandler)
 	router.POST("/operations/upload", UploadHandler)
 
     // Admin API

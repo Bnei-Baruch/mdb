@@ -7,15 +7,15 @@ import (
 	"time"
 )
 
-var migrationCmd = &cobra.Command{
-	Use:   "migration <name>",
-	Short: "Create migration file",
-	Long:  "Create new migration file",
-	Run:   migrationFn,
-}
-
 func init() {
-	RootCmd.AddCommand(migrationCmd)
+	command := &cobra.Command{
+		Use:   "migration <name>",
+		Short: "Create migration file",
+		Long:  "Create new migration file",
+		Run:   migrationFn,
+	}
+
+	RootCmd.AddCommand(command)
 }
 
 func migrationFn(cmd *cobra.Command, args []string) {
@@ -27,6 +27,7 @@ func migrationFn(cmd *cobra.Command, args []string) {
 
 `
 	var migrationName string
+
 	if len(args) > 0 {
 		t := time.Now()
 		timestamp := t.Format("2006-01-02_12:04:05_")

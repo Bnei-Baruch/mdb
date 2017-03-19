@@ -395,6 +395,78 @@ func testTagToManyParentTags(t *testing.T) {
 	}
 }
 
+func testTagToManyTagsI18ns(t *testing.T) {
+	var err error
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a Tag
+	var b, c TagsI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, tagDBTypes, true, tagColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Tag struct: %s", err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	randomize.Struct(seed, &b, tagsI18nDBTypes, false, tagsI18nColumnsWithDefault...)
+	randomize.Struct(seed, &c, tagsI18nDBTypes, false, tagsI18nColumnsWithDefault...)
+
+	b.TagID = a.ID
+	c.TagID = a.ID
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	tagsI18n, err := a.TagsI18ns(tx).All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range tagsI18n {
+		if v.TagID == b.TagID {
+			bFound = true
+		}
+		if v.TagID == c.TagID {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := TagSlice{&a}
+	if err = a.L.LoadTagsI18ns(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.TagsI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.TagsI18ns = nil
+	if err = a.L.LoadTagsI18ns(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.TagsI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", tagsI18n)
+	}
+}
+
 func testTagToManyAddOpParentTags(t *testing.T) {
 	var err error
 
@@ -643,56 +715,80 @@ func testTagToManyRemoveOpParentTags(t *testing.T) {
 	}
 }
 
-func testTagToOneStringTranslationUsingLabel(t *testing.T) {
+func testTagToManyAddOpTagsI18ns(t *testing.T) {
+	var err error
+
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
-	var local Tag
-	var foreign StringTranslation
+	var a Tag
+	var b, c, d, e TagsI18n
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, tagDBTypes, true, tagColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Tag struct: %s", err)
+	if err = randomize.Struct(seed, &a, tagDBTypes, false, strmangle.SetComplement(tagPrimaryKeyColumns, tagColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
 	}
-	if err := randomize.Struct(seed, &foreign, stringTranslationDBTypes, true, stringTranslationColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize StringTranslation struct: %s", err)
+	foreigners := []*TagsI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, tagsI18nDBTypes, false, strmangle.SetComplement(tagsI18nPrimaryKeyColumns, tagsI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	if err := foreign.Insert(tx); err != nil {
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	local.LabelID = foreign.ID
-	if err := local.Insert(tx); err != nil {
-		t.Fatal(err)
+	foreignersSplitByInsertion := [][]*TagsI18n{
+		{&b, &c},
+		{&d, &e},
 	}
 
-	check, err := local.Label(tx).One()
-	if err != nil {
-		t.Fatal(err)
-	}
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddTagsI18ns(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if check.ID != foreign.ID {
-		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
-	}
+		first := x[0]
+		second := x[1]
 
-	slice := TagSlice{&local}
-	if err = local.L.LoadLabel(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.Label == nil {
-		t.Error("struct should have been eager loaded")
-	}
+		if a.ID != first.TagID {
+			t.Error("foreign key was wrong value", a.ID, first.TagID)
+		}
+		if a.ID != second.TagID {
+			t.Error("foreign key was wrong value", a.ID, second.TagID)
+		}
 
-	local.R.Label = nil
-	if err = local.L.LoadLabel(tx, true, &local); err != nil {
-		t.Fatal(err)
-	}
-	if local.R.Label == nil {
-		t.Error("struct should have been eager loaded")
+		if first.R.Tag != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.Tag != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.TagsI18ns[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.TagsI18ns[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.TagsI18ns(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
 	}
 }
-
 func testTagToOneTagUsingParent(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
@@ -745,62 +841,6 @@ func testTagToOneTagUsingParent(t *testing.T) {
 	}
 }
 
-func testTagToOneSetOpStringTranslationUsingLabel(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a Tag
-	var b, c StringTranslation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, tagDBTypes, false, strmangle.SetComplement(tagPrimaryKeyColumns, tagColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &b, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	if err = randomize.Struct(seed, &c, stringTranslationDBTypes, false, strmangle.SetComplement(stringTranslationPrimaryKeyColumns, stringTranslationColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	for i, x := range []*StringTranslation{&b, &c} {
-		err = a.SetLabel(tx, i != 0, x)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if a.R.Label != x {
-			t.Error("relationship struct not set to correct value")
-		}
-
-		if x.R.LabelTags[0] != &a {
-			t.Error("failed to append to foreign relationship struct")
-		}
-		if a.LabelID != x.ID {
-			t.Error("foreign key was wrong value", a.LabelID)
-		}
-
-		zero := reflect.Zero(reflect.TypeOf(a.LabelID))
-		reflect.Indirect(reflect.ValueOf(&a.LabelID)).Set(zero)
-
-		if err = a.Reload(tx); err != nil {
-			t.Fatal("failed to reload", err)
-		}
-
-		if a.LabelID != x.ID {
-			t.Error("foreign key was wrong value", a.LabelID, x.ID)
-		}
-	}
-}
 func testTagToOneSetOpTagUsingParent(t *testing.T) {
 	var err error
 
@@ -978,7 +1018,7 @@ func testTagsSelect(t *testing.T) {
 }
 
 var (
-	tagDBTypes = map[string]string{`Description`: `character varying`, `ID`: `bigint`, `LabelID`: `bigint`, `ParentID`: `bigint`}
+	tagDBTypes = map[string]string{`Description`: `character varying`, `ID`: `bigint`, `ParentID`: `bigint`}
 	_          = bytes.MinRead
 )
 
