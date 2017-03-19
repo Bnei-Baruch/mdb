@@ -74,9 +74,7 @@ func AdminFilesHandler(c *gin.Context) {
     }
     var filesSlice []*models.File
     filesSlice, err = getFiles(tx, p)
-    if err == nil {
-        tx.Commit()
-    } else {
+    if err != nil {
         log.Error("Error handling admin files: ", err)
         if txErr := tx.Rollback(); txErr != nil {
             log.Error("Error rolling back DB transaction: ", txErr)
@@ -89,16 +87,42 @@ func AdminFilesHandler(c *gin.Context) {
     for i, f := range filesSlice {
         marshableFiles[i] = (*MarshableFile)(f)
     }
-    c.JSON(http.StatusOK, gin.H{"status": "ok", "files": marshableFiles})
+    searchCount, err := getFilesCount(tx, p.query)
+    if err != nil {
+        InternalError(c, err)
+        return
+    }
+    count, err := getFilesCount(tx, "")
+    if err != nil {
+        InternalError(c, err)
+        return
+    } else {
+        // Commit transaction when all queries are done.
+        tx.Commit()
+    }
+    c.JSON(http.StatusOK, gin.H{
+        "status": "ok",
+        "files": marshableFiles,
+        "total": count,
+        "matching": searchCount,
+    })
 }
 
 func getFiles(exec boil.Executor, p Params) ([]*models.File, error) {
 	log.Info("Looking up files")
-    // Like does not works here well! fix. Return no files.
     f, err := models.Files(exec, qm.Where(fmt.Sprintf("name like '%%%s%%'", p.query)), qm.Limit(p.limit), qm.Offset(p.offset)).All()
 	if err == nil {
 		return f, nil
 	} else {
         return nil, err
+	}
+}
+
+func getFilesCount(exec boil.Executor, query string) (int64, error) {
+    c, err := models.Files(exec, qm.Where(fmt.Sprintf("name like '%%%s%%'", query))).Count()
+	if err == nil {
+		return c, nil
+	} else {
+        return -1, err
 	}
 }

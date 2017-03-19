@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import Spinner from './Spinner';
+import Menu from './Menu';
 
 class Files extends Component {
     constructor(props) {
@@ -11,6 +12,8 @@ class Files extends Component {
             searchText: '',
             loadingFiles: false,
             error: '',
+            matching: -1,
+            total: -1,
         }
     }
 
@@ -40,7 +43,11 @@ class Files extends Component {
             this.setState({loadingFiles: false});
             return response.json().then(json => {
                 if (json.status && json.status === 'ok') {
-                    this.setState({files: json.files});
+                    this.setState({
+                        files: json.files,
+                        matching: json.matching,
+                        total: json.total,
+                    });
                 } else {
                     throw Error('Error loading files, got bad status.');
                 }
@@ -66,42 +73,49 @@ class Files extends Component {
         ));
 
         return (
-            <div id='file-search'>
-                <table className='ui selectable structured large table'>
-                    <thead>
-                        <tr>
-                            <th colSpan='5'>
-                                <div className='ui fluid search'>
-                                <div className='ui icon input'>
-                                    <input
-                                        className='prompt'
-                                        type='text'
-                                        placeholder='Search files...'
-                                        value={this.state.searchText}
-                                        onChange={this.handleSearchChange}
+            <div>
+                <Menu />
+                <div>
+                    <table className='ui selectable structured large table'>
+                        <thead>
+                            <tr>
+                                <th colSpan='5'>
+                                    <div className='ui fluid search'>
+                                    <div className='ui icon input'>
+                                        <input
+                                            className='prompt'
+                                            type='text'
+                                            placeholder='Search files...'
+                                            value={this.state.searchText}
+                                            onChange={this.handleSearchChange}
+                                        />
+                                        <i className='search icon' />
+                                    </div>
+                                    <i
+                                        className='remove icon'
+                                        onClick={this.handleSearchCancel}
+                                        style={removeIconStyle}
                                     />
-                                    <i className='search icon' />
-                                </div>
-                                <i
-                                    className='remove icon'
-                                    onClick={this.handleSearchCancel}
-                                    style={removeIconStyle}
-                                />
-                                {this.state.loadingFiles ? <span><Spinner /> Searching...</span> : null}
-                                {!!this.state.error ? <span style={{color: 'red'}}>{this.state.error}</span> : null}
-                                </div>
-                            </th>
-                        </tr>
-                        <tr>
-                            <th>UID</th>
-                            <th className='eight wide'>Name</th>
-                            <th>created at</th>
-                        </tr>
-                    </thead>
-                <tbody>
-                {fileRows}
-                </tbody>
-                </table>
+                                    {this.state.loadingFiles ? <span><Spinner /> Searching...</span> : null}
+                                    {!!this.state.error ? <span style={{color: 'red'}}>{this.state.error}</span> : null}
+                                        <div position='right'>
+                                        {this.state.matching >= 0 && this.state.total >= 0 ?
+                                            <span>Matched {this.state.matching} of {this.state.total}</span> : null}
+                                        </div>
+                                    </div>
+                                </th>
+                            </tr>
+                            <tr>
+                                <th>UID</th>
+                                <th className='eight wide'>Name</th>
+                                <th>created at</th>
+                            </tr>
+                        </thead>
+                    <tbody>
+                    {fileRows}
+                    </tbody>
+                    </table>
+                </div>
             </div>
         );
     }
