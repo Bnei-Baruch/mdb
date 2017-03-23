@@ -1,0 +1,124 @@
+Kmedia:  bs-akdama-pri-hacham
+Archive: bs-akdama-pi-hacham, bs-akdama-pri-hacham-al-tora
+typo in archive ? should be bs-akdama-pri-hacham
+No problem here. 2 separate articles. kmedia points them to the same catalog
+
+
+
+
+kmedia: bs-lo-et-asaf-makne
+Archive: None
+Trim(rename): None
+Map to bs-akdama-pri-hacham ?
+Alex: add to archive table
+
+
+kmedia: bs-shamati-200-izdahehut-masach
+Archive: bs-shamati-200-bs-shamati-200-izdahehut-masach
+Trim(rename): bs-shamati-200-izdahehut-masach
+typo in archive ?
+Alex: tell sarah to fix in spreadsheet
+
+
+kmedia: zohar-la-am-hadash-bereshit
+Archive: zohar-la-am-bereshit
+Trim(rename): both...
+Map to zohar-la-am-bereshit ?
+rosa
+
+
+
+Shamati2 ???
+bs-shamati2-241-krauhu
+bs-shamati2-127-ikar-veazmut
+bs-shamati2-243-bdikat-zel
+bs-shamati2-189-hamaase-poel
+bs-shamati2-240-drosh-darsheiha
+bs-shamati2-082-tfila-she-zrihim
+bs-shamati2-193-kotel-leshneihem
+bs-shamati2-234-posek-veosek
+bs-shamati2-235-mistakel-be-sefer
+bs-shamati2-236-herpuni-zoreray
+bs-shamati2-237-lo-irani-haadam
+bs-shamati2-238-ish-lo-ishkaheha
+bs-shamati2-239-hiluk-bein-mohin
+bs-shamati2-242-lesameah-aniim
+rosa
+
+
+
+
+
+kmeia: rb-dargot-sulam-866
+Archive: rb-dargot-sulam-866-shalom-rahok-karov
+Map to rb-dargot-sulam-866-shalom-rahok-karov
+Sarah: add catalog and pattern in kmedia
+
+
+kmedia: bs-igeret-20-1927-pg-07
+Archive: bs-igeret-20-1927-pg-074
+Map to bs-igeret-20-1927-pg-074
+Edo: problem in kmedia trk and ger
+
+kmedia: zohar-la-am_vayechi
+Archive: zohar-la-am-vayechi
+Map to zohar-la-am-vayechi ?
+
+
+109 | zohar-la-am_vayechi         | Книга Зоар, глава "Ваехи"                                                           | RUS  | 2011-05-21 08:49:57 | 2011-05-23 20:30:31        |
+  108 | zohar-la-am_vayechi         | זוהר לעם: פרשת "ויחי"                                                               | HEB  | 2011-05-21 08:48:47 | 2011-05-23 20:30:18        |
+  825 | zohar-la-am-vayechi         | Книга Зоар - избранные отрывки, глава "Ваехи", часть 1, пункт 210                   | RUS  | 2011-11-25 16:43:34 | 2011-11-25 16:43:34        |
+  824 | zohar-la-am-vayechi         | Zohar La-Am, "VaYechi [And Jacob Lived]", pg 39, article: "Four Species", item: 210 | ENG  | 2011-11-25 16:42:35 | 2011-11-25 16:42:35        |
+  823 | zohar-la-am-vayechi         | "זוהר לעם", "ויחי - חלק א'", עמ' 33, מאמר: "ד' מינים", אות רי'                      | HEB  | 2011-11-25 16:41:53 | 2011-11-25 16:41:53        |
+
+
+109,108, 823,824,825
+
+
+
+
+
+Kmedia: bs-ester-ve-gilui
+Archive: bs-ester-ve-gilui-1, bs-ester-ve-gilui-2
+Trim(rename): bs-ester-ve-gilui
+How to map kmedia to MDB ?
+Alex removed in production
+
+
+kmedia " bs-ester-ve-gilui-1" => strip whitespace
+kmedia "bs-igeret-43-1927-pg-128 " => strip whitespace
+kmedia "bs-igeret-45-1927-pg-132 " => strip whitespace
+kmedia " rb-dargot-sulam-821-naase-ve-nishma-2" => strip whitespace
+
+
+
+
+content_type patterns action
+============================
+
+-- Collection Types
+DAILY_LESSON
+SATURDAY_LESSON
+WEEKLY_FRIENDS_GATHERING        i18n?
+CONGRESS
+VIDEO_PROGRAM
+LECTURE_SERIES
+MEALS
+HOLIDAY
+PICNIC
+UNITY_DAY
+
+-- Content Unit Types
+LESSON_PART                     article_pattern             FK, i18n
+LESSON_PART                     tags_pattern                FK, i18n
+LECTURE
+CHILDREN_LESSON_PART
+WOMEN_LESSON_PART
+CAMPUS_LESSON
+LC_LESSON
+VIRTUAL_LESSON
+FRIENDS_GATHERING
+MEAL
+VIDEO_PROGRAM_CHAPTER
+FULL_LESSON
+TEXT

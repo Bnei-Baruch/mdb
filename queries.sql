@@ -17,3 +17,33 @@ FROM collections c INNER JOIN collections_content_units ccu ON c.id = ccu.collec
   INNER JOIN content_unit_i18n cui ON cu.id = cui.content_unit_id AND cui.language = 'en'
   LEFT JOIN files f ON cu.id = f.content_unit_id AND f.language = 'en'
 ORDER BY c.properties -> 'film_date' DESC, ccu.name :: INT;
+
+-- Sources: top level collections
+SELECT
+  a.id,
+  a.code,
+  s.id,
+  s.name
+FROM authors a
+  INNER JOIN authors_sources AS "as" ON a.id = "as".author_id
+  INNER JOIN sources s ON "as".source_id = s.id AND s.parent_id IS NULL
+ORDER BY a.id;
+
+-- Sources with their i18n
+SELECT
+  s.id,
+  s.uid,
+  s.pattern,
+  s.name,
+  si.language,
+  si.name
+FROM sources s INNER JOIN source_i18n si ON s.id = si.source_id
+ORDER BY s.id;
+
+-- Delete all sources
+DELETE FROM authors_sources;
+DELETE FROM author_i18n;
+DELETE FROM authors;
+DELETE FROM source_i18n;
+DELETE FROM sources;
+

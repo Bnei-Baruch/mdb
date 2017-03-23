@@ -2,7 +2,6 @@ package api
 
 const (
 	// Collection Types
-
 	CT_DAILY_LESSON             = "DAILY_LESSON"
 	CT_SATURDAY_LESSON          = "SATURDAY_LESSON"
 	CT_WEEKLY_FRIENDS_GATHERING = "WEEKLY_FRIENDS_GATHERING"
@@ -15,7 +14,6 @@ const (
 	CT_UNITY_DAY                = "UNITY_DAY"
 
 	// Content Unit Types
-
 	CT_LESSON_PART           = "LESSON_PART"
 	CT_LECTURE               = "LECTURE"
 	CT_CHILDREN_LESSON_PART  = "CHILDREN_LESSON_PART"
@@ -30,7 +28,6 @@ const (
 	CT_TEXT                  = "TEXT"
 
 	// Operation Types
-
 	OP_CAPTURE_START = "capture_start"
 	OP_CAPTURE_STOP  = "capture_stop"
 	OP_DEMUX         = "demux"
@@ -39,6 +36,18 @@ const (
 	OP_CONVERT       = "convert"
 	OP_UPLOAD        = "upload"
 	OP_IMPORT_KMEDIA = "import_kmedia"
+
+	// Source Types
+	SRC_COLLECTION = "COLLECTION"
+	SRC_BOOK       = "BOOK"
+	SRC_VOLUME     = "VOLUME"
+	SRC_PART       = "PART"
+	SRC_PARASHA    = "PARASHA"
+	SRC_CHAPTER    = "CHAPTER"
+	SRC_ARTICLE    = "ARTICLE"
+	SRC_TITLE      = "TITLE"
+	SRC_LETTER     = "LETTER"
+	SRC_ITEM       = "ITEM"
 
 	// Languages
 	LANG_ENGLISH    = "en"
