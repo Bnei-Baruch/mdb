@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/queries"
@@ -23,8 +25,6 @@ import (
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/pkg/errors"
-	"sort"
 )
 
 const CATALOGS_MAPPINGS_FILE = "importer/kmedia/data/Catalogs Sources Mappings - final.csv"
@@ -33,7 +33,6 @@ var (
 	mdb                     *sql.DB
 	kmdb                    *sql.DB
 	kmediaLessonCT          *kmodels.ContentType
-	langID2Locale           map[string]string
 	serverUrls              map[string]string
 	catalogsSourcesMappings map[int]*models.Source
 	stats                   *ImportStatistics
@@ -224,8 +223,6 @@ func ImportKmedia() {
 
 	log.Info("Initializing static data from Kmedia")
 	kmediaLessonCT, err = kmodels.ContentTypes(kmdb, qm.Where("name = ?", "Lesson")).One()
-	utils.Must(err)
-	langID2Locale, err = initLangs(kmdb)
 	utils.Must(err)
 	serverUrls, err = initServers(kmdb)
 	utils.Must(err)
@@ -460,7 +457,7 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 	props["kmedia_id"] = container.ID
 	props["secure"] = container.Secure
 	if container.LangID.Valid {
-		props["original_language"] = langID2Locale[container.LangID.String]
+		props["original_language"] = api.LANG_MAP[container.LangID.String]
 	}
 	if container.Filmdate.Valid {
 		props["film_date"] = container.Filmdate.Time.Format("2006-01-02")
@@ -486,7 +483,7 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 	for _, d := range descriptions {
 		cui18n := models.ContentUnitI18n{
 			ContentUnitID: unit.ID,
-			Language:      langID2Locale[d.LangID.String],
+			Language:      api.LANG_MAP[d.LangID.String],
 			Name:          d.ContainerDesc,
 			Description:   d.Descr,
 		}
@@ -640,7 +637,7 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 
 	// Language
 	if fileAsset.LangID.Valid {
-		l := langID2Locale[fileAsset.LangID.String]
+		l := api.LANG_MAP[fileAsset.LangID.String]
 		file.Language = null.NewString(l, l != "")
 	}
 
@@ -683,23 +680,10 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 	return file, err
 }
 
-func initLangs(exec boil.Executor) (map[string]string, error) {
-	languages, err := kmodels.Languages(exec).All()
-	if err != nil {
-		return nil, err
-	}
-
-	langID2Locale := make(map[string]string)
-	for _, l := range languages {
-		langID2Locale[l.Code3.String] = l.Locale.String
-	}
-	return langID2Locale, nil
-}
-
 func initServers(exec boil.Executor) (map[string]string, error) {
 	servers, err := kmodels.Servers(exec).All()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Load kmedia servers")
 	}
 
 	serverUrls := make(map[string]string)
