@@ -8,6 +8,8 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -21,17 +23,20 @@ import (
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"sync"
-	"sync/atomic"
+	"github.com/pkg/errors"
+	"sort"
 )
 
+const CATALOGS_MAPPINGS_FILE = "importer/kmedia/data/Catalogs Sources Mappings - final.csv"
+
 var (
-	mdb            *sql.DB
-	kmdb           *sql.DB
-	kmediaLessonCT *kmodels.ContentType
-	langID2Locale  map[string]string
-	serverUrls     map[string]string
-	stats          *ImportStatistics
+	mdb                     *sql.DB
+	kmdb                    *sql.DB
+	kmediaLessonCT          *kmodels.ContentType
+	langID2Locale           map[string]string
+	serverUrls              map[string]string
+	catalogsSourcesMappings map[int]*models.Source
+	stats                   *ImportStatistics
 )
 
 type MediaType struct {
@@ -92,6 +97,31 @@ func (a *AtomicInt32) Get() int32 {
 	return atomic.LoadInt32(&a.value)
 }
 
+type AtomicHistogram struct {
+	value map[string]*AtomicInt32
+}
+
+func NewAtomicHistogram() *AtomicHistogram {
+	return &AtomicHistogram{value: make(map[string]*AtomicInt32)}
+}
+
+func (h *AtomicHistogram) Inc(key string, delta int32) {
+	v, ok := h.value[key]
+	if !ok {
+		v = new(AtomicInt32)
+		h.value[key] = v
+	}
+	v.Inc(delta)
+}
+
+func (h *AtomicHistogram) Get() map[string]int32 {
+	r := make(map[string]int32, len(h.value))
+	for k, v := range h.value {
+		r[k] = v.Get()
+	}
+	return r
+}
+
 type ImportStatistics struct {
 	LessonsProcessed       AtomicInt32
 	ValidLessons           AtomicInt32
@@ -115,6 +145,12 @@ type ImportStatistics struct {
 
 	TxCommitted  AtomicInt32
 	TxRolledBack AtomicInt32
+
+	UnkownCatalogs AtomicHistogram
+}
+
+func NewImportStatistics() *ImportStatistics {
+	return &ImportStatistics{UnkownCatalogs: *NewAtomicHistogram()}
 }
 
 func (s *ImportStatistics) dump() {
@@ -144,6 +180,19 @@ func (s *ImportStatistics) dump() {
 
 	fmt.Printf("TxCommitted             		%d\n", s.TxCommitted.Get())
 	fmt.Printf("TxRolledBack            		%d\n", s.TxRolledBack.Get())
+
+	uc := s.UnkownCatalogs.Get()
+	fmt.Printf("UnkownCatalogs            		%d\n", len(uc))
+	keys := make([]string, len(uc))
+	i := 0
+	for k := range uc {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Printf("%s\t%d\n", k, uc[k])
+	}
 }
 
 func ImportKmedia() {
@@ -181,13 +230,18 @@ func ImportKmedia() {
 	serverUrls, err = initServers(kmdb)
 	utils.Must(err)
 
+	log.Info("Initializing catalogs sources mappings")
+	catalogsSourcesMappings, err = initCatalogMappings()
+	utils.Must(err)
+	log.Infof("Got %d mappings", len(catalogsSourcesMappings))
+
 	log.Info("Loading all virtual_lessons")
 	vls, err := kmodels.VirtualLessons(kmdb).All()
 	utils.Must(err)
 	log.Infof("Got %d lessons", len(vls))
 
 	// Process lessons
-	stats = new(ImportStatistics)
+	stats = NewImportStatistics()
 
 	log.Info("Setting up workers")
 	jobs := make(chan *kmodels.VirtualLesson, 100)
@@ -233,7 +287,7 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 			continue
 		}
 		if len(containers) == 0 {
-			log.Warningf("Invalid lesson [%d]", vl.ID)
+			log.Warnf("Invalid lesson [%d]", vl.ID)
 			stats.InvalidLessons.Inc(1)
 			continue
 		}
@@ -301,8 +355,6 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 		} else {
 			utils.Must(tx.Rollback())
 			stats.TxRolledBack.Inc(1)
-			log.Error(err)
-			debug.PrintStack()
 		}
 	}
 
@@ -348,11 +400,11 @@ func handleCollection(exec boil.Executor, vl *kmodels.VirtualLesson) (*models.Co
 			}
 			err = collection.Insert(exec)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Insert collection, virtual lesson [%d]", vl.ID)
 			}
 			stats.CollectionsCreated.Inc(1)
 		} else {
-			return nil, err
+			return nil, errors.Wrapf(err, "Lookup collection, virtual lesson [%d]", vl.ID)
 		}
 	}
 
@@ -392,11 +444,11 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 			}
 			err = unit.Insert(exec)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "Insert unit, container_id [%d]", container.ID)
 			}
 			stats.ContentUnitsCreated.Inc(1)
 		} else {
-			return nil, err
+			return nil, errors.Wrapf(err, "Lookup unit, container_id [%d]", container.ID)
 		}
 	}
 
@@ -423,13 +475,13 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 
 	err = unit.Update(exec, "properties")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Update properties, unit [%d]", unit.ID)
 	}
 
 	// I18n
 	descriptions, err := container.ContainerDescriptions(kmdb).All()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Lookup container descriptions, container_id [%d]", container.ID)
 	}
 	for _, d := range descriptions {
 		cui18n := models.ContentUnitI18n{
@@ -443,14 +495,14 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 			[]string{"content_unit_id", "language"},
 			[]string{"name", "description"})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Upsert unit i18n, unit [%d]", unit.ID)
 		}
 	}
 
 	// Associate content_unit with collection , name = position
 	err = unit.L.LoadCollectionsContentUnits(exec, true, unit)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Fetch unit collections, unit [%d]", unit.ID)
 	}
 
 	position := strconv.Itoa(container.Position.Int)
@@ -462,7 +514,7 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 			Name:          position,
 		})
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "Add unit collections, unit [%d]", unit.ID)
 		}
 	} else {
 		// Update
@@ -471,10 +523,40 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 				x.Name = position
 				err = x.Update(exec, "name")
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrapf(err,
+						"Update unit collection association, unit [%d], collection [%d]",
+						unit.ID, collection.ID)
 				}
 			}
 		}
+	}
+
+	// Associate sources
+	err = container.L.LoadCatalogs(kmdb, true, container)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Load catalogs, container [%d]", container.ID)
+	}
+
+	// Use a map as a set for uniqueness
+	unqSrc := make(map[*models.Source]bool, 0)
+	for _, x := range container.R.Catalogs {
+		s, ok := catalogsSourcesMappings[x.ID]
+		if ok {
+			unqSrc[s] = true
+		} else {
+			stats.UnkownCatalogs.Inc(fmt.Sprintf("%s [%d]", x.Name, x.ID), 1)
+		}
+	}
+
+	src := make([]*models.Source, len(unqSrc))
+	i := 0
+	for k := range unqSrc {
+		src[i] = k
+		i++
+	}
+	err = unit.SetSources(exec, false, src...)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Set sources, unit [%d]", unit.ID)
 	}
 
 	return unit, nil
@@ -507,9 +589,9 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 		if _, ok := err.(api.FileNotFound); ok {
 			shouldCreate := true
 
-			//For unknown file assets with valid sha1 do second lookup before we create a new file.
-			//This time with the fake sha1, if exists we replace fake hash with valid hash.
-			//Note: this paragraph should not be executed on first import.
+			// For unknown file assets with valid sha1 do second lookup before we create a new file.
+			// This time with the fake sha1, if exists we replace fake hash with valid hash.
+			// Note: this paragraph should not be executed on first import.
 			if fileAsset.Sha1.Valid {
 				file, _, err = api.FindFileBySHA1(exec,
 					fmt.Sprintf("%x", sha1.Sum([]byte(strconv.Itoa(fileAsset.ID)))))
@@ -519,7 +601,7 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 					stats.FilesUpdated.Inc(1)
 				} else {
 					if _, ok := err.(api.FileNotFound); !ok {
-						return nil, err
+						return nil, errors.Wrapf(err, "Second file lookup, file_asset [%d]", fileAsset.ID)
 					}
 				}
 			}
@@ -534,12 +616,12 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 				}
 				file, err = api.CreateFile(exec, nil, f, nil)
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrapf(err, "Create file")
 				}
 				stats.FilesCreated.Inc(1)
 			}
 		} else {
-			return nil, err
+			return nil, errors.Wrapf(err, "Lookup file %s", hash)
 		}
 	}
 
@@ -578,7 +660,7 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 
 	err = file.Update(exec)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Update file [%d]", file.ID)
 	}
 
 	// i18n
@@ -587,7 +669,7 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 	// Associate files with content unit
 	err = unit.AddFiles(exec, false, file)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Associate file [%d] to unit [%d]", file.ID, unit.ID)
 	}
 
 	// Associate files with operation
@@ -625,4 +707,68 @@ func initServers(exec boil.Executor) (map[string]string, error) {
 		serverUrls[s.Servername] = s.Httpurl.String
 	}
 	return serverUrls, nil
+}
+
+func initCatalogMappings() (map[int]*models.Source, error) {
+	// read catalogs mappings
+	records, err := utils.ReadCSV(CATALOGS_MAPPINGS_FILE)
+	if err != nil {
+		return nil, errors.Wrap(err, "Read catalogs mappings")
+	}
+	log.Infof("Catalogs Sources Mappings has %d rows", len(records))
+
+	// read MDB sources
+	rows, err := queries.Raw(mdb, `WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id,
+    concat(a.code, '/', s.name) path
+  FROM sources s INNER JOIN authors_sources x ON s.id = x.source_id
+    INNER JOIN authors a ON x.author_id = a.id
+  WHERE s.parent_id IS NULL
+  UNION
+  SELECT
+    s.id,
+    concat(rs.path, '/', s.name)
+  FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+)
+SELECT *
+FROM rec_sources;`).Query()
+	if err != nil {
+		return nil, errors.Wrap(err, "Read MDB sources")
+	}
+
+	defer rows.Close()
+
+	tmp := make(map[string]*models.Source)
+	for rows.Next() {
+		var id int64
+		var path string
+		err := rows.Scan(&id, &path)
+		if err != nil {
+			return nil, errors.Wrap(err, "Scan row")
+		}
+		tmp[path] = &models.Source{ID: id}
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, errors.Wrap(err, "Iterating MDB sources")
+	}
+	log.Infof("%d MDB Sources", len(tmp))
+
+	mappings := make(map[int]*models.Source)
+	for i, r := range records[1:] {
+		catalogID, err := strconv.Atoi(r[0])
+		if err != nil {
+			return nil, errors.Wrapf(err, "Bad catalog_id, row [%d]", i)
+		}
+
+		sourcePath := strings.TrimSpace(r[2])
+		s, ok := tmp[sourcePath]
+		if !ok {
+			log.Warnf("Unknown source, path=%s", sourcePath)
+		}
+		mappings[catalogID] = s
+	}
+
+	return mappings, nil
 }

@@ -47,3 +47,96 @@ DELETE FROM authors;
 DELETE FROM source_i18n;
 DELETE FROM sources;
 
+
+WITH RECURSIVE rec_sources AS (
+  SELECT s.*
+  FROM sources s
+  WHERE s.id = 3715
+  UNION
+  SELECT s.*
+  FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+)
+SELECT string_agg(name, '/')
+FROM rec_sources
+LIMIT 3;
+
+
+WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id,
+    concat(a.code, '/', s.name) path
+  FROM sources s INNER JOIN authors_sources x ON s.id = x.source_id
+    INNER JOIN authors a ON x.author_id = a.id
+  WHERE s.parent_id IS NULL
+  UNION
+  SELECT
+    s.id,
+    concat(rs.path, '/', s.name)
+  FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+)
+SELECT *
+FROM rec_sources;
+
+-- sources with named path
+COPY (
+WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id,
+    s.pattern,
+    concat(a.code, '/', s.name) path
+  FROM sources s INNER JOIN authors_sources x ON s.id = x.source_id
+    INNER JOIN authors a ON x.author_id = a.id
+  WHERE s.parent_id IS NULL
+  UNION
+  SELECT
+    s.id,
+    s.pattern,
+    concat(rs.path, '/', s.name)
+  FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+)
+SELECT *
+FROM rec_sources
+WHERE pattern IS NOT NULL
+ORDER BY pattern
+) TO '/var/lib/postgres/data/mdb_sources_patterns.csv' (
+FORMAT CSV );
+
+-- kmedia patterns -> catalogs
+COPY (
+SELECT
+  p.id,
+  p.pattern,
+  p.lang,
+  c.id,
+  c.name
+FROM catalogs c INNER JOIN catalogs_container_description_patterns cp ON c.id = cp.catalog_id
+  INNER JOIN container_description_patterns p ON cp.container_description_pattern_id = p.id
+ORDER BY p.pattern
+) TO '/var/lib/postgres/data/kmedia_patterns_catalogs.csv' (
+FORMAT CSV );
+
+-- kmedia catalogs with no patterns
+WITH RECURSIVE rec_catalogs AS (
+  SELECT
+    c.id,
+    c.name :: TEXT path
+  FROM catalogs c
+  WHERE c.id = 4016
+  --   WHERE c.parent_id IS NULL
+  --         AND c.id NOT IN (SELECT DISTINCT catalog_id
+  --                          FROM catalogs_container_description_patterns)
+  --         AND c.id IN (SELECT DISTINCT catalog_id
+  --                      FROM catalogs_containers)
+  UNION
+  SELECT
+    c.id,
+    concat(rc.path, '/', c.name)
+  FROM catalogs c INNER JOIN rec_catalogs rc ON c.parent_id = rc.id
+  --   WHERE c.id NOT IN (SELECT catalog_id
+  --                      FROM catalogs_container_description_patterns)
+  --         AND c.id IN (SELECT DISTINCT catalog_id
+  --                      FROM catalogs_containers)
+)
+SELECT *
+FROM rec_catalogs
+ORDER BY path;

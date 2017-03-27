@@ -35,3 +35,13 @@ func GenerateName(n int) string {
 	}
 	return string(b)
 }
+
+// true if every string in given slice is empty
+func IsEmpty(s []string) bool {
+	for _, x := range s {
+		if x != "" {
+			return false
+		}
+	}
+	return true
+}

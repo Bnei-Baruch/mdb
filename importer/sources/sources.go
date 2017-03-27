@@ -1,10 +1,10 @@
 package sources
 
 import (
-	"bufio"
 	"database/sql"
-	"encoding/csv"
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,15 +15,13 @@ import (
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/nullbio/null.v6"
 
-	"fmt"
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"strconv"
 )
 
 const (
-	BASE_PATH        = "importer/patterns/data/Sources - "
+	BASE_PATH        = "importer/sources/data/Sources - "
 	AUTHORS_FILE     = BASE_PATH + "Authors.csv"
 	COLLECTIONS_FILE = BASE_PATH + "Collections.csv"
 )
@@ -73,12 +71,12 @@ func ImportSources() {
 }
 
 func handleAuthors(db *sql.DB) error {
-	records, err := readCSV(AUTHORS_FILE)
+	records, err := utils.ReadCSV(AUTHORS_FILE)
 	if err != nil {
 		return errors.Wrap(err, "Read authors")
 	}
 
-	h, err := parseHeader(records[0])
+	h, err := utils.ParseCSVHeader(records[0])
 	if err != nil {
 		return errors.Wrap(err, "Bad header")
 	}
@@ -162,12 +160,12 @@ func doAuthor(exec boil.Executor, header map[string]int, record []string) error 
 }
 
 func handleCollections(db *sql.DB) error {
-	records, err := readCSV(COLLECTIONS_FILE)
+	records, err := utils.ReadCSV(COLLECTIONS_FILE)
 	if err != nil {
 		return errors.Wrap(err, "Read collections")
 	}
 
-	h, err := parseHeader(records[0])
+	h, err := utils.ParseCSVHeader(records[0])
 	if err != nil {
 		return errors.Wrap(err, "Bad header")
 	}
@@ -276,7 +274,7 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 		strings.ToLower(authorCode),
 		strings.Replace(strings.ToLower(name), " ", "-", -1))
 
-	records, err := readCSV(fn)
+	records, err := utils.ReadCSV(fn)
 	if err != nil {
 		if os.IsNotExist(err) {
 			log.Warnf("Input missing: %s", fn)
@@ -285,14 +283,14 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 		return errors.Wrap(err, "Read collection contents")
 	}
 
-	h, err := parseHeader(records[0])
+	h, err := utils.ParseCSVHeader(records[0])
 	if err != nil {
 		return errors.Wrap(err, "Bad header")
 	}
 
 	var parents = []*models.Source{collection}
 	for i, x := range records[1:] {
-		if isEmpty(x) {
+		if utils.IsEmpty(x) {
 			continue
 		}
 
@@ -390,36 +388,4 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 	}
 
 	return nil
-}
-
-func readCSV(path string) ([][]string, error) {
-	f, err := os.Open(path)
-	defer f.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return csv.NewReader(bufio.NewReader(f)).ReadAll()
-}
-
-func parseHeader(header []string) (map[string]int, error) {
-	if len(header) == 0 {
-		return nil, errors.New("Empty header")
-	}
-
-	h := make(map[string]int, len(header))
-	for i, x := range header {
-		h[strings.ToLower(x)] = i
-	}
-
-	return h, nil
-}
-
-func isEmpty(s []string) bool {
-	for _, x := range s {
-		if x != "" {
-			return false
-		}
-	}
-	return true
 }
