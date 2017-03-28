@@ -38,12 +38,6 @@ var (
 	}
 )
 
-type SourceInput struct {
-	models.Source
-	FileName string
-	Handler  func(exec boil.Executor, author *models.Author) error
-}
-
 func ImportSources() {
 	var err error
 	clock := time.Now()
@@ -376,7 +370,7 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 				[]string{"source_id", "language"},
 				[]string{"name", "description"})
 			if err != nil {
-				return errors.Wrapf(err, "Upsert source i18n")
+				return errors.Wrapf(err, "Upsert source [%s] i18n [%s]", source.ID, l)
 			}
 		}
 

@@ -140,3 +140,30 @@ WITH RECURSIVE rec_catalogs AS (
 SELECT *
 FROM rec_catalogs
 ORDER BY path;
+
+
+-- kmedia catalogs with i18n
+COPY (
+SELECT
+  c.id,
+  c.name,
+  (SELECT name
+   FROM catalog_descriptions
+   WHERE catalog_id = c.id AND lang_id = 'ENG') "en.name",
+  (SELECT name
+   FROM catalog_descriptions
+   WHERE catalog_id = c.id AND lang_id = 'HEB') "he.name",
+  (SELECT name
+   FROM catalog_descriptions
+   WHERE catalog_id = c.id AND lang_id = 'RUS') "ru.name",
+  (SELECT name
+   FROM catalog_descriptions
+   WHERE catalog_id = c.id AND lang_id = 'SPA') "es.name"
+--   (SELECT name
+--    FROM catalog_descriptions
+--    WHERE catalog_id = c.id AND lang_id = 'UKR') "ua.name"
+FROM catalogs c
+WHERE c.parent_id = 12
+ORDER BY c.id
+) TO '/var/lib/postgres/data/kmedia_holidays.csv' (
+FORMAT CSV );
