@@ -27,7 +27,10 @@ import (
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
-const CATALOGS_MAPPINGS_FILE = "importer/kmedia/data/Catalogs Sources Mappings - final.csv"
+const (
+	CATALOGS_SOURCES_MAPPINGS_FILE = "importer/kmedia/data/Catalogs Sources Mappings - final.csv"
+	CATALOGS_TAGS_MAPPINGS_FILE    = "importer/kmedia/data/catalogs_tags.csv"
+)
 
 var (
 	mdb                     *sql.DB
@@ -35,6 +38,7 @@ var (
 	kmediaLessonCT          *kmodels.ContentType
 	serverUrls              map[string]string
 	catalogsSourcesMappings map[int]*models.Source
+	catalogsTagsMappings    map[int]*models.Tag
 	stats                   *ImportStatistics
 )
 
@@ -97,7 +101,7 @@ func (a *AtomicInt32) Get() int32 {
 }
 
 type AtomicHistogram struct {
-	value map[string]int
+	value        map[string]int
 	sync.RWMutex // Read Write mutex, guards access to internal map
 }
 
@@ -228,9 +232,14 @@ func ImportKmedia() {
 	utils.Must(err)
 
 	log.Info("Initializing catalogs sources mappings")
-	catalogsSourcesMappings, err = initCatalogMappings()
+	catalogsSourcesMappings, err = initCatalogSourcesMappings()
 	utils.Must(err)
 	log.Infof("Got %d mappings", len(catalogsSourcesMappings))
+
+	log.Info("Initializing catalogs tags mappings")
+	catalogsTagsMappings, err = initCatalogTagsMappings()
+	utils.Must(err)
+	log.Infof("Got %d mappings", len(catalogsTagsMappings))
 
 	log.Info("Loading all virtual_lessons")
 	vls, err := kmodels.VirtualLessons(kmdb).All()
@@ -531,28 +540,34 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 		}
 	}
 
-	// Associate sources
+	// Associate sources & tags
 	err = container.L.LoadCatalogs(kmdb, true, container)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load catalogs, container [%d]", container.ID)
 	}
 
-	// Dedup list of matching sources
+	// Dedup list of matches
 	unqSrc := make(map[*models.Source]bool, 0)
+	unqTags := make(map[*models.Tag]bool, 0)
 	for _, x := range container.R.Catalogs {
 		s, ok := catalogsSourcesMappings[x.ID]
 		if ok {
 			unqSrc[s] = true
 		}
+		t, ok := catalogsTagsMappings[x.ID]
+		if ok {
+			unqTags[t] = true
+		}
 	}
 
-	// If no sources found for this container then add all his catalogs to unknown catalogs
-	if len(unqSrc) == 0 {
+	// If no matches add all his catalogs to unknown catalogs
+	if len(unqSrc)+len(unqTags) == 0 {
 		for _, x := range container.R.Catalogs {
 			stats.UnkownCatalogs.Inc(fmt.Sprintf("%s [%d]", x.Name, x.ID), 1)
 		}
 	}
 
+	// Set sources
 	src := make([]*models.Source, len(unqSrc))
 	i := 0
 	for k := range unqSrc {
@@ -562,6 +577,18 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 	err = unit.SetSources(exec, false, src...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Set sources, unit [%d]", unit.ID)
+	}
+
+	// Set tags
+	tags := make([]*models.Tag, len(unqTags))
+	i = 0
+	for k := range unqTags {
+		tags[i] = k
+		i++
+	}
+	err = unit.SetTags(exec, false, tags...)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Set tags, unit [%d]", unit.ID)
 	}
 
 	return unit, nil
@@ -701,11 +728,11 @@ func initServers(exec boil.Executor) (map[string]string, error) {
 	return serverUrls, nil
 }
 
-func initCatalogMappings() (map[int]*models.Source, error) {
-	// read catalogs mappings
-	records, err := utils.ReadCSV(CATALOGS_MAPPINGS_FILE)
+func initCatalogSourcesMappings() (map[int]*models.Source, error) {
+	// read mappings file
+	records, err := utils.ReadCSV(CATALOGS_SOURCES_MAPPINGS_FILE)
 	if err != nil {
-		return nil, errors.Wrap(err, "Read catalogs mappings")
+		return nil, errors.Wrap(err, "Read catalogs sources mappings")
 	}
 	log.Infof("Catalogs Sources Mappings has %d rows", len(records))
 
@@ -760,6 +787,42 @@ FROM rec_sources;`).Query()
 			log.Warnf("Unknown source, path=%s", sourcePath)
 		}
 		mappings[catalogID] = s
+	}
+
+	return mappings, nil
+}
+
+func initCatalogTagsMappings() (map[int]*models.Tag, error) {
+	// Read mappings file
+	records, err := utils.ReadCSV(CATALOGS_TAGS_MAPPINGS_FILE)
+	if err != nil {
+		return nil, errors.Wrap(err, "Read catalogs tags mappings")
+	}
+	log.Infof("Catalogs Tags Mappings has %d rows", len(records))
+
+	// Read all tags from MDB
+	tags, err := models.Tags(mdb).All()
+	if err != nil {
+		return nil, errors.Wrap(err, "Fetch tags from MDB")
+	}
+	tmp := make(map[int64]*models.Tag, len(tags))
+	for _, t := range tags {
+		tmp[t.ID] = t
+	}
+
+	// Create mappings
+	mappings := make(map[int]*models.Tag, len(records)-1)
+	for i, r := range records[1:] {
+		catalogID, err := strconv.Atoi(r[0])
+		if err != nil {
+			return nil, errors.Wrapf(err, "Bad catalog_id, row [%d]", i)
+		}
+		tagID, err := strconv.Atoi(r[1])
+		if err != nil {
+			return nil, errors.Wrapf(err, "Bad tag_id, row [%d]", i)
+		}
+
+		mappings[catalogID] = tmp[int64(tagID)]
 	}
 
 	return mappings, nil

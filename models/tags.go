@@ -31,9 +31,10 @@ type Tag struct {
 
 // tagR is where relationships are stored.
 type tagR struct {
-	Parent     *Tag
-	ParentTags TagSlice
-	TagI18ns   TagI18nSlice
+	Parent       *Tag
+	ParentTags   TagSlice
+	ContentUnits ContentUnitSlice
+	TagI18ns     TagI18nSlice
 }
 
 // tagL is where Load methods for each relationship are stored.
@@ -218,6 +219,31 @@ func (o *Tag) ParentTags(exec boil.Executor, mods ...qm.QueryMod) tagQuery {
 	return query
 }
 
+// ContentUnitsG retrieves all the content_unit's content units.
+func (o *Tag) ContentUnitsG(mods ...qm.QueryMod) contentUnitQuery {
+	return o.ContentUnits(boil.GetDB(), mods...)
+}
+
+// ContentUnits retrieves all the content_unit's content units with an executor.
+func (o *Tag) ContentUnits(exec boil.Executor, mods ...qm.QueryMod) contentUnitQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
+	}
+
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.InnerJoin("\"content_units_tags\" as \"b\" on \"a\".\"id\" = \"b\".\"content_unit_id\""),
+		qm.Where("\"b\".\"tag_id\"=?", o.ID),
+	)
+
+	query := ContentUnits(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"content_units\" as \"a\"")
+	return query
+}
+
 // TagI18nsG retrieves all the tag_i18n's tag i18n.
 func (o *Tag) TagI18nsG(mods ...qm.QueryMod) tagI18nQuery {
 	return o.TagI18ns(boil.GetDB(), mods...)
@@ -365,6 +391,87 @@ func (tagL) LoadParentTags(e boil.Executor, singular bool, maybeTag interface{})
 		for _, local := range slice {
 			if local.ID == foreign.ParentID.Int64 {
 				local.R.ParentTags = append(local.R.ParentTags, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadContentUnits allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (tagL) LoadContentUnits(e boil.Executor, singular bool, maybeTag interface{}) error {
+	var slice []*Tag
+	var object *Tag
+
+	count := 1
+	if singular {
+		object = maybeTag.(*Tag)
+	} else {
+		slice = *maybeTag.(*TagSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &tagR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &tagR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select \"a\".*, \"b\".\"tag_id\" from \"content_units\" as \"a\" inner join \"content_units_tags\" as \"b\" on \"a\".\"id\" = \"b\".\"content_unit_id\" where \"b\".\"tag_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load content_units")
+	}
+	defer results.Close()
+
+	var resultSlice []*ContentUnit
+
+	var localJoinCols []int64
+	for results.Next() {
+		one := new(ContentUnit)
+		var localJoinCol int64
+
+		err = results.Scan(&one.ID, &one.UID, &one.TypeID, &one.CreatedAt, &one.Properties, &localJoinCol)
+		if err = results.Err(); err != nil {
+			return errors.Wrap(err, "failed to plebian-bind eager loaded slice content_units")
+		}
+
+		resultSlice = append(resultSlice, one)
+		localJoinCols = append(localJoinCols, localJoinCol)
+	}
+
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "failed to plebian-bind eager loaded slice content_units")
+	}
+
+	if singular {
+		object.R.ContentUnits = resultSlice
+		return nil
+	}
+
+	for i, foreign := range resultSlice {
+		localJoinCol := localJoinCols[i]
+		for _, local := range slice {
+			if local.ID == localJoinCol {
+				local.R.ContentUnits = append(local.R.ContentUnits, foreign)
 				break
 			}
 		}
@@ -794,6 +901,237 @@ func (o *Tag) RemoveParentTags(exec boil.Executor, related ...*Tag) error {
 	}
 
 	return nil
+}
+
+// AddContentUnitsG adds the given related objects to the existing relationships
+// of the tag, optionally inserting them as new records.
+// Appends related to o.R.ContentUnits.
+// Sets related.R.Tags appropriately.
+// Uses the global database handle.
+func (o *Tag) AddContentUnitsG(insert bool, related ...*ContentUnit) error {
+	return o.AddContentUnits(boil.GetDB(), insert, related...)
+}
+
+// AddContentUnitsP adds the given related objects to the existing relationships
+// of the tag, optionally inserting them as new records.
+// Appends related to o.R.ContentUnits.
+// Sets related.R.Tags appropriately.
+// Panics on error.
+func (o *Tag) AddContentUnitsP(exec boil.Executor, insert bool, related ...*ContentUnit) {
+	if err := o.AddContentUnits(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddContentUnitsGP adds the given related objects to the existing relationships
+// of the tag, optionally inserting them as new records.
+// Appends related to o.R.ContentUnits.
+// Sets related.R.Tags appropriately.
+// Uses the global database handle and panics on error.
+func (o *Tag) AddContentUnitsGP(insert bool, related ...*ContentUnit) {
+	if err := o.AddContentUnits(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddContentUnits adds the given related objects to the existing relationships
+// of the tag, optionally inserting them as new records.
+// Appends related to o.R.ContentUnits.
+// Sets related.R.Tags appropriately.
+func (o *Tag) AddContentUnits(exec boil.Executor, insert bool, related ...*ContentUnit) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		}
+	}
+
+	for _, rel := range related {
+		query := "insert into \"content_units_tags\" (\"tag_id\", \"content_unit_id\") values ($1, $2)"
+		values := []interface{}{o.ID, rel.ID}
+
+		if boil.DebugMode {
+			fmt.Fprintln(boil.DebugWriter, query)
+			fmt.Fprintln(boil.DebugWriter, values)
+		}
+
+		_, err = exec.Exec(query, values...)
+		if err != nil {
+			return errors.Wrap(err, "failed to insert into join table")
+		}
+	}
+	if o.R == nil {
+		o.R = &tagR{
+			ContentUnits: related,
+		}
+	} else {
+		o.R.ContentUnits = append(o.R.ContentUnits, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &contentUnitR{
+				Tags: TagSlice{o},
+			}
+		} else {
+			rel.R.Tags = append(rel.R.Tags, o)
+		}
+	}
+	return nil
+}
+
+// SetContentUnitsG removes all previously related items of the
+// tag replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Tags's ContentUnits accordingly.
+// Replaces o.R.ContentUnits with related.
+// Sets related.R.Tags's ContentUnits accordingly.
+// Uses the global database handle.
+func (o *Tag) SetContentUnitsG(insert bool, related ...*ContentUnit) error {
+	return o.SetContentUnits(boil.GetDB(), insert, related...)
+}
+
+// SetContentUnitsP removes all previously related items of the
+// tag replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Tags's ContentUnits accordingly.
+// Replaces o.R.ContentUnits with related.
+// Sets related.R.Tags's ContentUnits accordingly.
+// Panics on error.
+func (o *Tag) SetContentUnitsP(exec boil.Executor, insert bool, related ...*ContentUnit) {
+	if err := o.SetContentUnits(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetContentUnitsGP removes all previously related items of the
+// tag replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Tags's ContentUnits accordingly.
+// Replaces o.R.ContentUnits with related.
+// Sets related.R.Tags's ContentUnits accordingly.
+// Uses the global database handle and panics on error.
+func (o *Tag) SetContentUnitsGP(insert bool, related ...*ContentUnit) {
+	if err := o.SetContentUnits(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetContentUnits removes all previously related items of the
+// tag replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Tags's ContentUnits accordingly.
+// Replaces o.R.ContentUnits with related.
+// Sets related.R.Tags's ContentUnits accordingly.
+func (o *Tag) SetContentUnits(exec boil.Executor, insert bool, related ...*ContentUnit) error {
+	query := "delete from \"content_units_tags\" where \"tag_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	removeContentUnitsFromTagsSlice(o, related)
+	o.R.ContentUnits = nil
+	return o.AddContentUnits(exec, insert, related...)
+}
+
+// RemoveContentUnitsG relationships from objects passed in.
+// Removes related items from R.ContentUnits (uses pointer comparison, removal does not keep order)
+// Sets related.R.Tags.
+// Uses the global database handle.
+func (o *Tag) RemoveContentUnitsG(related ...*ContentUnit) error {
+	return o.RemoveContentUnits(boil.GetDB(), related...)
+}
+
+// RemoveContentUnitsP relationships from objects passed in.
+// Removes related items from R.ContentUnits (uses pointer comparison, removal does not keep order)
+// Sets related.R.Tags.
+// Panics on error.
+func (o *Tag) RemoveContentUnitsP(exec boil.Executor, related ...*ContentUnit) {
+	if err := o.RemoveContentUnits(exec, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveContentUnitsGP relationships from objects passed in.
+// Removes related items from R.ContentUnits (uses pointer comparison, removal does not keep order)
+// Sets related.R.Tags.
+// Uses the global database handle and panics on error.
+func (o *Tag) RemoveContentUnitsGP(related ...*ContentUnit) {
+	if err := o.RemoveContentUnits(boil.GetDB(), related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveContentUnits relationships from objects passed in.
+// Removes related items from R.ContentUnits (uses pointer comparison, removal does not keep order)
+// Sets related.R.Tags.
+func (o *Tag) RemoveContentUnits(exec boil.Executor, related ...*ContentUnit) error {
+	var err error
+	query := fmt.Sprintf(
+		"delete from \"content_units_tags\" where \"tag_id\" = $1 and \"content_unit_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, len(related), 1, 1),
+	)
+	values := []interface{}{o.ID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err = exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+	removeContentUnitsFromTagsSlice(o, related)
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.ContentUnits {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.ContentUnits)
+			if ln > 1 && i < ln-1 {
+				o.R.ContentUnits[i] = o.R.ContentUnits[ln-1]
+			}
+			o.R.ContentUnits = o.R.ContentUnits[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
+func removeContentUnitsFromTagsSlice(o *Tag, related []*ContentUnit) {
+	for _, rel := range related {
+		if rel.R == nil {
+			continue
+		}
+		for i, ri := range rel.R.Tags {
+			if o.ID != ri.ID {
+				continue
+			}
+
+			ln := len(rel.R.Tags)
+			if ln > 1 && i < ln-1 {
+				rel.R.Tags[i] = rel.R.Tags[ln-1]
+			}
+			rel.R.Tags = rel.R.Tags[:ln-1]
+			break
+		}
+	}
 }
 
 // AddTagI18nsG adds the given related objects to the existing relationships

@@ -1,3 +1,4 @@
+no-tests=true
 no-hooks=true
 no-auto-timestamps=true
 blacklist=["migrations"]
