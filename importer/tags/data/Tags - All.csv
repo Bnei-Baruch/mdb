@@ -97,3 +97,8 @@ level,kmedia_catalog,pattern,description,en.label,he.label,ru.label,es.label,ua.
 2,7905,holidays-sfirat-haomer,,Counting of the Omer (Sefirat HaOmer),ספירת העומר,Подсчет Омер,Cuenta del Omer (Sefirat HaOmer),
 2,7908,holidays-17tamuz,,17 Tamuz,"י""ז בתמוז",17 Тамуза,,
 2,7912,holidays-tu-be-av,,Tu BeAv (Day of Love),ט״ו באב,Пятнадцатое Ава - День Любви,,
+1,,special-lesson,Special lesson types (for internal use),,חלקי שיעור מיוחדים,,,
+2,,achana,Lesson preparation,Preparation before lesson,הכנה לשיעור,Подготовка к уроку,Preparación,
+2,,shiur-nashim,Women lesson,Women lesson,שיעור נשים,,,
+2,,sheelot-ve-tshuvot,Questions & Answers,Questions & Answers,שאלות ותשובות,,,
+2,,sheelot-kli-olami,Questions from World Kli,Questions from World Kli,שאלות מהכלי העולמי,,,

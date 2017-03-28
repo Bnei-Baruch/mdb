@@ -50,7 +50,7 @@ func ImportTags() {
 
 	mappings = make(map[int]int64)
 	utils.Must(handleTopics(mdb))
-	log.Info("Here comes %d catalogs mappings", len(mappings))
+	log.Infof("Here comes %d catalogs mappings", len(mappings))
 	for k, v := range mappings {
 		fmt.Printf("%d\t%d\n", k, v)
 	}
@@ -87,10 +87,13 @@ func handleTopics(db *sql.DB) error {
 			return errors.Wrapf(err, "Bad level at row %d: %s", i+1, xLevel)
 		}
 
+		kmdbID := -1
 		xKmdbID := x[h["kmedia_catalog"]]
-		kmdbID, err := strconv.Atoi(xKmdbID)
-		if err != nil {
-			return errors.Wrapf(err, "Bad kmedia_catalog at row %d: %s", i+1, xKmdbID)
+		if xKmdbID != "" {
+			kmdbID, err = strconv.Atoi(xKmdbID)
+			if err != nil {
+				return errors.Wrapf(err, "Bad kmedia_catalog at row %d: %s", i+1, xKmdbID)
+			}
 		}
 
 		pattern := x[h["pattern"]]
@@ -121,9 +124,11 @@ func handleTopics(db *sql.DB) error {
 			}
 		} else {
 			if err == sql.ErrNoRows {
+				log.Infof("New pattern %s", pattern)
 				// create
 				tag = &models.Tag{
 					UID:         utils.GenerateUID(8),
+					Pattern:     null.StringFrom(pattern),
 					Description: null.NewString(description, description != ""),
 				}
 				if parent != nil {
@@ -159,12 +164,14 @@ func handleTopics(db *sql.DB) error {
 		}
 
 		// kmedia catalogs mappings
-		mappings[kmdbID] = tag.ID
+		if kmdbID > 0 {
+			mappings[kmdbID] = tag.ID
+		}
 
 		if level == len(parents)+1 {
 			parents = append(parents, tag)
 		} else {
-			parents[level - 1] = tag
+			parents[level-1] = tag
 		}
 	}
 
