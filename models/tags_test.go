@@ -395,13 +395,13 @@ func testTagToManyParentTags(t *testing.T) {
 	}
 }
 
-func testTagToManyTagsI18ns(t *testing.T) {
+func testTagToManyTagI18ns(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a Tag
-	var b, c TagsI18n
+	var b, c TagI18n
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, tagDBTypes, true, tagColumnsWithDefault...); err != nil {
@@ -412,8 +412,8 @@ func testTagToManyTagsI18ns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	randomize.Struct(seed, &b, tagsI18nDBTypes, false, tagsI18nColumnsWithDefault...)
-	randomize.Struct(seed, &c, tagsI18nDBTypes, false, tagsI18nColumnsWithDefault...)
+	randomize.Struct(seed, &b, tagI18nDBTypes, false, tagI18nColumnsWithDefault...)
+	randomize.Struct(seed, &c, tagI18nDBTypes, false, tagI18nColumnsWithDefault...)
 
 	b.TagID = a.ID
 	c.TagID = a.ID
@@ -424,13 +424,13 @@ func testTagToManyTagsI18ns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tagsI18n, err := a.TagsI18ns(tx).All()
+	tagI18n, err := a.TagI18ns(tx).All()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
-	for _, v := range tagsI18n {
+	for _, v := range tagI18n {
 		if v.TagID == b.TagID {
 			bFound = true
 		}
@@ -447,23 +447,23 @@ func testTagToManyTagsI18ns(t *testing.T) {
 	}
 
 	slice := TagSlice{&a}
-	if err = a.L.LoadTagsI18ns(tx, false, &slice); err != nil {
+	if err = a.L.LoadTagI18ns(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.TagsI18ns); got != 2 {
+	if got := len(a.R.TagI18ns); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	a.R.TagsI18ns = nil
-	if err = a.L.LoadTagsI18ns(tx, true, &a); err != nil {
+	a.R.TagI18ns = nil
+	if err = a.L.LoadTagI18ns(tx, true, &a); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.TagsI18ns); got != 2 {
+	if got := len(a.R.TagI18ns); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
 	if t.Failed() {
-		t.Logf("%#v", tagsI18n)
+		t.Logf("%#v", tagI18n)
 	}
 }
 
@@ -715,22 +715,22 @@ func testTagToManyRemoveOpParentTags(t *testing.T) {
 	}
 }
 
-func testTagToManyAddOpTagsI18ns(t *testing.T) {
+func testTagToManyAddOpTagI18ns(t *testing.T) {
 	var err error
 
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a Tag
-	var b, c, d, e TagsI18n
+	var b, c, d, e TagI18n
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, tagDBTypes, false, strmangle.SetComplement(tagPrimaryKeyColumns, tagColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	foreigners := []*TagsI18n{&b, &c, &d, &e}
+	foreigners := []*TagI18n{&b, &c, &d, &e}
 	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, tagsI18nDBTypes, false, strmangle.SetComplement(tagsI18nPrimaryKeyColumns, tagsI18nColumnsWithoutDefault)...); err != nil {
+		if err = randomize.Struct(seed, x, tagI18nDBTypes, false, strmangle.SetComplement(tagI18nPrimaryKeyColumns, tagI18nColumnsWithoutDefault)...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -745,13 +745,13 @@ func testTagToManyAddOpTagsI18ns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	foreignersSplitByInsertion := [][]*TagsI18n{
+	foreignersSplitByInsertion := [][]*TagI18n{
 		{&b, &c},
 		{&d, &e},
 	}
 
 	for i, x := range foreignersSplitByInsertion {
-		err = a.AddTagsI18ns(tx, i != 0, x...)
+		err = a.AddTagI18ns(tx, i != 0, x...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -773,14 +773,14 @@ func testTagToManyAddOpTagsI18ns(t *testing.T) {
 			t.Error("relationship was not added properly to the foreign slice")
 		}
 
-		if a.R.TagsI18ns[i*2] != first {
+		if a.R.TagI18ns[i*2] != first {
 			t.Error("relationship struct slice not set to correct value")
 		}
-		if a.R.TagsI18ns[i*2+1] != second {
+		if a.R.TagI18ns[i*2+1] != second {
 			t.Error("relationship struct slice not set to correct value")
 		}
 
-		count, err := a.TagsI18ns(tx).Count()
+		count, err := a.TagI18ns(tx).Count()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1018,7 +1018,7 @@ func testTagsSelect(t *testing.T) {
 }
 
 var (
-	tagDBTypes = map[string]string{`Description`: `character varying`, `ID`: `bigint`, `ParentID`: `bigint`}
+	tagDBTypes = map[string]string{`Description`: `character varying`, `ID`: `bigint`, `ParentID`: `bigint`, `Pattern`: `character varying`, `UID`: `character`}
 	_          = bytes.MinRead
 )
 

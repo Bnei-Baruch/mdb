@@ -22,6 +22,8 @@ type Tag struct {
 	ID          int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
 	Description null.String `boil:"description" json:"description,omitempty" toml:"description" yaml:"description,omitempty"`
 	ParentID    null.Int64  `boil:"parent_id" json:"parent_id,omitempty" toml:"parent_id" yaml:"parent_id,omitempty"`
+	UID         string      `boil:"uid" json:"uid" toml:"uid" yaml:"uid"`
+	Pattern     null.String `boil:"pattern" json:"pattern,omitempty" toml:"pattern" yaml:"pattern,omitempty"`
 
 	R *tagR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L tagL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -31,15 +33,15 @@ type Tag struct {
 type tagR struct {
 	Parent     *Tag
 	ParentTags TagSlice
-	TagsI18ns  TagsI18nSlice
+	TagI18ns   TagI18nSlice
 }
 
 // tagL is where Load methods for each relationship are stored.
 type tagL struct{}
 
 var (
-	tagColumns               = []string{"id", "description", "parent_id"}
-	tagColumnsWithoutDefault = []string{"description", "parent_id"}
+	tagColumns               = []string{"id", "description", "parent_id", "uid", "pattern"}
+	tagColumnsWithoutDefault = []string{"description", "parent_id", "uid", "pattern"}
 	tagColumnsWithDefault    = []string{"id"}
 	tagPrimaryKeyColumns     = []string{"id"}
 )
@@ -216,13 +218,13 @@ func (o *Tag) ParentTags(exec boil.Executor, mods ...qm.QueryMod) tagQuery {
 	return query
 }
 
-// TagsI18nsG retrieves all the tags_i18n's tags i18n.
-func (o *Tag) TagsI18nsG(mods ...qm.QueryMod) tagsI18nQuery {
-	return o.TagsI18ns(boil.GetDB(), mods...)
+// TagI18nsG retrieves all the tag_i18n's tag i18n.
+func (o *Tag) TagI18nsG(mods ...qm.QueryMod) tagI18nQuery {
+	return o.TagI18ns(boil.GetDB(), mods...)
 }
 
-// TagsI18ns retrieves all the tags_i18n's tags i18n with an executor.
-func (o *Tag) TagsI18ns(exec boil.Executor, mods ...qm.QueryMod) tagsI18nQuery {
+// TagI18ns retrieves all the tag_i18n's tag i18n with an executor.
+func (o *Tag) TagI18ns(exec boil.Executor, mods ...qm.QueryMod) tagI18nQuery {
 	queryMods := []qm.QueryMod{
 		qm.Select("\"a\".*"),
 	}
@@ -235,8 +237,8 @@ func (o *Tag) TagsI18ns(exec boil.Executor, mods ...qm.QueryMod) tagsI18nQuery {
 		qm.Where("\"a\".\"tag_id\"=?", o.ID),
 	)
 
-	query := TagsI18ns(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"tags_i18n\" as \"a\"")
+	query := TagI18ns(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"tag_i18n\" as \"a\"")
 	return query
 }
 
@@ -371,9 +373,9 @@ func (tagL) LoadParentTags(e boil.Executor, singular bool, maybeTag interface{})
 	return nil
 }
 
-// LoadTagsI18ns allows an eager lookup of values, cached into the
+// LoadTagI18ns allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (tagL) LoadTagsI18ns(e boil.Executor, singular bool, maybeTag interface{}) error {
+func (tagL) LoadTagI18ns(e boil.Executor, singular bool, maybeTag interface{}) error {
 	var slice []*Tag
 	var object *Tag
 
@@ -401,7 +403,7 @@ func (tagL) LoadTagsI18ns(e boil.Executor, singular bool, maybeTag interface{}) 
 	}
 
 	query := fmt.Sprintf(
-		"select * from \"tags_i18n\" where \"tag_id\" in (%s)",
+		"select * from \"tag_i18n\" where \"tag_id\" in (%s)",
 		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
 	)
 	if boil.DebugMode {
@@ -410,24 +412,24 @@ func (tagL) LoadTagsI18ns(e boil.Executor, singular bool, maybeTag interface{}) 
 
 	results, err := e.Query(query, args...)
 	if err != nil {
-		return errors.Wrap(err, "failed to eager load tags_i18n")
+		return errors.Wrap(err, "failed to eager load tag_i18n")
 	}
 	defer results.Close()
 
-	var resultSlice []*TagsI18n
+	var resultSlice []*TagI18n
 	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice tags_i18n")
+		return errors.Wrap(err, "failed to bind eager loaded slice tag_i18n")
 	}
 
 	if singular {
-		object.R.TagsI18ns = resultSlice
+		object.R.TagI18ns = resultSlice
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
 			if local.ID == foreign.TagID {
-				local.R.TagsI18ns = append(local.R.TagsI18ns, foreign)
+				local.R.TagI18ns = append(local.R.TagI18ns, foreign)
 				break
 			}
 		}
@@ -794,42 +796,42 @@ func (o *Tag) RemoveParentTags(exec boil.Executor, related ...*Tag) error {
 	return nil
 }
 
-// AddTagsI18nsG adds the given related objects to the existing relationships
+// AddTagI18nsG adds the given related objects to the existing relationships
 // of the tag, optionally inserting them as new records.
-// Appends related to o.R.TagsI18ns.
+// Appends related to o.R.TagI18ns.
 // Sets related.R.Tag appropriately.
 // Uses the global database handle.
-func (o *Tag) AddTagsI18nsG(insert bool, related ...*TagsI18n) error {
-	return o.AddTagsI18ns(boil.GetDB(), insert, related...)
+func (o *Tag) AddTagI18nsG(insert bool, related ...*TagI18n) error {
+	return o.AddTagI18ns(boil.GetDB(), insert, related...)
 }
 
-// AddTagsI18nsP adds the given related objects to the existing relationships
+// AddTagI18nsP adds the given related objects to the existing relationships
 // of the tag, optionally inserting them as new records.
-// Appends related to o.R.TagsI18ns.
+// Appends related to o.R.TagI18ns.
 // Sets related.R.Tag appropriately.
 // Panics on error.
-func (o *Tag) AddTagsI18nsP(exec boil.Executor, insert bool, related ...*TagsI18n) {
-	if err := o.AddTagsI18ns(exec, insert, related...); err != nil {
+func (o *Tag) AddTagI18nsP(exec boil.Executor, insert bool, related ...*TagI18n) {
+	if err := o.AddTagI18ns(exec, insert, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// AddTagsI18nsGP adds the given related objects to the existing relationships
+// AddTagI18nsGP adds the given related objects to the existing relationships
 // of the tag, optionally inserting them as new records.
-// Appends related to o.R.TagsI18ns.
+// Appends related to o.R.TagI18ns.
 // Sets related.R.Tag appropriately.
 // Uses the global database handle and panics on error.
-func (o *Tag) AddTagsI18nsGP(insert bool, related ...*TagsI18n) {
-	if err := o.AddTagsI18ns(boil.GetDB(), insert, related...); err != nil {
+func (o *Tag) AddTagI18nsGP(insert bool, related ...*TagI18n) {
+	if err := o.AddTagI18ns(boil.GetDB(), insert, related...); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// AddTagsI18ns adds the given related objects to the existing relationships
+// AddTagI18ns adds the given related objects to the existing relationships
 // of the tag, optionally inserting them as new records.
-// Appends related to o.R.TagsI18ns.
+// Appends related to o.R.TagI18ns.
 // Sets related.R.Tag appropriately.
-func (o *Tag) AddTagsI18ns(exec boil.Executor, insert bool, related ...*TagsI18n) error {
+func (o *Tag) AddTagI18ns(exec boil.Executor, insert bool, related ...*TagI18n) error {
 	var err error
 	for _, rel := range related {
 		if insert {
@@ -839,9 +841,9 @@ func (o *Tag) AddTagsI18ns(exec boil.Executor, insert bool, related ...*TagsI18n
 			}
 		} else {
 			updateQuery := fmt.Sprintf(
-				"UPDATE \"tags_i18n\" SET %s WHERE %s",
+				"UPDATE \"tag_i18n\" SET %s WHERE %s",
 				strmangle.SetParamNames("\"", "\"", 1, []string{"tag_id"}),
-				strmangle.WhereClause("\"", "\"", 2, tagsI18nPrimaryKeyColumns),
+				strmangle.WhereClause("\"", "\"", 2, tagI18nPrimaryKeyColumns),
 			)
 			values := []interface{}{o.ID, rel.TagID, rel.Language}
 
@@ -860,15 +862,15 @@ func (o *Tag) AddTagsI18ns(exec boil.Executor, insert bool, related ...*TagsI18n
 
 	if o.R == nil {
 		o.R = &tagR{
-			TagsI18ns: related,
+			TagI18ns: related,
 		}
 	} else {
-		o.R.TagsI18ns = append(o.R.TagsI18ns, related...)
+		o.R.TagI18ns = append(o.R.TagI18ns, related...)
 	}
 
 	for _, rel := range related {
 		if rel.R == nil {
-			rel.R = &tagsI18nR{
+			rel.R = &tagI18nR{
 				Tag: o,
 			}
 		} else {

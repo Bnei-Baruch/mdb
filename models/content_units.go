@@ -33,9 +33,9 @@ type ContentUnit struct {
 type contentUnitR struct {
 	Type                    *ContentType
 	Files                   FileSlice
+	Sources                 SourceSlice
 	CollectionsContentUnits CollectionsContentUnitSlice
 	ContentUnitI18ns        ContentUnitI18nSlice
-	Sources                 SourceSlice
 }
 
 // contentUnitL is where Load methods for each relationship are stored.
@@ -220,6 +220,31 @@ func (o *ContentUnit) Files(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 	return query
 }
 
+// SourcesG retrieves all the source's sources.
+func (o *ContentUnit) SourcesG(mods ...qm.QueryMod) sourceQuery {
+	return o.Sources(boil.GetDB(), mods...)
+}
+
+// Sources retrieves all the source's sources with an executor.
+func (o *ContentUnit) Sources(exec boil.Executor, mods ...qm.QueryMod) sourceQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
+	}
+
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.InnerJoin("\"content_units_sources\" as \"b\" on \"a\".\"id\" = \"b\".\"source_id\""),
+		qm.Where("\"b\".\"content_unit_id\"=?", o.ID),
+	)
+
+	query := Sources(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"sources\" as \"a\"")
+	return query
+}
+
 // CollectionsContentUnitsG retrieves all the collections_content_unit's collections content units.
 func (o *ContentUnit) CollectionsContentUnitsG(mods ...qm.QueryMod) collectionsContentUnitQuery {
 	return o.CollectionsContentUnits(boil.GetDB(), mods...)
@@ -265,31 +290,6 @@ func (o *ContentUnit) ContentUnitI18ns(exec boil.Executor, mods ...qm.QueryMod) 
 
 	query := ContentUnitI18ns(exec, queryMods...)
 	queries.SetFrom(query.Query, "\"content_unit_i18n\" as \"a\"")
-	return query
-}
-
-// SourcesG retrieves all the source's sources.
-func (o *ContentUnit) SourcesG(mods ...qm.QueryMod) sourceQuery {
-	return o.Sources(boil.GetDB(), mods...)
-}
-
-// Sources retrieves all the source's sources with an executor.
-func (o *ContentUnit) Sources(exec boil.Executor, mods ...qm.QueryMod) sourceQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.InnerJoin("\"content_units_sources\" as \"b\" on \"a\".\"id\" = \"b\".\"source_id\""),
-		qm.Where("\"b\".\"content_unit_id\"=?", o.ID),
-	)
-
-	query := Sources(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"sources\" as \"a\"")
 	return query
 }
 
@@ -424,6 +424,87 @@ func (contentUnitL) LoadFiles(e boil.Executor, singular bool, maybeContentUnit i
 	return nil
 }
 
+// LoadSources allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (contentUnitL) LoadSources(e boil.Executor, singular bool, maybeContentUnit interface{}) error {
+	var slice []*ContentUnit
+	var object *ContentUnit
+
+	count := 1
+	if singular {
+		object = maybeContentUnit.(*ContentUnit)
+	} else {
+		slice = *maybeContentUnit.(*ContentUnitSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &contentUnitR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &contentUnitR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select \"a\".*, \"b\".\"content_unit_id\" from \"sources\" as \"a\" inner join \"content_units_sources\" as \"b\" on \"a\".\"id\" = \"b\".\"source_id\" where \"b\".\"content_unit_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load sources")
+	}
+	defer results.Close()
+
+	var resultSlice []*Source
+
+	var localJoinCols []int64
+	for results.Next() {
+		one := new(Source)
+		var localJoinCol int64
+
+		err = results.Scan(&one.ID, &one.UID, &one.ParentID, &one.Pattern, &one.TypeID, &one.Position, &one.Name, &one.Description, &one.CreatedAt, &one.Properties, &localJoinCol)
+		if err = results.Err(); err != nil {
+			return errors.Wrap(err, "failed to plebian-bind eager loaded slice sources")
+		}
+
+		resultSlice = append(resultSlice, one)
+		localJoinCols = append(localJoinCols, localJoinCol)
+	}
+
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "failed to plebian-bind eager loaded slice sources")
+	}
+
+	if singular {
+		object.R.Sources = resultSlice
+		return nil
+	}
+
+	for i, foreign := range resultSlice {
+		localJoinCol := localJoinCols[i]
+		for _, local := range slice {
+			if local.ID == localJoinCol {
+				local.R.Sources = append(local.R.Sources, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // LoadCollectionsContentUnits allows an eager lookup of values, cached into the
 // loaded structs of the objects.
 func (contentUnitL) LoadCollectionsContentUnits(e boil.Executor, singular bool, maybeContentUnit interface{}) error {
@@ -546,87 +627,6 @@ func (contentUnitL) LoadContentUnitI18ns(e boil.Executor, singular bool, maybeCo
 		for _, local := range slice {
 			if local.ID == foreign.ContentUnitID {
 				local.R.ContentUnitI18ns = append(local.R.ContentUnitI18ns, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadSources allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (contentUnitL) LoadSources(e boil.Executor, singular bool, maybeContentUnit interface{}) error {
-	var slice []*ContentUnit
-	var object *ContentUnit
-
-	count := 1
-	if singular {
-		object = maybeContentUnit.(*ContentUnit)
-	} else {
-		slice = *maybeContentUnit.(*ContentUnitSlice)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &contentUnitR{}
-		}
-		args[0] = object.ID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &contentUnitR{}
-			}
-			args[i] = obj.ID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select \"a\".*, \"b\".\"content_unit_id\" from \"sources\" as \"a\" inner join \"content_units_sources\" as \"b\" on \"a\".\"id\" = \"b\".\"source_id\" where \"b\".\"content_unit_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load sources")
-	}
-	defer results.Close()
-
-	var resultSlice []*Source
-
-	var localJoinCols []int64
-	for results.Next() {
-		one := new(Source)
-		var localJoinCol int64
-
-		err = results.Scan(&one.ID, &one.UID, &one.ParentID, &one.Pattern, &one.TypeID, &one.Position, &one.Name, &one.Description, &one.CreatedAt, &one.Properties, &localJoinCol)
-		if err = results.Err(); err != nil {
-			return errors.Wrap(err, "failed to plebian-bind eager loaded slice sources")
-		}
-
-		resultSlice = append(resultSlice, one)
-		localJoinCols = append(localJoinCols, localJoinCol)
-	}
-
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "failed to plebian-bind eager loaded slice sources")
-	}
-
-	if singular {
-		object.R.Sources = resultSlice
-		return nil
-	}
-
-	for i, foreign := range resultSlice {
-		localJoinCol := localJoinCols[i]
-		for _, local := range slice {
-			if local.ID == localJoinCol {
-				local.R.Sources = append(local.R.Sources, foreign)
 				break
 			}
 		}
@@ -932,174 +932,6 @@ func (o *ContentUnit) RemoveFiles(exec boil.Executor, related ...*File) error {
 	return nil
 }
 
-// AddCollectionsContentUnitsG adds the given related objects to the existing relationships
-// of the content_unit, optionally inserting them as new records.
-// Appends related to o.R.CollectionsContentUnits.
-// Sets related.R.ContentUnit appropriately.
-// Uses the global database handle.
-func (o *ContentUnit) AddCollectionsContentUnitsG(insert bool, related ...*CollectionsContentUnit) error {
-	return o.AddCollectionsContentUnits(boil.GetDB(), insert, related...)
-}
-
-// AddCollectionsContentUnitsP adds the given related objects to the existing relationships
-// of the content_unit, optionally inserting them as new records.
-// Appends related to o.R.CollectionsContentUnits.
-// Sets related.R.ContentUnit appropriately.
-// Panics on error.
-func (o *ContentUnit) AddCollectionsContentUnitsP(exec boil.Executor, insert bool, related ...*CollectionsContentUnit) {
-	if err := o.AddCollectionsContentUnits(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddCollectionsContentUnitsGP adds the given related objects to the existing relationships
-// of the content_unit, optionally inserting them as new records.
-// Appends related to o.R.CollectionsContentUnits.
-// Sets related.R.ContentUnit appropriately.
-// Uses the global database handle and panics on error.
-func (o *ContentUnit) AddCollectionsContentUnitsGP(insert bool, related ...*CollectionsContentUnit) {
-	if err := o.AddCollectionsContentUnits(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddCollectionsContentUnits adds the given related objects to the existing relationships
-// of the content_unit, optionally inserting them as new records.
-// Appends related to o.R.CollectionsContentUnits.
-// Sets related.R.ContentUnit appropriately.
-func (o *ContentUnit) AddCollectionsContentUnits(exec boil.Executor, insert bool, related ...*CollectionsContentUnit) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.ContentUnitID = o.ID
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"collections_content_units\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"content_unit_id"}),
-				strmangle.WhereClause("\"", "\"", 2, collectionsContentUnitPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.CollectionID, rel.ContentUnitID}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.ContentUnitID = o.ID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &contentUnitR{
-			CollectionsContentUnits: related,
-		}
-	} else {
-		o.R.CollectionsContentUnits = append(o.R.CollectionsContentUnits, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &collectionsContentUnitR{
-				ContentUnit: o,
-			}
-		} else {
-			rel.R.ContentUnit = o
-		}
-	}
-	return nil
-}
-
-// AddContentUnitI18nsG adds the given related objects to the existing relationships
-// of the content_unit, optionally inserting them as new records.
-// Appends related to o.R.ContentUnitI18ns.
-// Sets related.R.ContentUnit appropriately.
-// Uses the global database handle.
-func (o *ContentUnit) AddContentUnitI18nsG(insert bool, related ...*ContentUnitI18n) error {
-	return o.AddContentUnitI18ns(boil.GetDB(), insert, related...)
-}
-
-// AddContentUnitI18nsP adds the given related objects to the existing relationships
-// of the content_unit, optionally inserting them as new records.
-// Appends related to o.R.ContentUnitI18ns.
-// Sets related.R.ContentUnit appropriately.
-// Panics on error.
-func (o *ContentUnit) AddContentUnitI18nsP(exec boil.Executor, insert bool, related ...*ContentUnitI18n) {
-	if err := o.AddContentUnitI18ns(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddContentUnitI18nsGP adds the given related objects to the existing relationships
-// of the content_unit, optionally inserting them as new records.
-// Appends related to o.R.ContentUnitI18ns.
-// Sets related.R.ContentUnit appropriately.
-// Uses the global database handle and panics on error.
-func (o *ContentUnit) AddContentUnitI18nsGP(insert bool, related ...*ContentUnitI18n) {
-	if err := o.AddContentUnitI18ns(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddContentUnitI18ns adds the given related objects to the existing relationships
-// of the content_unit, optionally inserting them as new records.
-// Appends related to o.R.ContentUnitI18ns.
-// Sets related.R.ContentUnit appropriately.
-func (o *ContentUnit) AddContentUnitI18ns(exec boil.Executor, insert bool, related ...*ContentUnitI18n) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.ContentUnitID = o.ID
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"content_unit_i18n\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"content_unit_id"}),
-				strmangle.WhereClause("\"", "\"", 2, contentUnitI18nPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.ContentUnitID, rel.Language}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.ContentUnitID = o.ID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &contentUnitR{
-			ContentUnitI18ns: related,
-		}
-	} else {
-		o.R.ContentUnitI18ns = append(o.R.ContentUnitI18ns, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &contentUnitI18nR{
-				ContentUnit: o,
-			}
-		} else {
-			rel.R.ContentUnit = o
-		}
-	}
-	return nil
-}
-
 // AddSourcesG adds the given related objects to the existing relationships
 // of the content_unit, optionally inserting them as new records.
 // Appends related to o.R.Sources.
@@ -1329,6 +1161,174 @@ func removeSourcesFromContentUnitsSlice(o *ContentUnit, related []*Source) {
 			break
 		}
 	}
+}
+
+// AddCollectionsContentUnitsG adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.CollectionsContentUnits.
+// Sets related.R.ContentUnit appropriately.
+// Uses the global database handle.
+func (o *ContentUnit) AddCollectionsContentUnitsG(insert bool, related ...*CollectionsContentUnit) error {
+	return o.AddCollectionsContentUnits(boil.GetDB(), insert, related...)
+}
+
+// AddCollectionsContentUnitsP adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.CollectionsContentUnits.
+// Sets related.R.ContentUnit appropriately.
+// Panics on error.
+func (o *ContentUnit) AddCollectionsContentUnitsP(exec boil.Executor, insert bool, related ...*CollectionsContentUnit) {
+	if err := o.AddCollectionsContentUnits(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddCollectionsContentUnitsGP adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.CollectionsContentUnits.
+// Sets related.R.ContentUnit appropriately.
+// Uses the global database handle and panics on error.
+func (o *ContentUnit) AddCollectionsContentUnitsGP(insert bool, related ...*CollectionsContentUnit) {
+	if err := o.AddCollectionsContentUnits(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddCollectionsContentUnits adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.CollectionsContentUnits.
+// Sets related.R.ContentUnit appropriately.
+func (o *ContentUnit) AddCollectionsContentUnits(exec boil.Executor, insert bool, related ...*CollectionsContentUnit) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ContentUnitID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"collections_content_units\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"content_unit_id"}),
+				strmangle.WhereClause("\"", "\"", 2, collectionsContentUnitPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.CollectionID, rel.ContentUnitID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ContentUnitID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &contentUnitR{
+			CollectionsContentUnits: related,
+		}
+	} else {
+		o.R.CollectionsContentUnits = append(o.R.CollectionsContentUnits, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &collectionsContentUnitR{
+				ContentUnit: o,
+			}
+		} else {
+			rel.R.ContentUnit = o
+		}
+	}
+	return nil
+}
+
+// AddContentUnitI18nsG adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.ContentUnitI18ns.
+// Sets related.R.ContentUnit appropriately.
+// Uses the global database handle.
+func (o *ContentUnit) AddContentUnitI18nsG(insert bool, related ...*ContentUnitI18n) error {
+	return o.AddContentUnitI18ns(boil.GetDB(), insert, related...)
+}
+
+// AddContentUnitI18nsP adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.ContentUnitI18ns.
+// Sets related.R.ContentUnit appropriately.
+// Panics on error.
+func (o *ContentUnit) AddContentUnitI18nsP(exec boil.Executor, insert bool, related ...*ContentUnitI18n) {
+	if err := o.AddContentUnitI18ns(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddContentUnitI18nsGP adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.ContentUnitI18ns.
+// Sets related.R.ContentUnit appropriately.
+// Uses the global database handle and panics on error.
+func (o *ContentUnit) AddContentUnitI18nsGP(insert bool, related ...*ContentUnitI18n) {
+	if err := o.AddContentUnitI18ns(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddContentUnitI18ns adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.ContentUnitI18ns.
+// Sets related.R.ContentUnit appropriately.
+func (o *ContentUnit) AddContentUnitI18ns(exec boil.Executor, insert bool, related ...*ContentUnitI18n) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ContentUnitID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"content_unit_i18n\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"content_unit_id"}),
+				strmangle.WhereClause("\"", "\"", 2, contentUnitI18nPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ContentUnitID, rel.Language}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ContentUnitID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &contentUnitR{
+			ContentUnitI18ns: related,
+		}
+	} else {
+		o.R.ContentUnitI18ns = append(o.R.ContentUnitI18ns, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &contentUnitI18nR{
+				ContentUnit: o,
+			}
+		} else {
+			rel.R.ContentUnit = o
+		}
+	}
+	return nil
 }
 
 // ContentUnitsG retrieves all records.

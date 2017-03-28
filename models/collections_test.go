@@ -321,78 +321,6 @@ func testCollectionsInsertWhitelist(t *testing.T) {
 	}
 }
 
-func testCollectionToManyCollectionsContentUnits(t *testing.T) {
-	var err error
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a Collection
-	var b, c CollectionsContentUnit
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, collectionDBTypes, true, collectionColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Collection struct: %s", err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	randomize.Struct(seed, &b, collectionsContentUnitDBTypes, false, collectionsContentUnitColumnsWithDefault...)
-	randomize.Struct(seed, &c, collectionsContentUnitDBTypes, false, collectionsContentUnitColumnsWithDefault...)
-
-	b.CollectionID = a.ID
-	c.CollectionID = a.ID
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	collectionsContentUnit, err := a.CollectionsContentUnits(tx).All()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bFound, cFound := false, false
-	for _, v := range collectionsContentUnit {
-		if v.CollectionID == b.CollectionID {
-			bFound = true
-		}
-		if v.CollectionID == c.CollectionID {
-			cFound = true
-		}
-	}
-
-	if !bFound {
-		t.Error("expected to find b")
-	}
-	if !cFound {
-		t.Error("expected to find c")
-	}
-
-	slice := CollectionSlice{&a}
-	if err = a.L.LoadCollectionsContentUnits(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.CollectionsContentUnits); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	a.R.CollectionsContentUnits = nil
-	if err = a.L.LoadCollectionsContentUnits(tx, true, &a); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.CollectionsContentUnits); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	if t.Failed() {
-		t.Logf("%#v", collectionsContentUnit)
-	}
-}
-
 func testCollectionToManyCollectionI18ns(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
@@ -465,29 +393,28 @@ func testCollectionToManyCollectionI18ns(t *testing.T) {
 	}
 }
 
-func testCollectionToManyAddOpCollectionsContentUnits(t *testing.T) {
+func testCollectionToManyCollectionsContentUnits(t *testing.T) {
 	var err error
-
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a Collection
-	var b, c, d, e CollectionsContentUnit
+	var b, c CollectionsContentUnit
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, collectionDBTypes, false, strmangle.SetComplement(collectionPrimaryKeyColumns, collectionColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*CollectionsContentUnit{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, collectionsContentUnitDBTypes, false, strmangle.SetComplement(collectionsContentUnitPrimaryKeyColumns, collectionsContentUnitColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
+	if err = randomize.Struct(seed, &a, collectionDBTypes, true, collectionColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Collection struct: %s", err)
 	}
 
 	if err := a.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
+
+	randomize.Struct(seed, &b, collectionsContentUnitDBTypes, false, collectionsContentUnitColumnsWithDefault...)
+	randomize.Struct(seed, &c, collectionsContentUnitDBTypes, false, collectionsContentUnitColumnsWithDefault...)
+
+	b.CollectionID = a.ID
+	c.CollectionID = a.ID
 	if err = b.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
@@ -495,50 +422,49 @@ func testCollectionToManyAddOpCollectionsContentUnits(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	foreignersSplitByInsertion := [][]*CollectionsContentUnit{
-		{&b, &c},
-		{&d, &e},
+	collectionsContentUnit, err := a.CollectionsContentUnits(tx).All()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	for i, x := range foreignersSplitByInsertion {
-		err = a.AddCollectionsContentUnits(tx, i != 0, x...)
-		if err != nil {
-			t.Fatal(err)
+	bFound, cFound := false, false
+	for _, v := range collectionsContentUnit {
+		if v.CollectionID == b.CollectionID {
+			bFound = true
 		}
+		if v.CollectionID == c.CollectionID {
+			cFound = true
+		}
+	}
 
-		first := x[0]
-		second := x[1]
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
 
-		if a.ID != first.CollectionID {
-			t.Error("foreign key was wrong value", a.ID, first.CollectionID)
-		}
-		if a.ID != second.CollectionID {
-			t.Error("foreign key was wrong value", a.ID, second.CollectionID)
-		}
+	slice := CollectionSlice{&a}
+	if err = a.L.LoadCollectionsContentUnits(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.CollectionsContentUnits); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
 
-		if first.R.Collection != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-		if second.R.Collection != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
+	a.R.CollectionsContentUnits = nil
+	if err = a.L.LoadCollectionsContentUnits(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.CollectionsContentUnits); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
 
-		if a.R.CollectionsContentUnits[i*2] != first {
-			t.Error("relationship struct slice not set to correct value")
-		}
-		if a.R.CollectionsContentUnits[i*2+1] != second {
-			t.Error("relationship struct slice not set to correct value")
-		}
-
-		count, err := a.CollectionsContentUnits(tx).Count()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := int64((i + 1) * 2); count != want {
-			t.Error("want", want, "got", count)
-		}
+	if t.Failed() {
+		t.Logf("%#v", collectionsContentUnit)
 	}
 }
+
 func testCollectionToManyAddOpCollectionI18ns(t *testing.T) {
 	var err error
 
@@ -605,6 +531,80 @@ func testCollectionToManyAddOpCollectionI18ns(t *testing.T) {
 		}
 
 		count, err := a.CollectionI18ns(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+func testCollectionToManyAddOpCollectionsContentUnits(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a Collection
+	var b, c, d, e CollectionsContentUnit
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, collectionDBTypes, false, strmangle.SetComplement(collectionPrimaryKeyColumns, collectionColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*CollectionsContentUnit{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, collectionsContentUnitDBTypes, false, strmangle.SetComplement(collectionsContentUnitPrimaryKeyColumns, collectionsContentUnitColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*CollectionsContentUnit{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddCollectionsContentUnits(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.CollectionID {
+			t.Error("foreign key was wrong value", a.ID, first.CollectionID)
+		}
+		if a.ID != second.CollectionID {
+			t.Error("foreign key was wrong value", a.ID, second.CollectionID)
+		}
+
+		if first.R.Collection != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.Collection != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.CollectionsContentUnits[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.CollectionsContentUnits[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.CollectionsContentUnits(tx).Count()
 		if err != nil {
 			t.Fatal(err)
 		}

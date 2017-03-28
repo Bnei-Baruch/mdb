@@ -395,6 +395,85 @@ func testContentUnitToManyFiles(t *testing.T) {
 	}
 }
 
+func testContentUnitToManySources(t *testing.T) {
+	var err error
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a ContentUnit
+	var b, c Source
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	randomize.Struct(seed, &b, sourceDBTypes, false, sourceColumnsWithDefault...)
+	randomize.Struct(seed, &c, sourceDBTypes, false, sourceColumnsWithDefault...)
+
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = tx.Exec("insert into \"content_units_sources\" (\"content_unit_id\", \"source_id\") values ($1, $2)", a.ID, b.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec("insert into \"content_units_sources\" (\"content_unit_id\", \"source_id\") values ($1, $2)", a.ID, c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	source, err := a.Sources(tx).All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range source {
+		if v.ID == b.ID {
+			bFound = true
+		}
+		if v.ID == c.ID {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := ContentUnitSlice{&a}
+	if err = a.L.LoadSources(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.Sources); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.Sources = nil
+	if err = a.L.LoadSources(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.Sources); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", source)
+	}
+}
+
 func testContentUnitToManyCollectionsContentUnits(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
@@ -536,85 +615,6 @@ func testContentUnitToManyContentUnitI18ns(t *testing.T) {
 
 	if t.Failed() {
 		t.Logf("%#v", contentUnitI18n)
-	}
-}
-
-func testContentUnitToManySources(t *testing.T) {
-	var err error
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a ContentUnit
-	var b, c Source
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	randomize.Struct(seed, &b, sourceDBTypes, false, sourceColumnsWithDefault...)
-	randomize.Struct(seed, &c, sourceDBTypes, false, sourceColumnsWithDefault...)
-
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = tx.Exec("insert into \"content_units_sources\" (\"content_unit_id\", \"source_id\") values ($1, $2)", a.ID, b.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = tx.Exec("insert into \"content_units_sources\" (\"content_unit_id\", \"source_id\") values ($1, $2)", a.ID, c.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	source, err := a.Sources(tx).All()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bFound, cFound := false, false
-	for _, v := range source {
-		if v.ID == b.ID {
-			bFound = true
-		}
-		if v.ID == c.ID {
-			cFound = true
-		}
-	}
-
-	if !bFound {
-		t.Error("expected to find b")
-	}
-	if !cFound {
-		t.Error("expected to find c")
-	}
-
-	slice := ContentUnitSlice{&a}
-	if err = a.L.LoadSources(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.Sources); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	a.R.Sources = nil
-	if err = a.L.LoadSources(tx, true, &a); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.Sources); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	if t.Failed() {
-		t.Logf("%#v", source)
 	}
 }
 
@@ -866,154 +866,6 @@ func testContentUnitToManyRemoveOpFiles(t *testing.T) {
 	}
 }
 
-func testContentUnitToManyAddOpCollectionsContentUnits(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a ContentUnit
-	var b, c, d, e CollectionsContentUnit
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*CollectionsContentUnit{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, collectionsContentUnitDBTypes, false, strmangle.SetComplement(collectionsContentUnitPrimaryKeyColumns, collectionsContentUnitColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	foreignersSplitByInsertion := [][]*CollectionsContentUnit{
-		{&b, &c},
-		{&d, &e},
-	}
-
-	for i, x := range foreignersSplitByInsertion {
-		err = a.AddCollectionsContentUnits(tx, i != 0, x...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		first := x[0]
-		second := x[1]
-
-		if a.ID != first.ContentUnitID {
-			t.Error("foreign key was wrong value", a.ID, first.ContentUnitID)
-		}
-		if a.ID != second.ContentUnitID {
-			t.Error("foreign key was wrong value", a.ID, second.ContentUnitID)
-		}
-
-		if first.R.ContentUnit != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-		if second.R.ContentUnit != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-
-		if a.R.CollectionsContentUnits[i*2] != first {
-			t.Error("relationship struct slice not set to correct value")
-		}
-		if a.R.CollectionsContentUnits[i*2+1] != second {
-			t.Error("relationship struct slice not set to correct value")
-		}
-
-		count, err := a.CollectionsContentUnits(tx).Count()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := int64((i + 1) * 2); count != want {
-			t.Error("want", want, "got", count)
-		}
-	}
-}
-func testContentUnitToManyAddOpContentUnitI18ns(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a ContentUnit
-	var b, c, d, e ContentUnitI18n
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*ContentUnitI18n{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, contentUnitI18nDBTypes, false, strmangle.SetComplement(contentUnitI18nPrimaryKeyColumns, contentUnitI18nColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	foreignersSplitByInsertion := [][]*ContentUnitI18n{
-		{&b, &c},
-		{&d, &e},
-	}
-
-	for i, x := range foreignersSplitByInsertion {
-		err = a.AddContentUnitI18ns(tx, i != 0, x...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		first := x[0]
-		second := x[1]
-
-		if a.ID != first.ContentUnitID {
-			t.Error("foreign key was wrong value", a.ID, first.ContentUnitID)
-		}
-		if a.ID != second.ContentUnitID {
-			t.Error("foreign key was wrong value", a.ID, second.ContentUnitID)
-		}
-
-		if first.R.ContentUnit != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-		if second.R.ContentUnit != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-
-		if a.R.ContentUnitI18ns[i*2] != first {
-			t.Error("relationship struct slice not set to correct value")
-		}
-		if a.R.ContentUnitI18ns[i*2+1] != second {
-			t.Error("relationship struct slice not set to correct value")
-		}
-
-		count, err := a.ContentUnitI18ns(tx).Count()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := int64((i + 1) * 2); count != want {
-			t.Error("want", want, "got", count)
-		}
-	}
-}
 func testContentUnitToManyAddOpSources(t *testing.T) {
 	var err error
 
@@ -1235,6 +1087,154 @@ func testContentUnitToManyRemoveOpSources(t *testing.T) {
 	}
 }
 
+func testContentUnitToManyAddOpCollectionsContentUnits(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a ContentUnit
+	var b, c, d, e CollectionsContentUnit
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*CollectionsContentUnit{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, collectionsContentUnitDBTypes, false, strmangle.SetComplement(collectionsContentUnitPrimaryKeyColumns, collectionsContentUnitColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*CollectionsContentUnit{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddCollectionsContentUnits(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.ContentUnitID {
+			t.Error("foreign key was wrong value", a.ID, first.ContentUnitID)
+		}
+		if a.ID != second.ContentUnitID {
+			t.Error("foreign key was wrong value", a.ID, second.ContentUnitID)
+		}
+
+		if first.R.ContentUnit != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.ContentUnit != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.CollectionsContentUnits[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.CollectionsContentUnits[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.CollectionsContentUnits(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+func testContentUnitToManyAddOpContentUnitI18ns(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a ContentUnit
+	var b, c, d, e ContentUnitI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*ContentUnitI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, contentUnitI18nDBTypes, false, strmangle.SetComplement(contentUnitI18nPrimaryKeyColumns, contentUnitI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*ContentUnitI18n{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddContentUnitI18ns(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.ContentUnitID {
+			t.Error("foreign key was wrong value", a.ID, first.ContentUnitID)
+		}
+		if a.ID != second.ContentUnitID {
+			t.Error("foreign key was wrong value", a.ID, second.ContentUnitID)
+		}
+
+		if first.R.ContentUnit != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.ContentUnit != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.ContentUnitI18ns[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.ContentUnitI18ns[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.ContentUnitI18ns(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
 func testContentUnitToOneContentTypeUsingType(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()

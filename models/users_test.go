@@ -321,80 +321,6 @@ func testUsersInsertWhitelist(t *testing.T) {
 	}
 }
 
-func testUserToManyOperations(t *testing.T) {
-	var err error
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a User
-	var b, c Operation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, userDBTypes, true, userColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize User struct: %s", err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	randomize.Struct(seed, &b, operationDBTypes, false, operationColumnsWithDefault...)
-	randomize.Struct(seed, &c, operationDBTypes, false, operationColumnsWithDefault...)
-
-	b.UserID.Valid = true
-	c.UserID.Valid = true
-	b.UserID.Int64 = a.ID
-	c.UserID.Int64 = a.ID
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	operation, err := a.Operations(tx).All()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bFound, cFound := false, false
-	for _, v := range operation {
-		if v.UserID.Int64 == b.UserID.Int64 {
-			bFound = true
-		}
-		if v.UserID.Int64 == c.UserID.Int64 {
-			cFound = true
-		}
-	}
-
-	if !bFound {
-		t.Error("expected to find b")
-	}
-	if !cFound {
-		t.Error("expected to find c")
-	}
-
-	slice := UserSlice{&a}
-	if err = a.L.LoadOperations(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.Operations); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	a.R.Operations = nil
-	if err = a.L.LoadOperations(tx, true, &a); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.Operations); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	if t.Failed() {
-		t.Logf("%#v", operation)
-	}
-}
-
 func testUserToManyCollectionI18ns(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
@@ -543,13 +469,13 @@ func testUserToManyContentUnitI18ns(t *testing.T) {
 	}
 }
 
-func testUserToManyTagsI18ns(t *testing.T) {
+func testUserToManyOperations(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a User
-	var b, c TagsI18n
+	var b, c Operation
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, userDBTypes, true, userColumnsWithDefault...); err != nil {
@@ -560,8 +486,8 @@ func testUserToManyTagsI18ns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	randomize.Struct(seed, &b, tagsI18nDBTypes, false, tagsI18nColumnsWithDefault...)
-	randomize.Struct(seed, &c, tagsI18nDBTypes, false, tagsI18nColumnsWithDefault...)
+	randomize.Struct(seed, &b, operationDBTypes, false, operationColumnsWithDefault...)
+	randomize.Struct(seed, &c, operationDBTypes, false, operationColumnsWithDefault...)
 
 	b.UserID.Valid = true
 	c.UserID.Valid = true
@@ -574,13 +500,13 @@ func testUserToManyTagsI18ns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tagsI18n, err := a.TagsI18ns(tx).All()
+	operation, err := a.Operations(tx).All()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
-	for _, v := range tagsI18n {
+	for _, v := range operation {
 		if v.UserID.Int64 == b.UserID.Int64 {
 			bFound = true
 		}
@@ -597,49 +523,50 @@ func testUserToManyTagsI18ns(t *testing.T) {
 	}
 
 	slice := UserSlice{&a}
-	if err = a.L.LoadTagsI18ns(tx, false, &slice); err != nil {
+	if err = a.L.LoadOperations(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.TagsI18ns); got != 2 {
+	if got := len(a.R.Operations); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	a.R.TagsI18ns = nil
-	if err = a.L.LoadTagsI18ns(tx, true, &a); err != nil {
+	a.R.Operations = nil
+	if err = a.L.LoadOperations(tx, true, &a); err != nil {
 		t.Fatal(err)
 	}
-	if got := len(a.R.TagsI18ns); got != 2 {
+	if got := len(a.R.Operations); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
 	if t.Failed() {
-		t.Logf("%#v", tagsI18n)
+		t.Logf("%#v", operation)
 	}
 }
 
-func testUserToManyAddOpOperations(t *testing.T) {
+func testUserToManyTagI18ns(t *testing.T) {
 	var err error
-
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a User
-	var b, c, d, e Operation
+	var b, c TagI18n
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*Operation{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
+	if err = randomize.Struct(seed, &a, userDBTypes, true, userColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize User struct: %s", err)
 	}
 
 	if err := a.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
+
+	randomize.Struct(seed, &b, tagI18nDBTypes, false, tagI18nColumnsWithDefault...)
+	randomize.Struct(seed, &c, tagI18nDBTypes, false, tagI18nColumnsWithDefault...)
+
+	b.UserID.Valid = true
+	c.UserID.Valid = true
+	b.UserID.Int64 = a.ID
+	c.UserID.Int64 = a.ID
 	if err = b.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
@@ -647,221 +574,46 @@ func testUserToManyAddOpOperations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	foreignersSplitByInsertion := [][]*Operation{
-		{&b, &c},
-		{&d, &e},
-	}
-
-	for i, x := range foreignersSplitByInsertion {
-		err = a.AddOperations(tx, i != 0, x...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		first := x[0]
-		second := x[1]
-
-		if a.ID != first.UserID.Int64 {
-			t.Error("foreign key was wrong value", a.ID, first.UserID.Int64)
-		}
-		if a.ID != second.UserID.Int64 {
-			t.Error("foreign key was wrong value", a.ID, second.UserID.Int64)
-		}
-
-		if first.R.User != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-		if second.R.User != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-
-		if a.R.Operations[i*2] != first {
-			t.Error("relationship struct slice not set to correct value")
-		}
-		if a.R.Operations[i*2+1] != second {
-			t.Error("relationship struct slice not set to correct value")
-		}
-
-		count, err := a.Operations(tx).Count()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := int64((i + 1) * 2); count != want {
-			t.Error("want", want, "got", count)
-		}
-	}
-}
-
-func testUserToManySetOpOperations(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a User
-	var b, c, d, e Operation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*Operation{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err = a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	err = a.SetOperations(tx, false, &b, &c)
+	tagI18n, err := a.TagI18ns(tx).All()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err := a.Operations(tx).Count()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	err = a.SetOperations(tx, true, &d, &e)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err = a.Operations(tx).Count()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	if b.UserID.Valid {
-		t.Error("want b's foreign key value to be nil")
-	}
-	if c.UserID.Valid {
-		t.Error("want c's foreign key value to be nil")
-	}
-	if a.ID != d.UserID.Int64 {
-		t.Error("foreign key was wrong value", a.ID, d.UserID.Int64)
-	}
-	if a.ID != e.UserID.Int64 {
-		t.Error("foreign key was wrong value", a.ID, e.UserID.Int64)
-	}
-
-	if b.R.User != nil {
-		t.Error("relationship was not removed properly from the foreign struct")
-	}
-	if c.R.User != nil {
-		t.Error("relationship was not removed properly from the foreign struct")
-	}
-	if d.R.User != &a {
-		t.Error("relationship was not added properly to the foreign struct")
-	}
-	if e.R.User != &a {
-		t.Error("relationship was not added properly to the foreign struct")
-	}
-
-	if a.R.Operations[0] != &d {
-		t.Error("relationship struct slice not set to correct value")
-	}
-	if a.R.Operations[1] != &e {
-		t.Error("relationship struct slice not set to correct value")
-	}
-}
-
-func testUserToManyRemoveOpOperations(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a User
-	var b, c, d, e Operation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*Operation{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
+	bFound, cFound := false, false
+	for _, v := range tagI18n {
+		if v.UserID.Int64 == b.UserID.Int64 {
+			bFound = true
+		}
+		if v.UserID.Int64 == c.UserID.Int64 {
+			cFound = true
 		}
 	}
 
-	if err := a.Insert(tx); err != nil {
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := UserSlice{&a}
+	if err = a.L.LoadTagI18ns(tx, false, &slice); err != nil {
 		t.Fatal(err)
 	}
+	if got := len(a.R.TagI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
 
-	err = a.AddOperations(tx, true, foreigners...)
-	if err != nil {
+	a.R.TagI18ns = nil
+	if err = a.L.LoadTagI18ns(tx, true, &a); err != nil {
 		t.Fatal(err)
 	}
-
-	count, err := a.Operations(tx).Count()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 4 {
-		t.Error("count was wrong:", count)
+	if got := len(a.R.TagI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
-	err = a.RemoveOperations(tx, foreigners[:2]...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	count, err = a.Operations(tx).Count()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Error("count was wrong:", count)
-	}
-
-	if b.UserID.Valid {
-		t.Error("want b's foreign key value to be nil")
-	}
-	if c.UserID.Valid {
-		t.Error("want c's foreign key value to be nil")
-	}
-
-	if b.R.User != nil {
-		t.Error("relationship was not removed properly from the foreign struct")
-	}
-	if c.R.User != nil {
-		t.Error("relationship was not removed properly from the foreign struct")
-	}
-	if d.R.User != &a {
-		t.Error("relationship to a should have been preserved")
-	}
-	if e.R.User != &a {
-		t.Error("relationship to a should have been preserved")
-	}
-
-	if len(a.R.Operations) != 2 {
-		t.Error("should have preserved two relationships")
-	}
-
-	// Removal doesn't do a stable deletion for performance so we have to flip the order
-	if a.R.Operations[1] != &d {
-		t.Error("relationship to d should have been preserved")
-	}
-	if a.R.Operations[0] != &e {
-		t.Error("relationship to e should have been preserved")
+	if t.Failed() {
+		t.Logf("%#v", tagI18n)
 	}
 }
 
@@ -1361,22 +1113,22 @@ func testUserToManyRemoveOpContentUnitI18ns(t *testing.T) {
 	}
 }
 
-func testUserToManyAddOpTagsI18ns(t *testing.T) {
+func testUserToManyAddOpOperations(t *testing.T) {
 	var err error
 
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a User
-	var b, c, d, e TagsI18n
+	var b, c, d, e Operation
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	foreigners := []*TagsI18n{&b, &c, &d, &e}
+	foreigners := []*Operation{&b, &c, &d, &e}
 	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, tagsI18nDBTypes, false, strmangle.SetComplement(tagsI18nPrimaryKeyColumns, tagsI18nColumnsWithoutDefault)...); err != nil {
+		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1391,13 +1143,13 @@ func testUserToManyAddOpTagsI18ns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	foreignersSplitByInsertion := [][]*TagsI18n{
+	foreignersSplitByInsertion := [][]*Operation{
 		{&b, &c},
 		{&d, &e},
 	}
 
 	for i, x := range foreignersSplitByInsertion {
-		err = a.AddTagsI18ns(tx, i != 0, x...)
+		err = a.AddOperations(tx, i != 0, x...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1419,14 +1171,14 @@ func testUserToManyAddOpTagsI18ns(t *testing.T) {
 			t.Error("relationship was not added properly to the foreign slice")
 		}
 
-		if a.R.TagsI18ns[i*2] != first {
+		if a.R.Operations[i*2] != first {
 			t.Error("relationship struct slice not set to correct value")
 		}
-		if a.R.TagsI18ns[i*2+1] != second {
+		if a.R.Operations[i*2+1] != second {
 			t.Error("relationship struct slice not set to correct value")
 		}
 
-		count, err := a.TagsI18ns(tx).Count()
+		count, err := a.Operations(tx).Count()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1436,22 +1188,22 @@ func testUserToManyAddOpTagsI18ns(t *testing.T) {
 	}
 }
 
-func testUserToManySetOpTagsI18ns(t *testing.T) {
+func testUserToManySetOpOperations(t *testing.T) {
 	var err error
 
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a User
-	var b, c, d, e TagsI18n
+	var b, c, d, e Operation
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	foreigners := []*TagsI18n{&b, &c, &d, &e}
+	foreigners := []*Operation{&b, &c, &d, &e}
 	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, tagsI18nDBTypes, false, strmangle.SetComplement(tagsI18nPrimaryKeyColumns, tagsI18nColumnsWithoutDefault)...); err != nil {
+		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1466,12 +1218,12 @@ func testUserToManySetOpTagsI18ns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = a.SetTagsI18ns(tx, false, &b, &c)
+	err = a.SetOperations(tx, false, &b, &c)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err := a.TagsI18ns(tx).Count()
+	count, err := a.Operations(tx).Count()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1479,12 +1231,12 @@ func testUserToManySetOpTagsI18ns(t *testing.T) {
 		t.Error("count was wrong:", count)
 	}
 
-	err = a.SetTagsI18ns(tx, true, &d, &e)
+	err = a.SetOperations(tx, true, &d, &e)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err = a.TagsI18ns(tx).Count()
+	count, err = a.Operations(tx).Count()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1518,30 +1270,30 @@ func testUserToManySetOpTagsI18ns(t *testing.T) {
 		t.Error("relationship was not added properly to the foreign struct")
 	}
 
-	if a.R.TagsI18ns[0] != &d {
+	if a.R.Operations[0] != &d {
 		t.Error("relationship struct slice not set to correct value")
 	}
-	if a.R.TagsI18ns[1] != &e {
+	if a.R.Operations[1] != &e {
 		t.Error("relationship struct slice not set to correct value")
 	}
 }
 
-func testUserToManyRemoveOpTagsI18ns(t *testing.T) {
+func testUserToManyRemoveOpOperations(t *testing.T) {
 	var err error
 
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a User
-	var b, c, d, e TagsI18n
+	var b, c, d, e Operation
 
 	seed := randomize.NewSeed()
 	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
 		t.Fatal(err)
 	}
-	foreigners := []*TagsI18n{&b, &c, &d, &e}
+	foreigners := []*Operation{&b, &c, &d, &e}
 	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, tagsI18nDBTypes, false, strmangle.SetComplement(tagsI18nPrimaryKeyColumns, tagsI18nColumnsWithoutDefault)...); err != nil {
+		if err = randomize.Struct(seed, x, operationDBTypes, false, strmangle.SetComplement(operationPrimaryKeyColumns, operationColumnsWithoutDefault)...); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1550,12 +1302,12 @@ func testUserToManyRemoveOpTagsI18ns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = a.AddTagsI18ns(tx, true, foreigners...)
+	err = a.AddOperations(tx, true, foreigners...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err := a.TagsI18ns(tx).Count()
+	count, err := a.Operations(tx).Count()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1563,12 +1315,12 @@ func testUserToManyRemoveOpTagsI18ns(t *testing.T) {
 		t.Error("count was wrong:", count)
 	}
 
-	err = a.RemoveTagsI18ns(tx, foreigners[:2]...)
+	err = a.RemoveOperations(tx, foreigners[:2]...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	count, err = a.TagsI18ns(tx).Count()
+	count, err = a.Operations(tx).Count()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1596,15 +1348,263 @@ func testUserToManyRemoveOpTagsI18ns(t *testing.T) {
 		t.Error("relationship to a should have been preserved")
 	}
 
-	if len(a.R.TagsI18ns) != 2 {
+	if len(a.R.Operations) != 2 {
 		t.Error("should have preserved two relationships")
 	}
 
 	// Removal doesn't do a stable deletion for performance so we have to flip the order
-	if a.R.TagsI18ns[1] != &d {
+	if a.R.Operations[1] != &d {
 		t.Error("relationship to d should have been preserved")
 	}
-	if a.R.TagsI18ns[0] != &e {
+	if a.R.Operations[0] != &e {
+		t.Error("relationship to e should have been preserved")
+	}
+}
+
+func testUserToManyAddOpTagI18ns(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a User
+	var b, c, d, e TagI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*TagI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, tagI18nDBTypes, false, strmangle.SetComplement(tagI18nPrimaryKeyColumns, tagI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*TagI18n{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddTagI18ns(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.UserID.Int64 {
+			t.Error("foreign key was wrong value", a.ID, first.UserID.Int64)
+		}
+		if a.ID != second.UserID.Int64 {
+			t.Error("foreign key was wrong value", a.ID, second.UserID.Int64)
+		}
+
+		if first.R.User != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.User != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.TagI18ns[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.TagI18ns[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.TagI18ns(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+
+func testUserToManySetOpTagI18ns(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a User
+	var b, c, d, e TagI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*TagI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, tagI18nDBTypes, false, strmangle.SetComplement(tagI18nPrimaryKeyColumns, tagI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.SetTagI18ns(tx, false, &b, &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.TagI18ns(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.SetTagI18ns(tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.TagI18ns(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if b.UserID.Valid {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if c.UserID.Valid {
+		t.Error("want c's foreign key value to be nil")
+	}
+	if a.ID != d.UserID.Int64 {
+		t.Error("foreign key was wrong value", a.ID, d.UserID.Int64)
+	}
+	if a.ID != e.UserID.Int64 {
+		t.Error("foreign key was wrong value", a.ID, e.UserID.Int64)
+	}
+
+	if b.R.User != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.User != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.User != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+	if e.R.User != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+
+	if a.R.TagI18ns[0] != &d {
+		t.Error("relationship struct slice not set to correct value")
+	}
+	if a.R.TagI18ns[1] != &e {
+		t.Error("relationship struct slice not set to correct value")
+	}
+}
+
+func testUserToManyRemoveOpTagI18ns(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a User
+	var b, c, d, e TagI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*TagI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, tagI18nDBTypes, false, strmangle.SetComplement(tagI18nPrimaryKeyColumns, tagI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.AddTagI18ns(tx, true, foreigners...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.TagI18ns(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.RemoveTagI18ns(tx, foreigners[:2]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.TagI18ns(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if b.UserID.Valid {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if c.UserID.Valid {
+		t.Error("want c's foreign key value to be nil")
+	}
+
+	if b.R.User != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.User != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.User != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+	if e.R.User != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+
+	if len(a.R.TagI18ns) != 2 {
+		t.Error("should have preserved two relationships")
+	}
+
+	// Removal doesn't do a stable deletion for performance so we have to flip the order
+	if a.R.TagI18ns[1] != &d {
+		t.Error("relationship to d should have been preserved")
+	}
+	if a.R.TagI18ns[0] != &e {
 		t.Error("relationship to e should have been preserved")
 	}
 }

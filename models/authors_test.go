@@ -321,78 +321,6 @@ func testAuthorsInsertWhitelist(t *testing.T) {
 	}
 }
 
-func testAuthorToManyAuthorI18ns(t *testing.T) {
-	var err error
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a Author
-	var b, c AuthorI18n
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, authorDBTypes, true, authorColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Author struct: %s", err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	randomize.Struct(seed, &b, authorI18nDBTypes, false, authorI18nColumnsWithDefault...)
-	randomize.Struct(seed, &c, authorI18nDBTypes, false, authorI18nColumnsWithDefault...)
-
-	b.AuthorID = a.ID
-	c.AuthorID = a.ID
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	authorI18n, err := a.AuthorI18ns(tx).All()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bFound, cFound := false, false
-	for _, v := range authorI18n {
-		if v.AuthorID == b.AuthorID {
-			bFound = true
-		}
-		if v.AuthorID == c.AuthorID {
-			cFound = true
-		}
-	}
-
-	if !bFound {
-		t.Error("expected to find b")
-	}
-	if !cFound {
-		t.Error("expected to find c")
-	}
-
-	slice := AuthorSlice{&a}
-	if err = a.L.LoadAuthorI18ns(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.AuthorI18ns); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	a.R.AuthorI18ns = nil
-	if err = a.L.LoadAuthorI18ns(tx, true, &a); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.AuthorI18ns); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	if t.Failed() {
-		t.Logf("%#v", authorI18n)
-	}
-}
-
 func testAuthorToManySources(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
@@ -472,29 +400,28 @@ func testAuthorToManySources(t *testing.T) {
 	}
 }
 
-func testAuthorToManyAddOpAuthorI18ns(t *testing.T) {
+func testAuthorToManyAuthorI18ns(t *testing.T) {
 	var err error
-
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
 
 	var a Author
-	var b, c, d, e AuthorI18n
+	var b, c AuthorI18n
 
 	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, authorDBTypes, false, strmangle.SetComplement(authorPrimaryKeyColumns, authorColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*AuthorI18n{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, authorI18nDBTypes, false, strmangle.SetComplement(authorI18nPrimaryKeyColumns, authorI18nColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
+	if err = randomize.Struct(seed, &a, authorDBTypes, true, authorColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Author struct: %s", err)
 	}
 
 	if err := a.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
+
+	randomize.Struct(seed, &b, authorI18nDBTypes, false, authorI18nColumnsWithDefault...)
+	randomize.Struct(seed, &c, authorI18nDBTypes, false, authorI18nColumnsWithDefault...)
+
+	b.AuthorID = a.ID
+	c.AuthorID = a.ID
 	if err = b.Insert(tx); err != nil {
 		t.Fatal(err)
 	}
@@ -502,50 +429,49 @@ func testAuthorToManyAddOpAuthorI18ns(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	foreignersSplitByInsertion := [][]*AuthorI18n{
-		{&b, &c},
-		{&d, &e},
+	authorI18n, err := a.AuthorI18ns(tx).All()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	for i, x := range foreignersSplitByInsertion {
-		err = a.AddAuthorI18ns(tx, i != 0, x...)
-		if err != nil {
-			t.Fatal(err)
+	bFound, cFound := false, false
+	for _, v := range authorI18n {
+		if v.AuthorID == b.AuthorID {
+			bFound = true
 		}
+		if v.AuthorID == c.AuthorID {
+			cFound = true
+		}
+	}
 
-		first := x[0]
-		second := x[1]
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
 
-		if a.ID != first.AuthorID {
-			t.Error("foreign key was wrong value", a.ID, first.AuthorID)
-		}
-		if a.ID != second.AuthorID {
-			t.Error("foreign key was wrong value", a.ID, second.AuthorID)
-		}
+	slice := AuthorSlice{&a}
+	if err = a.L.LoadAuthorI18ns(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.AuthorI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
 
-		if first.R.Author != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-		if second.R.Author != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
+	a.R.AuthorI18ns = nil
+	if err = a.L.LoadAuthorI18ns(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.AuthorI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
 
-		if a.R.AuthorI18ns[i*2] != first {
-			t.Error("relationship struct slice not set to correct value")
-		}
-		if a.R.AuthorI18ns[i*2+1] != second {
-			t.Error("relationship struct slice not set to correct value")
-		}
-
-		count, err := a.AuthorI18ns(tx).Count()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := int64((i + 1) * 2); count != want {
-			t.Error("want", want, "got", count)
-		}
+	if t.Failed() {
+		t.Logf("%#v", authorI18n)
 	}
 }
+
 func testAuthorToManyAddOpSources(t *testing.T) {
 	var err error
 
@@ -764,6 +690,81 @@ func testAuthorToManyRemoveOpSources(t *testing.T) {
 	}
 	if a.R.Sources[0] != &e {
 		t.Error("relationship to e should have been preserved")
+	}
+}
+
+func testAuthorToManyAddOpAuthorI18ns(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a Author
+	var b, c, d, e AuthorI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, authorDBTypes, false, strmangle.SetComplement(authorPrimaryKeyColumns, authorColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*AuthorI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, authorI18nDBTypes, false, strmangle.SetComplement(authorI18nPrimaryKeyColumns, authorI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*AuthorI18n{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddAuthorI18ns(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.AuthorID {
+			t.Error("foreign key was wrong value", a.ID, first.AuthorID)
+		}
+		if a.ID != second.AuthorID {
+			t.Error("foreign key was wrong value", a.ID, second.AuthorID)
+		}
+
+		if first.R.Author != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.Author != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.AuthorI18ns[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.AuthorI18ns[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.AuthorI18ns(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
 	}
 }
 

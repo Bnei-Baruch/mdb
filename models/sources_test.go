@@ -395,78 +395,6 @@ func testSourceToManyParentSources(t *testing.T) {
 	}
 }
 
-func testSourceToManySourceI18ns(t *testing.T) {
-	var err error
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a Source
-	var b, c SourceI18n
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, sourceDBTypes, true, sourceColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize Source struct: %s", err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	randomize.Struct(seed, &b, sourceI18nDBTypes, false, sourceI18nColumnsWithDefault...)
-	randomize.Struct(seed, &c, sourceI18nDBTypes, false, sourceI18nColumnsWithDefault...)
-
-	b.SourceID = a.ID
-	c.SourceID = a.ID
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	sourceI18n, err := a.SourceI18ns(tx).All()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bFound, cFound := false, false
-	for _, v := range sourceI18n {
-		if v.SourceID == b.SourceID {
-			bFound = true
-		}
-		if v.SourceID == c.SourceID {
-			cFound = true
-		}
-	}
-
-	if !bFound {
-		t.Error("expected to find b")
-	}
-	if !cFound {
-		t.Error("expected to find c")
-	}
-
-	slice := SourceSlice{&a}
-	if err = a.L.LoadSourceI18ns(tx, false, &slice); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.SourceI18ns); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	a.R.SourceI18ns = nil
-	if err = a.L.LoadSourceI18ns(tx, true, &a); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.SourceI18ns); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	if t.Failed() {
-		t.Logf("%#v", sourceI18n)
-	}
-}
-
 func testSourceToManyContentUnits(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
@@ -622,6 +550,78 @@ func testSourceToManyAuthors(t *testing.T) {
 
 	if t.Failed() {
 		t.Logf("%#v", author)
+	}
+}
+
+func testSourceToManySourceI18ns(t *testing.T) {
+	var err error
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a Source
+	var b, c SourceI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, sourceDBTypes, true, sourceColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize Source struct: %s", err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	randomize.Struct(seed, &b, sourceI18nDBTypes, false, sourceI18nColumnsWithDefault...)
+	randomize.Struct(seed, &c, sourceI18nDBTypes, false, sourceI18nColumnsWithDefault...)
+
+	b.SourceID = a.ID
+	c.SourceID = a.ID
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	sourceI18n, err := a.SourceI18ns(tx).All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range sourceI18n {
+		if v.SourceID == b.SourceID {
+			bFound = true
+		}
+		if v.SourceID == c.SourceID {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := SourceSlice{&a}
+	if err = a.L.LoadSourceI18ns(tx, false, &slice); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.SourceI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.SourceI18ns = nil
+	if err = a.L.LoadSourceI18ns(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.SourceI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", sourceI18n)
 	}
 }
 
@@ -873,80 +873,6 @@ func testSourceToManyRemoveOpParentSources(t *testing.T) {
 	}
 }
 
-func testSourceToManyAddOpSourceI18ns(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a Source
-	var b, c, d, e SourceI18n
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, sourceDBTypes, false, strmangle.SetComplement(sourcePrimaryKeyColumns, sourceColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*SourceI18n{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, sourceI18nDBTypes, false, strmangle.SetComplement(sourceI18nPrimaryKeyColumns, sourceI18nColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	foreignersSplitByInsertion := [][]*SourceI18n{
-		{&b, &c},
-		{&d, &e},
-	}
-
-	for i, x := range foreignersSplitByInsertion {
-		err = a.AddSourceI18ns(tx, i != 0, x...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		first := x[0]
-		second := x[1]
-
-		if a.ID != first.SourceID {
-			t.Error("foreign key was wrong value", a.ID, first.SourceID)
-		}
-		if a.ID != second.SourceID {
-			t.Error("foreign key was wrong value", a.ID, second.SourceID)
-		}
-
-		if first.R.Source != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-		if second.R.Source != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-
-		if a.R.SourceI18ns[i*2] != first {
-			t.Error("relationship struct slice not set to correct value")
-		}
-		if a.R.SourceI18ns[i*2+1] != second {
-			t.Error("relationship struct slice not set to correct value")
-		}
-
-		count, err := a.SourceI18ns(tx).Count()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := int64((i + 1) * 2); count != want {
-			t.Error("want", want, "got", count)
-		}
-	}
-}
 func testSourceToManyAddOpContentUnits(t *testing.T) {
 	var err error
 
@@ -1389,6 +1315,80 @@ func testSourceToManyRemoveOpAuthors(t *testing.T) {
 	}
 }
 
+func testSourceToManyAddOpSourceI18ns(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a Source
+	var b, c, d, e SourceI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, sourceDBTypes, false, strmangle.SetComplement(sourcePrimaryKeyColumns, sourceColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*SourceI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, sourceI18nDBTypes, false, strmangle.SetComplement(sourceI18nPrimaryKeyColumns, sourceI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*SourceI18n{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddSourceI18ns(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.SourceID {
+			t.Error("foreign key was wrong value", a.ID, first.SourceID)
+		}
+		if a.ID != second.SourceID {
+			t.Error("foreign key was wrong value", a.ID, second.SourceID)
+		}
+
+		if first.R.Source != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.Source != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.SourceI18ns[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.SourceI18ns[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.SourceI18ns(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
 func testSourceToOneSourceUsingParent(t *testing.T) {
 	tx := MustTx(boil.Begin())
 	defer tx.Rollback()
