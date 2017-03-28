@@ -97,27 +97,27 @@ func (a *AtomicInt32) Get() int32 {
 }
 
 type AtomicHistogram struct {
-	value map[string]*AtomicInt32
+	value map[string]int
+	sync.RWMutex // Read Write mutex, guards access to internal map
 }
 
 func NewAtomicHistogram() *AtomicHistogram {
-	return &AtomicHistogram{value: make(map[string]*AtomicInt32)}
+	return &AtomicHistogram{value: make(map[string]int)}
 }
 
-func (h *AtomicHistogram) Inc(key string, delta int32) {
-	v, ok := h.value[key]
-	if !ok {
-		v = new(AtomicInt32)
-		h.value[key] = v
-	}
-	v.Inc(delta)
+func (h *AtomicHistogram) Inc(key string, delta int) {
+	h.Lock()
+	h.value[key] += delta
+	h.Unlock()
 }
 
-func (h *AtomicHistogram) Get() map[string]int32 {
-	r := make(map[string]int32, len(h.value))
+func (h *AtomicHistogram) Get() map[string]int {
+	h.RLock()
+	r := make(map[string]int, len(h.value))
 	for k, v := range h.value {
-		r[k] = v.Get()
+		r[k] = v
 	}
+	h.RUnlock()
 	return r
 }
 
@@ -481,18 +481,21 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 		return nil, errors.Wrapf(err, "Lookup container descriptions, container_id [%d]", container.ID)
 	}
 	for _, d := range descriptions {
-		cui18n := models.ContentUnitI18n{
-			ContentUnitID: unit.ID,
-			Language:      api.LANG_MAP[d.LangID.String],
-			Name:          d.ContainerDesc,
-			Description:   d.Descr,
-		}
-		err = cui18n.Upsert(exec,
-			true,
-			[]string{"content_unit_id", "language"},
-			[]string{"name", "description"})
-		if err != nil {
-			return nil, errors.Wrapf(err, "Upsert unit i18n, unit [%d]", unit.ID)
+		if (d.ContainerDesc.Valid && d.ContainerDesc.String != "") ||
+			(d.Descr.Valid && d.Descr.String != "") {
+			cui18n := models.ContentUnitI18n{
+				ContentUnitID: unit.ID,
+				Language:      api.LANG_MAP[d.LangID.String],
+				Name:          d.ContainerDesc,
+				Description:   d.Descr,
+			}
+			err = cui18n.Upsert(exec,
+				true,
+				[]string{"content_unit_id", "language"},
+				[]string{"name", "description"})
+			if err != nil {
+				return nil, errors.Wrapf(err, "Upsert unit i18n, unit [%d]", unit.ID)
+			}
 		}
 	}
 
@@ -534,13 +537,18 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 		return nil, errors.Wrapf(err, "Load catalogs, container [%d]", container.ID)
 	}
 
-	// Use a map as a set for uniqueness
+	// Dedup list of matching sources
 	unqSrc := make(map[*models.Source]bool, 0)
 	for _, x := range container.R.Catalogs {
 		s, ok := catalogsSourcesMappings[x.ID]
 		if ok {
 			unqSrc[s] = true
-		} else {
+		}
+	}
+
+	// If no sources found for this container then add all his catalogs to unknown catalogs
+	if len(unqSrc) == 0 {
+		for _, x := range container.R.Catalogs {
 			stats.UnkownCatalogs.Inc(fmt.Sprintf("%s [%d]", x.Name, x.ID), 1)
 		}
 	}
