@@ -85,6 +85,7 @@ func (r *OperationTypeRegistry) Init() error {
 
 type SourceTypeRegistry struct {
 	ByName map[string]*models.SourceType
+	ByID map[int64]*models.SourceType
 }
 
 func (r *SourceTypeRegistry) Init() error {
@@ -94,8 +95,10 @@ func (r *SourceTypeRegistry) Init() error {
 	}
 
 	r.ByName = make(map[string]*models.SourceType)
+	r.ByID = make(map[int64]*models.SourceType)
 	for _, t := range types {
 		r.ByName[t.Name] = t
+		r.ByID[t.ID] = t
 	}
 
 	return nil

@@ -141,7 +141,6 @@ SELECT *
 FROM rec_catalogs
 ORDER BY path;
 
-
 -- kmedia catalogs with i18n
 COPY (
 SELECT
@@ -167,3 +166,49 @@ WHERE c.parent_id = 12
 ORDER BY c.id
 ) TO '/var/lib/postgres/data/kmedia_holidays.csv' (
 FORMAT CSV );
+
+
+WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id, s.uid, s.pattern, s.parent_id, s.position, s.type_id,
+    coalesce((SELECT name FROM source_i18n WHERE source_id = s.id AND language = 'en'),
+             (SELECT name FROM source_i18n WHERE source_id = s.id AND language = 'he')) "name",
+    coalesce((SELECT description FROM source_i18n WHERE source_id = s.id AND language = 'en'),
+             (SELECT description FROM source_i18n WHERE source_id = s.id AND language = 'he')) "description",
+    1 "depth"
+  FROM sources s
+  WHERE s.parent_id IS NULL
+  UNION
+  SELECT
+    s.id, s.uid, s.pattern, s.parent_id, s.position, s.type_id,
+    coalesce((SELECT name FROM source_i18n WHERE source_id = s.id AND language = 'en'),
+             (SELECT name FROM source_i18n WHERE source_id = s.id AND language = 'he')) "name",
+    coalesce((SELECT description FROM source_i18n WHERE source_id = s.id AND language = 'en'),
+             (SELECT description FROM source_i18n WHERE source_id = s.id AND language = 'he')) "description",
+    depth + 1
+  FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+  WHERE rs.depth < 2
+)
+SELECT * FROM rec_sources
+order by depth, parent_id, position;
+
+
+WITH RECURSIVE rec_tags AS (
+  SELECT
+    t.id, t.uid, t.pattern, t.parent_id,
+    coalesce((SELECT label FROM tag_i18n WHERE tag_id = t.id AND language = 'en'),
+             (SELECT label FROM tag_i18n WHERE tag_id = t.id AND language = 'he')) "label",
+    1 "depth"
+  FROM tags t
+  WHERE t.parent_id IS NULL
+  UNION
+  SELECT
+    t.id, t.uid, t.pattern, t.parent_id,
+    coalesce((SELECT label FROM tag_i18n WHERE tag_id = t.id AND language = 'en'),
+             (SELECT label FROM tag_i18n WHERE tag_id = t.id AND language = 'he')) "label",
+    depth + 1
+  FROM tags t INNER JOIN rec_tags rt ON t.parent_id = rt.id
+  WHERE rt.depth < 2
+)
+SELECT * FROM rec_tags
+ORDER BY depth, parent_id, label;
