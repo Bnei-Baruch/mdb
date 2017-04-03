@@ -110,10 +110,14 @@ func AdminFilesHandler(c *gin.Context) {
 
 func getFiles(exec boil.Executor, p Params) ([]*models.File, error) {
 	log.Info("Looking up files")
+    if (p.limit == 0) {
+        return make([]*models.File, 0), nil
+    }
     f, err := models.Files(exec,
         qm.Where("name like ?", []byte(fmt.Sprintf("%%%s%%", p.query))),
         qm.Limit(p.limit),
-        qm.Offset(p.offset)).All()
+        qm.Offset(p.offset),
+        qm.OrderBy("id")).All()
 	if err == nil {
 		return f, nil
 	} else {
