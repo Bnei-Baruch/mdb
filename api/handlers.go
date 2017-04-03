@@ -388,8 +388,7 @@ func handleOperation(c *gin.Context, input interface{},
 			c.Error(err).SetType(gin.ErrorTypePublic)
 			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": err.Error()})
 		default:
-			c.Error(err).SetType(gin.ErrorTypePrivate)
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
+			internalServerError(c, err)
 		}
 	}
 }
@@ -494,4 +493,9 @@ func FindFileBySHA1(exec boil.Executor, sha1 string) (*models.File, []byte, erro
 			return nil, s, err
 		}
 	}
+}
+
+func internalServerError(c *gin.Context, err error) {
+	c.Error(err).SetType(gin.ErrorTypePrivate)
+	c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": "Internal Server Error"})
 }

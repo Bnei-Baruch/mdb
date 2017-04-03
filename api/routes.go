@@ -14,6 +14,9 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/operations/convert", ConvertHandler)
 	router.POST("/operations/upload", UploadHandler)
 
+	router.GET("/sources/hierarchy", SourcesHierarchyHandler)
+	router.GET("/tags/hierarchy", TagsHierarchyHandler)
+
 	// Serve the log file.
 	admin := router.Group("admin")
 	admin.StaticFile("/log", viper.GetString("server.log"))

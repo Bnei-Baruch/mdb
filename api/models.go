@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"gopkg.in/nullbio/null.v6"
 	"strconv"
 	"time"
 )
@@ -91,7 +92,50 @@ type (
 		Url string `json:"url" binding:"required"`
 	}
 
-	// simple CRUD
+	// REST
+
+	HierarchyRequest struct {
+		Language string `json:"language" form:"language" binding:"omitempty,len=2"`
+		RootUID  string `json:"root" form:"root" binding:"omitempty,len=8"`
+		Depth    int    `json:"depth" form:"depth"`
+	}
+
+	SourcesHierarchyRequest struct {
+		HierarchyRequest
+	}
+
+	TagsHierarchyRequest struct {
+		HierarchyRequest
+	}
+
+	Source struct {
+		UID         string      `json:"uid"`
+		Pattern     null.String `json:"pattern,omitempty"`
+		Type        string      `json:"type"`
+		Name        null.String `json:"name"`
+		Description null.String `json:"description,omitempty"`
+		Children    []*Source   `json:"children,omitempty"`
+		ID          int64       `json:"-"`
+		ParentID    null.Int64  `json:"-"`
+		Position    null.Int    `json:"-"`
+	}
+
+	Author struct {
+		Code     string      `json:"code"`
+		Name     string      `json:"name"`
+		FullName null.String `json:"full_name,omitempty"`
+		Sources  []*Source   `json:"sources,omitempty"`
+	}
+
+	Tag struct {
+		UID      string      `json:"uid"`
+		Pattern  null.String `json:"pattern,omitempty"`
+		Label    null.String `json:"label"`
+		Children []*Tag      `json:"children,omitempty"`
+		ID       int64       `json:"-"`
+		ParentID null.Int64  `json:"-"`
+	}
+
 	CreateCollectionRequest struct {
 		Type        string `json:"type" binding:"required"`
 		UID         string `json:"uid" binding:"len=8"`

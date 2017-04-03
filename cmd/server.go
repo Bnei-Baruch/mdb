@@ -44,20 +44,15 @@ func serverFn(cmd *cobra.Command, args []string) {
 
 	log.Info("Setting up connection to MDB")
 	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
-	if err != nil {
-		log.Fatal(err)
-	}
+	utils.Must(err)
 	defer db.Close()
 	boil.SetDB(db)
 	boil.DebugMode = viper.GetString("server.mode") == "debug"
 
 	log.Info("Initializing type registries")
-	if err := api.CONTENT_TYPE_REGISTRY.Init(); err != nil {
-		log.Fatal(err)
-	}
-	if err := api.OPERATION_TYPE_REGISTRY.Init(); err != nil {
-		log.Fatal(err)
-	}
+	utils.Must(api.CONTENT_TYPE_REGISTRY.Init())
+	utils.Must(api.OPERATION_TYPE_REGISTRY.Init())
+	utils.Must(api.SOURCE_TYPE_REGISTRY.Init())
 
 	// Setup Rollbar
 	rollbar.Token = viper.GetString("server.rollbar-token")
