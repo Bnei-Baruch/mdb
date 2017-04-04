@@ -24,8 +24,8 @@ func SetupRoutes(router *gin.Engine) {
 	// Serve the auto generated docs.
 	router.StaticFile("/docs", viper.GetString("server.docs"))
 
-	collections := router.Group("collections")
-	collections.POST("/", CollectionsCreateHandler)
+	rest := router.Group("rest")
+	rest.GET("/collections/", CollectionsListHandler)
 
 	router.GET("/recover", func(c *gin.Context) {
 		panic("test recover")

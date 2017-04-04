@@ -45,3 +45,11 @@ func IsEmpty(s []string) bool {
 	}
 	return true
 }
+
+// Like math.Min for int
+func Min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}

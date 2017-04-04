@@ -226,3 +226,34 @@ WITH RECURSIVE rec_tags AS (
 )
 SELECT * FROM rec_tags
 ORDER BY depth, parent_id, label;
+
+
+
+
+
+
+
+copy (
+WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id,
+    s.pattern,
+    si.name::text path
+  FROM sources s
+    INNER JOIN source_i18n si on s.id = si.source_id and si.language = 'en'
+  WHERE s.parent_id IS NULL
+  UNION
+  SELECT
+    s.id,
+    s.pattern,
+    concat(rs.path, ' ', si.name)
+  FROM sources s
+    INNER JOIN source_i18n si on s.id = si.source_id and si.language = 'en'
+    INNER JOIN rec_sources rs ON s.parent_id = rs.id
+
+)
+SELECT *
+FROM rec_sources
+WHERE pattern IS NOT NULL
+ORDER BY pattern)
+to '/var/lib/postgres/data/titles.csv' (format CSV);
