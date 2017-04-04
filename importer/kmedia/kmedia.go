@@ -42,52 +42,6 @@ var (
 	stats                   *ImportStatistics
 )
 
-type MediaType struct {
-	Extension string
-	Type      string
-	SubType   string
-	MimeType  string
-}
-
-// select asset_type, count(*) from file_assets group by asset_type order by count(*) desc;
-var MEDIA_TYPES = map[string]MediaType{
-	"mp4":  {Extension: "mp4", Type: "video", SubType: "", MimeType: "video/mp4"},
-	"wmv":  {Extension: "wmv", Type: "video", SubType: "", MimeType: "video/x-ms-wmv"},
-	"flv":  {Extension: "flv", Type: "video", SubType: "", MimeType: "video/x-flv"},
-	"mov":  {Extension: "mov", Type: "video", SubType: "", MimeType: "video/quicktime"},
-	"asf":  {Extension: "asf", Type: "video", SubType: "", MimeType: "video/x-ms-asf"},
-	"mpg":  {Extension: "mpg", Type: "video", SubType: "", MimeType: "video/mpeg"},
-	"avi":  {Extension: "avi", Type: "video", SubType: "", MimeType: "video/x-msvideo"},
-	"mp3":  {Extension: "mp3", Type: "audio", SubType: "", MimeType: "audio/mpeg"},
-	"wma":  {Extension: "wma", Type: "audio", SubType: "", MimeType: "audio/x-ms-wma"},
-	"mid":  {Extension: "mid", Type: "audio", SubType: "", MimeType: "audio/midi"},
-	"wav":  {Extension: "wav", Type: "audio", SubType: "", MimeType: "audio/x-wav"},
-	"aac":  {Extension: "aac", Type: "audio", SubType: "", MimeType: "audio/aac"},
-	"jpg":  {Extension: "jpg", Type: "image", SubType: "", MimeType: "image/jpeg"},
-	"gif":  {Extension: "gif", Type: "image", SubType: "", MimeType: "image/gif"},
-	"bmp":  {Extension: "bmp", Type: "image", SubType: "", MimeType: "image/bmp"},
-	"tif":  {Extension: "tif", Type: "image", SubType: "", MimeType: "image/tiff"},
-	"zip":  {Extension: "zip", Type: "image", SubType: "", MimeType: "application/zip"},
-	"7z":   {Extension: "7z", Type: "image", SubType: "", MimeType: "application/x-7z-compressed"},
-	"rar":  {Extension: "rar", Type: "image", SubType: "", MimeType: "application/x-rar-compressed"},
-	"sfk":  {Extension: "sfk", Type: "image", SubType: "", MimeType: ""},
-	"doc":  {Extension: "doc", Type: "text", SubType: "", MimeType: "application/msword"},
-	"docx": {Extension: "docx", Type: "text", SubType: "", MimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
-	"htm":  {Extension: "htm", Type: "text", SubType: "", MimeType: "text/html"},
-	"html": {Extension: "htm", Type: "text", SubType: "", MimeType: "text/html"},
-	"pdf":  {Extension: "pdf", Type: "text", SubType: "", MimeType: "application/pdf"},
-	"epub": {Extension: "epub", Type: "text", SubType: "", MimeType: "application/epub+zip"},
-	"rtf":  {Extension: "rtf", Type: "text", SubType: "", MimeType: "text/rtf"},
-	"txt":  {Extension: "txt", Type: "text", SubType: "", MimeType: "text/plain"},
-	"fb2":  {Extension: "fb2", Type: "text", SubType: "", MimeType: "text/xml"},
-	"rb":   {Extension: "rb", Type: "text", SubType: "", MimeType: "application/x-rocketbook"},
-	"xls":  {Extension: "xls", Type: "sheet", SubType: "", MimeType: "application/vnd.ms-excel"},
-	"swf":  {Extension: "swf", Type: "banner", SubType: "", MimeType: "application/x-shockwave-flash"},
-	"ppt":  {Extension: "ppt", Type: "presentation", SubType: "", MimeType: "application/vnd.ms-powerpoint"},
-	"pptx": {Extension: "pptx", Type: "presentation", SubType: "", MimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
-	"pps":  {Extension: "pps", Type: "presentation", SubType: "", MimeType: "application/vnd.ms-powerpoint"},
-}
-
 type AtomicInt32 struct {
 	value int32
 }
@@ -659,7 +613,7 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 
 	// Media types
 	if fileAsset.AssetType.Valid {
-		if mt, ok := MEDIA_TYPES[strings.ToLower(fileAsset.AssetType.String)]; ok {
+		if mt, ok := api.MEDIA_TYPE_REGISTRY.ByExtension[strings.ToLower(fileAsset.AssetType.String)]; ok {
 			file.Type = mt.Type
 			file.SubType = mt.SubType
 			file.MimeType = null.NewString(mt.MimeType, mt.MimeType != "")

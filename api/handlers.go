@@ -6,16 +6,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
-	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
 	log "github.com/Sirupsen/logrus"
 	_ "github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/queries"
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/nullbio/null.v6"
+
+	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 // Start capture of AV file, i.e. morning lesson, tv program, etc...
@@ -444,6 +447,28 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 		return nil, err
 	}
 
+	// validate language + convert from code3 if necessary
+	var mdbLang = ""
+	switch len(f.Language) {
+	case 2:
+		if !KNOWN_LANGS.MatchString(strings.ToLower(f.Language)) {
+			return nil, errors.Errorf("Unknown language %s", f.Language)
+		}
+		mdbLang = strings.ToLower(f.Language)
+		break
+	case 3:
+		var ok bool
+		mdbLang, ok = LANG_MAP[strings.ToUpper(f.Language)]
+		if !ok {
+			return nil, errors.Errorf("Unknown language %s", f.Language)
+		}
+		break
+	case 0:
+		break
+	default:
+		return nil, errors.Errorf("Unknown language %s", f.Language)
+	}
+
 	file := models.File{
 		UID:           utils.GenerateUID(8),
 		Name:          f.FileName,
@@ -452,14 +477,21 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 		FileCreatedAt: null.TimeFrom(f.CreatedAt.Time),
 		Type:          f.Type,
 		SubType:       f.SubType,
+		Language:      null.NewString(mdbLang, mdbLang != ""),
 	}
 
 	if f.MimeType != "" {
 		file.MimeType = null.StringFrom(f.MimeType)
+
+		// Try to complement missing type and subtype
+		if file.Type == "" && file.SubType == "" {
+			if mt, ok := MEDIA_TYPE_REGISTRY.ByMime[strings.ToLower(f.MimeType)]; ok {
+				file.Type = mt.Type
+				file.SubType = mt.SubType
+			}
+		}
 	}
-	if f.Language != "" {
-		file.Language = null.StringFrom(f.Language)
-	}
+
 	if parent != nil {
 		file.ParentID = null.Int64From(parent.ID)
 	}
