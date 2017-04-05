@@ -32,6 +32,7 @@ class App extends Component {
                     <Route exact path="/" component={Welcome}/>
                     <Route exact path="/logs" component={Logs}/>
                     <Route exact path="/files" component={Files}/>
+                    <Route exact path="/file" component={File}/>
                 </div>
             </BrowserRouter>
         );
