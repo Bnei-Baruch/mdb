@@ -3,6 +3,7 @@ import Spinner from './Spinner';
 import './Files.css';
 import { AutoSizer, Column, InfiniteLoader, Table } from 'react-virtualized'
 import 'react-virtualized/styles.css'
+import { Link } from 'react-router-dom'
 
 const RowRenderer = ({ className, columns, key, style, index, rowData }) => {
     if(!rowData || !rowData.id) {
@@ -27,6 +28,9 @@ const RowRenderer = ({ className, columns, key, style, index, rowData }) => {
         </div>
     );
 };
+
+const LinkToFileCellRenderer = ({ cellData, dataKey }) =>
+    <Link to={["/file", dataKey, cellData].join('/')}>{cellData}</Link>;
 
 class Files extends Component {
     constructor(props) {
@@ -156,16 +160,16 @@ class Files extends Component {
                                            rowGetter={rowGetter}
                                            rowHeight={50}>
                                         <Column label='Index'
-                                                cellDataGetter={
-                                                    ({ columnData, dataKey, rowData }) => rowData.index
-                                                }
+                                                cellDataGetter={({ rowData }) => rowData.index}
                                                 dataKey='index'
                                                 width={60} />
                                         <Column label='ID'
                                                 dataKey='id'
+                                                cellRenderer={LinkToFileCellRenderer}
                                                 width={80} />
                                         <Column label='UID'
                                                 dataKey='uid'
+                                                cellRenderer={LinkToFileCellRenderer}
                                                 width={80} />
                                         <Column label='Name'
                                                 dataKey='name'
@@ -175,14 +179,6 @@ class Files extends Component {
                                                 width={80}
                                                 flexGrow={1} />
                                     </Table>
-                                    // <List
-                                    //     height={200}
-                                    //     onRowsRendered={onRowsRendered}
-                                    //     ref={registerChild}
-                                    //     rowCount={this.state.matching}
-                                    //     rowHeight={20}
-                                    //     rowRenderer={RowRenderer}
-                                    //     width={300} />
                                 )}
                             </AutoSizer>
                         )}

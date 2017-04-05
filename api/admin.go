@@ -113,8 +113,11 @@ func getFiles(exec boil.Executor, p Params) ([]*models.File, error) {
     if (p.limit == 0) {
         return make([]*models.File, 0), nil
     }
+    q := []byte(fmt.Sprintf("%%%s%%", p.query))
     f, err := models.Files(exec,
-        qm.Where("name like ?", []byte(fmt.Sprintf("%%%s%%", p.query))),
+        qm.Where("name like ?", q),
+        qm.Or("uid like ?", q),
+        qm.Or("CAST(id AS TEXT) like ?", q),
         qm.Limit(p.limit),
         qm.Offset(p.offset),
         qm.OrderBy("id")).All()
@@ -126,7 +129,11 @@ func getFiles(exec boil.Executor, p Params) ([]*models.File, error) {
 }
 
 func getFilesCount(exec boil.Executor, query string) (int64, error) {
-    c, err := models.Files(exec, qm.Where("name like ?", []byte(fmt.Sprintf("%%%s%%", query)))).Count()
+    q := []byte(fmt.Sprintf("%%%s%%", query))
+    c, err := models.Files(exec,
+        qm.Where("name like ?", q),
+        qm.Or("uid like ?", q),
+        qm.Or("CAST(id AS TEXT) like ?", q)).Count()
 	if err == nil {
 		return c, nil
 	} else {
