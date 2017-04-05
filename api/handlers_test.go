@@ -636,6 +636,30 @@ func (suite *HandlersSuite) TestCreateFile() {
 	err = file3.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
 	suite.assertCustomProps(customProps, props)
+
+	// test invalid languages
+	f4 := File{Sha1: "abcdef012356789abcdef0123456789abcdef012"}
+	for _, x := range []string{"a", "aa", "aaa", "aaaa"} {
+		f4.Language = x
+		_, err = CreateFile(suite.tx, nil, f4, nil)
+		suite.Require().EqualError(err, "Unknown language "+f4.Language, "Invalid language "+f4.Language)
+	}
+
+	// test mime type complements type & subtype
+	f5 := File{
+		FileName:  "file_name",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef1111111111",
+		Size:      math.MaxInt64,
+		MimeType:  ALL_MEDIA_TYPES[0].MimeType,
+	}
+	file5, err := CreateFile(suite.tx, nil, f5, nil)
+	suite.Require().Nil(err)
+	suite.Require().Nil(file.Reload(suite.tx))
+	suite.Equal(ALL_MEDIA_TYPES[0].Type, file5.Type, "file5.Type")
+	suite.Equal(ALL_MEDIA_TYPES[0].SubType, file5.SubType, "file5.SubType")
+	suite.True(file5.MimeType.Valid, "file5.MimeType.Valid")
+	suite.Equal(ALL_MEDIA_TYPES[0].MimeType, file5.MimeType.String, "file5.MimeType.String")
 }
 
 func (suite *HandlersSuite) TestFindFileBySHA1() {

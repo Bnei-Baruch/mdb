@@ -25,7 +25,7 @@ type (
 		Type      string     `json:"type" binding:"max=16"`
 		SubType   string     `json:"sub_type" binding:"max=16"`
 		MimeType  string     `json:"mime_type" binding:"max=255"`
-		Language  string     `json:"language" binding:"omitempty,len=2"`
+		Language  string     `json:"language" binding:"omitempty,min=2,max=3"`
 	}
 
 	AVFile struct {
