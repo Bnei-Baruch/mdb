@@ -371,16 +371,14 @@ func handleOperation(c *gin.Context, input interface{},
 	opHandler func(boil.Executor, interface{}) (*models.Operation, error)) {
 
 	tx, err := boil.Begin()
+	utils.Must(err)
+
+	_, err = opHandler(tx, input)
 	if err == nil {
-		_, err = opHandler(tx, input)
-		if err == nil {
-			tx.Commit()
-		} else {
-			log.Error("Error handling operation: ", err)
-			if txErr := tx.Rollback(); txErr != nil {
-				log.Error("Error rolling back DB transaction: ", txErr)
-			}
-		}
+		utils.Must(tx.Commit())
+	} else {
+		utils.Must(tx.Rollback())
+		err = errors.Wrapf(err, "Handle operation")
 	}
 
 	if err == nil {
@@ -388,8 +386,7 @@ func handleOperation(c *gin.Context, input interface{},
 	} else {
 		switch err.(type) {
 		case FileNotFound:
-			c.Error(err).SetType(gin.ErrorTypePublic)
-			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": err.Error()})
+			c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
 		default:
 			internalServerError(c, err)
 		}
@@ -528,6 +525,6 @@ func FindFileBySHA1(exec boil.Executor, sha1 string) (*models.File, []byte, erro
 }
 
 func internalServerError(c *gin.Context, err error) {
-	c.Error(err).SetType(gin.ErrorTypePrivate)
-	c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": "Internal Server Error"})
+	c.AbortWithError(http.StatusInternalServerError, err).
+		SetType(gin.ErrorTypePrivate)
 }
