@@ -170,45 +170,127 @@ FORMAT CSV );
 
 WITH RECURSIVE rec_sources AS (
   SELECT
-    s.id, s.uid, s.pattern, s.parent_id, s.position, s.type_id,
-    coalesce((SELECT name FROM source_i18n WHERE source_id = s.id AND language = 'en'),
-             (SELECT name FROM source_i18n WHERE source_id = s.id AND language = 'he')) "name",
-    coalesce((SELECT description FROM source_i18n WHERE source_id = s.id AND language = 'en'),
-             (SELECT description FROM source_i18n WHERE source_id = s.id AND language = 'he')) "description",
-    1 "depth"
+    s.id,
+    s.uid,
+    s.pattern,
+    s.parent_id,
+    s.position,
+    s.type_id,
+    coalesce((SELECT name
+              FROM source_i18n
+              WHERE source_id = s.id AND language = 'en'),
+             (SELECT name
+              FROM source_i18n
+              WHERE source_id = s.id AND language = 'he')) "name",
+    coalesce((SELECT description
+              FROM source_i18n
+              WHERE source_id = s.id AND language = 'en'),
+             (SELECT description
+              FROM source_i18n
+              WHERE source_id = s.id AND language = 'he')) "description",
+    1                                                      "depth"
   FROM sources s
   WHERE s.parent_id IS NULL
   UNION
   SELECT
-    s.id, s.uid, s.pattern, s.parent_id, s.position, s.type_id,
-    coalesce((SELECT name FROM source_i18n WHERE source_id = s.id AND language = 'en'),
-             (SELECT name FROM source_i18n WHERE source_id = s.id AND language = 'he')) "name",
-    coalesce((SELECT description FROM source_i18n WHERE source_id = s.id AND language = 'en'),
-             (SELECT description FROM source_i18n WHERE source_id = s.id AND language = 'he')) "description",
+    s.id,
+    s.uid,
+    s.pattern,
+    s.parent_id,
+    s.position,
+    s.type_id,
+    coalesce((SELECT name
+              FROM source_i18n
+              WHERE source_id = s.id AND language = 'en'),
+             (SELECT name
+              FROM source_i18n
+              WHERE source_id = s.id AND language = 'he')) "name",
+    coalesce((SELECT description
+              FROM source_i18n
+              WHERE source_id = s.id AND language = 'en'),
+             (SELECT description
+              FROM source_i18n
+              WHERE source_id = s.id AND language = 'he')) "description",
     depth + 1
   FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
   WHERE rs.depth < 2
 )
-SELECT * FROM rec_sources
-order by depth, parent_id, position;
+SELECT *
+FROM rec_sources
+ORDER BY depth, parent_id, position;
 
 
 WITH RECURSIVE rec_tags AS (
   SELECT
-    t.id, t.uid, t.pattern, t.parent_id,
-    coalesce((SELECT label FROM tag_i18n WHERE tag_id = t.id AND language = 'en'),
-             (SELECT label FROM tag_i18n WHERE tag_id = t.id AND language = 'he')) "label",
-    1 "depth"
+    t.id,
+    t.uid,
+    t.pattern,
+    t.parent_id,
+    coalesce((SELECT label
+              FROM tag_i18n
+              WHERE tag_id = t.id AND language = 'en'),
+             (SELECT label
+              FROM tag_i18n
+              WHERE tag_id = t.id AND language = 'he')) "label",
+    1                                                   "depth"
   FROM tags t
   WHERE t.parent_id IS NULL
   UNION
   SELECT
-    t.id, t.uid, t.pattern, t.parent_id,
-    coalesce((SELECT label FROM tag_i18n WHERE tag_id = t.id AND language = 'en'),
-             (SELECT label FROM tag_i18n WHERE tag_id = t.id AND language = 'he')) "label",
+    t.id,
+    t.uid,
+    t.pattern,
+    t.parent_id,
+    coalesce((SELECT label
+              FROM tag_i18n
+              WHERE tag_id = t.id AND language = 'en'),
+             (SELECT label
+              FROM tag_i18n
+              WHERE tag_id = t.id AND language = 'he')) "label",
     depth + 1
   FROM tags t INNER JOIN rec_tags rt ON t.parent_id = rt.id
   WHERE rt.depth < 2
 )
-SELECT * FROM rec_tags
+SELECT *
+FROM rec_tags
 ORDER BY depth, parent_id, label;
+
+WITH RECURSIVE ffo AS (
+    SELECT
+      file_id,
+      min(operation_id) "o_id"
+    FROM files_operations
+    GROUP BY file_id
+),
+    rec_files AS (
+    SELECT
+      f.created_at,
+      f.id,
+      f.parent_id,
+      f.name,
+      f.size,
+      --     f.properties "fprops",
+      o.id    "o_id",
+      ot.name "op"
+    --     o.properties "oprops"
+    FROM files f INNER JOIN ffo ON f.id = ffo.file_id
+      INNER JOIN operations o ON ffo.o_id = o.id
+      INNER JOIN operation_types ot ON o.type_id = ot.id
+    WHERE f.id = 353547
+    UNION
+    SELECT
+      f.created_at,
+      f.id,
+      f.parent_id,
+      f.name,
+      f.size,
+      --     f.properties "fprops",
+      o.id    "o_id",
+      ot.name "op"
+    --     o.properties "oprops"
+    FROM files f INNER JOIN rec_files rf ON f.parent_id = rf.id
+      INNER JOIN ffo ON f.id = ffo.file_id
+      INNER JOIN operations o ON ffo.o_id = o.id
+      INNER JOIN operation_types ot ON o.type_id = ot.id
+  ) SELECT *
+    FROM rec_files;
