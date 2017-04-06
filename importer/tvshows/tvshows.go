@@ -3,6 +3,7 @@ package tvshows
 import (
 	"database/sql"
 	"encoding/json"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -123,7 +124,17 @@ func doTVShow(exec boil.Executor, header map[string]int, record []string) error 
 	}
 	props["kmedia_id"] = record[header["kmedia_id"]]
 	props["pattern"] = record[header["mdb_pattern"]]
-	p, _ := json.Marshal(props)
+	props["active"] = strings.ToLower(strings.TrimSpace(record[header["active"]])) == "v"
+	dl := record[header["language"]]
+	if dl != "" {
+		if l, ok := api.LANG_MAP[dl]; ok {
+			props["default_language"] = l
+		}
+	}
+	p, err := json.Marshal(props)
+	if err != nil {
+		return errors.Wrap(err, "Marshal show properties")
+	}
 	show.Properties = null.JSONFrom(p)
 
 	err = show.Update(exec)

@@ -1,12 +1,16 @@
 package api
 
 import (
+	"database/sql"
+	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/nullbio/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -14,7 +18,7 @@ import (
 
 const (
 	DEFAULT_PAGE_SIZE = 50
-	MAX_PAGE_SIZE     = 100
+	MAX_PAGE_SIZE     = 1000
 )
 
 func CollectionsListHandler(c *gin.Context) {
@@ -27,7 +31,7 @@ func CollectionsListHandler(c *gin.Context) {
 
 	// filters
 	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": err.Error()})
+		c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
 		return
 	}
 
@@ -70,6 +74,51 @@ func CollectionsListHandler(c *gin.Context) {
 		ListResponse: ListResponse{Total: total},
 		Collections:  data,
 	})
+}
+
+// Toggle the active flag of a single container
+func CollectionActivateHandler(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, errors.Wrapf(err, "id expects int64")).
+			SetType(gin.ErrorTypePublic)
+		return
+	}
+
+	collection, err := models.FindCollectionG(id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		} else {
+			internalServerError(c, err)
+			return
+		}
+	}
+
+	var props = make(map[string]interface{})
+	if collection.Properties.Valid {
+		collection.Properties.Unmarshal(&props)
+	}
+	active, ok := props["active"]
+	if ok {
+		b, _ := active.(bool)
+		props["active"] = !b
+	} else {
+		props["active"] = false
+	}
+
+	pbytes, err := json.Marshal(props)
+	if err != nil {
+		internalServerError(c, err)
+	}
+	collection.Properties = null.JSONFrom(pbytes)
+	err = collection.UpdateG("properties")
+	if err == nil {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	} else {
+		internalServerError(c, err)
+	}
 }
 
 func appendListMods(mods *[]qm.QueryMod, r ListRequest) {

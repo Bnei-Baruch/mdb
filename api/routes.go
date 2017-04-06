@@ -26,6 +26,7 @@ func SetupRoutes(router *gin.Engine) {
 
 	rest := router.Group("rest")
 	rest.GET("/collections/", CollectionsListHandler)
+	rest.POST("/collections/:id/activate", CollectionActivateHandler)
 
 	router.GET("/recover", func(c *gin.Context) {
 		panic("test recover")

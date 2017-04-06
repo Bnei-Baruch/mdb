@@ -257,3 +257,4 @@ FROM rec_sources
 WHERE pattern IS NOT NULL
 ORDER BY pattern)
 to '/var/lib/postgres/data/titles.csv' (format CSV);
+
