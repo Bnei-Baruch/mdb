@@ -140,3 +140,35 @@ func getFilesCount(exec boil.Executor, query string) (int64, error) {
         return -1, err
 	}
 }
+
+func AdminFileHandler(c *gin.Context) {
+    idStr := c.Param("id")
+    id, err := strconv.ParseInt(idStr, 10, 64)
+    if err != nil {
+        InternalError(c, err)
+    }
+
+    tx, err := boil.Begin()
+    if err != nil {
+        InternalError(c, err)
+        return
+    }
+    var f *models.File
+    f, err = models.FindFile(tx, id)
+    if err != nil {
+        log.Error("Error handling admin file: ", err)
+        if txErr := tx.Rollback(); txErr != nil {
+            log.Error("Error rolling back DB transaction: ", txErr)
+        }
+        InternalError(c, err)
+        return
+    }
+
+    marshableFile := (*MarshableFile)(f)
+    // Commit transaction when all queries are done.
+    tx.Commit()
+    c.JSON(http.StatusOK, gin.H{
+        "status": "ok",
+        "file": marshableFile,
+    })
+}

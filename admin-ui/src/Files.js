@@ -30,7 +30,7 @@ const RowRenderer = ({ className, columns, key, style, index, rowData }) => {
 };
 
 const LinkToFileCellRenderer = ({ cellData, dataKey }) =>
-    <Link to={["/file", dataKey, cellData].join('/')}>{cellData}</Link>;
+    <Link to={["/files", cellData].join('/')}>{cellData}</Link>;
 
 class Files extends Component {
     constructor(props) {
@@ -169,7 +169,6 @@ class Files extends Component {
                                                 width={80} />
                                         <Column label='UID'
                                                 dataKey='uid'
-                                                cellRenderer={LinkToFileCellRenderer}
                                                 width={80} />
                                         <Column label='Name'
                                                 dataKey='name'

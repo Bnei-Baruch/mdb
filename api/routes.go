@@ -24,6 +24,7 @@ func SetupRoutes(router *gin.Engine) {
 
     // Admin rest handlers.
     admin.GET("/rest/files", AdminFilesHandler)
+    admin.GET("/rest/files/:id", AdminFileHandler)
 	admin.StaticFile("/rest/log", viper.GetString("server.log"))
 
 
