@@ -38,7 +38,7 @@ class App extends Component {
                           </Button>
                       </Menu.Menu>
                     </Menu>
-                    <div stye={{display: 'flex', flexDirection: 'row'}}>
+                    <div style={{display: 'flex', flexDirection: 'row'}}>
                         <div style={{display: historyVisible ? 'block' : 'none',
                                      height: '100vh',
                                      width: '200px',
