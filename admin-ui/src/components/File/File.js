@@ -1,6 +1,7 @@
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
 import filesize from 'filesize';
 import { Table } from 'semantic-ui-react';
+import apiClient from '../../helpers/apiClient';
 
 
 const ObjectTable = ({ object }) => {
@@ -27,6 +28,9 @@ const ObjectTable = ({ object }) => {
         </Table>
     );
 };
+ObjectTable.propTypes = {
+    object: PropTypes.object
+};
 
 const transformValues = (key, value) => {
     switch (key) {
@@ -37,14 +41,29 @@ const transformValues = (key, value) => {
     }
 }
 
-class File extends Component {
+export default class File extends Component {
+
+    static propTypes = {
+        match: PropTypes.object.isRequired,
+    }
 
     state = {
         file: null
     };
 
     componentDidMount() {
-        fetch(`http://rt-dev.kbb1.com:8080/admin/rest/files/${this.props.match.params.id}`)
+        this.getFile(this.props.match.params.id);
+    }
+
+    componentWillReceiveProps(nextProps) {
+        if (this.props.match.params.id !== nextprops.match.params.id) {
+            this.getFile(nextParams.match.params.id);
+        }
+    }
+
+    getFile = (id) => {
+        apiClient.get(`rest/files/${id}`)
+        // fetch(`http://rt-dev.kbb1.com:8080/admin/rest/files/${this.props.match.params.id}`)
             .then(response => {
                 if (!response.ok) {
                     throw Error('Error loading files, response not ok.');
@@ -52,13 +71,12 @@ class File extends Component {
 
                 return response;
             })
-            .then(response => response.json())
             .then(response => {
                 this.setState({
                     file: response.file
                 });
             });
-    }
+    };
 
     render() {
         const { file } = this.state;
@@ -96,5 +114,3 @@ class File extends Component {
     }
 
 }
-
-export default File;
