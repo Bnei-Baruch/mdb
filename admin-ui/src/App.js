@@ -17,7 +17,12 @@ class App extends Component {
         this.state = {
             historyVisible: false,
         };
+        history.listen(this.historyChanged)
     }
+
+    historyChanged = (location, action) => {
+        console.log(action, location.pathname, location.state);
+    };
 
     toggleHistory = () => this.setState({ historyVisible: !this.state.historyVisible })
 
