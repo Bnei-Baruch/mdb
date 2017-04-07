@@ -1,9 +1,10 @@
 import React, { Component } from 'react';
 import Spinner from './Spinner';
 import './Files.css';
-import { AutoSizer, Column, InfiniteLoader, Table } from 'react-virtualized'
-import 'react-virtualized/styles.css'
-import { Link } from 'react-router-dom'
+import { AutoSizer, Column, InfiniteLoader, Table } from 'react-virtualized';
+import 'react-virtualized/styles.css';
+import { Link } from 'react-router-dom';
+import '../../helpers/apiClient';
 
 const RowRenderer = ({ className, columns, key, style, index, rowData }) => {
     if(!rowData || !rowData.id) {
@@ -30,7 +31,7 @@ const RowRenderer = ({ className, columns, key, style, index, rowData }) => {
 };
 
 const LinkToFileCellRenderer = ({ cellData, dataKey }) =>
-    <Link to={["/files", cellData].join('/')}>{cellData}</Link>;
+    <Link to={`/files/${cellData}`}>{cellData}</Link>;
 
 class Files extends Component {
     constructor(props) {
@@ -80,10 +81,17 @@ class Files extends Component {
             }
             return newState;
         }, () => {
-            fetch('http://rt-dev.kbb1.com:8080/admin/rest/files' +
-                  '?offset=' + startIndex +
-                      '&limit=' + limit +
-                      '&query=' + searchText)
+            apiClient.get('/rest/files', {
+                params: {
+                    offset: startIndex,
+                    limit: limit,
+                    query: searchText    
+                }
+            })
+            // fetch('http://rt-dev.kbb1.com:8080/admin/rest/files' +
+            //       '?offset=' + startIndex +
+            //           '&limit=' + limit +
+            //           '&query=' + searchText)
                   .then((response) => {
                       if (!response.ok) {
                           throw Error('Error loading files, response not ok.');

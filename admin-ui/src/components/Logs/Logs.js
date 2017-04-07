@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { Item } from 'semantic-ui-react';
+import apiClient from '../../helpers/apiClient';
 
 class Logs extends Component {
     constructor() {
@@ -86,7 +87,9 @@ class Logs extends Component {
     }
 
     loadLogs() {
-        return fetch('http://rt-dev.kbb1.com:8080/admin/rest/log')
+        return apiClient.get('/rest/log', { responseType: 'text' })
+        // return fetch('http://rt-dev.kbb1.com:8080/admin/rest/log')
+        // change response structure
         .then((response) => {
             return response.text().then(text => {
                 const logs = this.parseLogs(text);
