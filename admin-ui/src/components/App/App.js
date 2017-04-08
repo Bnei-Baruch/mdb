@@ -52,7 +52,7 @@ class App extends Component {
         }
     }
 
-    toggleActiveItems = () => this.setState({ activeItemsVisible: !this.state.activeItemsVisible })
+    toggleActiveItems = () => this.setState({ activeItemsVisible: !this.state.activeItemsVisible });
 
     render() {
         const { activeItemsVisible } = this.state;
