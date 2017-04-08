@@ -64,18 +64,12 @@ export default class File extends Component {
 
     getFile = (id) => {
         apiClient.get(`/rest/files/${id}`)
-        // fetch(`http://rt-dev.kbb1.com:8080/admin/rest/files/${this.props.match.params.id}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw Error('Error loading files, response not ok.');
-                }
-
-                return response;
-            })
-            .then(response => {
+            .then(response => 
                 this.setState({
-                    file: response.file
-                });
+                    file: response.data.file
+                })
+            ).catch(error => {
+                throw Error('Error loading files, ' + error);
             });
     };
 
