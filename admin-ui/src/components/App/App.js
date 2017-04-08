@@ -1,9 +1,9 @@
 import React, { Component } from 'react';
 import './App.css';
-import Logs from './Logs.js';
-import Files from './Files.js';
-import File from './File.js';
-import Welcome from './Welcome.js';
+import Logs from '../Logs/Logs.js';
+import Files from '../Files/Files.js';
+import File from '../File/File.js';
+import Welcome from '../Welcome/Welcome.js';
 import { Button, Icon, Menu } from 'semantic-ui-react'
 import { Router, NavLink, Route } from 'react-router-dom'
 

@@ -56,8 +56,8 @@ export default class File extends Component {
     }
 
     componentWillReceiveProps(nextProps) {
-        if (this.props.match.params.id !== nextprops.match.params.id) {
-            this.getFile(nextParams.match.params.id);
+        if (this.props.match.params.id !== nextProps.match.params.id) {
+            this.getFile(nextProps.match.params.id);
         }
     }
 

@@ -1,8 +1,10 @@
 import axios from 'axios';
-import { protocol, apiHost, apiPort, apiPathPrefix } from '../config.js';
+import config from '../config';
 
+const { protocol, apiHost, apiPort, apiPathPrefix } = config;
+console.log(`${protocol}://${apiHost}:${apiPort}/${apiPathPrefix}`);
 const client = axios.create({
-    baseURL: `${protocobaseURLl}://${apiHost}:${apiPort}/${apiPathPrefix}`
+    baseURL: `${protocol}://${apiHost}:${apiPort}/${apiPathPrefix}`
 });
 
 export default client;
