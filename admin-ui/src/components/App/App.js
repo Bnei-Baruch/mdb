@@ -28,10 +28,11 @@ class App extends Component {
     historyChanged = (location) => {
         if (!!location.pathname.match(/files\/\d+/) &&
             !this.state.activeItems.includes(location.pathname)) {
-            const newActiveItems = this.state.activeItems.slice();
-            newActiveItems.push(location.pathname);
             this.setState({
-                activeItems: newActiveItems,
+                activeItems: [
+                    ...this.state.activeItems,
+                    location.pathname
+                ],
                 activeItemsVisible: true,
             });
         }
@@ -78,15 +79,20 @@ class App extends Component {
                             <Route exact path="/files" component={Files}/>
                             <Route exact path="/files/:id" component={File}/>
                         </div>
-                        <div style={{display: activeItemsVisible ? 'block' : 'none',
-                                     width: '150px'}}>
+                        <div style={{
+                            display: activeItemsVisible ? 'block' : 'none',
+                            width: '150px'
+                        }}>
                              <Menu fluid vertical tabular='right'>
-                                 {this.state.activeItems.map(i => 
-                                     <Menu.Item as={NavLink} key={i} to={i}>
-                                        File #{this.activeItemText(i)}
-                                        <i className='remove icon'
-                                           onClick={() => this.removeActiveItem(i)} />
-                                     </Menu.Item>
+                                 {
+                                     this.state.activeItems.map(i => 
+                                        <Menu.Item as={NavLink} key={i} to={i}>
+                                            File #{this.activeItemText(i)}
+                                            <i 
+                                                className='remove icon'
+                                                onClick={() => this.removeActiveItem(i)}
+                                            />
+                                        </Menu.Item>
                                  )}
                              </Menu>
                         </div>
