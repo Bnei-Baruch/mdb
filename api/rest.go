@@ -80,7 +80,7 @@ func CollectionsListHandler(c *gin.Context) {
 func CollectionActivateHandler(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, errors.Wrapf(err, "id expects int64")).
+		c.AbortWithError(http.StatusBadRequest, errors.Wrap(err, "id expects int64")).
 			SetType(gin.ErrorTypePublic)
 		return
 	}

@@ -90,12 +90,8 @@ func ErrorHandlingMiddleware() gin.HandlerFunc {
 			for _, e := range c.Errors {
 				switch e.Type {
 				case gin.ErrorTypePublic:
-					log.Warn("Public error: %s", e.Error())
-
-					// Only output public errors if nothing has been written yet
-					if !c.Writer.Written() {
-						c.JSON(c.Writer.Status(), gin.H{"status": "error", "error": e.Error()})
-					}
+					log.Warnf("Public error: %s", e.Error())
+					c.JSON(c.Writer.Status(), gin.H{"status": "error", "error": e.Error()})
 
 				case gin.ErrorTypeBind:
 					// Keep the preset response status
