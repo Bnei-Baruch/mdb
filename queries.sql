@@ -115,27 +115,33 @@ ORDER BY p.pattern
 ) TO '/var/lib/postgres/data/kmedia_patterns_catalogs.csv' (
 FORMAT CSV );
 
--- kmedia catalogs with no patterns
+-- kmedia catalogs
 WITH RECURSIVE rec_catalogs AS (
   SELECT
     c.id,
-    c.name :: TEXT path
+    c.name :: TEXT path,
+    (SELECT DISTINCT cdp.pattern
+     FROM catalogs_container_description_patterns ccdp INNER JOIN container_creation_patterns cdp
+         ON ccdp.container_description_pattern_id = cdp.id
+     WHERE ccdp.catalog_id = c.id
+     LIMIT 1) "pattern",
+--     (select count(distinct container_id) from catalogs_containers where catalog_id = c.id) as containers
+  1 depth
   FROM catalogs c
-  WHERE c.id = 4016
-  --   WHERE c.parent_id IS NULL
-  --         AND c.id NOT IN (SELECT DISTINCT catalog_id
-  --                          FROM catalogs_container_description_patterns)
-  --         AND c.id IN (SELECT DISTINCT catalog_id
-  --                      FROM catalogs_containers)
+  WHERE c.id = 3672
   UNION
   SELECT
     c.id,
-    concat(rc.path, '/', c.name)
+    concat(rc.path, '/', c.name),
+    (SELECT DISTINCT cdp.pattern
+     FROM catalogs_container_description_patterns ccdp INNER JOIN container_creation_patterns cdp
+         ON ccdp.container_description_pattern_id = cdp.id
+     WHERE ccdp.catalog_id = c.id
+     LIMIT 1) "pattern",
+--     (select count(distinct container_id) from catalogs_containers where catalog_id = c.id) as containers
+    rc.depth + 1
   FROM catalogs c INNER JOIN rec_catalogs rc ON c.parent_id = rc.id
-  --   WHERE c.id NOT IN (SELECT catalog_id
-  --                      FROM catalogs_container_description_patterns)
-  --         AND c.id IN (SELECT DISTINCT catalog_id
-  --                      FROM catalogs_containers)
+  WHERE rc.depth < 2
 )
 SELECT *
 FROM rec_catalogs
@@ -157,15 +163,23 @@ SELECT
    WHERE catalog_id = c.id AND lang_id = 'RUS') "ru.name",
   (SELECT name
    FROM catalog_descriptions
-   WHERE catalog_id = c.id AND lang_id = 'SPA') "es.name"
---   (SELECT name
---    FROM catalog_descriptions
---    WHERE catalog_id = c.id AND lang_id = 'UKR') "ua.name"
+   WHERE catalog_id = c.id AND lang_id = 'SPA') "es.name",
+  (SELECT name
+   FROM catalog_descriptions
+   WHERE catalog_id = c.id AND lang_id = 'GER') "de.name",
+  (SELECT name
+   FROM catalog_descriptions
+   WHERE catalog_id = c.id AND lang_id = 'UKR') "ua.name",
+  (SELECT name
+   FROM catalog_descriptions
+   WHERE catalog_id = c.id AND lang_id = 'CHN') "zh.name"
 FROM catalogs c
-WHERE c.parent_id = 12
-ORDER BY c.id
-) TO '/var/lib/postgres/data/kmedia_holidays.csv' (
+WHERE c.parent_id = 3672
+ORDER BY c.name
+) TO '/var/lib/postgres/data/kmedia_tvshows.csv' (
 FORMAT CSV );
+
+
 
 
 WITH RECURSIVE rec_sources AS (
@@ -294,3 +308,30 @@ WITH RECURSIVE ffo AS (
       INNER JOIN operation_types ot ON o.type_id = ot.id
   ) SELECT *
     FROM rec_files;
+
+
+
+copy (
+WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id,
+    s.pattern,
+    si.name::text path
+  FROM sources s
+    INNER JOIN source_i18n si on s.id = si.source_id and si.language = 'en'
+  WHERE s.parent_id IS NULL
+  UNION
+  SELECT
+    s.id,
+    s.pattern,
+    concat(rs.path, ' ', si.name)
+  FROM sources s
+    INNER JOIN source_i18n si on s.id = si.source_id and si.language = 'en'
+    INNER JOIN rec_sources rs ON s.parent_id = rs.id
+
+)
+SELECT *
+FROM rec_sources
+WHERE pattern IS NOT NULL
+ORDER BY pattern)
+to '/var/lib/postgres/data/titles.csv' (format CSV);

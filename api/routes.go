@@ -6,13 +6,18 @@ import (
 )
 
 func SetupRoutes(router *gin.Engine) {
-	router.POST("/operations/capture_start", CaptureStartHandler)
-	router.POST("/operations/capture_stop", CaptureStopHandler)
-	router.POST("/operations/demux", DemuxHandler)
-	router.POST("/operations/trim", TrimHandler)
-	router.POST("/operations/send", SendHandler)
-	router.POST("/operations/convert", ConvertHandler)
-	router.POST("/operations/upload", UploadHandler)
+	operations := router.Group("operations")
+	operations.POST("/capture_start", CaptureStartHandler)
+	operations.POST("/capture_stop", CaptureStopHandler)
+	operations.POST("/demux", DemuxHandler)
+	operations.POST("/trim", TrimHandler)
+	operations.POST("/send", SendHandler)
+	operations.POST("/convert", ConvertHandler)
+	operations.POST("/upload", UploadHandler)
+
+	rest := router.Group("rest")
+	rest.GET("/collections/", CollectionsListHandler)
+	rest.POST("/collections/:id/activate", CollectionActivateHandler)
 
 	router.GET("/sources/hierarchy", SourcesHierarchyHandler)
 	router.GET("/tags/hierarchy", TagsHierarchyHandler)
@@ -23,9 +28,6 @@ func SetupRoutes(router *gin.Engine) {
 
 	// Serve the auto generated docs.
 	router.StaticFile("/docs", viper.GetString("server.docs"))
-
-	collections := router.Group("collections")
-	collections.POST("/", CollectionsCreateHandler)
 
 	router.GET("/recover", func(c *gin.Context) {
 		panic("test recover")

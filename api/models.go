@@ -5,6 +5,7 @@ import (
 	"gopkg.in/nullbio/null.v6"
 	"strconv"
 	"time"
+	"github.com/Bnei-Baruch/mdb/models"
 )
 
 type (
@@ -94,6 +95,30 @@ type (
 
 	// REST
 
+	ListRequest struct {
+		PageNumber int       `json:"page_no" form:"page_no" binding:"omitempty,min=1"`
+		PageSize   int       `json:"page_size" form:"page_size" binding:"omitempty,min=1"`
+		OrderBy    string    `json:"order_by" form:"order_by" binding:"omitempty"`
+	}
+
+	ListResponse struct {
+		Total int64 `json:"total"`
+	}
+
+	ContentTypesFilter struct {
+		ContentTypes []string `json:"content_types" form:"content_type" binding:"omitempty"`
+	}
+
+	CollectionsRequest struct {
+		ListRequest
+		ContentTypesFilter
+	}
+
+	CollectionsResponse struct {
+		ListResponse
+		Collections []*Collection `json:"data"`
+	}
+
 	HierarchyRequest struct {
 		Language string `json:"language" form:"language" binding:"omitempty,len=2"`
 		RootUID  string `json:"root" form:"root" binding:"omitempty,len=8"`
@@ -106,6 +131,11 @@ type (
 
 	TagsHierarchyRequest struct {
 		HierarchyRequest
+	}
+
+	Collection struct {
+		models.Collection
+		I18n map[string]*models.CollectionI18n `json:"i18n"`
 	}
 
 	Source struct {
@@ -136,14 +166,11 @@ type (
 		ParentID null.Int64  `json:"-"`
 	}
 
-	CreateCollectionRequest struct {
-		Type        string `json:"type" binding:"required"`
-		UID         string `json:"uid" binding:"len=8"`
-		Name        string `json:"name" binding:"required"`
-		Description string `json:"description"`
-		Language    string `json:"language" binding:"len=2"`
-	}
 )
+
+func NewCollectionsResponse() *CollectionsResponse {
+	return &CollectionsResponse{Collections: make([]*Collection, 0)}
+}
 
 // A time.Time like structure with Unix timestamp JSON marshalling
 type Timestamp struct {
