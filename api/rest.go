@@ -79,6 +79,39 @@ func CollectionsListHandler(c *gin.Context) {
 	})
 }
 
+
+func CollectionItemHandler(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, errors.Wrap(err, "id expects int64")).
+			SetType(gin.ErrorTypePublic)
+		return
+	}
+
+	collection, err := models.CollectionsG(qm.Where("id = ?", id),
+		qm.Load("CollectionI18ns")).
+		One()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		} else {
+			internalServerError(c, err)
+			return
+		}
+	}
+
+	// i18n
+	x := &Collection{Collection: *collection}
+	x.I18n = make(map[string]*models.CollectionI18n, len(collection.R.CollectionI18ns))
+	for _, i18n := range collection.R.CollectionI18ns {
+		x.I18n[i18n.Language] = i18n
+	}
+
+	c.JSON(http.StatusOK, x)
+}
+
+
 // Toggle the active flag of a single container
 func CollectionActivateHandler(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
@@ -122,6 +155,96 @@ func CollectionActivateHandler(c *gin.Context) {
 	} else {
 		internalServerError(c, err)
 	}
+}
+
+func ContentUnitListHandler(c *gin.Context) {
+	var r ContentUnitRequest
+	if c.Bind(&r) != nil {
+		return
+	}
+
+	mods := make([]qm.QueryMod, 0)
+
+	// filters
+	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
+		return
+	}
+
+	// count query
+	total, err := models.ContentUnitsG(mods...).Count()
+	if err != nil {
+		internalServerError(c, err)
+		return
+	}
+	if total == 0 {
+		c.JSON(http.StatusOK, NewContentUnitsResponse())
+		return
+	}
+
+	// order, limit, offset
+	if err = appendListMods(&mods, r.ListRequest); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
+		return
+	}
+
+	// Eager loading
+	mods = append(mods, qm.Load("ContentUnitI18ns"))
+
+	// data query
+	units, err := models.ContentUnitsG(mods...).All()
+	if err != nil {
+		internalServerError(c, err)
+		return
+	}
+
+	// i18n
+	data := make([]*ContentUnit, len(units))
+	for i, cu := range units {
+		x := &ContentUnit{ContentUnit: *cu}
+		data[i] = x
+		x.I18n = make(map[string]*models.ContentUnitI18n, len(cu.R.ContentUnitI18ns))
+		for _, i18n := range cu.R.ContentUnitI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+	}
+
+	c.JSON(http.StatusOK, ContentUnitsResponse{
+		ListResponse: ListResponse{Total: total},
+		ContentUnits:  data,
+	})
+}
+
+
+func ContentUnitItemHandler(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, errors.Wrap(err, "id expects int64")).
+			SetType(gin.ErrorTypePublic)
+		return
+	}
+
+	unit, err := models.ContentUnitsG(qm.Where("id = ?", id),
+		qm.Load("ContentUnitI18ns")).
+		One()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		} else {
+			internalServerError(c, err)
+			return
+		}
+	}
+
+	// i18n
+	x := &ContentUnit{ContentUnit: *unit}
+	x.I18n = make(map[string]*models.ContentUnitI18n, len(unit.R.ContentUnitI18ns))
+	for _, i18n := range unit.R.ContentUnitI18ns {
+		x.I18n[i18n.Language] = i18n
+	}
+
+	c.JSON(http.StatusOK, x)
 }
 
 func FilesListHandler(c *gin.Context) {

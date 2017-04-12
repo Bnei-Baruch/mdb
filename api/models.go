@@ -128,6 +128,16 @@ type (
 		Collections []*Collection `json:"data"`
 	}
 
+	ContentUnitRequest struct {
+		ListRequest
+		ContentTypesFilter
+	}
+
+	ContentUnitsResponse struct {
+		ListResponse
+		ContentUnits []*ContentUnit `json:"data"`
+	}
+
 	FilesRequest struct {
 		ListRequest
 		SearchTermFilter
@@ -155,6 +165,11 @@ type (
 	Collection struct {
 		models.Collection
 		I18n map[string]*models.CollectionI18n `json:"i18n"`
+	}
+
+	ContentUnit struct {
+		models.ContentUnit
+		I18n map[string]*models.ContentUnitI18n `json:"i18n"`
 	}
 
 	// Marshalable File
@@ -194,6 +209,10 @@ type (
 
 func NewCollectionsResponse() *CollectionsResponse {
 	return &CollectionsResponse{Collections: make([]*Collection, 0)}
+}
+
+func NewContentUnitsResponse() *ContentUnitsResponse {
+	return &ContentUnitsResponse{ContentUnits: make([]*ContentUnit, 0)}
 }
 
 func NewFilesResponse() *FilesResponse {
