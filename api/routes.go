@@ -18,6 +18,8 @@ func SetupRoutes(router *gin.Engine) {
 	rest := router.Group("rest")
 	rest.GET("/collections/", CollectionsListHandler)
 	rest.POST("/collections/:id/activate", CollectionActivateHandler)
+	rest.GET("/files/", FilesListHandler)
+	rest.GET("/files/:id/", FileItemHandler)
 
 	router.GET("/sources/hierarchy", SourcesHierarchyHandler)
 	router.GET("/tags/hierarchy", TagsHierarchyHandler)

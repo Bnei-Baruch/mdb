@@ -2,10 +2,13 @@ package api
 
 import (
 	"fmt"
-	"gopkg.in/nullbio/null.v6"
 	"strconv"
 	"time"
+
+	"gopkg.in/nullbio/null.v6"
+
 	"github.com/Bnei-Baruch/mdb/models"
+	"encoding/hex"
 )
 
 type (
@@ -96,9 +99,11 @@ type (
 	// REST
 
 	ListRequest struct {
-		PageNumber int       `json:"page_no" form:"page_no" binding:"omitempty,min=1"`
-		PageSize   int       `json:"page_size" form:"page_size" binding:"omitempty,min=1"`
-		OrderBy    string    `json:"order_by" form:"order_by" binding:"omitempty"`
+		PageNumber int    `json:"page_no" form:"page_no" binding:"omitempty,min=1"`
+		PageSize   int    `json:"page_size" form:"page_size" binding:"omitempty,min=1"`
+		StartIndex int    `json:"start_index" form:"start_index" binding:"omitempty,min=1"`
+		StopIndex  int    `json:"stop_index" form:"stop_index" binding:"omitempty,min=1"`
+		OrderBy    string `json:"order_by" form:"order_by" binding:"omitempty"`
 	}
 
 	ListResponse struct {
@@ -109,6 +114,10 @@ type (
 		ContentTypes []string `json:"content_types" form:"content_type" binding:"omitempty"`
 	}
 
+	SearchTermFilter struct {
+		Query string `json:"query" form:"query" binding:"omitempty"`
+	}
+
 	CollectionsRequest struct {
 		ListRequest
 		ContentTypesFilter
@@ -117,6 +126,16 @@ type (
 	CollectionsResponse struct {
 		ListResponse
 		Collections []*Collection `json:"data"`
+	}
+
+	FilesRequest struct {
+		ListRequest
+		SearchTermFilter
+	}
+
+	FilesResponse struct {
+		ListResponse
+		Files []*MFile `json:"data"`
 	}
 
 	HierarchyRequest struct {
@@ -136,6 +155,12 @@ type (
 	Collection struct {
 		models.Collection
 		I18n map[string]*models.CollectionI18n `json:"i18n"`
+	}
+
+	// Marshalable File
+	MFile struct {
+		models.File
+		Sha1Str string `json:"sha1"`
 	}
 
 	Source struct {
@@ -165,11 +190,22 @@ type (
 		ID       int64       `json:"-"`
 		ParentID null.Int64  `json:"-"`
 	}
-
 )
 
 func NewCollectionsResponse() *CollectionsResponse {
 	return &CollectionsResponse{Collections: make([]*Collection, 0)}
+}
+
+func NewFilesResponse() *FilesResponse {
+	return &FilesResponse{Files: make([]*MFile, 0)}
+}
+
+func NewMFile(f *models.File) *MFile {
+	x := &MFile{File: *f}
+	if f.Sha1.Valid {
+		x.Sha1Str = hex.EncodeToString(f.Sha1.Bytes)
+	}
+	return x
 }
 
 // A time.Time like structure with Unix timestamp JSON marshalling

@@ -47,7 +47,10 @@ func CollectionsListHandler(c *gin.Context) {
 	}
 
 	// order, limit, offset
-	appendListMods(&mods, r.ListRequest)
+	if err = appendListMods(&mods, r.ListRequest); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
+		return
+	}
 
 	// Eager loading
 	mods = append(mods, qm.Load("CollectionI18ns"))
@@ -121,24 +124,115 @@ func CollectionActivateHandler(c *gin.Context) {
 	}
 }
 
-func appendListMods(mods *[]qm.QueryMod, r ListRequest) {
+func FilesListHandler(c *gin.Context) {
+	var r FilesRequest
+	if c.Bind(&r) != nil {
+		return
+	}
+
+	mods := make([]qm.QueryMod, 0)
+
+	// filters
+	if r.Query != "" {
+		mods = append(mods, qm.Where("name LIKE ?", r.Query),
+			qm.Or("uid LIKE ?", r.Query),
+			qm.Or("id::TEXT LIKE ?", r.Query))
+	}
+
+	// count query
+	total, err := models.FilesG(mods...).Count()
+	if err != nil {
+		internalServerError(c, err)
+		return
+	}
+	if total == 0 {
+		c.JSON(http.StatusOK, NewFilesResponse())
+		return
+	}
+
+	// order, limit, offset
+	if err = appendListMods(&mods, r.ListRequest); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
+		return
+	}
+
+	// data query
+	files, err := models.FilesG(mods...).All()
+	if err != nil {
+		internalServerError(c, err)
+		return
+	}
+
+	data := make([]*MFile, len(files))
+	for i, f := range files {
+		data[i] = NewMFile(f)
+	}
+
+	c.JSON(http.StatusOK, FilesResponse{
+		ListResponse: ListResponse{Total: total},
+		Files:        data,
+	})
+}
+
+func FileItemHandler(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, errors.Wrap(err, "id expects int64")).
+			SetType(gin.ErrorTypePublic)
+		return
+	}
+
+	file, err := models.FindFileG(id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		} else {
+			internalServerError(c, err)
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, NewMFile(file))
+}
+
+func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
 	if r.OrderBy == "" {
 		*mods = append(*mods, qm.OrderBy("id"))
 	} else {
 		*mods = append(*mods, qm.OrderBy(r.OrderBy))
 	}
 
-	var pageSize int
-	if r.PageSize == 0 {
-		pageSize = DEFAULT_PAGE_SIZE
+	var limit, offset int
+
+	if r.StartIndex == 0 {
+		// pagination style
+		if r.PageSize == 0 {
+			limit = DEFAULT_PAGE_SIZE
+		} else {
+			limit = utils.Min(r.PageSize, MAX_PAGE_SIZE)
+		}
+		if r.PageNumber > 1 {
+			offset = (r.PageNumber - 1) * limit
+		}
 	} else {
-		pageSize = utils.Min(r.PageSize, MAX_PAGE_SIZE)
+		// start & stop index style for "infinite" lists
+		offset = r.StartIndex - 1
+		if r.StopIndex == 0 {
+			limit = MAX_PAGE_SIZE
+		} else if r.StopIndex < r.StartIndex {
+			return errors.Errorf("Invalid range [%d-%d]", r.StartIndex, r.StopIndex)
+		} else {
+			limit = r.StopIndex - r.StartIndex + 1
+		}
 	}
 
-	*mods = append(*mods, qm.Limit(pageSize))
-	if r.PageNumber > 1 {
-		*mods = append(*mods, qm.Offset((r.PageNumber-1)*pageSize))
+	*mods = append(*mods, qm.Limit(limit))
+	if offset != 0 {
+		*mods = append(*mods, qm.Offset(offset))
 	}
+
+	return nil
 }
 
 func appendContentTypesFilterMods(mods *[]qm.QueryMod, f ContentTypesFilter) error {
@@ -155,6 +249,8 @@ func appendContentTypesFilterMods(mods *[]qm.QueryMod, f ContentTypesFilter) err
 			return errors.Errorf("Unknown content type: %s", x)
 		}
 	}
+
 	*mods = append(*mods, qm.WhereIn("type_id in ?", a...))
+
 	return nil
 }
