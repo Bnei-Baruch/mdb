@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"gopkg.in/gin-gonic/gin.v1"
@@ -34,4 +35,12 @@ func NewBadRequestError(err error) *HttpError {
 
 func NewInternalError(err error) *HttpError {
 	return NewHttpError(http.StatusInternalServerError, err, gin.ErrorTypePrivate)
+}
+
+type FileNotFound struct {
+	Sha1 string
+}
+
+func (f FileNotFound) Error() string {
+	return fmt.Sprintf("File not found, sha1 = %s", f.Sha1)
 }

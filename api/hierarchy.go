@@ -108,7 +108,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 	rsql := fmt.Sprintf(SOURCE_HIERARCHY_SQL, l, l, rootClause, l, l, depth)
 	rows, err := queries.RawG(rsql).Query()
 	if err != nil {
-		internalServerError(c, err)
+		NewInternalError(err).Abort(c)
 		return
 	}
 	defer rows.Close()
@@ -122,7 +122,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 		var typeID, d int64
 		err := rows.Scan(&s.ID, &s.UID, &s.Pattern, &s.ParentID, &s.Position, &typeID, &s.Name, &s.Description, &d)
 		if err != nil {
-			internalServerError(c, err)
+			NewInternalError(err).Abort(c)
 			return
 		}
 		s.Type = SOURCE_TYPE_REGISTRY.ByID[typeID].Name
@@ -145,7 +145,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 	}
 	err = rows.Err()
 	if err != nil {
-		internalServerError(c, err)
+		NewInternalError(err).Abort(c)
 		return
 	}
 
@@ -153,7 +153,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 		rsql = fmt.Sprintf(AUTHORS_SOURCES_SQL, l, l)
 		rows, err := queries.RawG(rsql).Query()
 		if err != nil {
-			internalServerError(c, err)
+			NewInternalError(err).Abort(c)
 			return
 		}
 		defer rows.Close()
@@ -164,14 +164,14 @@ func SourcesHierarchyHandler(c *gin.Context) {
 			var sids pq.Int64Array
 			err := rows.Scan(&a.Code, &a.Name, &a.FullName, &sids)
 			if err != nil {
-				internalServerError(c, err)
+				NewInternalError(err).Abort(c)
 				return
 			}
 
 			// Associate sources
-			a.Sources = make([]*Source, len(sids))
+			a.Children = make([]*Source, len(sids))
 			for i, x := range sids {
-				a.Sources[i] = sources[x]
+				a.Children[i] = sources[x]
 			}
 			authors = append(authors, a)
 		}
@@ -179,7 +179,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 		if err == nil {
 			c.JSON(http.StatusOK, authors)
 		} else {
-			internalServerError(c, err)
+			NewInternalError(err).Abort(c)
 			return
 		}
 	} else {
@@ -218,7 +218,7 @@ func TagsHierarchyHandler(c *gin.Context) {
 	rsql := fmt.Sprintf(TAG_HIERARCHY_SQL, l, rootClause, l, depth)
 	rows, err := queries.RawG(rsql).Query()
 	if err != nil {
-		internalServerError(c, err)
+		NewInternalError(err).Abort(c)
 		return
 	}
 	defer rows.Close()
@@ -232,7 +232,7 @@ func TagsHierarchyHandler(c *gin.Context) {
 		var d int64
 		err := rows.Scan(&t.ID, &t.UID, &t.Pattern, &t.ParentID, &t.Label, &d)
 		if err != nil {
-			internalServerError(c, err)
+			NewInternalError(err).Abort(c)
 			return
 		}
 
@@ -254,7 +254,7 @@ func TagsHierarchyHandler(c *gin.Context) {
 	}
 	err = rows.Err()
 	if err != nil {
-		internalServerError(c, err)
+		NewInternalError(err).Abort(c)
 		return
 	}
 

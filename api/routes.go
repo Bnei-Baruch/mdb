@@ -24,8 +24,9 @@ func SetupRoutes(router *gin.Engine) {
 	rest.GET("/files/", FilesListHandler)
 	rest.GET("/files/:id/", FileItemHandler)
 
-	router.GET("/sources/hierarchy", SourcesHierarchyHandler)
-	router.GET("/tags/hierarchy", TagsHierarchyHandler)
+	hierarchy := router.Group("hierarchy")
+	hierarchy.GET("/sources/", SourcesHierarchyHandler)
+	hierarchy.GET("/tags/", TagsHierarchyHandler)
 
 	// Serve the log file.
 	admin := router.Group("admin")

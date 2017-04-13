@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -386,19 +385,11 @@ func handleOperation(c *gin.Context, input interface{},
 	} else {
 		switch err.(type) {
 		case FileNotFound:
-			c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
+			NewBadRequestError(err).Abort(c)
 		default:
-			internalServerError(c, err)
+			NewInternalError(err).Abort(c)
 		}
 	}
-}
-
-type FileNotFound struct {
-	Sha1 string
-}
-
-func (f FileNotFound) Error() string {
-	return fmt.Sprintf("File not found, sha1 = %s", f.Sha1)
 }
 
 func CreateOperation(exec boil.Executor, name string, o Operation, properties map[string]interface{}) (*models.Operation, error) {
@@ -522,9 +513,4 @@ func FindFileBySHA1(exec boil.Executor, sha1 string) (*models.File, []byte, erro
 			return nil, s, err
 		}
 	}
-}
-
-func internalServerError(c *gin.Context, err error) {
-	c.AbortWithError(http.StatusInternalServerError, err).
-		SetType(gin.ErrorTypePrivate)
 }

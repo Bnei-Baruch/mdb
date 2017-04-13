@@ -194,7 +194,7 @@ type (
 		Code     string      `json:"code"`
 		Name     string      `json:"name"`
 		FullName null.String `json:"full_name,omitempty"`
-		Sources  []*Source   `json:"sources,omitempty"`
+		Children []*Source   `json:"children,omitempty"`
 	}
 
 	Tag struct {
