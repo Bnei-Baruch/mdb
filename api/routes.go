@@ -19,7 +19,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.GET("/collections/", CollectionsListHandler)
 	rest.GET("/collections/:id/", CollectionItemHandler)
 	rest.POST("/collections/:id/activate", CollectionActivateHandler)
-	rest.GET("/content_units/", ContentUnitListHandler)
+	rest.GET("/content_units/", ContentUnitsListHandler)
 	rest.GET("/content_units/:id/", ContentUnitItemHandler)
 	rest.GET("/files/", FilesListHandler)
 	rest.GET("/files/:id/", FileItemHandler)

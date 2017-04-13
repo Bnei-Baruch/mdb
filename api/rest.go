@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/nullbio/null.v6"
@@ -27,39 +28,134 @@ func CollectionsListHandler(c *gin.Context) {
 		return
 	}
 
+	resp, err := handleCollectionsList(boil.GetDB(), r)
+	if err == nil {
+		c.JSON(http.StatusOK, resp)
+	} else {
+		err.Abort(c)
+	}
+}
+
+func CollectionItemHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := handleCollectionItem(boil.GetDB(), id)
+	if err == nil {
+		c.JSON(http.StatusOK, resp)
+	} else {
+		err.Abort(c)
+	}
+}
+
+// Toggle the active flag of a single container
+func CollectionActivateHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	err := handleCollectionActivate(boil.GetDB(), id)
+	if err == nil {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	} else {
+		err.Abort(c)
+	}
+}
+
+func ContentUnitsListHandler(c *gin.Context) {
+	var r ContentUnitsRequest
+	if c.Bind(&r) != nil {
+		return
+	}
+
+	resp, err := handleContentUnitsList(boil.GetDB(), r)
+	if err == nil {
+		c.JSON(http.StatusOK, resp)
+	} else {
+		err.Abort(c)
+	}
+}
+
+func ContentUnitItemHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := handleContentUnitItem(boil.GetDB(), id)
+	if err == nil {
+		c.JSON(http.StatusOK, resp)
+	} else {
+		err.Abort(c)
+	}
+}
+
+func FilesListHandler(c *gin.Context) {
+	var r FilesRequest
+	if c.Bind(&r) != nil {
+		return
+	}
+
+	resp, err := handleFilesList(boil.GetDB(), r)
+	if err == nil {
+		c.JSON(http.StatusOK, resp)
+	} else {
+		err.Abort(c)
+	}
+}
+
+func FileItemHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := handleFileItem(boil.GetDB(), id)
+	if err == nil {
+		c.JSON(http.StatusOK, resp)
+	} else {
+		err.Abort(c)
+	}
+}
+
+// Handlers Logic
+
+func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*CollectionsResponse, *HttpError) {
 	mods := make([]qm.QueryMod, 0)
 
 	// filters
 	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
-		return
+		return nil, NewBadRequestError(err)
 	}
 
 	// count query
-	total, err := models.CollectionsG(mods...).Count()
+	total, err := models.Collections(exec, mods...).Count()
 	if err != nil {
-		internalServerError(c, err)
-		return
+		return nil, NewInternalError(err)
 	}
 	if total == 0 {
-		c.JSON(http.StatusOK, NewCollectionsResponse())
-		return
+		return NewCollectionsResponse(), nil
 	}
 
 	// order, limit, offset
 	if err = appendListMods(&mods, r.ListRequest); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
-		return
+		return nil, NewBadRequestError(err)
 	}
 
 	// Eager loading
 	mods = append(mods, qm.Load("CollectionI18ns"))
 
 	// data query
-	collections, err := models.CollectionsG(mods...).All()
+	collections, err := models.Collections(exec, mods...).All()
 	if err != nil {
-		internalServerError(c, err)
-		return
+		return nil, NewInternalError(err)
 	}
 
 	// i18n
@@ -73,31 +169,22 @@ func CollectionsListHandler(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, CollectionsResponse{
+	return &CollectionsResponse{
 		ListResponse: ListResponse{Total: total},
 		Collections:  data,
-	})
+	}, nil
 }
 
-
-func CollectionItemHandler(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
-	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, errors.Wrap(err, "id expects int64")).
-			SetType(gin.ErrorTypePublic)
-		return
-	}
-
-	collection, err := models.CollectionsG(qm.Where("id = ?", id),
+func handleCollectionItem(exec boil.Executor, id int64) (*Collection, *HttpError) {
+	collection, err := models.Collections(exec,
+		qm.Where("id = ?", id),
 		qm.Load("CollectionI18ns")).
 		One()
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
+			return nil, NewNotFoundError()
 		} else {
-			internalServerError(c, err)
-			return
+			return nil, NewInternalError(err)
 		}
 	}
 
@@ -108,27 +195,16 @@ func CollectionItemHandler(c *gin.Context) {
 		x.I18n[i18n.Language] = i18n
 	}
 
-	c.JSON(http.StatusOK, x)
+	return x, nil
 }
 
-
-// Toggle the active flag of a single container
-func CollectionActivateHandler(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
-	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, errors.Wrap(err, "id expects int64")).
-			SetType(gin.ErrorTypePublic)
-		return
-	}
-
-	collection, err := models.FindCollectionG(id)
+func handleCollectionActivate(exec boil.Executor, id int64) *HttpError {
+	collection, err := models.FindCollection(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
+			return NewNotFoundError()
 		} else {
-			internalServerError(c, err)
-			return
+			return NewInternalError(err)
 		}
 	}
 
@@ -146,56 +222,46 @@ func CollectionActivateHandler(c *gin.Context) {
 
 	pbytes, err := json.Marshal(props)
 	if err != nil {
-		internalServerError(c, err)
+		return NewInternalError(err)
 	}
 	collection.Properties = null.JSONFrom(pbytes)
-	err = collection.UpdateG("properties")
-	if err == nil {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	} else {
-		internalServerError(c, err)
+	err = collection.Update(exec, "properties")
+	if err != nil {
+		return NewInternalError(err)
 	}
+
+	return nil
 }
 
-func ContentUnitListHandler(c *gin.Context) {
-	var r ContentUnitRequest
-	if c.Bind(&r) != nil {
-		return
-	}
-
+func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*ContentUnitsResponse, *HttpError) {
 	mods := make([]qm.QueryMod, 0)
 
 	// filters
 	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
-		return
+		return nil, NewBadRequestError(err)
 	}
 
 	// count query
-	total, err := models.ContentUnitsG(mods...).Count()
+	total, err := models.ContentUnits(exec, mods...).Count()
 	if err != nil {
-		internalServerError(c, err)
-		return
+		return nil, NewInternalError(err)
 	}
 	if total == 0 {
-		c.JSON(http.StatusOK, NewContentUnitsResponse())
-		return
+		return NewContentUnitsResponse(), nil
 	}
 
 	// order, limit, offset
 	if err = appendListMods(&mods, r.ListRequest); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
-		return
+		return nil, NewBadRequestError(err)
 	}
 
 	// Eager loading
 	mods = append(mods, qm.Load("ContentUnitI18ns"))
 
 	// data query
-	units, err := models.ContentUnitsG(mods...).All()
+	units, err := models.ContentUnits(exec, mods...).All()
 	if err != nil {
-		internalServerError(c, err)
-		return
+		return nil, NewInternalError(err)
 	}
 
 	// i18n
@@ -209,31 +275,22 @@ func ContentUnitListHandler(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, ContentUnitsResponse{
+	return &ContentUnitsResponse{
 		ListResponse: ListResponse{Total: total},
-		ContentUnits:  data,
-	})
+		ContentUnits: data,
+	}, nil
 }
 
-
-func ContentUnitItemHandler(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
-	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, errors.Wrap(err, "id expects int64")).
-			SetType(gin.ErrorTypePublic)
-		return
-	}
-
-	unit, err := models.ContentUnitsG(qm.Where("id = ?", id),
+func handleContentUnitItem(exec boil.Executor, id int64) (*ContentUnit, *HttpError) {
+	unit, err := models.ContentUnits(exec,
+		qm.Where("id = ?", id),
 		qm.Load("ContentUnitI18ns")).
 		One()
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
+			return nil, NewNotFoundError()
 		} else {
-			internalServerError(c, err)
-			return
+			return nil, NewInternalError(err)
 		}
 	}
 
@@ -244,46 +301,38 @@ func ContentUnitItemHandler(c *gin.Context) {
 		x.I18n[i18n.Language] = i18n
 	}
 
-	c.JSON(http.StatusOK, x)
+	return x, nil
 }
 
-func FilesListHandler(c *gin.Context) {
-	var r FilesRequest
-	if c.Bind(&r) != nil {
-		return
-	}
+func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpError) {
 
 	mods := make([]qm.QueryMod, 0)
 
 	// filters
 	if r.Query != "" {
-		mods = append(mods, qm.Where("name LIKE ?", r.Query),
-			qm.Or("uid LIKE ?", r.Query),
-			qm.Or("id::TEXT LIKE ?", r.Query))
+		mods = append(mods, qm.Where("name ~ ?", r.Query),
+			qm.Or("uid ~ ?", r.Query),
+			qm.Or("id::TEXT ~ ?", r.Query))
 	}
 
 	// count query
-	total, err := models.FilesG(mods...).Count()
+	total, err := models.Files(exec, mods...).Count()
 	if err != nil {
-		internalServerError(c, err)
-		return
+		return nil, NewInternalError(err)
 	}
 	if total == 0 {
-		c.JSON(http.StatusOK, NewFilesResponse())
-		return
+		return NewFilesResponse(), nil
 	}
 
 	// order, limit, offset
 	if err = appendListMods(&mods, r.ListRequest); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
-		return
+		return nil, NewBadRequestError(err)
 	}
 
 	// data query
-	files, err := models.FilesG(mods...).All()
+	files, err := models.Files(exec, mods...).All()
 	if err != nil {
-		internalServerError(c, err)
-		return
+		return nil, NewInternalError(err)
 	}
 
 	data := make([]*MFile, len(files))
@@ -291,33 +340,26 @@ func FilesListHandler(c *gin.Context) {
 		data[i] = NewMFile(f)
 	}
 
-	c.JSON(http.StatusOK, FilesResponse{
+	return &FilesResponse{
 		ListResponse: ListResponse{Total: total},
 		Files:        data,
-	})
+	}, nil
 }
 
-func FileItemHandler(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 0)
-	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, errors.Wrap(err, "id expects int64")).
-			SetType(gin.ErrorTypePublic)
-		return
-	}
-
-	file, err := models.FindFileG(id)
+func handleFileItem(exec boil.Executor, id int64) (*MFile, *HttpError) {
+	file, err := models.FindFile(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
+			return nil, NewNotFoundError()
 		} else {
-			internalServerError(c, err)
-			return
+			return nil, NewInternalError(err)
 		}
 	}
 
-	c.JSON(http.StatusOK, NewMFile(file))
+	return NewMFile(file), nil
 }
+
+// Query Helpers
 
 func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
 	if r.OrderBy == "" {

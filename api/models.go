@@ -128,7 +128,7 @@ type (
 		Collections []*Collection `json:"data"`
 	}
 
-	ContentUnitRequest struct {
+	ContentUnitsRequest struct {
 		ListRequest
 		ContentTypesFilter
 	}
