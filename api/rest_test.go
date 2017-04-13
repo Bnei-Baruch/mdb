@@ -67,7 +67,7 @@ func (suite *RestSuite) TestCollectionsList() {
 		suite.Equal(c.TypeID, x.TypeID, "collection.TypeID [%d]", i)
 	}
 
-	req.StartIndex = 5
+	req.StartIndex = 6
 	req.StopIndex = 10
 	resp, err = handleCollectionsList(suite.tx, req)
 	suite.Require().Nil(err)
