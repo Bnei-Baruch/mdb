@@ -28,10 +28,10 @@ func SetupRoutes(router *gin.Engine) {
 	hierarchy.GET("/sources/", SourcesHierarchyHandler)
 	hierarchy.GET("/tags/", TagsHierarchyHandler)
 
-    // Serve the auto generated docs.
-    router.StaticFile("/docs", viper.GetString("server.docs"))
+	// Serve the auto generated docs.
+	router.StaticFile("/docs", viper.GetString("server.docs"))
 
-    router.GET("/recover", func(c *gin.Context) {
-        panic("test recover")
-    })
+	router.GET("/recover", func(c *gin.Context) {
+		panic("test recover")
+	})
 }
