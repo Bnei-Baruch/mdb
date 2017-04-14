@@ -1,9 +1,7 @@
 package utils
 
 import (
-    "fmt"
 	"math/rand"
-    "strings"
 	"time"
 )
 
@@ -38,15 +36,20 @@ func GenerateName(n int) string {
 	return string(b)
 }
 
-func CombineErr(errors ...error) error {
-    trueErrors := []string{}
-    for _, err := range errors {
-        if err != nil {
-            trueErrors = append(trueErrors, err.Error())
-        }
-    }
-    if len(trueErrors) > 0 {
-        return fmt.Errorf(strings.Join(trueErrors, "; "))
-    }
-    return nil
+// true if every string in given slice is empty
+func IsEmpty(s []string) bool {
+	for _, x := range s {
+		if x != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// Like math.Min for int
+func Min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
 }

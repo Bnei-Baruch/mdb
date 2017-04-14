@@ -1,7 +1,0 @@
-.vcode/
-.idea/
-
-build/
-node_modules/
-
-.env

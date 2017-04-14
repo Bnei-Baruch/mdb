@@ -2,7 +2,6 @@ package api
 
 const (
 	// Collection Types
-
 	CT_DAILY_LESSON             = "DAILY_LESSON"
 	CT_SATURDAY_LESSON          = "SATURDAY_LESSON"
 	CT_WEEKLY_FRIENDS_GATHERING = "WEEKLY_FRIENDS_GATHERING"
@@ -15,7 +14,6 @@ const (
 	CT_UNITY_DAY                = "UNITY_DAY"
 
 	// Content Unit Types
-
 	CT_LESSON_PART           = "LESSON_PART"
 	CT_LECTURE               = "LECTURE"
 	CT_CHILDREN_LESSON_PART  = "CHILDREN_LESSON_PART"
@@ -30,7 +28,6 @@ const (
 	CT_TEXT                  = "TEXT"
 
 	// Operation Types
-
 	OP_CAPTURE_START = "capture_start"
 	OP_CAPTURE_STOP  = "capture_stop"
 	OP_DEMUX         = "demux"
@@ -39,6 +36,18 @@ const (
 	OP_CONVERT       = "convert"
 	OP_UPLOAD        = "upload"
 	OP_IMPORT_KMEDIA = "import_kmedia"
+
+	// Source Types
+	SRC_COLLECTION = "COLLECTION"
+	SRC_BOOK       = "BOOK"
+	SRC_VOLUME     = "VOLUME"
+	SRC_PART       = "PART"
+	SRC_PARASHA    = "PARASHA"
+	SRC_CHAPTER    = "CHAPTER"
+	SRC_ARTICLE    = "ARTICLE"
+	SRC_TITLE      = "TITLE"
+	SRC_LETTER     = "LETTER"
+	SRC_ITEM       = "ITEM"
 
 	// Languages
 	LANG_ENGLISH    = "en"
@@ -75,29 +84,3 @@ const (
 	LANG_MULTI      = "zz"
 	LANG_UNKNOWN    = "xx"
 )
-
-var DEFAULT_NAMES = map[string]string{
-	CT_DAILY_LESSON:             "Daily Lesson",
-	CT_SATURDAY_LESSON:          "Saturday Lesson",
-	CT_WEEKLY_FRIENDS_GATHERING: "Weekly Friends Gathering",
-	CT_CONGRESS:                 "Congress",
-	CT_VIDEO_PROGRAM:            "Video Program",
-	CT_LECTURE_SERIES:           "Lecture Series",
-	CT_MEALS:                    "Meals",
-	CT_HOLIDAY:                  "Holiday",
-	CT_PICNIC:                   "Picnic",
-	CT_UNITY_DAY:                "Unity Day",
-
-	CT_LESSON_PART:           "Morning Lesson",
-	CT_LECTURE:               "Lecture",
-	CT_CHILDREN_LESSON_PART:  "Children Lesson",
-	CT_WOMEN_LESSON_PART:     "Women Lesson",
-	CT_CAMPUS_LESSON:         "Campus Lesson",
-	CT_LC_LESSON:             "Learning Center  Lesson",
-	CT_VIRTUAL_LESSON:        "Virtual Lesson",
-	CT_FRIENDS_GATHERING:     "Friends Gathering",
-	CT_MEAL:                  "Meal",
-	CT_VIDEO_PROGRAM_CHAPTER: "Video Program",
-	CT_FULL_LESSON:           "Full Lesson",
-	CT_TEXT:                  "text",
-}

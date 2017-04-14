@@ -114,6 +114,11 @@
 			"Rev": "ee05b128a739a0fb76c7ebd3ae4810c1de808d6d"
 		},
 		{
+			"ImportPath": "github.com/mattn/go-isatty",
+			"Comment": "v0.0.2",
+			"Rev": "fc9e8d8ef48496124e79ae0df75490096eccf6fe"
+		},
+		{
 			"ImportPath": "github.com/mitchellh/mapstructure",
 			"Rev": "db1efb556f84b25a0a13a04aad883943538ad2e0"
 		},
@@ -265,8 +270,8 @@
 		},
 		{
 			"ImportPath": "gopkg.in/gin-gonic/gin.v1",
-			"Comment": "v1.0",
-			"Rev": "2dae550eb5392006a4582ce9c90016a9b5a74e8b"
+			"Comment": "v1.1.4",
+			"Rev": "e2212d40c62a98b388a5eb48ecbdcf88534688ba"
 		},
 		{
 			"ImportPath": "gopkg.in/go-playground/validator.v8",

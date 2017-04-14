@@ -6,35 +6,32 @@ import (
 )
 
 func SetupRoutes(router *gin.Engine) {
-    // Operations API
-	router.POST("/operations/capture_start", CaptureStartHandler)
-	router.POST("/operations/capture_stop", CaptureStopHandler)
-	router.POST("/operations/demux", DemuxHandler)
-	router.POST("/operations/trim", TrimHandler)
-	router.POST("/operations/send", SendHandler)
-	router.POST("/operations/convert", ConvertHandler)
-	router.POST("/operations/upload", UploadHandler)
+	operations := router.Group("operations")
+	operations.POST("/capture_start", CaptureStartHandler)
+	operations.POST("/capture_stop", CaptureStopHandler)
+	operations.POST("/demux", DemuxHandler)
+	operations.POST("/trim", TrimHandler)
+	operations.POST("/send", SendHandler)
+	operations.POST("/convert", ConvertHandler)
+	operations.POST("/upload", UploadHandler)
 
-    // Admin API
-	admin := router.Group("admin")
+	rest := router.Group("rest")
+	rest.GET("/collections/", CollectionsListHandler)
+	rest.GET("/collections/:id/", CollectionItemHandler)
+	rest.POST("/collections/:id/activate", CollectionActivateHandler)
+	rest.GET("/content_units/", ContentUnitsListHandler)
+	rest.GET("/content_units/:id/", ContentUnitItemHandler)
+	rest.GET("/files/", FilesListHandler)
+	rest.GET("/files/:id/", FileItemHandler)
 
-    // Serving admin UI
-	admin.StaticFile("/", viper.GetString("server.admin-ui"))
-	admin.Static("/build", "./admin-ui/build/")
+	hierarchy := router.Group("hierarchy")
+	hierarchy.GET("/sources/", SourcesHierarchyHandler)
+	hierarchy.GET("/tags/", TagsHierarchyHandler)
 
-    // Admin rest handlers.
-    admin.GET("/rest/files", AdminFilesHandler)
-    admin.GET("/rest/files/:id", AdminFileHandler)
-	admin.StaticFile("/rest/log", viper.GetString("server.log"))
+    // Serve the auto generated docs.
+    router.StaticFile("/docs", viper.GetString("server.docs"))
 
-
-	// Serve the auto generated docs.
-	router.StaticFile("/docs", viper.GetString("server.docs"))
-
-	collections := router.Group("collections")
-	collections.POST("/", CollectionsCreateHandler)
-
-	router.GET("/recover", func(c *gin.Context) {
-		panic("test recover")
-	})
+    router.GET("/recover", func(c *gin.Context) {
+        panic("test recover")
+    })
 }

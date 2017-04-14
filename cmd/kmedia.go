@@ -3,9 +3,10 @@ package cmd
 import (
 	"database/sql"
 
-	"github.com/Bnei-Baruch/mdb/importer"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/Bnei-Baruch/mdb/importer/kmedia"
 )
 
 func init() {
@@ -13,7 +14,7 @@ func init() {
 		Use:   "kmedia",
 		Short: "Migrate kmedia to MDB",
 		Run: func(cmd *cobra.Command, args []string) {
-			importer.ImportKmedia()
+			kmedia.ImportKmedia()
 		},
 	}
 	RootCmd.AddCommand(command)

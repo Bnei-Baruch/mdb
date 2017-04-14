@@ -4,18 +4,20 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"strings"
 
-	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
 	log "github.com/Sirupsen/logrus"
 	_ "github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/queries"
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/nullbio/null.v6"
+
+	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 // Start capture of AV file, i.e. morning lesson, tv program, etc...
@@ -368,16 +370,14 @@ func handleOperation(c *gin.Context, input interface{},
 	opHandler func(boil.Executor, interface{}) (*models.Operation, error)) {
 
 	tx, err := boil.Begin()
+	utils.Must(err)
+
+	_, err = opHandler(tx, input)
 	if err == nil {
-		_, err = opHandler(tx, input)
-		if err == nil {
-			tx.Commit()
-		} else {
-			log.Error("Error handling operation: ", err)
-			if txErr := tx.Rollback(); txErr != nil {
-				log.Error("Error rolling back DB transaction: ", txErr)
-			}
-		}
+		utils.Must(tx.Commit())
+	} else {
+		utils.Must(tx.Rollback())
+		err = errors.Wrapf(err, "Handle operation")
 	}
 
 	if err == nil {
@@ -385,21 +385,11 @@ func handleOperation(c *gin.Context, input interface{},
 	} else {
 		switch err.(type) {
 		case FileNotFound:
-			c.Error(err).SetType(gin.ErrorTypePublic)
-			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": err.Error()})
+			NewBadRequestError(err).Abort(c)
 		default:
-			c.Error(err).SetType(gin.ErrorTypePrivate)
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "error": err.Error()})
+			NewInternalError(err).Abort(c)
 		}
 	}
-}
-
-type FileNotFound struct {
-	Sha1 string
-}
-
-func (f FileNotFound) Error() string {
-	return fmt.Sprintf("File not found, sha1 = %s", f.Sha1)
 }
 
 func CreateOperation(exec boil.Executor, name string, o Operation, properties map[string]interface{}) (*models.Operation, error) {
@@ -445,6 +435,28 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 		return nil, err
 	}
 
+	// validate language + convert from code3 if necessary
+	var mdbLang = ""
+	switch len(f.Language) {
+	case 2:
+		if !KNOWN_LANGS.MatchString(strings.ToLower(f.Language)) {
+			return nil, errors.Errorf("Unknown language %s", f.Language)
+		}
+		mdbLang = strings.ToLower(f.Language)
+		break
+	case 3:
+		var ok bool
+		mdbLang, ok = LANG_MAP[strings.ToUpper(f.Language)]
+		if !ok {
+			return nil, errors.Errorf("Unknown language %s", f.Language)
+		}
+		break
+	case 0:
+		break
+	default:
+		return nil, errors.Errorf("Unknown language %s", f.Language)
+	}
+
 	file := models.File{
 		UID:           utils.GenerateUID(8),
 		Name:          f.FileName,
@@ -453,14 +465,21 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 		FileCreatedAt: null.TimeFrom(f.CreatedAt.Time),
 		Type:          f.Type,
 		SubType:       f.SubType,
+		Language:      null.NewString(mdbLang, mdbLang != ""),
 	}
 
 	if f.MimeType != "" {
 		file.MimeType = null.StringFrom(f.MimeType)
+
+		// Try to complement missing type and subtype
+		if file.Type == "" && file.SubType == "" {
+			if mt, ok := MEDIA_TYPE_REGISTRY.ByMime[strings.ToLower(f.MimeType)]; ok {
+				file.Type = mt.Type
+				file.SubType = mt.SubType
+			}
+		}
 	}
-	if f.Language != "" {
-		file.Language = null.StringFrom(f.Language)
-	}
+
 	if parent != nil {
 		file.ParentID = null.Int64From(parent.ID)
 	}
