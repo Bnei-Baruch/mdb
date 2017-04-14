@@ -30,7 +30,7 @@ func migrationFn(cmd *cobra.Command, args []string) {
 
 	if len(args) > 0 {
 		t := time.Now()
-		timestamp := t.Format("2006-01-02_12-04-05_")
+		timestamp := t.Format("2006-01-02_12:04:05_")
 		migrationName = "./migrations/" + timestamp + args[0] + ".sql"
 	} else {
 		fmt.Println("Please specify migration name")
