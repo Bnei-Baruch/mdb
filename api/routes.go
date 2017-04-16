@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/spf13/viper"
 	"gopkg.in/gin-gonic/gin.v1"
 )
 
@@ -27,14 +26,7 @@ func SetupRoutes(router *gin.Engine) {
 	hierarchy := router.Group("hierarchy")
 	hierarchy.GET("/sources/", SourcesHierarchyHandler)
 	hierarchy.GET("/tags/", TagsHierarchyHandler)
-
-	// Serve the log file.
-	admin := router.Group("admin")
-	admin.StaticFile("/log", viper.GetString("server.log"))
-
-	// Serve the auto generated docs.
-	router.StaticFile("/docs", viper.GetString("server.docs"))
-
+	
 	router.GET("/recover", func(c *gin.Context) {
 		panic("test recover")
 	})
