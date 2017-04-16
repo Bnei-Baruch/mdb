@@ -26,7 +26,7 @@ func SetupRoutes(router *gin.Engine) {
 	hierarchy := router.Group("hierarchy")
 	hierarchy.GET("/sources/", SourcesHierarchyHandler)
 	hierarchy.GET("/tags/", TagsHierarchyHandler)
-	
+
 	router.GET("/recover", func(c *gin.Context) {
 		panic("test recover")
 	})
