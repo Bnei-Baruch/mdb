@@ -13,6 +13,7 @@ import (
 	"github.com/adams-sarah/test2doc/test"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/nullbio/null.v6"
 )
 
 type DocsSuite struct {
@@ -203,6 +204,42 @@ func (suite *DocsSuite) Test5SendHandler() {
 			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_p.mp4",
 		},
 		WorkflowType: "workflow_type",
+	}
+
+	resp, err := suite.testOperation(OP_SEND, input)
+	suite.Require().Nil(err)
+	suite.assertJsonOK(resp)
+}
+
+func (suite *DocsSuite) Test5SendHandlerWMetadata() {
+	input := SendRequest{
+		Operation: Operation{
+			Station:    "Trim station",
+			User:       "operator@dev.com",
+			WorkflowID: "t12356789",
+		},
+		Original: Rename{
+			Sha1:     "0987654321fedcba0987654321fedcba11111111",
+			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_o.mp4",
+		},
+		Proxy: Rename{
+			Sha1:     "0987654321fedcba0987654321fedcba22222222",
+			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_p.mp4",
+		},
+		WorkflowType: "workflow_type",
+		Metadata: &CITMetadata{
+			AutoName:       "auto_name",
+			ManualName:     "manual_name",
+			FilmDate:       Date{Time: time.Now()},
+			Language:       "MLT",
+			Lecturer:       "rav",
+			HasTranslation: true,
+			RequireTest:    false,
+			ItemNumber:     null.IntFrom(1),
+			Part:           null.IntFrom(2),
+			Sources:        []string{"12345678", "87654321", "abcdefgh"},
+			Tags:           []string{"12345678", "87654321"},
+		},
 	}
 
 	resp, err := suite.testOperation(OP_SEND, input)

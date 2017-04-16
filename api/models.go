@@ -7,8 +7,9 @@ import (
 
 	"gopkg.in/nullbio/null.v6"
 
-	"github.com/Bnei-Baruch/mdb/models"
 	"encoding/hex"
+	"github.com/Bnei-Baruch/mdb/models"
+	"strings"
 )
 
 type (
@@ -34,6 +35,22 @@ type (
 	AVFile struct {
 		File
 		Duration float64 `json:"duration"`
+	}
+
+	CITMetadata struct {
+		AutoName       string      `json:"auto_name" binding:"required,max=255"`
+		ManualName     string      `json:"manual_name" binding:"omitempty,max=255"`
+		FilmDate       Date        `json:"film_date" binding:"required"`
+		Language       string      `json:"language" binding:"required,min=2,max=3"`
+		Lecturer       string      `json:"lecturer" binding:"required"`
+		CollectionUID  null.String `json:"collection_uid" binding:"omitempty,len=8"`
+		HasTranslation bool        `json:"has_translation"`
+		RequireTest    bool        `json:"require_test"`
+		ItemNumber     null.Int    `json:"item_number"`
+		Part           null.Int    `json:"part"`
+		Episode        null.Int    `json:"episode"`
+		Sources        []string    `json:"sources" binding:"omitempty,dive,len=8"`
+		Tags           []string    `json:"tags" binding:"omitempty,dive,len=8"`
 	}
 
 	Rename struct {
@@ -79,9 +96,10 @@ type (
 
 	SendRequest struct {
 		Operation
-		Original     Rename `json:"original"`
-		Proxy        Rename `json:"proxy"`
-		WorkflowType string `json:"workflow_type"`
+		Original     Rename       `json:"original"`
+		Proxy        Rename       `json:"proxy"`
+		WorkflowType string       `json:"workflow_type"`
+		Metadata     *CITMetadata `json:"metadata" binding:"omitempty"`
 	}
 
 	ConvertRequest struct {
@@ -235,7 +253,6 @@ type Timestamp struct {
 func (t *Timestamp) MarshalJSON() ([]byte, error) {
 	ts := t.Time.Unix()
 	stamp := fmt.Sprint(ts)
-
 	return []byte(stamp), nil
 }
 
@@ -244,8 +261,21 @@ func (t *Timestamp) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
-
 	t.Time = time.Unix(int64(ts), 0)
-
 	return nil
+}
+
+// A time.Time like structure with date part only JSON marshalling
+type Date struct {
+	time.Time
+}
+
+func (d *Date) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%s\"", d.Time.Format("2006-01-02"))), nil
+}
+
+func (d *Date) UnmarshalJSON(b []byte) error {
+	var err error
+	d.Time, err = time.Parse("2006-01-02", strings.Trim(string(b), "\""))
+	return err
 }
