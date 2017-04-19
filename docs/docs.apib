@@ -1,0 +1,311 @@
+FORMAT: 1A
+HOST: <host>:8080
+
+# The API for MDB
+
+Release: <version>
+
+# Group Api
+
+## /admin/files
+
+### Admin Files Handler [GET]
+Gets list of all files.
+
+
++ Response 200 (application/json; charset=utf-8)
+
+
+
+    + Body
+
+            {
+                "status": "ok"
+            }
+        
+
+
+
+## /operations/capture_start
+
+### Capture Start Handler [POST]
+Start capture of AV file, i.e. morning lesson, tv program, etc...
+
+
++ Request (application/json)
+
+
+
+    + Body
+
+            {
+                "station": "Capture station",
+                "user": "operator@dev.com",
+                "workflow_id": "c12356789",
+                "file_name": "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
+                "capture_source": "mltcap",
+                "collection_uid": "abcdefgh"
+            }
+        
+
++ Response 200 (application/json; charset=utf-8)
+
+
+
+    + Body
+
+            {
+                "status": "ok"
+            }
+        
+
+
+
+## /operations/capture_stop
+
+### Capture Stop Handler [POST]
+Stop capture of AV file, ending a matching capture_start event.
+This is the first time a physical file is created in the studio.
+
+
++ Request (application/json)
+
+
+
+    + Body
+
+            {
+                "station": "Capture station",
+                "user": "operator@dev.com",
+                "workflow_id": "c12356789",
+                "file_name": "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
+                "sha1": "012356789abcdef012356789abcdef0123456789",
+                "size": 98737,
+                "created_at": 1488944160,
+                "type": "type",
+                "sub_type": "subtype",
+                "mime_type": "mime_type",
+                "language": "zz",
+                "duration": 892.19,
+                "capture_source": "mltcap",
+                "collection_uid": "abcdefgh",
+                "part": "part"
+            }
+        
+
++ Response 200 (application/json; charset=utf-8)
+
+
+
+    + Body
+
+            {
+                "status": "ok"
+            }
+        
+
+
+
+## /operations/demux
+
+### Demux Handler [POST]
+Demux manifest file to original and low resolution proxy
+
+
++ Request (application/json)
+
+
+
+    + Body
+
+            {
+                "station": "Demux Station",
+                "user": "operator@dev.com",
+                "workflow_id": "",
+                "sha1": "012356789abcdef012356789abcdef0123456789",
+                "original": {
+                    "file_name": "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_o.mp4",
+                    "sha1": "0987654321fedcba0987654321fedcba09876543",
+                    "size": 19837,
+                    "created_at": 1488944160,
+                    "type": "type",
+                    "sub_type": "subtype",
+                    "mime_type": "mime_type",
+                    "language": "zz",
+                    "duration": 892.19
+                },
+                "proxy": {
+                    "file_name": "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_p.mp4",
+                    "sha1": "0987654321fedcba0987654321fedcba87654321",
+                    "size": 837,
+                    "created_at": 1488944160,
+                    "type": "type",
+                    "sub_type": "subtype",
+                    "mime_type": "mime_type",
+                    "language": "he",
+                    "duration": 892.19
+                },
+                "capture_source": "mltbackup"
+            }
+        
+
++ Response 200 (application/json; charset=utf-8)
+
+
+
+    + Body
+
+            {
+                "status": "ok"
+            }
+        
+
+
+
+## /operations/send
+
+### Send Handler [POST]
+Final files sent from studio
+
+
++ Request (application/json)
+
+
+
+    + Body
+
+            {
+                "station": "Trim station",
+                "user": "operator@dev.com",
+                "workflow_id": "t12356789",
+                "original": {
+                    "sha1": "0987654321fedcba0987654321fedcba11111111",
+                    "file_name": "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_o.mp4"
+                },
+                "proxy": {
+                    "sha1": "0987654321fedcba0987654321fedcba22222222",
+                    "file_name": "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_p.mp4"
+                },
+                "workflow_type": "workflow_type"
+            }
+        
+
++ Response 200 (application/json; charset=utf-8)
+
+
+
+    + Body
+
+            {
+                "status": "ok"
+            }
+        
+
+
+
+## /operations/trim
+
+### Trim Handler [POST]
+Trim demuxed files at certain points
+
+
++ Request (application/json)
+
+
+
+    + Body
+
+            {
+                "station": "Trim station",
+                "user": "operator@dev.com",
+                "workflow_id": "t12356789",
+                "original_sha1": "0987654321fedcba0987654321fedcba09876543",
+                "proxy_sha1": "0987654321fedcba0987654321fedcba87654321",
+                "original": {
+                    "file_name": "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_o_trim.mp4",
+                    "sha1": "0987654321fedcba0987654321fedcba11111111",
+                    "size": 19800,
+                    "created_at": 1488944160,
+                    "type": "type",
+                    "sub_type": "subtype",
+                    "mime_type": "mime_type",
+                    "language": "zz",
+                    "duration": 871
+                },
+                "proxy": {
+                    "file_name": "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_p_trim.mp4",
+                    "sha1": "0987654321fedcba0987654321fedcba22222222",
+                    "size": 694,
+                    "created_at": 1488944160,
+                    "type": "type",
+                    "sub_type": "subtype",
+                    "mime_type": "mime_type",
+                    "language": "he",
+                    "duration": 871
+                },
+                "in": [
+                    0,
+                    198.23
+                ],
+                "out": [
+                    10.5,
+                    207.31
+                ],
+                "capture_source": "capture_source"
+            }
+        
+
++ Response 200 (application/json; charset=utf-8)
+
+
+
+    + Body
+
+            {
+                "status": "ok"
+            }
+        
+
+
+
+## /operations/upload
+
+### Upload Handler [POST]
+File uploaded to a public accessible URL
+
+
++ Request (application/json)
+
+
+
+    + Body
+
+            {
+                "station": "Upload station",
+                "user": "111operator@dev.com",
+                "workflow_id": "",
+                "file_name": "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_o.mp4",
+                "sha1": "0987654321fedcba0987654321fedcba09876543",
+                "size": 19837,
+                "created_at": 1488944160,
+                "type": "",
+                "sub_type": "",
+                "mime_type": "",
+                "language": "",
+                "duration": 892,
+                "url": "https://example.com/heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4"
+            }
+        
+
++ Response 200 (application/json; charset=utf-8)
+
+
+
+    + Body
+
+            {
+                "status": "ok"
+            }
+        
+
+

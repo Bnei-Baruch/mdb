@@ -4,7 +4,6 @@ bind-address=":8080"
 mode="debug"  # GIN mode. Either debug, release or test
 rollbar-token=""
 rollbar-environment="development"
-docs="./docs.html"
 
 [mdb]
 url="postgres://localhost/mdb?sslmode=disable&?user=postgres"
