@@ -114,6 +114,15 @@ type (
 		ContentTypes []string `json:"content_types" form:"content_type" binding:"omitempty"`
 	}
 
+	SourcesFilter struct {
+		Authors []string `json:"authors" form:"author" binding:"omitempty"`
+		Sources []int64 `json:"sources" form:"source" binding:"omitempty"`
+	}
+
+	TagsFilter struct {
+		Tags []int64 `json:"tags" form:"tag" binding:"omitempty"`
+	}
+
 	SearchTermFilter struct {
 		Query string `json:"query" form:"query" binding:"omitempty"`
 	}
@@ -131,6 +140,8 @@ type (
 	ContentUnitsRequest struct {
 		ListRequest
 		ContentTypesFilter
+		SourcesFilter
+		TagsFilter
 	}
 
 	ContentUnitsResponse struct {
@@ -179,15 +190,15 @@ type (
 	}
 
 	Source struct {
+		ID          int64       `json:"id"`
 		UID         string      `json:"uid"`
-		Pattern     null.String `json:"pattern,omitempty"`
+		ParentID    null.Int64  `json:"parent_id"`
 		Type        string      `json:"type"`
+		Position    null.Int    `json:"position"`
+		Pattern     null.String `json:"pattern,omitempty"`
 		Name        null.String `json:"name"`
 		Description null.String `json:"description,omitempty"`
 		Children    []*Source   `json:"children,omitempty"`
-		ID          int64       `json:"-"`
-		ParentID    null.Int64  `json:"-"`
-		Position    null.Int    `json:"-"`
 	}
 
 	Author struct {
@@ -198,12 +209,12 @@ type (
 	}
 
 	Tag struct {
+		ID       int64       `json:"id"`
 		UID      string      `json:"uid"`
+		ParentID null.Int64  `json:"parent_id"`
 		Pattern  null.String `json:"pattern,omitempty"`
 		Label    null.String `json:"label"`
 		Children []*Tag      `json:"children,omitempty"`
-		ID       int64       `json:"-"`
-		ParentID null.Int64  `json:"-"`
 	}
 )
 

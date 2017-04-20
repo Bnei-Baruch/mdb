@@ -53,3 +53,12 @@ func Min(x, y int) int {
 	}
 	return y
 }
+
+
+func ConvertArgsInt64(args []int64) []interface{} {
+	c := make([]interface{}, len(args))
+	for i, a := range args {
+		c[i] = a
+	}
+	return c
+}

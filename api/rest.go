@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/boil"
+	"github.com/vattle/sqlboiler/queries"
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/nullbio/null.v6"
@@ -240,6 +242,12 @@ func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*Content
 	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
 		return nil, NewBadRequestError(err)
 	}
+	if err := appendSourcesFilterMods(exec, &mods, r.SourcesFilter); err != nil {
+		return nil, NewInternalError(err)
+	}
+	if err := appendTagsFilterMods(exec, &mods, r.TagsFilter); err != nil {
+		return nil, NewInternalError(err)
+	}
 
 	// count query
 	total, err := models.ContentUnits(exec, mods...).Count()
@@ -416,6 +424,75 @@ func appendContentTypesFilterMods(mods *[]qm.QueryMod, f ContentTypesFilter) err
 	}
 
 	*mods = append(*mods, qm.WhereIn("type_id in ?", a...))
+
+	return nil
+}
+
+func appendSourcesFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SourcesFilter) error {
+	// slice of all source ids we want
+	source_ids := make([]int64, 0)
+
+	// fetch source ids by authors
+	if !utils.IsEmpty(f.Authors) {
+		var ids pq.Int64Array
+		q := `SELECT array_agg(DISTINCT "as".source_id)
+		      FROM authors a INNER JOIN authors_sources "as" ON a.id = "as".author_id
+		      WHERE a.code = ANY($1)`
+		err := queries.Raw(exec, q, pq.Array(f.Authors)).QueryRow().Scan(&ids)
+		if err != nil {
+			return err
+		}
+		source_ids = append(source_ids, ids...)
+	}
+
+	// blend in requested sources
+	source_ids = append(source_ids, f.Sources...)
+
+	if len(source_ids) == 0 {
+		return nil
+	}
+
+	// find all nested source_ids
+	q := `WITH RECURSIVE rec_sources AS (
+		  SELECT s.id FROM sources s WHERE s.id = ANY($1)
+		  UNION
+		  SELECT s.id FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+	      )
+	      SELECT array_agg(distinct id) FROM rec_sources`
+	var ids pq.Int64Array
+	err := queries.Raw(exec, q, pq.Array(source_ids)).QueryRow().Scan(&ids)
+	if err != nil {
+		return err
+	}
+
+	*mods = append(*mods,
+		qm.InnerJoin("content_units_sources cus ON id = cus.content_unit_id"),
+		qm.WhereIn("cus.source_id in ?", utils.ConvertArgsInt64(ids)...))
+
+	return nil
+}
+
+func appendTagsFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f TagsFilter) error {
+	if len(f.Tags) == 0 {
+		return nil
+	}
+
+	// find all nested tag_ids
+	q := `WITH RECURSIVE rec_tags AS (
+	        SELECT t.id FROM tags t WHERE t.id = ANY($1)
+	        UNION
+	        SELECT t.id FROM tags t INNER JOIN rec_tags rt ON t.parent_id = rt.id
+	      )
+	      SELECT array_agg(distinct id) FROM rec_tags`
+	var ids pq.Int64Array
+	err := queries.Raw(exec, q, pq.Array(f.Tags)).QueryRow().Scan(&ids)
+	if err != nil {
+		return err
+	}
+
+	*mods = append(*mods,
+		qm.InnerJoin("content_units_tags cut ON id = cut.content_unit_id"),
+		qm.WhereIn("cut.tag_id in ?", utils.ConvertArgsInt64(ids)...))
 
 	return nil
 }
