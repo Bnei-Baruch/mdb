@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"time"
@@ -8,7 +9,6 @@ import (
 	"gopkg.in/nullbio/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
-	"encoding/hex"
 )
 
 type (
@@ -114,9 +114,13 @@ type (
 		ContentTypes []string `json:"content_types" form:"content_type" binding:"omitempty"`
 	}
 
+	OperationTypesFilter struct {
+		OperationTypes []string `json:"operation_types" form:"operation_type" binding:"omitempty"`
+	}
+
 	SourcesFilter struct {
 		Authors []string `json:"authors" form:"author" binding:"omitempty"`
-		Sources []int64 `json:"sources" form:"source" binding:"omitempty"`
+		Sources []int64  `json:"sources" form:"source" binding:"omitempty"`
 	}
 
 	TagsFilter struct {
@@ -127,8 +131,14 @@ type (
 		Query string `json:"query" form:"query" binding:"omitempty"`
 	}
 
+	DateRangeFilter struct {
+		StartDate string `json:"start_date" form:"start_date" binding:"omitempty"`
+		EndDate   string `json:"end_date" form:"end_date" binding:"omitempty"`
+	}
+
 	CollectionsRequest struct {
 		ListRequest
+		DateRangeFilter
 		ContentTypesFilter
 	}
 
@@ -139,6 +149,7 @@ type (
 
 	ContentUnitsRequest struct {
 		ListRequest
+		DateRangeFilter
 		ContentTypesFilter
 		SourcesFilter
 		TagsFilter
@@ -151,12 +162,24 @@ type (
 
 	FilesRequest struct {
 		ListRequest
+		DateRangeFilter
 		SearchTermFilter
 	}
 
 	FilesResponse struct {
 		ListResponse
 		Files []*MFile `json:"data"`
+	}
+
+	OperationsRequest struct {
+		ListRequest
+		DateRangeFilter
+		OperationTypesFilter
+	}
+
+	OperationsResponse struct {
+		ListResponse
+		Operations []*models.Operation `json:"data"`
 	}
 
 	HierarchyRequest struct {
@@ -181,6 +204,12 @@ type (
 	ContentUnit struct {
 		models.ContentUnit
 		I18n map[string]*models.ContentUnitI18n `json:"i18n"`
+	}
+
+	CollectionContentUnit struct {
+		Collection  *Collection  `json:"collection,omitempty"`
+		ContentUnit *ContentUnit `json:"content_unit,omitempty"`
+		Name        string       `json:"name"`
 	}
 
 	// Marshalable File
@@ -236,6 +265,24 @@ func NewMFile(f *models.File) *MFile {
 		x.Sha1Str = hex.EncodeToString(f.Sha1.Bytes)
 	}
 	return x
+}
+
+func NewOperationsResponse() *OperationsResponse {
+	return &OperationsResponse{Operations: make([]*models.Operation, 0)}
+}
+
+func (drf *DateRangeFilter) Range() (time.Time, time.Time, error) {
+	var err error
+	var s, e time.Time
+
+	if drf.StartDate != "" {
+		s, err = time.Parse("2006-01-02", drf.StartDate)
+	}
+	if err == nil && drf.EndDate != "" {
+		e, err = time.Parse("2006-01-02", drf.EndDate)
+	}
+
+	return s, e, err
 }
 
 // A time.Time like structure with Unix timestamp JSON marshalling
