@@ -1,0 +1,5 @@
+pattern,start_date,end_date,country,city,full_address,en.name,he.name,ru.name,es.name,de.name,ua.name,zh.name
+kinsei-america-chile,2017-04-26,2017-04-27,Chile,Santiago,"Calle Los Nogales 741, Providencia Santiago de Chile",,כנסי אמריקה - צ'ילה,,,,,
+kinsei-america-brazil,2017-04-29,2017-04-30,Brazil,Sao Paulo,"Novotel Center Norte, Av. Zaki Narchi 500, Vl. Guilherme, Sao Paulo",,כנסי אמריקה - ברזיל,,,,,
+kinsei-america-mexico,2017-05-02,2017-05-03,Mexico,Guadalajara,"Ignacio Luis Vallarta 3993, Don Bosco Vallarta 4509, Zapopan Jalisco, Mexico",,כנסי אמריקה - מקסיקו,,,,,
+kinsei-america-new-york,2017-05-04,2017-05-07,United States,New Jersey,"DoubleTree, Newark Hotel, 128 Frontage Road, Newark, NJ 07114",,כנסי אמריקה - ניו יורק,,,,,
