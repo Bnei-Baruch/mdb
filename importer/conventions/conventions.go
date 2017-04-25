@@ -1,4 +1,4 @@
-package convetions
+package conventions
 
 import (
 	"database/sql"

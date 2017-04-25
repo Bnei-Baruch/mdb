@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/Bnei-Baruch/mdb/importer/convetions"
+	"github.com/Bnei-Baruch/mdb/importer/conventions"
 )
 
 func init() {
@@ -11,7 +11,7 @@ func init() {
 		Use:   "conventions",
 		Short: "Insert convetions to MDB",
 		Run: func(cmd *cobra.Command, args []string) {
-			convetions.ImportConvetions()
+			conventions.ImportConvetions()
 		},
 	}
 	RootCmd.AddCommand(command)
