@@ -178,6 +178,49 @@ func (suite *RestSuite) TestFileItem() {
 	}
 }
 
+func (suite *RestSuite) TestOperationsList() {
+	req := OperationsRequest{
+		ListRequest: ListRequest{StartIndex: 1, StopIndex: 5},
+	}
+	resp, err := handleOperationsList(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.EqualValues(0, resp.Total, "empty total")
+	suite.Empty(resp.Operations, "empty data")
+
+	operations := createDummyOperations(suite.tx, 10)
+
+	resp, err = handleOperationsList(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.EqualValues(10, resp.Total, "total")
+	for i, x := range resp.Operations {
+		suite.assertEqualDummyOperation(operations[i], x, i)
+	}
+
+	req.StartIndex = 6
+	req.StopIndex = 10
+	resp, err = handleOperationsList(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.EqualValues(10, resp.Total, "total")
+	for i, x := range resp.Operations {
+		suite.assertEqualDummyOperation(operations[i+5], x, i+5)
+	}
+}
+
+func (suite *RestSuite) TestOperationItem() {
+	f, err := handleFileItem(suite.tx, 1)
+	suite.Nil(f, "file nil")
+	suite.Require().NotNil(err, "Not Found error")
+	suite.Equal(http.StatusNotFound, err.Code, "Error http status code")
+	suite.Equal(gin.ErrorTypePublic, err.Type, "Error gin type")
+
+	files := createDummyFiles(suite.tx, 3)
+	for i, f := range files {
+		x, err := handleFileItem(suite.tx, f.ID)
+		suite.Require().Nil(err, "file item err [%d]", i)
+		suite.assertEqualDummyFile(f, x, i)
+	}
+}
+
 // custom assertions
 
 func (suite *RestSuite) assertEqualDummyCollection(c *models.Collection, x *Collection, idx int) {
@@ -213,6 +256,14 @@ func (suite *RestSuite) assertEqualDummyFile(f *models.File, x *MFile, idx int) 
 	suite.Equal(f.UID, x.UID, "file.UID [%d]", idx)
 	suite.Equal(f.Size, x.Size, "file.Size [%d]", idx)
 	suite.Equal(hex.EncodeToString(f.Sha1.Bytes), x.Sha1Str, "file.Sha1Str [%d]", idx)
+}
+
+func (suite *RestSuite) assertEqualDummyOperation(o *models.Operation, x *models.Operation, idx int) {
+	suite.Equal(o.ID, x.ID, "operation.ID [%d]", idx)
+	suite.Equal(o.UID, x.UID, "operation.UID [%d]", idx)
+	suite.Equal(o.Station, x.Station, "operation.Station [%d]", idx)
+	suite.Equal(o.UserID, x.UserID, "operation.UserID [%d]", idx)
+	suite.Equal(o.TypeID, x.TypeID, "operation.TypeID [%d]", idx)
 }
 
 // Helpers
@@ -272,4 +323,22 @@ func createDummyFiles(exec boil.Executor, n int) []*models.File {
 	}
 
 	return files
+}
+
+func createDummyOperations(exec boil.Executor, n int) []*models.Operation {
+	operations := make([]*models.Operation, n)
+	for i := range operations {
+		sha1 := make([]byte, 20)
+		rand.Read(sha1)
+		operations[i] = &models.Operation{
+			UID:     utils.GenerateUID(8),
+			Station: null.StringFrom(fmt.Sprintf("station_%d", i)),
+			UserID:  null.Int64From(1),
+			TypeID: OPERATION_TYPE_REGISTRY.
+				ByName[ALL_OPERATION_TYPES[rand.Intn(len(ALL_OPERATION_TYPES))]].ID,
+		}
+		utils.Must(operations[i].Insert(exec))
+	}
+
+	return operations
 }
