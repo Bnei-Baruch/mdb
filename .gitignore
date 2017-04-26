@@ -9,4 +9,4 @@ sqlboiler.toml
 
 mdb
 
-*/**/*.apib
+**/*.apib
