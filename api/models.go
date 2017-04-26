@@ -1,15 +1,15 @@
 package api
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"gopkg.in/nullbio/null.v6"
 
-	"encoding/hex"
 	"github.com/Bnei-Baruch/mdb/models"
-	"strings"
 )
 
 type (
@@ -132,12 +132,31 @@ type (
 		ContentTypes []string `json:"content_types" form:"content_type" binding:"omitempty"`
 	}
 
+	OperationTypesFilter struct {
+		OperationTypes []string `json:"operation_types" form:"operation_type" binding:"omitempty"`
+	}
+
+	SourcesFilter struct {
+		Authors []string `json:"authors" form:"author" binding:"omitempty"`
+		Sources []int64  `json:"sources" form:"source" binding:"omitempty"`
+	}
+
+	TagsFilter struct {
+		Tags []int64 `json:"tags" form:"tag" binding:"omitempty"`
+	}
+
 	SearchTermFilter struct {
 		Query string `json:"query" form:"query" binding:"omitempty"`
 	}
 
+	DateRangeFilter struct {
+		StartDate string `json:"start_date" form:"start_date" binding:"omitempty"`
+		EndDate   string `json:"end_date" form:"end_date" binding:"omitempty"`
+	}
+
 	CollectionsRequest struct {
 		ListRequest
+		DateRangeFilter
 		ContentTypesFilter
 	}
 
@@ -148,7 +167,10 @@ type (
 
 	ContentUnitsRequest struct {
 		ListRequest
+		DateRangeFilter
 		ContentTypesFilter
+		SourcesFilter
+		TagsFilter
 	}
 
 	ContentUnitsResponse struct {
@@ -158,12 +180,24 @@ type (
 
 	FilesRequest struct {
 		ListRequest
+		DateRangeFilter
 		SearchTermFilter
 	}
 
 	FilesResponse struct {
 		ListResponse
 		Files []*MFile `json:"data"`
+	}
+
+	OperationsRequest struct {
+		ListRequest
+		DateRangeFilter
+		OperationTypesFilter
+	}
+
+	OperationsResponse struct {
+		ListResponse
+		Operations []*models.Operation `json:"data"`
 	}
 
 	HierarchyRequest struct {
@@ -190,6 +224,12 @@ type (
 		I18n map[string]*models.ContentUnitI18n `json:"i18n"`
 	}
 
+	CollectionContentUnit struct {
+		Collection  *Collection  `json:"collection,omitempty"`
+		ContentUnit *ContentUnit `json:"content_unit,omitempty"`
+		Name        string       `json:"name"`
+	}
+
 	// Marshalable File
 	MFile struct {
 		models.File
@@ -197,15 +237,15 @@ type (
 	}
 
 	Source struct {
+		ID          int64       `json:"id"`
 		UID         string      `json:"uid"`
-		Pattern     null.String `json:"pattern,omitempty"`
+		ParentID    null.Int64  `json:"parent_id"`
 		Type        string      `json:"type"`
+		Position    null.Int    `json:"position"`
+		Pattern     null.String `json:"pattern,omitempty"`
 		Name        null.String `json:"name"`
 		Description null.String `json:"description,omitempty"`
 		Children    []*Source   `json:"children,omitempty"`
-		ID          int64       `json:"-"`
-		ParentID    null.Int64  `json:"-"`
-		Position    null.Int    `json:"-"`
 	}
 
 	Author struct {
@@ -216,12 +256,12 @@ type (
 	}
 
 	Tag struct {
+		ID       int64       `json:"id"`
 		UID      string      `json:"uid"`
+		ParentID null.Int64  `json:"parent_id"`
 		Pattern  null.String `json:"pattern,omitempty"`
 		Label    null.String `json:"label"`
 		Children []*Tag      `json:"children,omitempty"`
-		ID       int64       `json:"-"`
-		ParentID null.Int64  `json:"-"`
 	}
 )
 
@@ -243,6 +283,24 @@ func NewMFile(f *models.File) *MFile {
 		x.Sha1Str = hex.EncodeToString(f.Sha1.Bytes)
 	}
 	return x
+}
+
+func NewOperationsResponse() *OperationsResponse {
+	return &OperationsResponse{Operations: make([]*models.Operation, 0)}
+}
+
+func (drf *DateRangeFilter) Range() (time.Time, time.Time, error) {
+	var err error
+	var s, e time.Time
+
+	if drf.StartDate != "" {
+		s, err = time.Parse("2006-01-02", drf.StartDate)
+	}
+	if err == nil && drf.EndDate != "" {
+		e, err = time.Parse("2006-01-02", drf.EndDate)
+	}
+
+	return s, e, err
 }
 
 // A time.Time like structure with Unix timestamp JSON marshalling
