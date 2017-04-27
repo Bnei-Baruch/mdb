@@ -2,6 +2,7 @@ package api
 
 import (
 	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/pkg/errors"
 )
 
 func SetupRoutes(router *gin.Engine) {
@@ -35,5 +36,10 @@ func SetupRoutes(router *gin.Engine) {
 
 	router.GET("/recover", func(c *gin.Context) {
 		panic("test recover")
+	})
+	router.GET("/error", func(c *gin.Context) {
+		c.AbortWithError(500,
+			errors.Wrap(errors.New("test error with stack"),"wrap msg")).
+			SetType(gin.ErrorTypePrivate)
 	})
 }
