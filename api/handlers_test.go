@@ -380,7 +380,6 @@ func (suite *HandlersSuite) TestHandleSend() {
 			Sha1:     pfi.Sha1,
 			FileName: "proxy_renamed.mp4",
 		},
-		WorkflowType: "workflow_type",
 	}
 
 	op, err := handleSend(suite.tx, input)
@@ -392,7 +391,6 @@ func (suite *HandlersSuite) TestHandleSend() {
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
-	suite.Equal(input.WorkflowType, props["worklow_type"], "properties: worklow_type")
 
 	// Check user
 	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))

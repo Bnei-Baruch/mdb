@@ -40,17 +40,19 @@ type (
 	CITMetadata struct {
 		AutoName       string      `json:"auto_name" binding:"required,max=255"`
 		ManualName     string      `json:"manual_name" binding:"omitempty,max=255"`
-		FilmDate       Date        `json:"film_date" binding:"required"`
+		CaptureDate    Date        `json:"capture_date" binding:"required"`
 		Language       string      `json:"language" binding:"required,min=2,max=3"`
 		Lecturer       string      `json:"lecturer" binding:"required"`
-		CollectionUID  null.String `json:"collection_uid" binding:"omitempty,len=8"`
-		HasTranslation bool        `json:"has_translation"`
-		RequireTest    bool        `json:"require_test"`
-		ItemNumber     null.Int    `json:"item_number"`
-		Part           null.Int    `json:"part"`
-		Episode        null.Int    `json:"episode"`
+		WeekDate       *Date       `json:"week_date"`
+		Number         null.Int    `json:"number"`
+		Part           null.String `json:"part"`
 		Sources        []string    `json:"sources" binding:"omitempty,dive,len=8"`
 		Tags           []string    `json:"tags" binding:"omitempty,dive,len=8"`
+		ArtifactType   null.String `json:"artifact_type"`
+		HasTranslation bool        `json:"has_translation"`
+		RequireTest    bool        `json:"require_test"`
+		CollectionUID  null.String `json:"collection_uid" binding:"omitempty,len=8"`
+		Episode        null.String `json:"episode"`
 	}
 
 	Rename struct {
@@ -98,7 +100,6 @@ type (
 		Operation
 		Original     Rename       `json:"original"`
 		Proxy        Rename       `json:"proxy"`
-		WorkflowType string       `json:"workflow_type"`
 		Metadata     *CITMetadata `json:"metadata" binding:"omitempty"`
 	}
 

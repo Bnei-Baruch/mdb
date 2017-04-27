@@ -277,8 +277,15 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, error
 	}
 
 	log.Info("Creating operation")
-	props := map[string]interface{}{
-		"worklow_type": r.WorkflowType,
+	var props map[string]interface{}
+	if r.Metadata != nil {
+		b, err := json.Marshal(r.Metadata)
+		if err == nil {
+			return nil, errors.Wrap(err, "json Marshal CITMetadata")
+		}
+		if err = json.Unmarshal(b, &props); err != nil {
+			return nil, errors.Wrap(err, "json Unmarshal CITMetadata")
+		}
 	}
 	operation, err := CreateOperation(exec, OP_SEND, r.Operation, props)
 	if err != nil {
