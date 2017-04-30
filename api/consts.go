@@ -26,6 +26,8 @@ const (
 	CT_VIDEO_PROGRAM_CHAPTER = "VIDEO_PROGRAM_CHAPTER"
 	CT_FULL_LESSON           = "FULL_LESSON"
 	CT_TEXT                  = "TEXT"
+	CT_EVENT_PART            = "EVENT_PART"
+	CT_UNKNOWN               = "UNKNOWN"
 
 	// Operation Types
 	OP_CAPTURE_START = "capture_start"
