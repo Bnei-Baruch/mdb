@@ -225,7 +225,9 @@ func (suite *DocsSuite) Test5SendHandlerWMetadata() {
 			Sha1:     "0987654321fedcba0987654321fedcba22222222",
 			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_p.mp4",
 		},
-		Metadata: &CITMetadata{
+		Metadata: CITMetadata{
+			ContentType:    CT_LESSON_PART,
+			FinalName:      "final_name",
 			AutoName:       "auto_name",
 			ManualName:     "manual_name",
 			CaptureDate:    Date{Time: time.Now()},
@@ -234,7 +236,7 @@ func (suite *DocsSuite) Test5SendHandlerWMetadata() {
 			HasTranslation: true,
 			RequireTest:    false,
 			Number:         null.IntFrom(1),
-			Part:           null.StringFrom("2"),
+			Part:           null.IntFrom(2),
 			Sources:        []string{"12345678", "87654321", "abcdefgh"},
 			Tags:           []string{"12345678", "87654321"},
 		},

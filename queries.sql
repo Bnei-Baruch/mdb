@@ -310,6 +310,19 @@ WITH RECURSIVE ffo AS (
     FROM rec_files;
 
 
+-- find all ancestors of a file
+WITH RECURSIVE rf AS (
+  SELECT f.*
+  FROM files f
+  WHERE f.id = 353590
+  UNION
+  SELECT f.*
+  FROM files f INNER JOIN rf ON f.id = rf.parent_id
+) SELECT *
+  FROM rf;
+
+
+
 
 copy (
 WITH RECURSIVE rec_sources AS (

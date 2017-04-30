@@ -38,14 +38,16 @@ type (
 	}
 
 	CITMetadata struct {
-		AutoName       string      `json:"auto_name" binding:"required,max=255"`
-		ManualName     string      `json:"manual_name" binding:"omitempty,max=255"`
+		ContentType    string      `json:"content_type" binding:"required"`
 		CaptureDate    Date        `json:"capture_date" binding:"required"`
+		FinalName      string      `json:"auto_name" binding:"required,max=255"`
 		Language       string      `json:"language" binding:"required,min=2,max=3"`
 		Lecturer       string      `json:"lecturer" binding:"required"`
+		AutoName       string      `json:"auto_name"`
+		ManualName     string      `json:"manual_name"`
 		WeekDate       *Date       `json:"week_date"`
 		Number         null.Int    `json:"number"`
-		Part           null.String `json:"part"`
+		Part           null.Int    `json:"part"`
 		Sources        []string    `json:"sources" binding:"omitempty,dive,len=8"`
 		Tags           []string    `json:"tags" binding:"omitempty,dive,len=8"`
 		ArtifactType   null.String `json:"artifact_type"`
@@ -98,9 +100,9 @@ type (
 
 	SendRequest struct {
 		Operation
-		Original     Rename       `json:"original"`
-		Proxy        Rename       `json:"proxy"`
-		Metadata     *CITMetadata `json:"metadata" binding:"omitempty"`
+		Original Rename      `json:"original"`
+		Proxy    Rename      `json:"proxy"`
+		Metadata CITMetadata `json:"metadata"`
 	}
 
 	ConvertRequest struct {
