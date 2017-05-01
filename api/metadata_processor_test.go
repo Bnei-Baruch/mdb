@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -13,8 +15,6 @@ import (
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/nullbio/null.v6"
 
-	"encoding/json"
-	"fmt"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -172,7 +172,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Equal(c.ID, ccu.CollectionID, "ccu.CollectionID")
 
 	// full with week_date different from capture_date
-	metadata.WeekDate = &Date{Time: time.Now().AddDate(1,0,0)}
+	metadata.WeekDate = &Date{Time: time.Now().AddDate(1, 0, 0)}
 	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
 	err = c.Reload(suite.tx)
@@ -225,11 +225,162 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
 }
 
+func (suite *MetadataProcessorSuite) TestVideoProgram() {
+	tf := suite.simulateSimpleChain()
+	original, proxy := tf.Original, tf.Proxy
+
+	c, err := CreateCollection(suite.tx, CT_VIDEO_PROGRAM, nil)
+	suite.Require().Nil(err)
+
+	metadata := CITMetadata{
+		ContentType:    CT_VIDEO_PROGRAM_CHAPTER,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       LANG_HEBREW,
+		HasTranslation: false,
+		Lecturer:       "norav",
+		CollectionUID:  null.StringFrom(c.UID),
+		Episode:        null.StringFrom("827"),
+		RequireTest:    true,
+	}
+
+	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy)
+
+	// collection association
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu := original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+	ccu := cu.R.CollectionsContentUnits[0]
+	suite.Equal(metadata.Episode.String, ccu.Name, "ccu.Name")
+
+}
+
 // Helpers
 
 type TrimFiles struct {
 	Original *models.File
 	Proxy    *models.File
+}
+
+func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
+	CS_SHA1 := utils.RandomSHA1()
+	DMX_O_SHA1 := utils.RandomSHA1()
+	DMX_P_SHA1 := utils.RandomSHA1()
+	TRM_O_SHA1 := utils.RandomSHA1()
+	TRM_P_SHA1 := utils.RandomSHA1()
+
+	// capture_start
+	_, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: "c12356788",
+		},
+		FileName:      "capture_start_simple",
+		CaptureSource: "mltcap",
+		CollectionUID: "c12356788",
+	})
+	suite.Require().Nil(err)
+
+	// capture_stop
+	_, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: "c12356789",
+		},
+		File: File{
+			FileName:  "capture_stop_simple.mp4",
+			Sha1:      CS_SHA1,
+			Size:      98737,
+			CreatedAt: &Timestamp{Time: time.Now()},
+			Language:  LANG_HEBREW,
+		},
+		CaptureSource: "mltcap",
+		CollectionUID: "c12356789",
+		Part:          "false",
+	})
+	suite.Require().Nil(err)
+
+	// demux
+	_, err = handleDemux(suite.tx, DemuxRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		Sha1: CS_SHA1,
+		Original: AVFile{
+			File: File{
+				FileName:  "demux_simple_original.mp4",
+				Sha1:      DMX_O_SHA1,
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		Proxy: AVFile{
+			File: File{
+				FileName:  "demux_simple_proxy.mp4",
+				Sha1:      DMX_P_SHA1,
+				Size:      9878,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 891.8800,
+		},
+		CaptureSource: "mltcap",
+	})
+	suite.Require().Nil(err)
+
+	// trim
+	op, err := handleTrim(suite.tx, TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: DMX_O_SHA1,
+		ProxySha1:    DMX_P_SHA1,
+		Original: AVFile{
+			File: File{
+				FileName:  "trim_simple_original.mp4",
+				Sha1:      TRM_O_SHA1,
+				Size:      98000,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		Proxy: AVFile{
+			File: File{
+				FileName:  "trim_simple_proxy.mp4",
+				Sha1:      TRM_P_SHA1,
+				Size:      9800,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 891.8800,
+		},
+		CaptureSource: "mltcap",
+		In:            []float64{10.05, 249.43},
+		Out:           []float64{240.51, 899.27},
+	})
+	suite.Require().Nil(err)
+
+	files := suite.opFilesBySHA1(op)
+	return TrimFiles{
+		Original: files[TRM_O_SHA1],
+		Proxy:    files[TRM_P_SHA1],
+	}
 }
 
 func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles {
