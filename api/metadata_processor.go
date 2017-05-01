@@ -76,14 +76,17 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		return errors.Wrap(err, "Add files to unit")
 	}
 
-	// Add ancestor files to unit
-	ancestors, err := FindFileAncestors(exec, original.ID)
-	if err != nil {
-		return errors.Wrap(err, "Find original's ancestors")
-	}
-	err = cu.AddFiles(exec, false, ancestors...)
-	if err != nil {
-		return errors.Wrap(err, "Add ancestors to unit")
+	// Add ancestor files to unit (not for derived units)
+	if !metadata.ArtifactType.Valid ||
+		metadata.ArtifactType.String == "main" {
+		ancestors, err := FindFileAncestors(exec, original.ID)
+		if err != nil {
+			return errors.Wrap(err, "Find original's ancestors")
+		}
+		err = cu.AddFiles(exec, false, ancestors...)
+		if err != nil {
+			return errors.Wrap(err, "Add ancestors to unit")
+		}
 	}
 
 	// Associate unit with sources, tags, and persons
@@ -161,7 +164,10 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		}
 	} else if metadata.ContentType == CT_LESSON_PART ||
 		metadata.ContentType == CT_FULL_LESSON {
+
 		// Reconcile or create new
+		// Reconciliation is done by looking up the operation chain of original
+		// to capture_stop. There we have a property of the saying the capture_id of the full lesson.
 		captureStop, err := FindUpChainOperation(exec, original.ID,
 			OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_STOP].ID)
 		if err != nil {
@@ -185,6 +191,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 					ct = CT_SATURDAY_LESSON
 				}
 
+				// Keep this property on the collection for other parts to find it
 				props["capture_id"] = captureID
 				if metadata.Number.Valid {
 					props["number"] = metadata.Number.Int

@@ -319,7 +319,8 @@ WITH RECURSIVE rf AS (
   SELECT f.*
   FROM files f INNER JOIN rf ON f.id = rf.parent_id
 ) SELECT *
-  FROM rf;
+  FROM rf
+  WHERE id != 353590;
 
 
 

@@ -27,7 +27,8 @@ WITH RECURSIVE rf AS (
   SELECT f.*
   FROM files f INNER JOIN rf ON f.id = rf.parent_id
 ) SELECT *
-  FROM rf;
+  FROM rf
+  WHERE id != $1
 `
 
 const UPCHAIN_OPERATION_SQL = `
@@ -294,35 +295,6 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 	return file, nil
 }
 
-func FindFileBySHA1(exec boil.Executor, sha1 string) (*models.File, []byte, error) {
-	s, err := hex.DecodeString(sha1)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "hex decode")
-	}
-
-	f, err := models.Files(exec, qm.Where("sha1=?", s)).One()
-	if err == nil {
-		return f, s, nil
-	} else {
-		if err == sql.ErrNoRows {
-			return nil, s, FileNotFound{Sha1: sha1}
-		} else {
-			return nil, s, errors.Wrap(err, "DB lookup")
-		}
-	}
-}
-
-func FindFileAncestors(exec boil.Executor, fileID int64) ([]*models.File, error) {
-	var ancestors []*models.File
-
-	err := queries.Raw(exec, FILE_ANCESTORS_SQL, fileID).Bind(&ancestors)
-	if err != nil {
-		return nil, errors.Wrap(err, "DB lookup")
-	}
-
-	return ancestors, nil
-}
-
 func UpdateFileProperties(exec boil.Executor, file *models.File, props map[string]interface{}) error {
 	if len(props) == 0 {
 		return nil
@@ -350,6 +322,35 @@ func UpdateFileProperties(exec boil.Executor, file *models.File, props map[strin
 	}
 
 	return nil
+}
+
+func FindFileBySHA1(exec boil.Executor, sha1 string) (*models.File, []byte, error) {
+	s, err := hex.DecodeString(sha1)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "hex decode")
+	}
+
+	f, err := models.Files(exec, qm.Where("sha1=?", s)).One()
+	if err == nil {
+		return f, s, nil
+	} else {
+		if err == sql.ErrNoRows {
+			return nil, s, FileNotFound{Sha1: sha1}
+		} else {
+			return nil, s, errors.Wrap(err, "DB lookup")
+		}
+	}
+}
+
+func FindFileAncestors(exec boil.Executor, fileID int64) ([]*models.File, error) {
+	var ancestors []*models.File
+
+	err := queries.Raw(exec, FILE_ANCESTORS_SQL, fileID).Bind(&ancestors)
+	if err != nil {
+		return nil, errors.Wrap(err, "DB lookup")
+	}
+
+	return ancestors, nil
 }
 
 // Return standard language or LANG_UNKNOWN
