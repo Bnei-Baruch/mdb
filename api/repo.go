@@ -236,6 +236,35 @@ func CreateContentUnit(exec boil.Executor, contentType string, properties map[st
 	return unit, err
 }
 
+func UpdateContentUnitProperties(exec boil.Executor, unit *models.ContentUnit, props map[string]interface{}) error {
+	if len(props) == 0 {
+		return nil
+	}
+
+	var p map[string]interface{}
+	if unit.Properties.Valid {
+		unit.Properties.Unmarshal(&p)
+		for k, v := range props {
+			p[k] = v
+		}
+	} else {
+		p = props
+	}
+
+	fpa, err := json.Marshal(p)
+	if err != nil {
+		return errors.Wrap(err, "json Marshal")
+	}
+
+	unit.Properties = null.JSONFrom(fpa)
+	err = unit.Update(exec, "properties")
+	if err != nil {
+		return errors.Wrap(err, "Save properties to DB")
+	}
+
+	return nil
+}
+
 func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[string]interface{}) (*models.File, error) {
 	sha1, err := hex.DecodeString(f.Sha1)
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/vattle/sqlboiler/queries"
 	"strings"
 )
 
@@ -153,14 +154,13 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	if strings.ToLower(metadata.Lecturer) == P_RAV {
 		cup := &models.ContentUnitsPerson{
 			PersonID: PERSONS_REGISTRY.ByPattern[P_RAV].ID,
-			RoleID: CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID,
+			RoleID:   CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID,
 		}
 		err = cu.AddContentUnitsPersons(exec, true, cup)
 		if err != nil {
 			return errors.Wrap(err, "Associate persons")
 		}
 	}
-
 
 	// Get or create collection
 	var c *models.Collection
@@ -290,7 +290,98 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		}
 	}
 
-	// associate unit and derived units
+	// Associate unit and derived units
+	// We take into account that a derived content unit arrives before it's source content unit.
+	// Such cases are possible due to the studio operator actions sequence.
+	err = original.L.LoadParent(exec, true, original)
+	if err != nil {
+		return errors.Wrap(err, "Load original's parent")
+	}
+	mainCUID := original.R.Parent.ContentUnitID
+	if !metadata.ArtifactType.Valid ||
+		metadata.ArtifactType.String == "main" {
+		// main content unit
+
+		// We lookup original's siblings for derived content units that arrived before us.
+		// We then associate them with us and remove their "unprocessed" mark.
+		// Meaning, the presence of "artifact_type" property
+		rows, err := queries.Raw(exec,
+			`SELECT
+			  cu.id,
+			  cu.properties ->> 'artifact_type'
+			FROM files f
+			  INNER JOIN content_units cu ON f.content_unit_id = cu.id
+			    AND cu.id != $1
+			    AND cu.properties ? 'artifact_type'
+			WHERE f.parent_id = $2`,
+			original.ContentUnitID.Int64, original.ParentID.Int64).
+			Query()
+		if err != nil {
+			return errors.Wrap(err, "Load derived content units")
+		}
+
+		// put results in map due to this bug:
+		// https://github.com/lib/pq/issues/81
+		derivedCUs := make(map[int64]string)
+		for rows.Next() {
+			var cuid int64
+			var artifactType string
+			err = rows.Scan(&cuid, &artifactType)
+			if err != nil {
+				return errors.Wrap(err, "Scan row")
+			}
+			derivedCUs[cuid] = artifactType
+		}
+		err = rows.Err()
+		if err != nil {
+			return errors.Wrap(err, "Iter rows")
+		}
+		err = rows.Close()
+		if err != nil {
+			return errors.Wrap(err, "Close rows")
+		}
+
+		for k, v := range derivedCUs {
+			cud := &models.ContentUnitDerivation{
+				DerivationID: k,
+				Name:         v,
+			}
+			err = cu.AddSourceContentUnitDerivations(exec, true, cud)
+			if err != nil {
+				return errors.Wrap(err, "Save derived unit association in DB")
+			}
+
+			_, err = queries.Raw(exec,
+				`UPDATE content_units SET properties = properties - 'artifact_type' WHERE id = $1`,
+				k).Exec()
+			if err != nil {
+				return errors.Wrap(err, "Delete derived unit artifact_type property from DB")
+			}
+		}
+
+	} else {
+		// derived content unit
+		if mainCUID.Valid {
+			// main content unit already exists
+			cud := &models.ContentUnitDerivation{
+				SourceID: mainCUID.Int64,
+				Name:     metadata.ArtifactType.String,
+			}
+			err = cu.AddDerivationContentUnitDerivations(exec, true, cud)
+			if err != nil {
+				return errors.Wrap(err, "Save source unit in DB")
+			}
+		} else {
+			// save artifact type for later use (when main unit appears)
+			log.Info("Main content unit not found, saving artifact_type property")
+			err = UpdateContentUnitProperties(exec, cu, map[string]interface{}{
+				"artifact_type": metadata.ArtifactType.String,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	// set default permissions ?!
 

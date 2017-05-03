@@ -104,8 +104,8 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	var props map[string]interface{}
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
-	suite.Equal(metadata.CaptureDate.Format(time.RFC3339Nano), props["capture_date"], "c.Properties[\"capture_date\"]")
-	suite.Equal(metadata.CaptureDate.Format(time.RFC3339Nano), props["film_date"], "c.Properties[\"film_date\"]")
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["capture_date"], "c.Properties[\"capture_date\"]")
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
 	suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
 	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
 
@@ -180,8 +180,8 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
-	suite.Equal(metadata.CaptureDate.Format(time.RFC3339Nano), props["capture_date"], "c.Properties[\"capture_date\"]")
-	suite.Equal(metadata.WeekDate.Format(time.RFC3339Nano), props["film_date"], "c.Properties[\"film_date\"]")
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["capture_date"], "c.Properties[\"capture_date\"]")
+	suite.Equal(metadata.WeekDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
 	suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
 	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
 
@@ -203,10 +203,22 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.assertFiles(metadata, original, proxy)
 	suite.assertContentUnit(metadata, original, proxy)
 
-	// not associated with collection
+	// associated to "main" content unit
 	err = original.L.LoadContentUnit(suite.tx, true, original)
 	suite.Require().Nil(err)
 	cu = original.R.ContentUnit
+	err = cu.L.LoadDerivationContentUnitDerivations(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Require().Len(cu.R.DerivationContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
+	cud := cu.R.DerivationContentUnitDerivations[0]
+	suite.Equal(chain["part1"].Original.ContentUnitID.Int64, cud.SourceID, "cud.SourceID")
+	suite.Equal("kitei_makor", cud.Name, "cud.Name")
+	err = cu.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	_, ok := props["artifact_type"]
+	suite.False(ok, "cu.propeties[\"artifact_type\"]")
+
+	// not associated with collection
 	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
 	suite.Require().Nil(err)
 	suite.Empty(cu.R.CollectionsContentUnits, "cu.R.CollectionsContentUnits empty")
@@ -218,10 +230,116 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
-	suite.Equal(metadata.CaptureDate.Format(time.RFC3339Nano), props["capture_date"], "c.Properties[\"capture_date\"]")
-	suite.NotEqual(metadata.CaptureDate.Format(time.RFC3339Nano), props["film_date"], "c.Properties[\"film_date\"]")
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["capture_date"], "c.Properties[\"capture_date\"]")
+	suite.NotEqual(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
 	suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
 	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
+}
+
+func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
+	chain := suite.simulateLessonChain()
+
+	// send kitei makor of part 1
+	// send part 1
+
+	metadata := CITMetadata{
+		ContentType:    CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(1),
+		ArtifactType:   null.StringFrom("kitei_makor"),
+		RequireTest:    false,
+	}
+
+	// process kitei makor for part 1
+	tf := chain["part1_kitei-makor"]
+	original, proxy := tf.Original, tf.Proxy
+	err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy)
+
+	// not associated with collection
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu := original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Empty(cu.R.CollectionsContentUnits, "cu.R.CollectionsContentUnits empty")
+
+	// not associated to "main" content unit
+	err = cu.L.LoadDerivationContentUnitDerivations(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Empty(cu.R.DerivationContentUnitDerivations, "cu.R.DerivationContentUnitDerivations empty")
+	var props map[string]interface{}
+	err = json.Unmarshal(cu.Properties.JSON, &props)
+	suite.Require().Nil(err)
+	suite.Equal("kitei_makor", props["artifact_type"], "cu.propeties[\"artifact_type\"]")
+
+	// process main part1
+	original, proxy = chain["part1"].Original, chain["part1"].Proxy
+	metadata.ArtifactType = null.NewString("", false)
+	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy)
+
+	// reload cu cu association
+	err = cu.L.LoadDerivationContentUnitDerivations(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Require().Len(cu.R.DerivationContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
+	cud := cu.R.DerivationContentUnitDerivations[0]
+	suite.Equal(chain["part1"].Original.ContentUnitID.Int64, cud.SourceID, "cud.SourceID")
+	suite.Equal("kitei_makor", cud.Name, "cud.Name")
+
+	err = cu.Reload(suite.tx)
+	suite.Require().Nil(err)
+	props = make(map[string]interface{})
+	err = json.Unmarshal(cu.Properties.JSON, &props)
+	suite.Require().Nil(err)
+	_, ok := props["artifact_type"]
+	suite.False(ok, "cu.propeties[\"artifact_type\"] presence")
+
+	// main cu collection association
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu = original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+	ccu := cu.R.CollectionsContentUnits[0]
+	suite.Equal("1", ccu.Name, "ccu.Name")
+
+	// collection
+	err = ccu.L.LoadCollection(suite.tx, true, ccu)
+	suite.Require().Nil(err)
+	c := ccu.R.Collection
+	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.True(c.Properties.Valid, "c.Properties.Valid")
+	err = json.Unmarshal(c.Properties.JSON, &props)
+	suite.Require().Nil(err)
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["capture_date"], "c.Properties[\"capture_date\"]")
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
+	suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
+	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
+
 }
 
 func (suite *MetadataProcessorSuite) TestVideoProgram() {
@@ -569,7 +687,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 				Station: "Trimmer station",
 				User:    "operator@dev.com",
 			},
-			Sha1: CS_SHA1[4],
+			Sha1: CS_SHA1[i],
 			Original: AVFile{
 				File: File{
 					FileName:  "demux_part" + part + "_original.mp4",
@@ -639,8 +757,8 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 				Station: "Trimmer station",
 				User:    "operator@dev.com",
 			},
-			OriginalSha1: DMX_O_SHA1[4],
-			ProxySha1:    DMX_P_SHA1[4],
+			OriginalSha1: DMX_O_SHA1[i],
+			ProxySha1:    DMX_P_SHA1[i],
 			Original: AVFile{
 				File: File{
 					FileName:  "trim_part" + part + "_original.mp4",
@@ -758,15 +876,15 @@ func (suite *MetadataProcessorSuite) assertFiles(metadata CITMetadata, original,
 	suite.Require().True(original.Properties.Valid)
 	err := original.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
-	suite.Equal(capDate.Format(time.RFC3339Nano), props["capture_date"], "original.Properties[\"capture_date\"]")
-	suite.Equal(filmDate.Format(time.RFC3339Nano), props["film_date"], "original.Properties[\"film_date\"]")
+	suite.Equal(capDate.Format("2006-01-02"), props["capture_date"], "original.Properties[\"capture_date\"]")
+	suite.Equal(filmDate.Format("2006-01-02"), props["film_date"], "original.Properties[\"film_date\"]")
 
 	// proxy properties
 	suite.Require().True(proxy.Properties.Valid)
 	err = proxy.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
-	suite.Equal(capDate.Format(time.RFC3339Nano), props["capture_date"], "proxy.Properties[\"capture_date\"]")
-	suite.Equal(filmDate.Format(time.RFC3339Nano), props["film_date"], "proxy.Properties[\"film_date\"]")
+	suite.Equal(capDate.Format("2006-01-02"), props["capture_date"], "proxy.Properties[\"capture_date\"]")
+	suite.Equal(filmDate.Format("2006-01-02"), props["film_date"], "proxy.Properties[\"film_date\"]")
 
 	// original language
 	suite.True(original.Language.Valid, "original.Language.Valid")
@@ -791,8 +909,8 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	var props map[string]interface{}
 	err = cu.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
-	suite.Equal(capDate.Format(time.RFC3339Nano), props["capture_date"], "cu.Properties[\"capture_date\"]")
-	suite.Equal(filmDate.Format(time.RFC3339Nano), props["film_date"], "cu.Properties[\"film_date\"]")
+	suite.Equal(capDate.Format("2006-01-02"), props["capture_date"], "cu.Properties[\"capture_date\"]")
+	suite.Equal(filmDate.Format("2006-01-02"), props["film_date"], "cu.Properties[\"film_date\"]")
 
 	// files in unit
 	err = cu.L.LoadFiles(suite.tx, true, cu)

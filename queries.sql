@@ -323,7 +323,16 @@ WITH RECURSIVE rf AS (
   WHERE id != 353590;
 
 
+SELECT
+  cu.id,
+  cu.properties ->> 'artifact_type'
+FROM files f
+  INNER JOIN content_units cu ON f.content_unit_id = cu.id AND cu.properties ? 'artifact_type'
+WHERE f.parent_id = 1;
 
+UPDATE content_units
+SET properties = properties - 'artifact_type'
+WHERE id = 1;
 
 copy (
 WITH RECURSIVE rec_sources AS (
