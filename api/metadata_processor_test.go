@@ -264,8 +264,73 @@ func (suite *MetadataProcessorSuite) TestVideoProgram() {
 	suite.Require().Nil(err)
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu := cu.R.CollectionsContentUnits[0]
+	suite.Equal(c.ID, ccu.CollectionID, "ccu.CollectionID")
 	suite.Equal(metadata.Episode.String, ccu.Name, "ccu.Name")
+}
 
+func (suite *MetadataProcessorSuite) TestEventPart() {
+	tf := suite.simulateSimpleChain()
+	original, proxy := tf.Original, tf.Proxy
+
+	EVENT_TYPES := [4]string{CT_CONGRESS, CT_HOLIDAY, CT_PICNIC, CT_UNITY_DAY}
+	EVENT_PART_TYPES := [11]string{CT_FULL_LESSON, CT_FRIENDS_GATHERING, CT_MEAL,
+		CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART,
+		CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART}
+
+	for _, eventType := range EVENT_TYPES {
+		c, err := CreateCollection(suite.tx, eventType, nil)
+		suite.Require().Nil(err)
+
+		for i, partType := range EVENT_PART_TYPES {
+			metadata := CITMetadata{
+				ContentType:    partType,
+				AutoName:       "auto_name",
+				FinalName:      "final_name",
+				CaptureDate:    Date{time.Now()},
+				Language:       LANG_HEBREW,
+				HasTranslation: true,
+				CollectionUID:  null.StringFrom(c.UID),
+				Number:         null.IntFrom(i + 1),
+				RequireTest:    true,
+				PartType:       null.IntFrom(i),
+			}
+
+			if partType == CT_FULL_LESSON {
+				metadata.Lecturer = "rav"
+				metadata.Sources = suite.someSources()
+				metadata.Tags = suite.someTags()
+			} else {
+				metadata.Lecturer = "norav"
+			}
+
+			err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+			suite.Require().Nil(err)
+
+			err = original.Reload(suite.tx)
+			suite.Require().Nil(err)
+			err = proxy.Reload(suite.tx)
+			suite.Require().Nil(err)
+
+			suite.assertFiles(metadata, original, proxy)
+			suite.assertContentUnit(metadata, original, proxy)
+
+			// collection association
+			err = original.L.LoadContentUnit(suite.tx, true, original)
+			suite.Require().Nil(err)
+			cu := original.R.ContentUnit
+			err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+			suite.Require().Nil(err)
+			suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+			ccu := cu.R.CollectionsContentUnits[0]
+			suite.Equal(c.ID, ccu.CollectionID, "ccu.CollectionID")
+			if i < 3 {
+				suite.Equal(strconv.Itoa(metadata.Number.Int), ccu.Name, "ccu.Name")
+			} else {
+				suite.Equal(MISC_EVENT_PART_TYPES[i-3]+strconv.Itoa(metadata.Number.Int),
+					ccu.Name, "ccu.Name")
+			}
+		}
+	}
 }
 
 // Helpers

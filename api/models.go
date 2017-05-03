@@ -55,6 +55,7 @@ type (
 		RequireTest    bool        `json:"require_test"`
 		CollectionUID  null.String `json:"collection_uid" binding:"omitempty,len=8"`
 		Episode        null.String `json:"episode"`
+		PartType       null.Int    `json:"part_type"`
 	}
 
 	Rename struct {

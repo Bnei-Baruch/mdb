@@ -261,6 +261,14 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			if metadata.Number.Valid {
 				ccu.Name = strconv.Itoa(metadata.Number.Int)
 			}
+			if metadata.PartType.Valid && metadata.PartType.Int > 2 {
+				idx := metadata.PartType.Int - 3
+				if idx < len(MISC_EVENT_PART_TYPES) {
+					ccu.Name = MISC_EVENT_PART_TYPES[idx] + ccu.Name
+				} else {
+					log.Warn("Unknown event part type: %d", metadata.PartType.Int)
+				}
+			}
 			break
 		}
 

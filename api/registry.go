@@ -97,6 +97,22 @@ var (
 		CT_TEXT:                  "text",
 	}
 
+	// Types of various, secondary, content slots in big events like congress, unity day, etc...
+	// This list is not part of content_types to prevent explosion of that list.
+	// This came to life for mdb-cit UI only Ease of Use. (prevent typing errors and keep consistency)
+	// We keep it here so CCU's would have some information.
+	// This list should be kept in sync with mdb-cit (consts.js)
+	MISC_EVENT_PART_TYPES = [8]string{
+		"TEKES_PTIHA",
+		"TEKES_SIYUM",
+		"EREV_PATUAH",
+		"EREV_TARBUT",
+		"ATZAGAT_PROEKT",
+		"HAANAKAT_TEUDOT",
+		"HATIMAT_SFARIM",
+		"EVENT",
+	}
+
 	// kmedia - select asset_type, count(*) from file_assets group by asset_type order by count(*) desc;
 	ALL_MEDIA_TYPES = []*MediaType{
 		{Extension: "mp4", Type: "video", SubType: "", MimeType: "video/mp4"},
