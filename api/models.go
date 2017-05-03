@@ -40,7 +40,7 @@ type (
 	CITMetadata struct {
 		ContentType    string      `json:"content_type" binding:"required"`
 		CaptureDate    Date        `json:"capture_date" binding:"required"`
-		FinalName      string      `json:"auto_name" binding:"required,max=255"`
+		FinalName      string      `json:"final_name" binding:"required,max=255"`
 		Language       string      `json:"language" binding:"required,min=2,max=3"`
 		Lecturer       string      `json:"lecturer" binding:"required"`
 		AutoName       string      `json:"auto_name"`
@@ -312,7 +312,7 @@ type Timestamp struct {
 	time.Time
 }
 
-func (t *Timestamp) MarshalJSON() ([]byte, error) {
+func (t Timestamp) MarshalJSON() ([]byte, error) {
 	ts := t.Time.Unix()
 	stamp := fmt.Sprint(ts)
 	return []byte(stamp), nil
@@ -332,12 +332,15 @@ type Date struct {
 	time.Time
 }
 
-func (d *Date) MarshalJSON() ([]byte, error) {
+func (d Date) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("\"%s\"", d.Time.Format("2006-01-02"))), nil
 }
 
 func (d *Date) UnmarshalJSON(b []byte) error {
 	var err error
 	d.Time, err = time.Parse("2006-01-02", strings.Trim(string(b), "\""))
+	if err != nil {
+		fmt.Println(err)
+	}
 	return err
 }

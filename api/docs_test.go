@@ -306,7 +306,8 @@ func (suite *DocsSuite) Test7UploadHandler() {
 
 func (suite *DocsSuite) testOperation(name string, input interface{}) (*http.Response, error) {
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(input)
+	err := json.NewEncoder(b).Encode(input)
+	suite.Require().Nil(err)
 	u, _ := url.Parse(suite.testServer.URL)
 	u.Path = path.Join(u.Path, "operations", name)
 	return http.Post(u.String(), "application/json", b)
@@ -321,5 +322,6 @@ func (suite *DocsSuite) assertJsonOK(resp *http.Response) {
 	err := json.NewDecoder(resp.Body).Decode(&body)
 	suite.Require().Nil(err)
 	suite.Equal("ok", body["status"], "HTTP body.status")
-	suite.Nil(body["error"], "HTTP body.error")
+	//suite.T().Log(body)
+	suite.Nil(body["errors"], "HTTP body.errors")
 }
