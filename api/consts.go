@@ -51,6 +51,12 @@ const (
 	SRC_LETTER     = "LETTER"
 	SRC_ITEM       = "ITEM"
 
+	// Content Role types
+	CR_LECTURER = "LECTURER"
+
+	// Persons patterns
+	P_RAV = "rav"
+
 	// Languages
 	LANG_ENGLISH    = "en"
 	LANG_HEBREW     = "he"

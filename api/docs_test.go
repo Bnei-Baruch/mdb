@@ -9,11 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/adams-sarah/test2doc/test"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/nullbio/null.v6"
+
+	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/vattle/sqlboiler/boil"
 )
 
 type DocsSuite struct {
@@ -43,8 +45,7 @@ func (suite *DocsSuite) SetupSuite() {
 	}
 
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(OPERATION_TYPE_REGISTRY.Init())
-	suite.Require().Nil(CONTENT_TYPE_REGISTRY.Init())
+	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
 }
 
 func (suite *DocsSuite) TearDownSuite() {
@@ -203,35 +204,13 @@ func (suite *DocsSuite) Test5SendHandler() {
 			Sha1:     "0987654321fedcba0987654321fedcba22222222",
 			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_p.mp4",
 		},
-	}
-
-	resp, err := suite.testOperation(OP_SEND, input)
-	suite.Require().Nil(err)
-	suite.assertJsonOK(resp)
-}
-
-func (suite *DocsSuite) Test5SendHandlerWMetadata() {
-	input := SendRequest{
-		Operation: Operation{
-			Station:    "Trim station",
-			User:       "operator@dev.com",
-			WorkflowID: "t12356789",
-		},
-		Original: Rename{
-			Sha1:     "0987654321fedcba0987654321fedcba11111111",
-			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_o.mp4",
-		},
-		Proxy: Rename{
-			Sha1:     "0987654321fedcba0987654321fedcba22222222",
-			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_p.mp4",
-		},
 		Metadata: CITMetadata{
 			ContentType:    CT_LESSON_PART,
 			FinalName:      "final_name",
 			AutoName:       "auto_name",
 			ManualName:     "manual_name",
 			CaptureDate:    Date{Time: time.Now()},
-			Language:       "MLT",
+			Language:       "heb",
 			Lecturer:       "rav",
 			HasTranslation: true,
 			RequireTest:    false,

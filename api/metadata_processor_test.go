@@ -27,8 +27,7 @@ type MetadataProcessorSuite struct {
 
 func (suite *MetadataProcessorSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(OPERATION_TYPE_REGISTRY.Init())
-	suite.Require().Nil(CONTENT_TYPE_REGISTRY.Init())
+	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
 }
 
 func (suite *MetadataProcessorSuite) TearDownSuite() {
@@ -843,5 +842,17 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 			}
 		}
 		suite.False(missing, "Missing tag %s", x)
+	}
+
+	// persons
+	err = cu.L.LoadContentUnitsPersons(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	if metadata.Lecturer == "rav" {
+		suite.Require().Len(cu.R.ContentUnitsPersons, 1, "cu.R.ContentUnitsPersons Length")
+		cup := cu.R.ContentUnitsPersons[0]
+		suite.Equal(PERSONS_REGISTRY.ByPattern[P_RAV].ID, cup.PersonID, "cup.PersonID")
+		suite.Equal(CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID, cup.RoleID, "cup.PersonID")
+	} else {
+		suite.Empty(cu.R.ContentUnitsPersons, "Empty cu.R.ContentUnitsPersons")
 	}
 }

@@ -176,8 +176,7 @@ func ImportKmedia() {
 	defer kmdb.Close()
 
 	log.Info("Initializing static data from MDB")
-	utils.Must(api.CONTENT_TYPE_REGISTRY.Init())
-	utils.Must(api.OPERATION_TYPE_REGISTRY.Init())
+	utils.Must(api.InitTypeRegistries(mdb))
 
 	log.Info("Initializing static data from Kmedia")
 	kmediaLessonCT, err = kmodels.ContentTypes(kmdb, qm.Where("name = ?", "Lesson")).One()

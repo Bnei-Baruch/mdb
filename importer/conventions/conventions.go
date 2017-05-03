@@ -47,7 +47,8 @@ func ImportConvetions() {
 	boil.SetDB(mdb)
 	//boil.DebugMode = true
 
-	utils.Must(api.CONTENT_TYPE_REGISTRY.Init())
+	utils.Must(api.InitTypeRegistries(mdb))
+
 	utils.Must(handleConventions(mdb))
 
 	log.Info("Success")

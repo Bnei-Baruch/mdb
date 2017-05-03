@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"strings"
 )
 
 // Do all stuff for processing metadata coming from Content Identification Tool.
@@ -23,7 +24,7 @@ import (
 // 	5. Add ancestor files to unit
 // 	6. Associate unit with sources, tags, and persons
 // 	7. Get or create collection
-// 	8. Update collection (content_type, dates, number) if full lesson or new collection
+// 	8. Update collection (content_type, dates, number) if full lesson or new lesson
 // 	9. Associate collection and unit
 // 	10. Associate unit and derived units
 // 	11. Set default permissions ?!
@@ -148,7 +149,18 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		}
 	}
 
-	// TODO: Handle persons ...
+	// Handle persons ...
+	if strings.ToLower(metadata.Lecturer) == P_RAV {
+		cup := &models.ContentUnitsPerson{
+			PersonID: PERSONS_REGISTRY.ByPattern[P_RAV].ID,
+			RoleID: CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID,
+		}
+		err = cu.AddContentUnitsPersons(exec, true, cup)
+		if err != nil {
+			return errors.Wrap(err, "Associate persons")
+		}
+	}
+
 
 	// Get or create collection
 	var c *models.Collection
@@ -166,8 +178,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		metadata.ContentType == CT_FULL_LESSON {
 
 		// Reconcile or create new
-		// Reconciliation is done by looking up the operation chain of original
-		// to capture_stop. There we have a property of the saying the capture_id of the full lesson.
+		// Reconciliation is done by looking up the operation chain of original to capture_stop.
+		// There we have a property of saying the capture_id of the full lesson capture.
 		captureStop, err := FindUpChainOperation(exec, original.ID,
 			OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_STOP].ID)
 		if err != nil {
