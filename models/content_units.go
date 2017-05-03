@@ -37,6 +37,7 @@ type contentUnitR struct {
 	CollectionsContentUnits CollectionsContentUnitSlice
 	ContentUnitI18ns        ContentUnitI18nSlice
 	Tags                    TagSlice
+	ContentUnitsPersons     ContentUnitsPersonSlice
 }
 
 // contentUnitL is where Load methods for each relationship are stored.
@@ -316,6 +317,30 @@ func (o *ContentUnit) Tags(exec boil.Executor, mods ...qm.QueryMod) tagQuery {
 
 	query := Tags(exec, queryMods...)
 	queries.SetFrom(query.Query, "\"tags\" as \"a\"")
+	return query
+}
+
+// ContentUnitsPersonsG retrieves all the content_units_person's content units persons.
+func (o *ContentUnit) ContentUnitsPersonsG(mods ...qm.QueryMod) contentUnitsPersonQuery {
+	return o.ContentUnitsPersons(boil.GetDB(), mods...)
+}
+
+// ContentUnitsPersons retrieves all the content_units_person's content units persons with an executor.
+func (o *ContentUnit) ContentUnitsPersons(exec boil.Executor, mods ...qm.QueryMod) contentUnitsPersonQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
+	}
+
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"content_unit_id\"=?", o.ID),
+	)
+
+	query := ContentUnitsPersons(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"content_units_persons\" as \"a\"")
 	return query
 }
 
@@ -734,6 +759,71 @@ func (contentUnitL) LoadTags(e boil.Executor, singular bool, maybeContentUnit in
 		for _, local := range slice {
 			if local.ID == localJoinCol {
 				local.R.Tags = append(local.R.Tags, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadContentUnitsPersons allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (contentUnitL) LoadContentUnitsPersons(e boil.Executor, singular bool, maybeContentUnit interface{}) error {
+	var slice []*ContentUnit
+	var object *ContentUnit
+
+	count := 1
+	if singular {
+		object = maybeContentUnit.(*ContentUnit)
+	} else {
+		slice = *maybeContentUnit.(*ContentUnitSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &contentUnitR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &contentUnitR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from \"content_units_persons\" where \"content_unit_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load content_units_persons")
+	}
+	defer results.Close()
+
+	var resultSlice []*ContentUnitsPerson
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice content_units_persons")
+	}
+
+	if singular {
+		object.R.ContentUnitsPersons = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ContentUnitID {
+				local.R.ContentUnitsPersons = append(local.R.ContentUnitsPersons, foreign)
 				break
 			}
 		}
@@ -1667,6 +1757,90 @@ func removeTagsFromContentUnitsSlice(o *ContentUnit, related []*Tag) {
 			break
 		}
 	}
+}
+
+// AddContentUnitsPersonsG adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.ContentUnitsPersons.
+// Sets related.R.ContentUnit appropriately.
+// Uses the global database handle.
+func (o *ContentUnit) AddContentUnitsPersonsG(insert bool, related ...*ContentUnitsPerson) error {
+	return o.AddContentUnitsPersons(boil.GetDB(), insert, related...)
+}
+
+// AddContentUnitsPersonsP adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.ContentUnitsPersons.
+// Sets related.R.ContentUnit appropriately.
+// Panics on error.
+func (o *ContentUnit) AddContentUnitsPersonsP(exec boil.Executor, insert bool, related ...*ContentUnitsPerson) {
+	if err := o.AddContentUnitsPersons(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddContentUnitsPersonsGP adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.ContentUnitsPersons.
+// Sets related.R.ContentUnit appropriately.
+// Uses the global database handle and panics on error.
+func (o *ContentUnit) AddContentUnitsPersonsGP(insert bool, related ...*ContentUnitsPerson) {
+	if err := o.AddContentUnitsPersons(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddContentUnitsPersons adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.ContentUnitsPersons.
+// Sets related.R.ContentUnit appropriately.
+func (o *ContentUnit) AddContentUnitsPersons(exec boil.Executor, insert bool, related ...*ContentUnitsPerson) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ContentUnitID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"content_units_persons\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"content_unit_id"}),
+				strmangle.WhereClause("\"", "\"", 2, contentUnitsPersonPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ContentUnitID, rel.PersonID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ContentUnitID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &contentUnitR{
+			ContentUnitsPersons: related,
+		}
+	} else {
+		o.R.ContentUnitsPersons = append(o.R.ContentUnitsPersons, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &contentUnitsPersonR{
+				ContentUnit: o,
+			}
+		} else {
+			rel.R.ContentUnit = o
+		}
+	}
+	return nil
 }
 
 // ContentUnitsG retrieves all records.
