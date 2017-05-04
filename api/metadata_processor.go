@@ -30,7 +30,7 @@ import (
 // 	10. Associate unit and derived units
 // 	11. Set default permissions ?!
 func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) error {
-	log.Info("CITMetadata: %v", metadata)
+	log.Info("Processing CITMetadata")
 
 	// Update properties for original and proxy (film_date, capture_date)
 	filmDate := metadata.CaptureDate
@@ -41,6 +41,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		"capture_date": metadata.CaptureDate,
 		"film_date":    filmDate,
 	}
+	log.Infof("Updaing files properties: %v", props)
 	err := UpdateFileProperties(exec, original, props)
 	if err != nil {
 		return err
@@ -61,18 +62,21 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		}
 		original.Language = null.StringFrom(l)
 	}
+	log.Infof("Updaing original.Language to %s", original.Language.String)
 	err = original.Update(exec, "language")
 	if err != nil {
 		return errors.Wrap(err, "Save original to DB")
 	}
 
 	// Create content_unit (content_type, dates)
+	log.Infof("Creating content unit of type %s", metadata.ContentType)
 	cu, err := CreateContentUnit(exec, metadata.ContentType, props)
 	if err != nil {
 		return errors.Wrap(err, "Create content unit")
 	}
 
 	// Add files to new unit
+	log.Info("Adding files to unit")
 	err = cu.AddFiles(exec, false, original, proxy)
 	if err != nil {
 		return errors.Wrap(err, "Add files to unit")
@@ -81,6 +85,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	// Add ancestor files to unit (not for derived units)
 	if !metadata.ArtifactType.Valid ||
 		metadata.ArtifactType.String == "main" {
+		log.Info("Main unit, adding ancestors...")
 		ancestors, err := FindFileAncestors(exec, original.ID)
 		if err != nil {
 			return errors.Wrap(err, "Find original's ancestors")
@@ -89,10 +94,15 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		if err != nil {
 			return errors.Wrap(err, "Add ancestors to unit")
 		}
+		log.Infof("Added %d ancestors", len(ancestors))
+		for _, x := range ancestors {
+			log.Infof("%s [%d]", x.Name, x.ID)
+		}
 	}
 
 	// Associate unit with sources, tags, and persons
 	if len(metadata.Sources) > 0 {
+		log.Infof("Associating %d sources", len(metadata.Sources))
 		sources, err := models.Sources(exec,
 			qm.WhereIn("uid in ?", utils.ConvertArgsString(metadata.Sources)...)).
 			All()
@@ -122,6 +132,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	}
 
 	if len(metadata.Tags) > 0 {
+		log.Infof("Associating %d tags", len(metadata.Tags))
 		tags, err := models.Tags(exec,
 			qm.WhereIn("uid in ?", utils.ConvertArgsString(metadata.Tags)...)).
 			All()
@@ -152,6 +163,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 
 	// Handle persons ...
 	if strings.ToLower(metadata.Lecturer) == P_RAV {
+		log.Info("Associating unit to rav")
 		cup := &models.ContentUnitsPerson{
 			PersonID: PERSONS_REGISTRY.ByPattern[P_RAV].ID,
 			RoleID:   CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID,
@@ -160,22 +172,25 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		if err != nil {
 			return errors.Wrap(err, "Associate persons")
 		}
+	} else {
+		log.Infof("Unknown lecturer %s, skipping person association.", metadata.Lecturer)
 	}
 
 	// Get or create collection
 	var c *models.Collection
 	if metadata.CollectionUID.Valid {
+		log.Infof("Specific collection %s", metadata.CollectionUID .String)
 		c, err = models.Collections(exec, qm.Where("uid = ?", metadata.CollectionUID.String)).One()
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return errors.Wrapf(err, "No such collection, uid=%s",
-					metadata.CollectionUID.String)
+				log.Warnf("No such collection %s", metadata.CollectionUID.String)
 			} else {
 				return errors.Wrap(err, "Lookup collection in DB")
 			}
 		}
 	} else if metadata.ContentType == CT_LESSON_PART ||
 		metadata.ContentType == CT_FULL_LESSON {
+		log.Info("Daily lesson reconciliation")
 
 		// Reconcile or create new
 		// Reconciliation is done by looking up the operation chain of original to capture_stop.
@@ -196,6 +211,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			}
 			captureID, ok := oProps["collection_uid"]
 			if ok {
+				log.Infof("Reconcile by capture_id %s", captureID)
 				var ct string
 				if metadata.WeekDate == nil {
 					ct = CT_DAILY_LESSON
@@ -216,13 +232,16 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 					}
 
 					// Create new collection
+					log.Info("Creating new collection")
 					c, err = CreateCollection(exec, ct, props)
 					if err != nil {
 						return err
 					}
 				} else if metadata.ContentType == CT_FULL_LESSON {
 					// Update collection properties to those of full lesson
+					log.Info("Full lesson, overriding collection properties")
 					if c.TypeID != CONTENT_TYPE_REGISTRY.ByName[ct].ID {
+						log.Infof("Full lesson, content_type changed to %s", ct)
 						c.TypeID = CONTENT_TYPE_REGISTRY.ByName[ct].ID
 						err = c.Update(exec, "type_id")
 						if err != nil {
@@ -246,6 +265,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	// Associate collection and unit
 	if c != nil &&
 		(!metadata.ArtifactType.Valid || metadata.ArtifactType.String == "main") {
+		log.Info("Associating unit and collection")
 		ccu := &models.CollectionsContentUnit{
 			CollectionID:  c.ID,
 			ContentUnitID: cu.ID,
@@ -284,6 +304,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			break
 		}
 
+		log.Infof("Association name: %s", ccu.Name)
 		err = c.AddCollectionsContentUnits(exec, true, ccu)
 		if err != nil {
 			return errors.Wrap(err, "Save collection and content unit association in DB")
@@ -301,10 +322,12 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	if original.R.Parent == nil {
 		log.Warn("We don't have original's parent file. Skipping derived units association.")
 	} else {
+		log.Info("Processing derived units associations")
 		mainCUID := original.R.Parent.ContentUnitID
 		if !metadata.ArtifactType.Valid ||
 			metadata.ArtifactType.String == "main" {
 			// main content unit
+			log.Info("We're the main content unit")
 
 			// We lookup original's siblings for derived content units that arrived before us.
 			// We then associate them with us and remove their "unprocessed" mark.
@@ -345,7 +368,9 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				return errors.Wrap(err, "Close rows")
 			}
 
+			log.Infof("%d dervied units pending our association", len(derivedCUs))
 			for k, v := range derivedCUs {
+				log.Infof("DerivedID: %d, Name: %s", k, v)
 				cud := &models.ContentUnitDerivation{
 					DerivedID: k,
 					Name:      v,
@@ -365,8 +390,11 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 
 		} else {
 			// derived content unit
+			log.Info("We're the derived content unit")
+
 			if mainCUID.Valid {
 				// main content unit already exists
+				log.Infof("Main content unit exists %d", mainCUID.Int64)
 				cud := &models.ContentUnitDerivation{
 					SourceID: mainCUID.Int64,
 					Name:     metadata.ArtifactType.String,
