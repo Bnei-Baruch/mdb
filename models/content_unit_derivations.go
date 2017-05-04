@@ -18,9 +18,9 @@ import (
 
 // ContentUnitDerivation is an object representing the database table.
 type ContentUnitDerivation struct {
-	SourceID     int64  `boil:"source_id" json:"source_id" toml:"source_id" yaml:"source_id"`
-	DerivationID int64  `boil:"derivation_id" json:"derivation_id" toml:"derivation_id" yaml:"derivation_id"`
-	Name         string `boil:"name" json:"name" toml:"name" yaml:"name"`
+	SourceID  int64  `boil:"source_id" json:"source_id" toml:"source_id" yaml:"source_id"`
+	DerivedID int64  `boil:"derived_id" json:"derived_id" toml:"derived_id" yaml:"derived_id"`
+	Name      string `boil:"name" json:"name" toml:"name" yaml:"name"`
 
 	R *contentUnitDerivationR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L contentUnitDerivationL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -28,18 +28,18 @@ type ContentUnitDerivation struct {
 
 // contentUnitDerivationR is where relationships are stored.
 type contentUnitDerivationR struct {
-	Source     *ContentUnit
-	Derivation *ContentUnit
+	Source  *ContentUnit
+	Derived *ContentUnit
 }
 
 // contentUnitDerivationL is where Load methods for each relationship are stored.
 type contentUnitDerivationL struct{}
 
 var (
-	contentUnitDerivationColumns               = []string{"source_id", "derivation_id", "name"}
-	contentUnitDerivationColumnsWithoutDefault = []string{"source_id", "derivation_id", "name"}
+	contentUnitDerivationColumns               = []string{"source_id", "derived_id", "name"}
+	contentUnitDerivationColumnsWithoutDefault = []string{"source_id", "derived_id", "name"}
 	contentUnitDerivationColumnsWithDefault    = []string{}
-	contentUnitDerivationPrimaryKeyColumns     = []string{"source_id", "derivation_id"}
+	contentUnitDerivationPrimaryKeyColumns     = []string{"source_id", "derived_id"}
 )
 
 type (
@@ -190,15 +190,15 @@ func (o *ContentUnitDerivation) Source(exec boil.Executor, mods ...qm.QueryMod) 
 	return query
 }
 
-// DerivationG pointed to by the foreign key.
-func (o *ContentUnitDerivation) DerivationG(mods ...qm.QueryMod) contentUnitQuery {
-	return o.Derivation(boil.GetDB(), mods...)
+// DerivedG pointed to by the foreign key.
+func (o *ContentUnitDerivation) DerivedG(mods ...qm.QueryMod) contentUnitQuery {
+	return o.Derived(boil.GetDB(), mods...)
 }
 
-// Derivation pointed to by the foreign key.
-func (o *ContentUnitDerivation) Derivation(exec boil.Executor, mods ...qm.QueryMod) contentUnitQuery {
+// Derived pointed to by the foreign key.
+func (o *ContentUnitDerivation) Derived(exec boil.Executor, mods ...qm.QueryMod) contentUnitQuery {
 	queryMods := []qm.QueryMod{
-		qm.Where("id=?", o.DerivationID),
+		qm.Where("id=?", o.DerivedID),
 	}
 
 	queryMods = append(queryMods, mods...)
@@ -275,9 +275,9 @@ func (contentUnitDerivationL) LoadSource(e boil.Executor, singular bool, maybeCo
 	return nil
 }
 
-// LoadDerivation allows an eager lookup of values, cached into the
+// LoadDerived allows an eager lookup of values, cached into the
 // loaded structs of the objects.
-func (contentUnitDerivationL) LoadDerivation(e boil.Executor, singular bool, maybeContentUnitDerivation interface{}) error {
+func (contentUnitDerivationL) LoadDerived(e boil.Executor, singular bool, maybeContentUnitDerivation interface{}) error {
 	var slice []*ContentUnitDerivation
 	var object *ContentUnitDerivation
 
@@ -294,13 +294,13 @@ func (contentUnitDerivationL) LoadDerivation(e boil.Executor, singular bool, may
 		if object.R == nil {
 			object.R = &contentUnitDerivationR{}
 		}
-		args[0] = object.DerivationID
+		args[0] = object.DerivedID
 	} else {
 		for i, obj := range slice {
 			if obj.R == nil {
 				obj.R = &contentUnitDerivationR{}
 			}
-			args[i] = obj.DerivationID
+			args[i] = obj.DerivedID
 		}
 	}
 
@@ -325,14 +325,14 @@ func (contentUnitDerivationL) LoadDerivation(e boil.Executor, singular bool, may
 	}
 
 	if singular && len(resultSlice) != 0 {
-		object.R.Derivation = resultSlice[0]
+		object.R.Derived = resultSlice[0]
 		return nil
 	}
 
 	for _, foreign := range resultSlice {
 		for _, local := range slice {
-			if local.DerivationID == foreign.ID {
-				local.R.Derivation = foreign
+			if local.DerivedID == foreign.ID {
+				local.R.Derived = foreign
 				break
 			}
 		}
@@ -385,7 +385,7 @@ func (o *ContentUnitDerivation) SetSource(exec boil.Executor, insert bool, relat
 		strmangle.SetParamNames("\"", "\"", 1, []string{"source_id"}),
 		strmangle.WhereClause("\"", "\"", 2, contentUnitDerivationPrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.SourceID, o.DerivationID}
+	values := []interface{}{related.ID, o.SourceID, o.DerivedID}
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -417,38 +417,38 @@ func (o *ContentUnitDerivation) SetSource(exec boil.Executor, insert bool, relat
 	return nil
 }
 
-// SetDerivationG of the content_unit_derivation to the related item.
-// Sets o.R.Derivation to related.
-// Adds o to related.R.DerivationContentUnitDerivations.
+// SetDerivedG of the content_unit_derivation to the related item.
+// Sets o.R.Derived to related.
+// Adds o to related.R.DerivedContentUnitDerivations.
 // Uses the global database handle.
-func (o *ContentUnitDerivation) SetDerivationG(insert bool, related *ContentUnit) error {
-	return o.SetDerivation(boil.GetDB(), insert, related)
+func (o *ContentUnitDerivation) SetDerivedG(insert bool, related *ContentUnit) error {
+	return o.SetDerived(boil.GetDB(), insert, related)
 }
 
-// SetDerivationP of the content_unit_derivation to the related item.
-// Sets o.R.Derivation to related.
-// Adds o to related.R.DerivationContentUnitDerivations.
+// SetDerivedP of the content_unit_derivation to the related item.
+// Sets o.R.Derived to related.
+// Adds o to related.R.DerivedContentUnitDerivations.
 // Panics on error.
-func (o *ContentUnitDerivation) SetDerivationP(exec boil.Executor, insert bool, related *ContentUnit) {
-	if err := o.SetDerivation(exec, insert, related); err != nil {
+func (o *ContentUnitDerivation) SetDerivedP(exec boil.Executor, insert bool, related *ContentUnit) {
+	if err := o.SetDerived(exec, insert, related); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// SetDerivationGP of the content_unit_derivation to the related item.
-// Sets o.R.Derivation to related.
-// Adds o to related.R.DerivationContentUnitDerivations.
+// SetDerivedGP of the content_unit_derivation to the related item.
+// Sets o.R.Derived to related.
+// Adds o to related.R.DerivedContentUnitDerivations.
 // Uses the global database handle and panics on error.
-func (o *ContentUnitDerivation) SetDerivationGP(insert bool, related *ContentUnit) {
-	if err := o.SetDerivation(boil.GetDB(), insert, related); err != nil {
+func (o *ContentUnitDerivation) SetDerivedGP(insert bool, related *ContentUnit) {
+	if err := o.SetDerived(boil.GetDB(), insert, related); err != nil {
 		panic(boil.WrapErr(err))
 	}
 }
 
-// SetDerivation of the content_unit_derivation to the related item.
-// Sets o.R.Derivation to related.
-// Adds o to related.R.DerivationContentUnitDerivations.
-func (o *ContentUnitDerivation) SetDerivation(exec boil.Executor, insert bool, related *ContentUnit) error {
+// SetDerived of the content_unit_derivation to the related item.
+// Sets o.R.Derived to related.
+// Adds o to related.R.DerivedContentUnitDerivations.
+func (o *ContentUnitDerivation) SetDerived(exec boil.Executor, insert bool, related *ContentUnit) error {
 	var err error
 	if insert {
 		if err = related.Insert(exec); err != nil {
@@ -458,10 +458,10 @@ func (o *ContentUnitDerivation) SetDerivation(exec boil.Executor, insert bool, r
 
 	updateQuery := fmt.Sprintf(
 		"UPDATE \"content_unit_derivations\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"derivation_id"}),
+		strmangle.SetParamNames("\"", "\"", 1, []string{"derived_id"}),
 		strmangle.WhereClause("\"", "\"", 2, contentUnitDerivationPrimaryKeyColumns),
 	)
-	values := []interface{}{related.ID, o.SourceID, o.DerivationID}
+	values := []interface{}{related.ID, o.SourceID, o.DerivedID}
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, updateQuery)
@@ -472,22 +472,22 @@ func (o *ContentUnitDerivation) SetDerivation(exec boil.Executor, insert bool, r
 		return errors.Wrap(err, "failed to update local table")
 	}
 
-	o.DerivationID = related.ID
+	o.DerivedID = related.ID
 
 	if o.R == nil {
 		o.R = &contentUnitDerivationR{
-			Derivation: related,
+			Derived: related,
 		}
 	} else {
-		o.R.Derivation = related
+		o.R.Derived = related
 	}
 
 	if related.R == nil {
 		related.R = &contentUnitR{
-			DerivationContentUnitDerivations: ContentUnitDerivationSlice{o},
+			DerivedContentUnitDerivations: ContentUnitDerivationSlice{o},
 		}
 	} else {
-		related.R.DerivationContentUnitDerivations = append(related.R.DerivationContentUnitDerivations, o)
+		related.R.DerivedContentUnitDerivations = append(related.R.DerivedContentUnitDerivations, o)
 	}
 
 	return nil
@@ -505,13 +505,13 @@ func ContentUnitDerivations(exec boil.Executor, mods ...qm.QueryMod) contentUnit
 }
 
 // FindContentUnitDerivationG retrieves a single record by ID.
-func FindContentUnitDerivationG(sourceID int64, derivationID int64, selectCols ...string) (*ContentUnitDerivation, error) {
-	return FindContentUnitDerivation(boil.GetDB(), sourceID, derivationID, selectCols...)
+func FindContentUnitDerivationG(sourceID int64, derivedID int64, selectCols ...string) (*ContentUnitDerivation, error) {
+	return FindContentUnitDerivation(boil.GetDB(), sourceID, derivedID, selectCols...)
 }
 
 // FindContentUnitDerivationGP retrieves a single record by ID, and panics on error.
-func FindContentUnitDerivationGP(sourceID int64, derivationID int64, selectCols ...string) *ContentUnitDerivation {
-	retobj, err := FindContentUnitDerivation(boil.GetDB(), sourceID, derivationID, selectCols...)
+func FindContentUnitDerivationGP(sourceID int64, derivedID int64, selectCols ...string) *ContentUnitDerivation {
+	retobj, err := FindContentUnitDerivation(boil.GetDB(), sourceID, derivedID, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -521,7 +521,7 @@ func FindContentUnitDerivationGP(sourceID int64, derivationID int64, selectCols 
 
 // FindContentUnitDerivation retrieves a single record by ID with an executor.
 // If selectCols is empty Find will return all columns.
-func FindContentUnitDerivation(exec boil.Executor, sourceID int64, derivationID int64, selectCols ...string) (*ContentUnitDerivation, error) {
+func FindContentUnitDerivation(exec boil.Executor, sourceID int64, derivedID int64, selectCols ...string) (*ContentUnitDerivation, error) {
 	contentUnitDerivationObj := &ContentUnitDerivation{}
 
 	sel := "*"
@@ -529,10 +529,10 @@ func FindContentUnitDerivation(exec boil.Executor, sourceID int64, derivationID 
 		sel = strings.Join(strmangle.IdentQuoteSlice(dialect.LQ, dialect.RQ, selectCols), ",")
 	}
 	query := fmt.Sprintf(
-		"select %s from \"content_unit_derivations\" where \"source_id\"=$1 AND \"derivation_id\"=$2", sel,
+		"select %s from \"content_unit_derivations\" where \"source_id\"=$1 AND \"derived_id\"=$2", sel,
 	)
 
-	q := queries.Raw(exec, query, sourceID, derivationID)
+	q := queries.Raw(exec, query, sourceID, derivedID)
 
 	err := q.Bind(contentUnitDerivationObj)
 	if err != nil {
@@ -546,8 +546,8 @@ func FindContentUnitDerivation(exec boil.Executor, sourceID int64, derivationID 
 }
 
 // FindContentUnitDerivationP retrieves a single record by ID with an executor, and panics on error.
-func FindContentUnitDerivationP(exec boil.Executor, sourceID int64, derivationID int64, selectCols ...string) *ContentUnitDerivation {
-	retobj, err := FindContentUnitDerivation(exec, sourceID, derivationID, selectCols...)
+func FindContentUnitDerivationP(exec boil.Executor, sourceID int64, derivedID int64, selectCols ...string) *ContentUnitDerivation {
+	retobj, err := FindContentUnitDerivation(exec, sourceID, derivedID, selectCols...)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -787,7 +787,7 @@ func (o ContentUnitDerivationSlice) UpdateAll(exec boil.Executor, cols M) error 
 	}
 
 	sql := fmt.Sprintf(
-		"UPDATE \"content_unit_derivations\" SET %s WHERE (\"source_id\",\"derivation_id\") IN (%s)",
+		"UPDATE \"content_unit_derivations\" SET %s WHERE (\"source_id\",\"derived_id\") IN (%s)",
 		strmangle.SetParamNames("\"", "\"", 1, colNames),
 		strmangle.Placeholders(dialect.IndexPlaceholders, len(o)*len(contentUnitDerivationPrimaryKeyColumns), len(colNames)+1, len(contentUnitDerivationPrimaryKeyColumns)),
 	)
@@ -971,7 +971,7 @@ func (o *ContentUnitDerivation) Delete(exec boil.Executor) error {
 	}
 
 	args := queries.ValuesFromMapping(reflect.Indirect(reflect.ValueOf(o)), contentUnitDerivationPrimaryKeyMapping)
-	sql := "DELETE FROM \"content_unit_derivations\" WHERE \"source_id\"=$1 AND \"derivation_id\"=$2"
+	sql := "DELETE FROM \"content_unit_derivations\" WHERE \"source_id\"=$1 AND \"derived_id\"=$2"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
@@ -1092,7 +1092,7 @@ func (o *ContentUnitDerivation) ReloadG() error {
 // Reload refetches the object from the database
 // using the primary keys with an executor.
 func (o *ContentUnitDerivation) Reload(exec boil.Executor) error {
-	ret, err := FindContentUnitDerivation(exec, o.SourceID, o.DerivationID)
+	ret, err := FindContentUnitDerivation(exec, o.SourceID, o.DerivedID)
 	if err != nil {
 		return err
 	}
@@ -1162,17 +1162,17 @@ func (o *ContentUnitDerivationSlice) ReloadAll(exec boil.Executor) error {
 }
 
 // ContentUnitDerivationExists checks if the ContentUnitDerivation row exists.
-func ContentUnitDerivationExists(exec boil.Executor, sourceID int64, derivationID int64) (bool, error) {
+func ContentUnitDerivationExists(exec boil.Executor, sourceID int64, derivedID int64) (bool, error) {
 	var exists bool
 
-	sql := "select exists(select 1 from \"content_unit_derivations\" where \"source_id\"=$1 AND \"derivation_id\"=$2 limit 1)"
+	sql := "select exists(select 1 from \"content_unit_derivations\" where \"source_id\"=$1 AND \"derived_id\"=$2 limit 1)"
 
 	if boil.DebugMode {
 		fmt.Fprintln(boil.DebugWriter, sql)
-		fmt.Fprintln(boil.DebugWriter, sourceID, derivationID)
+		fmt.Fprintln(boil.DebugWriter, sourceID, derivedID)
 	}
 
-	row := exec.QueryRow(sql, sourceID, derivationID)
+	row := exec.QueryRow(sql, sourceID, derivedID)
 
 	err := row.Scan(&exists)
 	if err != nil {
@@ -1183,13 +1183,13 @@ func ContentUnitDerivationExists(exec boil.Executor, sourceID int64, derivationI
 }
 
 // ContentUnitDerivationExistsG checks if the ContentUnitDerivation row exists.
-func ContentUnitDerivationExistsG(sourceID int64, derivationID int64) (bool, error) {
-	return ContentUnitDerivationExists(boil.GetDB(), sourceID, derivationID)
+func ContentUnitDerivationExistsG(sourceID int64, derivedID int64) (bool, error) {
+	return ContentUnitDerivationExists(boil.GetDB(), sourceID, derivedID)
 }
 
 // ContentUnitDerivationExistsGP checks if the ContentUnitDerivation row exists. Panics on error.
-func ContentUnitDerivationExistsGP(sourceID int64, derivationID int64) bool {
-	e, err := ContentUnitDerivationExists(boil.GetDB(), sourceID, derivationID)
+func ContentUnitDerivationExistsGP(sourceID int64, derivedID int64) bool {
+	e, err := ContentUnitDerivationExists(boil.GetDB(), sourceID, derivedID)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}
@@ -1198,8 +1198,8 @@ func ContentUnitDerivationExistsGP(sourceID int64, derivationID int64) bool {
 }
 
 // ContentUnitDerivationExistsP checks if the ContentUnitDerivation row exists. Panics on error.
-func ContentUnitDerivationExistsP(exec boil.Executor, sourceID int64, derivationID int64) bool {
-	e, err := ContentUnitDerivationExists(exec, sourceID, derivationID)
+func ContentUnitDerivationExistsP(exec boil.Executor, sourceID int64, derivedID int64) bool {
+	e, err := ContentUnitDerivationExists(exec, sourceID, derivedID)
 	if err != nil {
 		panic(boil.WrapErr(err))
 	}

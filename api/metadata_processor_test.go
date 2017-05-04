@@ -207,10 +207,10 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	err = original.L.LoadContentUnit(suite.tx, true, original)
 	suite.Require().Nil(err)
 	cu = original.R.ContentUnit
-	err = cu.L.LoadDerivationContentUnitDerivations(suite.tx, true, cu)
+	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
 	suite.Require().Nil(err)
-	suite.Require().Len(cu.R.DerivationContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
-	cud := cu.R.DerivationContentUnitDerivations[0]
+	suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
+	cud := cu.R.DerivedContentUnitDerivations[0]
 	suite.Equal(chain["part1"].Original.ContentUnitID.Int64, cud.SourceID, "cud.SourceID")
 	suite.Equal("kitei_makor", cud.Name, "cud.Name")
 	err = cu.Properties.Unmarshal(&props)
@@ -279,9 +279,9 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	suite.Empty(cu.R.CollectionsContentUnits, "cu.R.CollectionsContentUnits empty")
 
 	// not associated to "main" content unit
-	err = cu.L.LoadDerivationContentUnitDerivations(suite.tx, true, cu)
+	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
 	suite.Require().Nil(err)
-	suite.Empty(cu.R.DerivationContentUnitDerivations, "cu.R.DerivationContentUnitDerivations empty")
+	suite.Empty(cu.R.DerivedContentUnitDerivations, "cu.R.DerivationContentUnitDerivations empty")
 	var props map[string]interface{}
 	err = json.Unmarshal(cu.Properties.JSON, &props)
 	suite.Require().Nil(err)
@@ -302,10 +302,10 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	suite.assertContentUnit(metadata, original, proxy)
 
 	// reload cu cu association
-	err = cu.L.LoadDerivationContentUnitDerivations(suite.tx, true, cu)
+	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
 	suite.Require().Nil(err)
-	suite.Require().Len(cu.R.DerivationContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
-	cud := cu.R.DerivationContentUnitDerivations[0]
+	suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
+	cud := cu.R.DerivedContentUnitDerivations[0]
 	suite.Equal(chain["part1"].Original.ContentUnitID.Int64, cud.SourceID, "cud.SourceID")
 	suite.Equal("kitei_makor", cud.Name, "cud.Name")
 
