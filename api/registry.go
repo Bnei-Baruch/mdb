@@ -2,15 +2,20 @@ package api
 
 import (
 	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/pkg/errors"
+	"github.com/vattle/sqlboiler/boil"
+	"github.com/vattle/sqlboiler/queries/qm"
 	"regexp"
 	"strings"
 )
 
 var (
-	CONTENT_TYPE_REGISTRY   = &ContentTypeRegistry{}
-	OPERATION_TYPE_REGISTRY = &OperationTypeRegistry{}
-	SOURCE_TYPE_REGISTRY    = &SourceTypeRegistry{}
-	MEDIA_TYPE_REGISTRY     = NewMediaTypeRegistry()
+	CONTENT_TYPE_REGISTRY      = &ContentTypeRegistry{}
+	OPERATION_TYPE_REGISTRY    = &OperationTypeRegistry{}
+	CONTENT_ROLE_TYPE_REGISTRY = &ContentRoleTypeRegistry{}
+	PERSONS_REGISTRY           = &PersonsRegistry{}
+	SOURCE_TYPE_REGISTRY       = &SourceTypeRegistry{}
+	MEDIA_TYPE_REGISTRY        = &MediaTypeRegistry{}
 
 	ALL_LANGS = []string{
 		LANG_UNKNOWN, LANG_MULTI, LANG_ENGLISH, LANG_HEBREW, LANG_RUSSIAN, LANG_SPANISH, LANG_ITALIAN,
@@ -60,40 +65,31 @@ var (
 	}
 
 	ALL_CONTENT_TYPES = []string{
-		CT_DAILY_LESSON, CT_SATURDAY_LESSON, CT_WEEKLY_FRIENDS_GATHERING, CT_CONGRESS, CT_VIDEO_PROGRAM,
+		CT_DAILY_LESSON, CT_SATURDAY_LESSON, CT_FRIENDS_GATHERINGS, CT_CONGRESS, CT_VIDEO_PROGRAM,
 		CT_LECTURE_SERIES, CT_MEALS, CT_HOLIDAY, CT_PICNIC, CT_UNITY_DAY, CT_LESSON_PART, CT_LECTURE,
-		CT_CHILDREN_LESSON_PART, CT_WOMEN_LESSON_PART, CT_CAMPUS_LESSON, CT_LC_LESSON, CT_VIRTUAL_LESSON,
-		CT_FRIENDS_GATHERING, CT_MEAL, CT_VIDEO_PROGRAM_CHAPTER, CT_FULL_LESSON, CT_TEXT,
+		CT_CHILDREN_LESSON_PART, CT_WOMEN_LESSON_PART, CT_LC_LESSON, CT_FRIENDS_GATHERING, CT_MEAL,
+		CT_VIDEO_PROGRAM_CHAPTER, CT_FULL_LESSON, CT_TEXT, CT_EVENT_PART, CT_UNKNOWN, CT_CLIP, CT_TRAINING,
+		CT_KITEI_MAKOR,
 	}
 
 	ALL_OPERATION_TYPES = []string{
 		OP_CAPTURE_START, OP_CAPTURE_STOP, OP_DEMUX, OP_TRIM, OP_SEND, OP_CONVERT, OP_UPLOAD, OP_IMPORT_KMEDIA,
 	}
 
-	DEFAULT_NAMES = map[string]string{
-		CT_DAILY_LESSON:             "Daily Lesson",
-		CT_SATURDAY_LESSON:          "Saturday Lesson",
-		CT_WEEKLY_FRIENDS_GATHERING: "Weekly Friends Gathering",
-		CT_CONGRESS:                 "Congress",
-		CT_VIDEO_PROGRAM:            "Video Program",
-		CT_LECTURE_SERIES:           "Lecture Series",
-		CT_MEALS:                    "Meals",
-		CT_HOLIDAY:                  "Holiday",
-		CT_PICNIC:                   "Picnic",
-		CT_UNITY_DAY:                "Unity Day",
-
-		CT_LESSON_PART:           "Morning Lesson",
-		CT_LECTURE:               "Lecture",
-		CT_CHILDREN_LESSON_PART:  "Children Lesson",
-		CT_WOMEN_LESSON_PART:     "Women Lesson",
-		CT_CAMPUS_LESSON:         "Campus Lesson",
-		CT_LC_LESSON:             "Learning Center  Lesson",
-		CT_VIRTUAL_LESSON:        "Virtual Lesson",
-		CT_FRIENDS_GATHERING:     "Friends Gathering",
-		CT_MEAL:                  "Meal",
-		CT_VIDEO_PROGRAM_CHAPTER: "Video Program",
-		CT_FULL_LESSON:           "Full Lesson",
-		CT_TEXT:                  "text",
+	// Types of various, secondary, content slots in big events like congress, unity day, etc...
+	// This list is not part of content_types to prevent explosion of that list.
+	// This came to life for mdb-cit UI only Ease of Use. (prevent typing errors and keep consistency)
+	// We keep it here so CCU's would have some information.
+	// This list should be kept in sync with mdb-cit (consts.js)
+	MISC_EVENT_PART_TYPES = [8]string{
+		"TEKES_PTIHA",
+		"TEKES_SIYUM",
+		"EREV_PATUAH",
+		"EREV_TARBUT",
+		"ATZAGAT_PROEKT",
+		"HAANAKAT_TEUDOT",
+		"HATIMAT_SFARIM",
+		"EVENT",
 	}
 
 	// kmedia - select asset_type, count(*) from file_assets group by asset_type order by count(*) desc;
@@ -143,14 +139,35 @@ type MediaType struct {
 	MimeType  string
 }
 
+func InitTypeRegistries(exec boil.Executor) error {
+	registries := []TypeRegistry{CONTENT_TYPE_REGISTRY,
+		OPERATION_TYPE_REGISTRY,
+		CONTENT_ROLE_TYPE_REGISTRY,
+		PERSONS_REGISTRY,
+		SOURCE_TYPE_REGISTRY,
+		MEDIA_TYPE_REGISTRY}
+
+	for _, x := range registries {
+		if err := x.Init(exec); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+type TypeRegistry interface {
+	Init(exec boil.Executor) error
+}
+
 type ContentTypeRegistry struct {
 	ByName map[string]*models.ContentType
 }
 
-func (r *ContentTypeRegistry) Init() error {
-	types, err := models.ContentTypesG().All()
+func (r *ContentTypeRegistry) Init(exec boil.Executor) error {
+	types, err := models.ContentTypes(exec).All()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Load content_types from DB")
 	}
 
 	r.ByName = make(map[string]*models.ContentType)
@@ -165,10 +182,10 @@ type OperationTypeRegistry struct {
 	ByName map[string]*models.OperationType
 }
 
-func (r *OperationTypeRegistry) Init() error {
-	types, err := models.OperationTypesG().All()
+func (r *OperationTypeRegistry) Init(exec boil.Executor) error {
+	types, err := models.OperationTypes(exec).All()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Load operation_types from DB")
 	}
 
 	r.ByName = make(map[string]*models.OperationType)
@@ -179,15 +196,51 @@ func (r *OperationTypeRegistry) Init() error {
 	return nil
 }
 
+type ContentRoleTypeRegistry struct {
+	ByName map[string]*models.ContentRoleType
+}
+
+func (r *ContentRoleTypeRegistry) Init(exec boil.Executor) error {
+	types, err := models.ContentRoleTypes(exec).All()
+	if err != nil {
+		return errors.Wrap(err, "Load content_role_types from DB")
+	}
+
+	r.ByName = make(map[string]*models.ContentRoleType)
+	for _, t := range types {
+		r.ByName[t.Name] = t
+	}
+
+	return nil
+}
+
+type PersonsRegistry struct {
+	ByPattern map[string]*models.Person
+}
+
+func (r *PersonsRegistry) Init(exec boil.Executor) error {
+	types, err := models.Persons(exec, qm.Where("pattern is not null")).All()
+	if err != nil {
+		return errors.Wrap(err, "Load persons from DB")
+	}
+
+	r.ByPattern = make(map[string]*models.Person)
+	for _, t := range types {
+		r.ByPattern[t.Pattern.String] = t
+	}
+
+	return nil
+}
+
 type SourceTypeRegistry struct {
 	ByName map[string]*models.SourceType
 	ByID   map[int64]*models.SourceType
 }
 
-func (r *SourceTypeRegistry) Init() error {
-	types, err := models.SourceTypesG().All()
+func (r *SourceTypeRegistry) Init(exec boil.Executor) error {
+	types, err := models.SourceTypes(exec).All()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Load source_types from DB")
 	}
 
 	r.ByName = make(map[string]*models.SourceType)
@@ -205,16 +258,14 @@ type MediaTypeRegistry struct {
 	ByMime      map[string]*MediaType
 }
 
-func NewMediaTypeRegistry() *MediaTypeRegistry {
-	r := &MediaTypeRegistry{
-		ByExtension: make(map[string]*MediaType, len(ALL_MEDIA_TYPES)),
-		ByMime:      make(map[string]*MediaType, len(ALL_MEDIA_TYPES)),
-	}
+func (r *MediaTypeRegistry) Init(exec boil.Executor) error {
+	r.ByExtension = make(map[string]*MediaType, len(ALL_MEDIA_TYPES))
+	r.ByMime = make(map[string]*MediaType, len(ALL_MEDIA_TYPES))
 
 	for _, x := range ALL_MEDIA_TYPES {
 		r.ByExtension[x.Extension] = x
 		r.ByMime[x.MimeType] = x
 	}
 
-	return r
+	return nil
 }

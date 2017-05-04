@@ -9,10 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/adams-sarah/test2doc/test"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/nullbio/null.v6"
+
+	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/vattle/sqlboiler/boil"
 )
 
 type DocsSuite struct {
@@ -42,8 +45,7 @@ func (suite *DocsSuite) SetupSuite() {
 	}
 
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(OPERATION_TYPE_REGISTRY.Init())
-	suite.Require().Nil(CONTENT_TYPE_REGISTRY.Init())
+	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
 }
 
 func (suite *DocsSuite) TearDownSuite() {
@@ -202,7 +204,21 @@ func (suite *DocsSuite) Test5SendHandler() {
 			Sha1:     "0987654321fedcba0987654321fedcba22222222",
 			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_p.mp4",
 		},
-		WorkflowType: "workflow_type",
+		Metadata: CITMetadata{
+			ContentType:    CT_LESSON_PART,
+			FinalName:      "final_name",
+			AutoName:       "auto_name",
+			ManualName:     "manual_name",
+			CaptureDate:    Date{Time: time.Now()},
+			Language:       "heb",
+			Lecturer:       "rav",
+			HasTranslation: true,
+			RequireTest:    false,
+			Number:         null.IntFrom(1),
+			Part:           null.IntFrom(2),
+			Sources:        []string{"12345678", "87654321", "abcdefgh"},
+			Tags:           []string{"12345678", "87654321"},
+		},
 	}
 
 	resp, err := suite.testOperation(OP_SEND, input)
@@ -290,7 +306,8 @@ func (suite *DocsSuite) Test7UploadHandler() {
 
 func (suite *DocsSuite) testOperation(name string, input interface{}) (*http.Response, error) {
 	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(input)
+	err := json.NewEncoder(b).Encode(input)
+	suite.Require().Nil(err)
 	u, _ := url.Parse(suite.testServer.URL)
 	u.Path = path.Join(u.Path, "operations", name)
 	return http.Post(u.String(), "application/json", b)
@@ -305,5 +322,6 @@ func (suite *DocsSuite) assertJsonOK(resp *http.Response) {
 	err := json.NewDecoder(resp.Body).Decode(&body)
 	suite.Require().Nil(err)
 	suite.Equal("ok", body["status"], "HTTP body.status")
-	suite.Nil(body["error"], "HTTP body.error")
+	//suite.T().Log(body)
+	suite.Nil(body["errors"], "HTTP body.errors")
 }

@@ -41,6 +41,23 @@ type FileNotFound struct {
 	Sha1 string
 }
 
-func (f FileNotFound) Error() string {
-	return fmt.Sprintf("File not found, sha1 = %s", f.Sha1)
+func (x FileNotFound) Error() string {
+	return fmt.Sprintf("File not found, sha1 = %s", x.Sha1)
+}
+
+type UpChainOperationNotFound struct {
+	FileID int64
+	OperationType int64
+}
+
+func (x UpChainOperationNotFound) Error() string {
+	return fmt.Sprintf("Up chain operaiton type_id %d not found for file_id %d", x.OperationType, x.FileID)
+}
+
+type CollectionNotFound struct {
+	CaptureID interface{}
+}
+
+func (x CollectionNotFound) Error() string {
+	return fmt.Sprintf("Collection not found, CaptureID = %s", x.CaptureID)
 }

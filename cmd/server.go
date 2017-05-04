@@ -38,9 +38,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	boil.DebugMode = viper.GetString("server.mode") == "debug"
 
 	log.Info("Initializing type registries")
-	utils.Must(api.CONTENT_TYPE_REGISTRY.Init())
-	utils.Must(api.OPERATION_TYPE_REGISTRY.Init())
-	utils.Must(api.SOURCE_TYPE_REGISTRY.Init())
+	utils.Must(api.InitTypeRegistries(db))
 
 	// Setup Rollbar
 	rollbar.Token = viper.GetString("server.rollbar-token")

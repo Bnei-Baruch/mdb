@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"gopkg.in/nullbio/null.v6"
@@ -33,6 +34,27 @@ type (
 	AVFile struct {
 		File
 		Duration float64 `json:"duration"`
+	}
+
+	CITMetadata struct {
+		ContentType    string      `json:"content_type" binding:"required"`
+		CaptureDate    Date        `json:"capture_date" binding:"required"`
+		FinalName      string      `json:"final_name" binding:"required,max=255"`
+		Language       string      `json:"language" binding:"required,min=2,max=3"`
+		Lecturer       string      `json:"lecturer" binding:"required"`
+		AutoName       string      `json:"auto_name"`
+		ManualName     string      `json:"manual_name"`
+		WeekDate       *Date       `json:"week_date"`
+		Number         null.Int    `json:"number"`
+		Part           null.Int    `json:"part"`
+		Sources        []string    `json:"sources" binding:"omitempty,dive,len=8"`
+		Tags           []string    `json:"tags" binding:"omitempty,dive,len=8"`
+		ArtifactType   null.String `json:"artifact_type"`
+		HasTranslation bool        `json:"has_translation"`
+		RequireTest    bool        `json:"require_test"`
+		CollectionUID  null.String `json:"collection_uid" binding:"omitempty,len=8"`
+		Episode        null.String `json:"episode"`
+		PartType       null.Int    `json:"part_type"`
 	}
 
 	Rename struct {
@@ -78,9 +100,9 @@ type (
 
 	SendRequest struct {
 		Operation
-		Original     Rename `json:"original"`
-		Proxy        Rename `json:"proxy"`
-		WorkflowType string `json:"workflow_type"`
+		Original Rename      `json:"original"`
+		Proxy    Rename      `json:"proxy"`
+		Metadata CITMetadata `json:"metadata"`
 	}
 
 	ConvertRequest struct {
@@ -289,10 +311,9 @@ type Timestamp struct {
 	time.Time
 }
 
-func (t *Timestamp) MarshalJSON() ([]byte, error) {
+func (t Timestamp) MarshalJSON() ([]byte, error) {
 	ts := t.Time.Unix()
 	stamp := fmt.Sprint(ts)
-
 	return []byte(stamp), nil
 }
 
@@ -301,8 +322,24 @@ func (t *Timestamp) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
-
 	t.Time = time.Unix(int64(ts), 0)
-
 	return nil
+}
+
+// A time.Time like structure with date part only JSON marshalling
+type Date struct {
+	time.Time
+}
+
+func (d Date) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%s\"", d.Time.Format("2006-01-02"))), nil
+}
+
+func (d *Date) UnmarshalJSON(b []byte) error {
+	var err error
+	d.Time, err = time.Parse("2006-01-02", strings.Trim(string(b), "\""))
+	if err != nil {
+		fmt.Println(err)
+	}
+	return err
 }

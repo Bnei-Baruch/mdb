@@ -38,10 +38,10 @@ type Source struct {
 type sourceR struct {
 	Parent        *Source
 	Type          *SourceType
-	SourceI18ns   SourceI18nSlice
-	Authors       AuthorSlice
 	ParentSources SourceSlice
 	ContentUnits  ContentUnitSlice
+	Authors       AuthorSlice
+	SourceI18ns   SourceI18nSlice
 }
 
 // sourceL is where Load methods for each relationship are stored.
@@ -221,55 +221,6 @@ func (o *Source) Type(exec boil.Executor, mods ...qm.QueryMod) sourceTypeQuery {
 	return query
 }
 
-// SourceI18nsG retrieves all the source_i18n's source i18n.
-func (o *Source) SourceI18nsG(mods ...qm.QueryMod) sourceI18nQuery {
-	return o.SourceI18ns(boil.GetDB(), mods...)
-}
-
-// SourceI18ns retrieves all the source_i18n's source i18n with an executor.
-func (o *Source) SourceI18ns(exec boil.Executor, mods ...qm.QueryMod) sourceI18nQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("\"a\".\"source_id\"=?", o.ID),
-	)
-
-	query := SourceI18ns(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"source_i18n\" as \"a\"")
-	return query
-}
-
-// AuthorsG retrieves all the author's authors.
-func (o *Source) AuthorsG(mods ...qm.QueryMod) authorQuery {
-	return o.Authors(boil.GetDB(), mods...)
-}
-
-// Authors retrieves all the author's authors with an executor.
-func (o *Source) Authors(exec boil.Executor, mods ...qm.QueryMod) authorQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.InnerJoin("\"authors_sources\" as \"b\" on \"a\".\"id\" = \"b\".\"author_id\""),
-		qm.Where("\"b\".\"source_id\"=?", o.ID),
-	)
-
-	query := Authors(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"authors\" as \"a\"")
-	return query
-}
-
 // ParentSourcesG retrieves all the source's sources via parent_id column.
 func (o *Source) ParentSourcesG(mods ...qm.QueryMod) sourceQuery {
 	return o.ParentSources(boil.GetDB(), mods...)
@@ -316,6 +267,55 @@ func (o *Source) ContentUnits(exec boil.Executor, mods ...qm.QueryMod) contentUn
 
 	query := ContentUnits(exec, queryMods...)
 	queries.SetFrom(query.Query, "\"content_units\" as \"a\"")
+	return query
+}
+
+// AuthorsG retrieves all the author's authors.
+func (o *Source) AuthorsG(mods ...qm.QueryMod) authorQuery {
+	return o.Authors(boil.GetDB(), mods...)
+}
+
+// Authors retrieves all the author's authors with an executor.
+func (o *Source) Authors(exec boil.Executor, mods ...qm.QueryMod) authorQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
+	}
+
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.InnerJoin("\"authors_sources\" as \"b\" on \"a\".\"id\" = \"b\".\"author_id\""),
+		qm.Where("\"b\".\"source_id\"=?", o.ID),
+	)
+
+	query := Authors(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"authors\" as \"a\"")
+	return query
+}
+
+// SourceI18nsG retrieves all the source_i18n's source i18n.
+func (o *Source) SourceI18nsG(mods ...qm.QueryMod) sourceI18nQuery {
+	return o.SourceI18ns(boil.GetDB(), mods...)
+}
+
+// SourceI18ns retrieves all the source_i18n's source i18n with an executor.
+func (o *Source) SourceI18ns(exec boil.Executor, mods ...qm.QueryMod) sourceI18nQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
+	}
+
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"source_id\"=?", o.ID),
+	)
+
+	query := SourceI18ns(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"source_i18n\" as \"a\"")
 	return query
 }
 
@@ -443,152 +443,6 @@ func (sourceL) LoadType(e boil.Executor, singular bool, maybeSource interface{})
 		for _, local := range slice {
 			if local.TypeID == foreign.ID {
 				local.R.Type = foreign
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadSourceI18ns allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (sourceL) LoadSourceI18ns(e boil.Executor, singular bool, maybeSource interface{}) error {
-	var slice []*Source
-	var object *Source
-
-	count := 1
-	if singular {
-		object = maybeSource.(*Source)
-	} else {
-		slice = *maybeSource.(*SourceSlice)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &sourceR{}
-		}
-		args[0] = object.ID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &sourceR{}
-			}
-			args[i] = obj.ID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select * from \"source_i18n\" where \"source_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load source_i18n")
-	}
-	defer results.Close()
-
-	var resultSlice []*SourceI18n
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice source_i18n")
-	}
-
-	if singular {
-		object.R.SourceI18ns = resultSlice
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.ID == foreign.SourceID {
-				local.R.SourceI18ns = append(local.R.SourceI18ns, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
-}
-
-// LoadAuthors allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (sourceL) LoadAuthors(e boil.Executor, singular bool, maybeSource interface{}) error {
-	var slice []*Source
-	var object *Source
-
-	count := 1
-	if singular {
-		object = maybeSource.(*Source)
-	} else {
-		slice = *maybeSource.(*SourceSlice)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &sourceR{}
-		}
-		args[0] = object.ID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &sourceR{}
-			}
-			args[i] = obj.ID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select \"a\".*, \"b\".\"source_id\" from \"authors\" as \"a\" inner join \"authors_sources\" as \"b\" on \"a\".\"id\" = \"b\".\"author_id\" where \"b\".\"source_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load authors")
-	}
-	defer results.Close()
-
-	var resultSlice []*Author
-
-	var localJoinCols []int64
-	for results.Next() {
-		one := new(Author)
-		var localJoinCol int64
-
-		err = results.Scan(&one.ID, &one.Code, &one.Name, &one.FullName, &one.CreatedAt, &localJoinCol)
-		if err = results.Err(); err != nil {
-			return errors.Wrap(err, "failed to plebian-bind eager loaded slice authors")
-		}
-
-		resultSlice = append(resultSlice, one)
-		localJoinCols = append(localJoinCols, localJoinCol)
-	}
-
-	if err = results.Err(); err != nil {
-		return errors.Wrap(err, "failed to plebian-bind eager loaded slice authors")
-	}
-
-	if singular {
-		object.R.Authors = resultSlice
-		return nil
-	}
-
-	for i, foreign := range resultSlice {
-		localJoinCol := localJoinCols[i]
-		for _, local := range slice {
-			if local.ID == localJoinCol {
-				local.R.Authors = append(local.R.Authors, foreign)
 				break
 			}
 		}
@@ -735,6 +589,152 @@ func (sourceL) LoadContentUnits(e boil.Executor, singular bool, maybeSource inte
 		for _, local := range slice {
 			if local.ID == localJoinCol {
 				local.R.ContentUnits = append(local.R.ContentUnits, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadAuthors allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (sourceL) LoadAuthors(e boil.Executor, singular bool, maybeSource interface{}) error {
+	var slice []*Source
+	var object *Source
+
+	count := 1
+	if singular {
+		object = maybeSource.(*Source)
+	} else {
+		slice = *maybeSource.(*SourceSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &sourceR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &sourceR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select \"a\".*, \"b\".\"source_id\" from \"authors\" as \"a\" inner join \"authors_sources\" as \"b\" on \"a\".\"id\" = \"b\".\"author_id\" where \"b\".\"source_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load authors")
+	}
+	defer results.Close()
+
+	var resultSlice []*Author
+
+	var localJoinCols []int64
+	for results.Next() {
+		one := new(Author)
+		var localJoinCol int64
+
+		err = results.Scan(&one.ID, &one.Code, &one.Name, &one.FullName, &one.CreatedAt, &localJoinCol)
+		if err = results.Err(); err != nil {
+			return errors.Wrap(err, "failed to plebian-bind eager loaded slice authors")
+		}
+
+		resultSlice = append(resultSlice, one)
+		localJoinCols = append(localJoinCols, localJoinCol)
+	}
+
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "failed to plebian-bind eager loaded slice authors")
+	}
+
+	if singular {
+		object.R.Authors = resultSlice
+		return nil
+	}
+
+	for i, foreign := range resultSlice {
+		localJoinCol := localJoinCols[i]
+		for _, local := range slice {
+			if local.ID == localJoinCol {
+				local.R.Authors = append(local.R.Authors, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadSourceI18ns allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (sourceL) LoadSourceI18ns(e boil.Executor, singular bool, maybeSource interface{}) error {
+	var slice []*Source
+	var object *Source
+
+	count := 1
+	if singular {
+		object = maybeSource.(*Source)
+	} else {
+		slice = *maybeSource.(*SourceSlice)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &sourceR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &sourceR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from \"source_i18n\" where \"source_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load source_i18n")
+	}
+	defer results.Close()
+
+	var resultSlice []*SourceI18n
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice source_i18n")
+	}
+
+	if singular {
+		object.R.SourceI18ns = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.SourceID {
+				local.R.SourceI18ns = append(local.R.SourceI18ns, foreign)
 				break
 			}
 		}
@@ -954,321 +954,6 @@ func (o *Source) SetType(exec boil.Executor, insert bool, related *SourceType) e
 	}
 
 	return nil
-}
-
-// AddSourceI18nsG adds the given related objects to the existing relationships
-// of the source, optionally inserting them as new records.
-// Appends related to o.R.SourceI18ns.
-// Sets related.R.Source appropriately.
-// Uses the global database handle.
-func (o *Source) AddSourceI18nsG(insert bool, related ...*SourceI18n) error {
-	return o.AddSourceI18ns(boil.GetDB(), insert, related...)
-}
-
-// AddSourceI18nsP adds the given related objects to the existing relationships
-// of the source, optionally inserting them as new records.
-// Appends related to o.R.SourceI18ns.
-// Sets related.R.Source appropriately.
-// Panics on error.
-func (o *Source) AddSourceI18nsP(exec boil.Executor, insert bool, related ...*SourceI18n) {
-	if err := o.AddSourceI18ns(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddSourceI18nsGP adds the given related objects to the existing relationships
-// of the source, optionally inserting them as new records.
-// Appends related to o.R.SourceI18ns.
-// Sets related.R.Source appropriately.
-// Uses the global database handle and panics on error.
-func (o *Source) AddSourceI18nsGP(insert bool, related ...*SourceI18n) {
-	if err := o.AddSourceI18ns(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddSourceI18ns adds the given related objects to the existing relationships
-// of the source, optionally inserting them as new records.
-// Appends related to o.R.SourceI18ns.
-// Sets related.R.Source appropriately.
-func (o *Source) AddSourceI18ns(exec boil.Executor, insert bool, related ...*SourceI18n) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.SourceID = o.ID
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"source_i18n\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"source_id"}),
-				strmangle.WhereClause("\"", "\"", 2, sourceI18nPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.SourceID, rel.Language}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.SourceID = o.ID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &sourceR{
-			SourceI18ns: related,
-		}
-	} else {
-		o.R.SourceI18ns = append(o.R.SourceI18ns, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &sourceI18nR{
-				Source: o,
-			}
-		} else {
-			rel.R.Source = o
-		}
-	}
-	return nil
-}
-
-// AddAuthorsG adds the given related objects to the existing relationships
-// of the source, optionally inserting them as new records.
-// Appends related to o.R.Authors.
-// Sets related.R.Sources appropriately.
-// Uses the global database handle.
-func (o *Source) AddAuthorsG(insert bool, related ...*Author) error {
-	return o.AddAuthors(boil.GetDB(), insert, related...)
-}
-
-// AddAuthorsP adds the given related objects to the existing relationships
-// of the source, optionally inserting them as new records.
-// Appends related to o.R.Authors.
-// Sets related.R.Sources appropriately.
-// Panics on error.
-func (o *Source) AddAuthorsP(exec boil.Executor, insert bool, related ...*Author) {
-	if err := o.AddAuthors(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddAuthorsGP adds the given related objects to the existing relationships
-// of the source, optionally inserting them as new records.
-// Appends related to o.R.Authors.
-// Sets related.R.Sources appropriately.
-// Uses the global database handle and panics on error.
-func (o *Source) AddAuthorsGP(insert bool, related ...*Author) {
-	if err := o.AddAuthors(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddAuthors adds the given related objects to the existing relationships
-// of the source, optionally inserting them as new records.
-// Appends related to o.R.Authors.
-// Sets related.R.Sources appropriately.
-func (o *Source) AddAuthors(exec boil.Executor, insert bool, related ...*Author) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		}
-	}
-
-	for _, rel := range related {
-		query := "insert into \"authors_sources\" (\"source_id\", \"author_id\") values ($1, $2)"
-		values := []interface{}{o.ID, rel.ID}
-
-		if boil.DebugMode {
-			fmt.Fprintln(boil.DebugWriter, query)
-			fmt.Fprintln(boil.DebugWriter, values)
-		}
-
-		_, err = exec.Exec(query, values...)
-		if err != nil {
-			return errors.Wrap(err, "failed to insert into join table")
-		}
-	}
-	if o.R == nil {
-		o.R = &sourceR{
-			Authors: related,
-		}
-	} else {
-		o.R.Authors = append(o.R.Authors, related...)
-	}
-
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &authorR{
-				Sources: SourceSlice{o},
-			}
-		} else {
-			rel.R.Sources = append(rel.R.Sources, o)
-		}
-	}
-	return nil
-}
-
-// SetAuthorsG removes all previously related items of the
-// source replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Sources's Authors accordingly.
-// Replaces o.R.Authors with related.
-// Sets related.R.Sources's Authors accordingly.
-// Uses the global database handle.
-func (o *Source) SetAuthorsG(insert bool, related ...*Author) error {
-	return o.SetAuthors(boil.GetDB(), insert, related...)
-}
-
-// SetAuthorsP removes all previously related items of the
-// source replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Sources's Authors accordingly.
-// Replaces o.R.Authors with related.
-// Sets related.R.Sources's Authors accordingly.
-// Panics on error.
-func (o *Source) SetAuthorsP(exec boil.Executor, insert bool, related ...*Author) {
-	if err := o.SetAuthors(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetAuthorsGP removes all previously related items of the
-// source replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Sources's Authors accordingly.
-// Replaces o.R.Authors with related.
-// Sets related.R.Sources's Authors accordingly.
-// Uses the global database handle and panics on error.
-func (o *Source) SetAuthorsGP(insert bool, related ...*Author) {
-	if err := o.SetAuthors(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetAuthors removes all previously related items of the
-// source replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.Sources's Authors accordingly.
-// Replaces o.R.Authors with related.
-// Sets related.R.Sources's Authors accordingly.
-func (o *Source) SetAuthors(exec boil.Executor, insert bool, related ...*Author) error {
-	query := "delete from \"authors_sources\" where \"source_id\" = $1"
-	values := []interface{}{o.ID}
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, query)
-		fmt.Fprintln(boil.DebugWriter, values)
-	}
-
-	_, err := exec.Exec(query, values...)
-	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
-	}
-
-	removeAuthorsFromSourcesSlice(o, related)
-	o.R.Authors = nil
-	return o.AddAuthors(exec, insert, related...)
-}
-
-// RemoveAuthorsG relationships from objects passed in.
-// Removes related items from R.Authors (uses pointer comparison, removal does not keep order)
-// Sets related.R.Sources.
-// Uses the global database handle.
-func (o *Source) RemoveAuthorsG(related ...*Author) error {
-	return o.RemoveAuthors(boil.GetDB(), related...)
-}
-
-// RemoveAuthorsP relationships from objects passed in.
-// Removes related items from R.Authors (uses pointer comparison, removal does not keep order)
-// Sets related.R.Sources.
-// Panics on error.
-func (o *Source) RemoveAuthorsP(exec boil.Executor, related ...*Author) {
-	if err := o.RemoveAuthors(exec, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveAuthorsGP relationships from objects passed in.
-// Removes related items from R.Authors (uses pointer comparison, removal does not keep order)
-// Sets related.R.Sources.
-// Uses the global database handle and panics on error.
-func (o *Source) RemoveAuthorsGP(related ...*Author) {
-	if err := o.RemoveAuthors(boil.GetDB(), related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveAuthors relationships from objects passed in.
-// Removes related items from R.Authors (uses pointer comparison, removal does not keep order)
-// Sets related.R.Sources.
-func (o *Source) RemoveAuthors(exec boil.Executor, related ...*Author) error {
-	var err error
-	query := fmt.Sprintf(
-		"delete from \"authors_sources\" where \"source_id\" = $1 and \"author_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, len(related), 1, 1),
-	)
-	values := []interface{}{o.ID}
-
-	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, query)
-		fmt.Fprintln(boil.DebugWriter, values)
-	}
-
-	_, err = exec.Exec(query, values...)
-	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
-	}
-	removeAuthorsFromSourcesSlice(o, related)
-	if o.R == nil {
-		return nil
-	}
-
-	for _, rel := range related {
-		for i, ri := range o.R.Authors {
-			if rel != ri {
-				continue
-			}
-
-			ln := len(o.R.Authors)
-			if ln > 1 && i < ln-1 {
-				o.R.Authors[i] = o.R.Authors[ln-1]
-			}
-			o.R.Authors = o.R.Authors[:ln-1]
-			break
-		}
-	}
-
-	return nil
-}
-
-func removeAuthorsFromSourcesSlice(o *Source, related []*Author) {
-	for _, rel := range related {
-		if rel.R == nil {
-			continue
-		}
-		for i, ri := range rel.R.Sources {
-			if o.ID != ri.ID {
-				continue
-			}
-
-			ln := len(rel.R.Sources)
-			if ln > 1 && i < ln-1 {
-				rel.R.Sources[i] = rel.R.Sources[ln-1]
-			}
-			rel.R.Sources = rel.R.Sources[:ln-1]
-			break
-		}
-	}
 }
 
 // AddParentSourcesG adds the given related objects to the existing relationships
@@ -1721,6 +1406,321 @@ func removeContentUnitsFromSourcesSlice(o *Source, related []*ContentUnit) {
 			break
 		}
 	}
+}
+
+// AddAuthorsG adds the given related objects to the existing relationships
+// of the source, optionally inserting them as new records.
+// Appends related to o.R.Authors.
+// Sets related.R.Sources appropriately.
+// Uses the global database handle.
+func (o *Source) AddAuthorsG(insert bool, related ...*Author) error {
+	return o.AddAuthors(boil.GetDB(), insert, related...)
+}
+
+// AddAuthorsP adds the given related objects to the existing relationships
+// of the source, optionally inserting them as new records.
+// Appends related to o.R.Authors.
+// Sets related.R.Sources appropriately.
+// Panics on error.
+func (o *Source) AddAuthorsP(exec boil.Executor, insert bool, related ...*Author) {
+	if err := o.AddAuthors(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddAuthorsGP adds the given related objects to the existing relationships
+// of the source, optionally inserting them as new records.
+// Appends related to o.R.Authors.
+// Sets related.R.Sources appropriately.
+// Uses the global database handle and panics on error.
+func (o *Source) AddAuthorsGP(insert bool, related ...*Author) {
+	if err := o.AddAuthors(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddAuthors adds the given related objects to the existing relationships
+// of the source, optionally inserting them as new records.
+// Appends related to o.R.Authors.
+// Sets related.R.Sources appropriately.
+func (o *Source) AddAuthors(exec boil.Executor, insert bool, related ...*Author) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		}
+	}
+
+	for _, rel := range related {
+		query := "insert into \"authors_sources\" (\"source_id\", \"author_id\") values ($1, $2)"
+		values := []interface{}{o.ID, rel.ID}
+
+		if boil.DebugMode {
+			fmt.Fprintln(boil.DebugWriter, query)
+			fmt.Fprintln(boil.DebugWriter, values)
+		}
+
+		_, err = exec.Exec(query, values...)
+		if err != nil {
+			return errors.Wrap(err, "failed to insert into join table")
+		}
+	}
+	if o.R == nil {
+		o.R = &sourceR{
+			Authors: related,
+		}
+	} else {
+		o.R.Authors = append(o.R.Authors, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &authorR{
+				Sources: SourceSlice{o},
+			}
+		} else {
+			rel.R.Sources = append(rel.R.Sources, o)
+		}
+	}
+	return nil
+}
+
+// SetAuthorsG removes all previously related items of the
+// source replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Sources's Authors accordingly.
+// Replaces o.R.Authors with related.
+// Sets related.R.Sources's Authors accordingly.
+// Uses the global database handle.
+func (o *Source) SetAuthorsG(insert bool, related ...*Author) error {
+	return o.SetAuthors(boil.GetDB(), insert, related...)
+}
+
+// SetAuthorsP removes all previously related items of the
+// source replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Sources's Authors accordingly.
+// Replaces o.R.Authors with related.
+// Sets related.R.Sources's Authors accordingly.
+// Panics on error.
+func (o *Source) SetAuthorsP(exec boil.Executor, insert bool, related ...*Author) {
+	if err := o.SetAuthors(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetAuthorsGP removes all previously related items of the
+// source replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Sources's Authors accordingly.
+// Replaces o.R.Authors with related.
+// Sets related.R.Sources's Authors accordingly.
+// Uses the global database handle and panics on error.
+func (o *Source) SetAuthorsGP(insert bool, related ...*Author) {
+	if err := o.SetAuthors(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetAuthors removes all previously related items of the
+// source replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Sources's Authors accordingly.
+// Replaces o.R.Authors with related.
+// Sets related.R.Sources's Authors accordingly.
+func (o *Source) SetAuthors(exec boil.Executor, insert bool, related ...*Author) error {
+	query := "delete from \"authors_sources\" where \"source_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	removeAuthorsFromSourcesSlice(o, related)
+	o.R.Authors = nil
+	return o.AddAuthors(exec, insert, related...)
+}
+
+// RemoveAuthorsG relationships from objects passed in.
+// Removes related items from R.Authors (uses pointer comparison, removal does not keep order)
+// Sets related.R.Sources.
+// Uses the global database handle.
+func (o *Source) RemoveAuthorsG(related ...*Author) error {
+	return o.RemoveAuthors(boil.GetDB(), related...)
+}
+
+// RemoveAuthorsP relationships from objects passed in.
+// Removes related items from R.Authors (uses pointer comparison, removal does not keep order)
+// Sets related.R.Sources.
+// Panics on error.
+func (o *Source) RemoveAuthorsP(exec boil.Executor, related ...*Author) {
+	if err := o.RemoveAuthors(exec, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveAuthorsGP relationships from objects passed in.
+// Removes related items from R.Authors (uses pointer comparison, removal does not keep order)
+// Sets related.R.Sources.
+// Uses the global database handle and panics on error.
+func (o *Source) RemoveAuthorsGP(related ...*Author) {
+	if err := o.RemoveAuthors(boil.GetDB(), related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveAuthors relationships from objects passed in.
+// Removes related items from R.Authors (uses pointer comparison, removal does not keep order)
+// Sets related.R.Sources.
+func (o *Source) RemoveAuthors(exec boil.Executor, related ...*Author) error {
+	var err error
+	query := fmt.Sprintf(
+		"delete from \"authors_sources\" where \"source_id\" = $1 and \"author_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, len(related), 1, 1),
+	)
+	values := []interface{}{o.ID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err = exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+	removeAuthorsFromSourcesSlice(o, related)
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.Authors {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.Authors)
+			if ln > 1 && i < ln-1 {
+				o.R.Authors[i] = o.R.Authors[ln-1]
+			}
+			o.R.Authors = o.R.Authors[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
+func removeAuthorsFromSourcesSlice(o *Source, related []*Author) {
+	for _, rel := range related {
+		if rel.R == nil {
+			continue
+		}
+		for i, ri := range rel.R.Sources {
+			if o.ID != ri.ID {
+				continue
+			}
+
+			ln := len(rel.R.Sources)
+			if ln > 1 && i < ln-1 {
+				rel.R.Sources[i] = rel.R.Sources[ln-1]
+			}
+			rel.R.Sources = rel.R.Sources[:ln-1]
+			break
+		}
+	}
+}
+
+// AddSourceI18nsG adds the given related objects to the existing relationships
+// of the source, optionally inserting them as new records.
+// Appends related to o.R.SourceI18ns.
+// Sets related.R.Source appropriately.
+// Uses the global database handle.
+func (o *Source) AddSourceI18nsG(insert bool, related ...*SourceI18n) error {
+	return o.AddSourceI18ns(boil.GetDB(), insert, related...)
+}
+
+// AddSourceI18nsP adds the given related objects to the existing relationships
+// of the source, optionally inserting them as new records.
+// Appends related to o.R.SourceI18ns.
+// Sets related.R.Source appropriately.
+// Panics on error.
+func (o *Source) AddSourceI18nsP(exec boil.Executor, insert bool, related ...*SourceI18n) {
+	if err := o.AddSourceI18ns(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddSourceI18nsGP adds the given related objects to the existing relationships
+// of the source, optionally inserting them as new records.
+// Appends related to o.R.SourceI18ns.
+// Sets related.R.Source appropriately.
+// Uses the global database handle and panics on error.
+func (o *Source) AddSourceI18nsGP(insert bool, related ...*SourceI18n) {
+	if err := o.AddSourceI18ns(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddSourceI18ns adds the given related objects to the existing relationships
+// of the source, optionally inserting them as new records.
+// Appends related to o.R.SourceI18ns.
+// Sets related.R.Source appropriately.
+func (o *Source) AddSourceI18ns(exec boil.Executor, insert bool, related ...*SourceI18n) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.SourceID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"source_i18n\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"source_id"}),
+				strmangle.WhereClause("\"", "\"", 2, sourceI18nPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.SourceID, rel.Language}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.SourceID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &sourceR{
+			SourceI18ns: related,
+		}
+	} else {
+		o.R.SourceI18ns = append(o.R.SourceI18ns, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &sourceI18nR{
+				Source: o,
+			}
+		} else {
+			rel.R.Source = o
+		}
+	}
+	return nil
 }
 
 // SourcesG retrieves all records.

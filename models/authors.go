@@ -31,8 +31,8 @@ type Author struct {
 
 // authorR is where relationships are stored.
 type authorR struct {
-	AuthorI18ns AuthorI18nSlice
 	Sources     SourceSlice
+	AuthorI18ns AuthorI18nSlice
 }
 
 // authorL is where Load methods for each relationship are stored.
@@ -174,30 +174,6 @@ func (q authorQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-// AuthorI18nsG retrieves all the author_i18n's author i18n.
-func (o *Author) AuthorI18nsG(mods ...qm.QueryMod) authorI18nQuery {
-	return o.AuthorI18ns(boil.GetDB(), mods...)
-}
-
-// AuthorI18ns retrieves all the author_i18n's author i18n with an executor.
-func (o *Author) AuthorI18ns(exec boil.Executor, mods ...qm.QueryMod) authorI18nQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("\"a\".\"author_id\"=?", o.ID),
-	)
-
-	query := AuthorI18ns(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"author_i18n\" as \"a\"")
-	return query
-}
-
 // SourcesG retrieves all the source's sources.
 func (o *Author) SourcesG(mods ...qm.QueryMod) sourceQuery {
 	return o.Sources(boil.GetDB(), mods...)
@@ -223,69 +199,28 @@ func (o *Author) Sources(exec boil.Executor, mods ...qm.QueryMod) sourceQuery {
 	return query
 }
 
-// LoadAuthorI18ns allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (authorL) LoadAuthorI18ns(e boil.Executor, singular bool, maybeAuthor interface{}) error {
-	var slice []*Author
-	var object *Author
+// AuthorI18nsG retrieves all the author_i18n's author i18n.
+func (o *Author) AuthorI18nsG(mods ...qm.QueryMod) authorI18nQuery {
+	return o.AuthorI18ns(boil.GetDB(), mods...)
+}
 
-	count := 1
-	if singular {
-		object = maybeAuthor.(*Author)
-	} else {
-		slice = *maybeAuthor.(*AuthorSlice)
-		count = len(slice)
+// AuthorI18ns retrieves all the author_i18n's author i18n with an executor.
+func (o *Author) AuthorI18ns(exec boil.Executor, mods ...qm.QueryMod) authorI18nQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
 	}
 
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &authorR{}
-		}
-		args[0] = object.ID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &authorR{}
-			}
-			args[i] = obj.ID
-		}
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
 	}
 
-	query := fmt.Sprintf(
-		"select * from \"author_i18n\" where \"author_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"author_id\"=?", o.ID),
 	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
 
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load author_i18n")
-	}
-	defer results.Close()
-
-	var resultSlice []*AuthorI18n
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice author_i18n")
-	}
-
-	if singular {
-		object.R.AuthorI18ns = resultSlice
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.ID == foreign.AuthorID {
-				local.R.AuthorI18ns = append(local.R.AuthorI18ns, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
+	query := AuthorI18ns(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"author_i18n\" as \"a\"")
+	return query
 }
 
 // LoadSources allows an eager lookup of values, cached into the
@@ -369,87 +304,68 @@ func (authorL) LoadSources(e boil.Executor, singular bool, maybeAuthor interface
 	return nil
 }
 
-// AddAuthorI18nsG adds the given related objects to the existing relationships
-// of the author, optionally inserting them as new records.
-// Appends related to o.R.AuthorI18ns.
-// Sets related.R.Author appropriately.
-// Uses the global database handle.
-func (o *Author) AddAuthorI18nsG(insert bool, related ...*AuthorI18n) error {
-	return o.AddAuthorI18ns(boil.GetDB(), insert, related...)
-}
+// LoadAuthorI18ns allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (authorL) LoadAuthorI18ns(e boil.Executor, singular bool, maybeAuthor interface{}) error {
+	var slice []*Author
+	var object *Author
 
-// AddAuthorI18nsP adds the given related objects to the existing relationships
-// of the author, optionally inserting them as new records.
-// Appends related to o.R.AuthorI18ns.
-// Sets related.R.Author appropriately.
-// Panics on error.
-func (o *Author) AddAuthorI18nsP(exec boil.Executor, insert bool, related ...*AuthorI18n) {
-	if err := o.AddAuthorI18ns(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddAuthorI18nsGP adds the given related objects to the existing relationships
-// of the author, optionally inserting them as new records.
-// Appends related to o.R.AuthorI18ns.
-// Sets related.R.Author appropriately.
-// Uses the global database handle and panics on error.
-func (o *Author) AddAuthorI18nsGP(insert bool, related ...*AuthorI18n) {
-	if err := o.AddAuthorI18ns(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddAuthorI18ns adds the given related objects to the existing relationships
-// of the author, optionally inserting them as new records.
-// Appends related to o.R.AuthorI18ns.
-// Sets related.R.Author appropriately.
-func (o *Author) AddAuthorI18ns(exec boil.Executor, insert bool, related ...*AuthorI18n) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.AuthorID = o.ID
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"author_i18n\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"author_id"}),
-				strmangle.WhereClause("\"", "\"", 2, authorI18nPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.AuthorID, rel.Language}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.AuthorID = o.ID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &authorR{
-			AuthorI18ns: related,
-		}
+	count := 1
+	if singular {
+		object = maybeAuthor.(*Author)
 	} else {
-		o.R.AuthorI18ns = append(o.R.AuthorI18ns, related...)
+		slice = *maybeAuthor.(*AuthorSlice)
+		count = len(slice)
 	}
 
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &authorI18nR{
-				Author: o,
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &authorR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &authorR{}
 			}
-		} else {
-			rel.R.Author = o
+			args[i] = obj.ID
 		}
 	}
+
+	query := fmt.Sprintf(
+		"select * from \"author_i18n\" where \"author_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load author_i18n")
+	}
+	defer results.Close()
+
+	var resultSlice []*AuthorI18n
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice author_i18n")
+	}
+
+	if singular {
+		object.R.AuthorI18ns = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.AuthorID {
+				local.R.AuthorI18ns = append(local.R.AuthorI18ns, foreign)
+				break
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -682,6 +598,90 @@ func removeSourcesFromAuthorsSlice(o *Author, related []*Source) {
 			break
 		}
 	}
+}
+
+// AddAuthorI18nsG adds the given related objects to the existing relationships
+// of the author, optionally inserting them as new records.
+// Appends related to o.R.AuthorI18ns.
+// Sets related.R.Author appropriately.
+// Uses the global database handle.
+func (o *Author) AddAuthorI18nsG(insert bool, related ...*AuthorI18n) error {
+	return o.AddAuthorI18ns(boil.GetDB(), insert, related...)
+}
+
+// AddAuthorI18nsP adds the given related objects to the existing relationships
+// of the author, optionally inserting them as new records.
+// Appends related to o.R.AuthorI18ns.
+// Sets related.R.Author appropriately.
+// Panics on error.
+func (o *Author) AddAuthorI18nsP(exec boil.Executor, insert bool, related ...*AuthorI18n) {
+	if err := o.AddAuthorI18ns(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddAuthorI18nsGP adds the given related objects to the existing relationships
+// of the author, optionally inserting them as new records.
+// Appends related to o.R.AuthorI18ns.
+// Sets related.R.Author appropriately.
+// Uses the global database handle and panics on error.
+func (o *Author) AddAuthorI18nsGP(insert bool, related ...*AuthorI18n) {
+	if err := o.AddAuthorI18ns(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddAuthorI18ns adds the given related objects to the existing relationships
+// of the author, optionally inserting them as new records.
+// Appends related to o.R.AuthorI18ns.
+// Sets related.R.Author appropriately.
+func (o *Author) AddAuthorI18ns(exec boil.Executor, insert bool, related ...*AuthorI18n) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.AuthorID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"author_i18n\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"author_id"}),
+				strmangle.WhereClause("\"", "\"", 2, authorI18nPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.AuthorID, rel.Language}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.AuthorID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &authorR{
+			AuthorI18ns: related,
+		}
+	} else {
+		o.R.AuthorI18ns = append(o.R.AuthorI18ns, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &authorI18nR{
+				Author: o,
+			}
+		} else {
+			rel.R.Author = o
+		}
+	}
+	return nil
 }
 
 // AuthorsG retrieves all records.

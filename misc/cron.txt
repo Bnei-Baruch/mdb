@@ -1,0 +1,5 @@
+# MDB cron jobs
+
+
+# Send log warnings email to admins
+30 1 * * * root /sites/mdb/email_warnings.sh

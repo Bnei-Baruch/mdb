@@ -24,8 +24,7 @@ type RestSuite struct {
 
 func (suite *RestSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(OPERATION_TYPE_REGISTRY.Init())
-	suite.Require().Nil(CONTENT_TYPE_REGISTRY.Init())
+	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
 }
 
 func (suite *RestSuite) TearDownSuite() {

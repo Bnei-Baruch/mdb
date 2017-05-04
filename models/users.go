@@ -34,10 +34,10 @@ type User struct {
 
 // userR is where relationships are stored.
 type userR struct {
-	TagI18ns         TagI18nSlice
-	Operations       OperationSlice
 	CollectionI18ns  CollectionI18nSlice
 	ContentUnitI18ns ContentUnitI18nSlice
+	Operations       OperationSlice
+	TagI18ns         TagI18nSlice
 }
 
 // userL is where Load methods for each relationship are stored.
@@ -179,54 +179,6 @@ func (q userQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-// TagI18nsG retrieves all the tag_i18n's tag i18n.
-func (o *User) TagI18nsG(mods ...qm.QueryMod) tagI18nQuery {
-	return o.TagI18ns(boil.GetDB(), mods...)
-}
-
-// TagI18ns retrieves all the tag_i18n's tag i18n with an executor.
-func (o *User) TagI18ns(exec boil.Executor, mods ...qm.QueryMod) tagI18nQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("\"a\".\"user_id\"=?", o.ID),
-	)
-
-	query := TagI18ns(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"tag_i18n\" as \"a\"")
-	return query
-}
-
-// OperationsG retrieves all the operation's operations.
-func (o *User) OperationsG(mods ...qm.QueryMod) operationQuery {
-	return o.Operations(boil.GetDB(), mods...)
-}
-
-// Operations retrieves all the operation's operations with an executor.
-func (o *User) Operations(exec boil.Executor, mods ...qm.QueryMod) operationQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("\"a\".\"user_id\"=?", o.ID),
-	)
-
-	query := Operations(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"operations\" as \"a\"")
-	return query
-}
-
 // CollectionI18nsG retrieves all the collection_i18n's collection i18n.
 func (o *User) CollectionI18nsG(mods ...qm.QueryMod) collectionI18nQuery {
 	return o.CollectionI18ns(boil.GetDB(), mods...)
@@ -275,134 +227,52 @@ func (o *User) ContentUnitI18ns(exec boil.Executor, mods ...qm.QueryMod) content
 	return query
 }
 
-// LoadTagI18ns allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (userL) LoadTagI18ns(e boil.Executor, singular bool, maybeUser interface{}) error {
-	var slice []*User
-	var object *User
-
-	count := 1
-	if singular {
-		object = maybeUser.(*User)
-	} else {
-		slice = *maybeUser.(*UserSlice)
-		count = len(slice)
-	}
-
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &userR{}
-		}
-		args[0] = object.ID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &userR{}
-			}
-			args[i] = obj.ID
-		}
-	}
-
-	query := fmt.Sprintf(
-		"select * from \"tag_i18n\" where \"user_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load tag_i18n")
-	}
-	defer results.Close()
-
-	var resultSlice []*TagI18n
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice tag_i18n")
-	}
-
-	if singular {
-		object.R.TagI18ns = resultSlice
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.ID == foreign.UserID.Int64 {
-				local.R.TagI18ns = append(local.R.TagI18ns, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
+// OperationsG retrieves all the operation's operations.
+func (o *User) OperationsG(mods ...qm.QueryMod) operationQuery {
+	return o.Operations(boil.GetDB(), mods...)
 }
 
-// LoadOperations allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (userL) LoadOperations(e boil.Executor, singular bool, maybeUser interface{}) error {
-	var slice []*User
-	var object *User
-
-	count := 1
-	if singular {
-		object = maybeUser.(*User)
-	} else {
-		slice = *maybeUser.(*UserSlice)
-		count = len(slice)
+// Operations retrieves all the operation's operations with an executor.
+func (o *User) Operations(exec boil.Executor, mods ...qm.QueryMod) operationQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
 	}
 
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &userR{}
-		}
-		args[0] = object.ID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &userR{}
-			}
-			args[i] = obj.ID
-		}
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
 	}
 
-	query := fmt.Sprintf(
-		"select * from \"operations\" where \"user_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"user_id\"=?", o.ID),
 	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+
+	query := Operations(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"operations\" as \"a\"")
+	return query
+}
+
+// TagI18nsG retrieves all the tag_i18n's tag i18n.
+func (o *User) TagI18nsG(mods ...qm.QueryMod) tagI18nQuery {
+	return o.TagI18ns(boil.GetDB(), mods...)
+}
+
+// TagI18ns retrieves all the tag_i18n's tag i18n with an executor.
+func (o *User) TagI18ns(exec boil.Executor, mods ...qm.QueryMod) tagI18nQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
 	}
 
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load operations")
-	}
-	defer results.Close()
-
-	var resultSlice []*Operation
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice operations")
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
 	}
 
-	if singular {
-		object.R.Operations = resultSlice
-		return nil
-	}
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"user_id\"=?", o.ID),
+	)
 
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.ID == foreign.UserID.Int64 {
-				local.R.Operations = append(local.R.Operations, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
+	query := TagI18ns(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"tag_i18n\" as \"a\"")
+	return query
 }
 
 // LoadCollectionI18ns allows an eager lookup of values, cached into the
@@ -535,442 +405,130 @@ func (userL) LoadContentUnitI18ns(e boil.Executor, singular bool, maybeUser inte
 	return nil
 }
 
-// AddTagI18nsG adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.TagI18ns.
-// Sets related.R.User appropriately.
-// Uses the global database handle.
-func (o *User) AddTagI18nsG(insert bool, related ...*TagI18n) error {
-	return o.AddTagI18ns(boil.GetDB(), insert, related...)
-}
+// LoadOperations allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (userL) LoadOperations(e boil.Executor, singular bool, maybeUser interface{}) error {
+	var slice []*User
+	var object *User
 
-// AddTagI18nsP adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.TagI18ns.
-// Sets related.R.User appropriately.
-// Panics on error.
-func (o *User) AddTagI18nsP(exec boil.Executor, insert bool, related ...*TagI18n) {
-	if err := o.AddTagI18ns(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddTagI18nsGP adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.TagI18ns.
-// Sets related.R.User appropriately.
-// Uses the global database handle and panics on error.
-func (o *User) AddTagI18nsGP(insert bool, related ...*TagI18n) {
-	if err := o.AddTagI18ns(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddTagI18ns adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.TagI18ns.
-// Sets related.R.User appropriately.
-func (o *User) AddTagI18ns(exec boil.Executor, insert bool, related ...*TagI18n) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.UserID.Int64 = o.ID
-			rel.UserID.Valid = true
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"tag_i18n\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"user_id"}),
-				strmangle.WhereClause("\"", "\"", 2, tagI18nPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.TagID, rel.Language}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.UserID.Int64 = o.ID
-			rel.UserID.Valid = true
-		}
-	}
-
-	if o.R == nil {
-		o.R = &userR{
-			TagI18ns: related,
-		}
+	count := 1
+	if singular {
+		object = maybeUser.(*User)
 	} else {
-		o.R.TagI18ns = append(o.R.TagI18ns, related...)
+		slice = *maybeUser.(*UserSlice)
+		count = len(slice)
 	}
 
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &tagI18nR{
-				User: o,
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &userR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userR{}
 			}
-		} else {
-			rel.R.User = o
+			args[i] = obj.ID
 		}
 	}
-	return nil
-}
 
-// SetTagI18nsG removes all previously related items of the
-// user replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.User's TagI18ns accordingly.
-// Replaces o.R.TagI18ns with related.
-// Sets related.R.User's TagI18ns accordingly.
-// Uses the global database handle.
-func (o *User) SetTagI18nsG(insert bool, related ...*TagI18n) error {
-	return o.SetTagI18ns(boil.GetDB(), insert, related...)
-}
-
-// SetTagI18nsP removes all previously related items of the
-// user replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.User's TagI18ns accordingly.
-// Replaces o.R.TagI18ns with related.
-// Sets related.R.User's TagI18ns accordingly.
-// Panics on error.
-func (o *User) SetTagI18nsP(exec boil.Executor, insert bool, related ...*TagI18n) {
-	if err := o.SetTagI18ns(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetTagI18nsGP removes all previously related items of the
-// user replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.User's TagI18ns accordingly.
-// Replaces o.R.TagI18ns with related.
-// Sets related.R.User's TagI18ns accordingly.
-// Uses the global database handle and panics on error.
-func (o *User) SetTagI18nsGP(insert bool, related ...*TagI18n) {
-	if err := o.SetTagI18ns(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetTagI18ns removes all previously related items of the
-// user replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.User's TagI18ns accordingly.
-// Replaces o.R.TagI18ns with related.
-// Sets related.R.User's TagI18ns accordingly.
-func (o *User) SetTagI18ns(exec boil.Executor, insert bool, related ...*TagI18n) error {
-	query := "update \"tag_i18n\" set \"user_id\" = null where \"user_id\" = $1"
-	values := []interface{}{o.ID}
+	query := fmt.Sprintf(
+		"select * from \"operations\" where \"user_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
 	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, query)
-		fmt.Fprintln(boil.DebugWriter, values)
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
 	}
 
-	_, err := exec.Exec(query, values...)
+	results, err := e.Query(query, args...)
 	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
+		return errors.Wrap(err, "failed to eager load operations")
+	}
+	defer results.Close()
+
+	var resultSlice []*Operation
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice operations")
 	}
 
-	if o.R != nil {
-		for _, rel := range o.R.TagI18ns {
-			rel.UserID.Valid = false
-			if rel.R == nil {
-				continue
-			}
-
-			rel.R.User = nil
-		}
-
-		o.R.TagI18ns = nil
-	}
-	return o.AddTagI18ns(exec, insert, related...)
-}
-
-// RemoveTagI18nsG relationships from objects passed in.
-// Removes related items from R.TagI18ns (uses pointer comparison, removal does not keep order)
-// Sets related.R.User.
-// Uses the global database handle.
-func (o *User) RemoveTagI18nsG(related ...*TagI18n) error {
-	return o.RemoveTagI18ns(boil.GetDB(), related...)
-}
-
-// RemoveTagI18nsP relationships from objects passed in.
-// Removes related items from R.TagI18ns (uses pointer comparison, removal does not keep order)
-// Sets related.R.User.
-// Panics on error.
-func (o *User) RemoveTagI18nsP(exec boil.Executor, related ...*TagI18n) {
-	if err := o.RemoveTagI18ns(exec, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveTagI18nsGP relationships from objects passed in.
-// Removes related items from R.TagI18ns (uses pointer comparison, removal does not keep order)
-// Sets related.R.User.
-// Uses the global database handle and panics on error.
-func (o *User) RemoveTagI18nsGP(related ...*TagI18n) {
-	if err := o.RemoveTagI18ns(boil.GetDB(), related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveTagI18ns relationships from objects passed in.
-// Removes related items from R.TagI18ns (uses pointer comparison, removal does not keep order)
-// Sets related.R.User.
-func (o *User) RemoveTagI18ns(exec boil.Executor, related ...*TagI18n) error {
-	var err error
-	for _, rel := range related {
-		rel.UserID.Valid = false
-		if rel.R != nil {
-			rel.R.User = nil
-		}
-		if err = rel.Update(exec, "user_id"); err != nil {
-			return err
-		}
-	}
-	if o.R == nil {
+	if singular {
+		object.R.Operations = resultSlice
 		return nil
 	}
 
-	for _, rel := range related {
-		for i, ri := range o.R.TagI18ns {
-			if rel != ri {
-				continue
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.UserID.Int64 {
+				local.R.Operations = append(local.R.Operations, foreign)
+				break
 			}
-
-			ln := len(o.R.TagI18ns)
-			if ln > 1 && i < ln-1 {
-				o.R.TagI18ns[i] = o.R.TagI18ns[ln-1]
-			}
-			o.R.TagI18ns = o.R.TagI18ns[:ln-1]
-			break
 		}
 	}
 
 	return nil
 }
 
-// AddOperationsG adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.Operations.
-// Sets related.R.User appropriately.
-// Uses the global database handle.
-func (o *User) AddOperationsG(insert bool, related ...*Operation) error {
-	return o.AddOperations(boil.GetDB(), insert, related...)
-}
+// LoadTagI18ns allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (userL) LoadTagI18ns(e boil.Executor, singular bool, maybeUser interface{}) error {
+	var slice []*User
+	var object *User
 
-// AddOperationsP adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.Operations.
-// Sets related.R.User appropriately.
-// Panics on error.
-func (o *User) AddOperationsP(exec boil.Executor, insert bool, related ...*Operation) {
-	if err := o.AddOperations(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddOperationsGP adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.Operations.
-// Sets related.R.User appropriately.
-// Uses the global database handle and panics on error.
-func (o *User) AddOperationsGP(insert bool, related ...*Operation) {
-	if err := o.AddOperations(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddOperations adds the given related objects to the existing relationships
-// of the user, optionally inserting them as new records.
-// Appends related to o.R.Operations.
-// Sets related.R.User appropriately.
-func (o *User) AddOperations(exec boil.Executor, insert bool, related ...*Operation) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.UserID.Int64 = o.ID
-			rel.UserID.Valid = true
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"operations\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"user_id"}),
-				strmangle.WhereClause("\"", "\"", 2, operationPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.ID}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.UserID.Int64 = o.ID
-			rel.UserID.Valid = true
-		}
-	}
-
-	if o.R == nil {
-		o.R = &userR{
-			Operations: related,
-		}
+	count := 1
+	if singular {
+		object = maybeUser.(*User)
 	} else {
-		o.R.Operations = append(o.R.Operations, related...)
+		slice = *maybeUser.(*UserSlice)
+		count = len(slice)
 	}
 
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &operationR{
-				User: o,
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &userR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userR{}
 			}
-		} else {
-			rel.R.User = o
+			args[i] = obj.ID
 		}
 	}
-	return nil
-}
 
-// SetOperationsG removes all previously related items of the
-// user replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.User's Operations accordingly.
-// Replaces o.R.Operations with related.
-// Sets related.R.User's Operations accordingly.
-// Uses the global database handle.
-func (o *User) SetOperationsG(insert bool, related ...*Operation) error {
-	return o.SetOperations(boil.GetDB(), insert, related...)
-}
-
-// SetOperationsP removes all previously related items of the
-// user replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.User's Operations accordingly.
-// Replaces o.R.Operations with related.
-// Sets related.R.User's Operations accordingly.
-// Panics on error.
-func (o *User) SetOperationsP(exec boil.Executor, insert bool, related ...*Operation) {
-	if err := o.SetOperations(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetOperationsGP removes all previously related items of the
-// user replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.User's Operations accordingly.
-// Replaces o.R.Operations with related.
-// Sets related.R.User's Operations accordingly.
-// Uses the global database handle and panics on error.
-func (o *User) SetOperationsGP(insert bool, related ...*Operation) {
-	if err := o.SetOperations(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetOperations removes all previously related items of the
-// user replacing them completely with the passed
-// in related items, optionally inserting them as new records.
-// Sets o.R.User's Operations accordingly.
-// Replaces o.R.Operations with related.
-// Sets related.R.User's Operations accordingly.
-func (o *User) SetOperations(exec boil.Executor, insert bool, related ...*Operation) error {
-	query := "update \"operations\" set \"user_id\" = null where \"user_id\" = $1"
-	values := []interface{}{o.ID}
+	query := fmt.Sprintf(
+		"select * from \"tag_i18n\" where \"user_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
 	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, query)
-		fmt.Fprintln(boil.DebugWriter, values)
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
 	}
 
-	_, err := exec.Exec(query, values...)
+	results, err := e.Query(query, args...)
 	if err != nil {
-		return errors.Wrap(err, "failed to remove relationships before set")
+		return errors.Wrap(err, "failed to eager load tag_i18n")
+	}
+	defer results.Close()
+
+	var resultSlice []*TagI18n
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice tag_i18n")
 	}
 
-	if o.R != nil {
-		for _, rel := range o.R.Operations {
-			rel.UserID.Valid = false
-			if rel.R == nil {
-				continue
-			}
-
-			rel.R.User = nil
-		}
-
-		o.R.Operations = nil
-	}
-	return o.AddOperations(exec, insert, related...)
-}
-
-// RemoveOperationsG relationships from objects passed in.
-// Removes related items from R.Operations (uses pointer comparison, removal does not keep order)
-// Sets related.R.User.
-// Uses the global database handle.
-func (o *User) RemoveOperationsG(related ...*Operation) error {
-	return o.RemoveOperations(boil.GetDB(), related...)
-}
-
-// RemoveOperationsP relationships from objects passed in.
-// Removes related items from R.Operations (uses pointer comparison, removal does not keep order)
-// Sets related.R.User.
-// Panics on error.
-func (o *User) RemoveOperationsP(exec boil.Executor, related ...*Operation) {
-	if err := o.RemoveOperations(exec, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveOperationsGP relationships from objects passed in.
-// Removes related items from R.Operations (uses pointer comparison, removal does not keep order)
-// Sets related.R.User.
-// Uses the global database handle and panics on error.
-func (o *User) RemoveOperationsGP(related ...*Operation) {
-	if err := o.RemoveOperations(boil.GetDB(), related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// RemoveOperations relationships from objects passed in.
-// Removes related items from R.Operations (uses pointer comparison, removal does not keep order)
-// Sets related.R.User.
-func (o *User) RemoveOperations(exec boil.Executor, related ...*Operation) error {
-	var err error
-	for _, rel := range related {
-		rel.UserID.Valid = false
-		if rel.R != nil {
-			rel.R.User = nil
-		}
-		if err = rel.Update(exec, "user_id"); err != nil {
-			return err
-		}
-	}
-	if o.R == nil {
+	if singular {
+		object.R.TagI18ns = resultSlice
 		return nil
 	}
 
-	for _, rel := range related {
-		for i, ri := range o.R.Operations {
-			if rel != ri {
-				continue
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.UserID.Int64 {
+				local.R.TagI18ns = append(local.R.TagI18ns, foreign)
+				break
 			}
-
-			ln := len(o.R.Operations)
-			if ln > 1 && i < ln-1 {
-				o.R.Operations[i] = o.R.Operations[ln-1]
-			}
-			o.R.Operations = o.R.Operations[:ln-1]
-			break
 		}
 	}
 
@@ -1412,6 +970,448 @@ func (o *User) RemoveContentUnitI18ns(exec boil.Executor, related ...*ContentUni
 				o.R.ContentUnitI18ns[i] = o.R.ContentUnitI18ns[ln-1]
 			}
 			o.R.ContentUnitI18ns = o.R.ContentUnitI18ns[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
+// AddOperationsG adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.Operations.
+// Sets related.R.User appropriately.
+// Uses the global database handle.
+func (o *User) AddOperationsG(insert bool, related ...*Operation) error {
+	return o.AddOperations(boil.GetDB(), insert, related...)
+}
+
+// AddOperationsP adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.Operations.
+// Sets related.R.User appropriately.
+// Panics on error.
+func (o *User) AddOperationsP(exec boil.Executor, insert bool, related ...*Operation) {
+	if err := o.AddOperations(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddOperationsGP adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.Operations.
+// Sets related.R.User appropriately.
+// Uses the global database handle and panics on error.
+func (o *User) AddOperationsGP(insert bool, related ...*Operation) {
+	if err := o.AddOperations(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddOperations adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.Operations.
+// Sets related.R.User appropriately.
+func (o *User) AddOperations(exec boil.Executor, insert bool, related ...*Operation) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.UserID.Int64 = o.ID
+			rel.UserID.Valid = true
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"operations\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"user_id"}),
+				strmangle.WhereClause("\"", "\"", 2, operationPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.UserID.Int64 = o.ID
+			rel.UserID.Valid = true
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userR{
+			Operations: related,
+		}
+	} else {
+		o.R.Operations = append(o.R.Operations, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &operationR{
+				User: o,
+			}
+		} else {
+			rel.R.User = o
+		}
+	}
+	return nil
+}
+
+// SetOperationsG removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's Operations accordingly.
+// Replaces o.R.Operations with related.
+// Sets related.R.User's Operations accordingly.
+// Uses the global database handle.
+func (o *User) SetOperationsG(insert bool, related ...*Operation) error {
+	return o.SetOperations(boil.GetDB(), insert, related...)
+}
+
+// SetOperationsP removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's Operations accordingly.
+// Replaces o.R.Operations with related.
+// Sets related.R.User's Operations accordingly.
+// Panics on error.
+func (o *User) SetOperationsP(exec boil.Executor, insert bool, related ...*Operation) {
+	if err := o.SetOperations(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetOperationsGP removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's Operations accordingly.
+// Replaces o.R.Operations with related.
+// Sets related.R.User's Operations accordingly.
+// Uses the global database handle and panics on error.
+func (o *User) SetOperationsGP(insert bool, related ...*Operation) {
+	if err := o.SetOperations(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetOperations removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's Operations accordingly.
+// Replaces o.R.Operations with related.
+// Sets related.R.User's Operations accordingly.
+func (o *User) SetOperations(exec boil.Executor, insert bool, related ...*Operation) error {
+	query := "update \"operations\" set \"user_id\" = null where \"user_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.Operations {
+			rel.UserID.Valid = false
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.User = nil
+		}
+
+		o.R.Operations = nil
+	}
+	return o.AddOperations(exec, insert, related...)
+}
+
+// RemoveOperationsG relationships from objects passed in.
+// Removes related items from R.Operations (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Uses the global database handle.
+func (o *User) RemoveOperationsG(related ...*Operation) error {
+	return o.RemoveOperations(boil.GetDB(), related...)
+}
+
+// RemoveOperationsP relationships from objects passed in.
+// Removes related items from R.Operations (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Panics on error.
+func (o *User) RemoveOperationsP(exec boil.Executor, related ...*Operation) {
+	if err := o.RemoveOperations(exec, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveOperationsGP relationships from objects passed in.
+// Removes related items from R.Operations (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Uses the global database handle and panics on error.
+func (o *User) RemoveOperationsGP(related ...*Operation) {
+	if err := o.RemoveOperations(boil.GetDB(), related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveOperations relationships from objects passed in.
+// Removes related items from R.Operations (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+func (o *User) RemoveOperations(exec boil.Executor, related ...*Operation) error {
+	var err error
+	for _, rel := range related {
+		rel.UserID.Valid = false
+		if rel.R != nil {
+			rel.R.User = nil
+		}
+		if err = rel.Update(exec, "user_id"); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.Operations {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.Operations)
+			if ln > 1 && i < ln-1 {
+				o.R.Operations[i] = o.R.Operations[ln-1]
+			}
+			o.R.Operations = o.R.Operations[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
+// AddTagI18nsG adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.TagI18ns.
+// Sets related.R.User appropriately.
+// Uses the global database handle.
+func (o *User) AddTagI18nsG(insert bool, related ...*TagI18n) error {
+	return o.AddTagI18ns(boil.GetDB(), insert, related...)
+}
+
+// AddTagI18nsP adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.TagI18ns.
+// Sets related.R.User appropriately.
+// Panics on error.
+func (o *User) AddTagI18nsP(exec boil.Executor, insert bool, related ...*TagI18n) {
+	if err := o.AddTagI18ns(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddTagI18nsGP adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.TagI18ns.
+// Sets related.R.User appropriately.
+// Uses the global database handle and panics on error.
+func (o *User) AddTagI18nsGP(insert bool, related ...*TagI18n) {
+	if err := o.AddTagI18ns(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddTagI18ns adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.TagI18ns.
+// Sets related.R.User appropriately.
+func (o *User) AddTagI18ns(exec boil.Executor, insert bool, related ...*TagI18n) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.UserID.Int64 = o.ID
+			rel.UserID.Valid = true
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"tag_i18n\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"user_id"}),
+				strmangle.WhereClause("\"", "\"", 2, tagI18nPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.TagID, rel.Language}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.UserID.Int64 = o.ID
+			rel.UserID.Valid = true
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userR{
+			TagI18ns: related,
+		}
+	} else {
+		o.R.TagI18ns = append(o.R.TagI18ns, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &tagI18nR{
+				User: o,
+			}
+		} else {
+			rel.R.User = o
+		}
+	}
+	return nil
+}
+
+// SetTagI18nsG removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's TagI18ns accordingly.
+// Replaces o.R.TagI18ns with related.
+// Sets related.R.User's TagI18ns accordingly.
+// Uses the global database handle.
+func (o *User) SetTagI18nsG(insert bool, related ...*TagI18n) error {
+	return o.SetTagI18ns(boil.GetDB(), insert, related...)
+}
+
+// SetTagI18nsP removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's TagI18ns accordingly.
+// Replaces o.R.TagI18ns with related.
+// Sets related.R.User's TagI18ns accordingly.
+// Panics on error.
+func (o *User) SetTagI18nsP(exec boil.Executor, insert bool, related ...*TagI18n) {
+	if err := o.SetTagI18ns(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetTagI18nsGP removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's TagI18ns accordingly.
+// Replaces o.R.TagI18ns with related.
+// Sets related.R.User's TagI18ns accordingly.
+// Uses the global database handle and panics on error.
+func (o *User) SetTagI18nsGP(insert bool, related ...*TagI18n) {
+	if err := o.SetTagI18ns(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetTagI18ns removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's TagI18ns accordingly.
+// Replaces o.R.TagI18ns with related.
+// Sets related.R.User's TagI18ns accordingly.
+func (o *User) SetTagI18ns(exec boil.Executor, insert bool, related ...*TagI18n) error {
+	query := "update \"tag_i18n\" set \"user_id\" = null where \"user_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.TagI18ns {
+			rel.UserID.Valid = false
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.User = nil
+		}
+
+		o.R.TagI18ns = nil
+	}
+	return o.AddTagI18ns(exec, insert, related...)
+}
+
+// RemoveTagI18nsG relationships from objects passed in.
+// Removes related items from R.TagI18ns (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Uses the global database handle.
+func (o *User) RemoveTagI18nsG(related ...*TagI18n) error {
+	return o.RemoveTagI18ns(boil.GetDB(), related...)
+}
+
+// RemoveTagI18nsP relationships from objects passed in.
+// Removes related items from R.TagI18ns (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Panics on error.
+func (o *User) RemoveTagI18nsP(exec boil.Executor, related ...*TagI18n) {
+	if err := o.RemoveTagI18ns(exec, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveTagI18nsGP relationships from objects passed in.
+// Removes related items from R.TagI18ns (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Uses the global database handle and panics on error.
+func (o *User) RemoveTagI18nsGP(related ...*TagI18n) {
+	if err := o.RemoveTagI18ns(boil.GetDB(), related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveTagI18ns relationships from objects passed in.
+// Removes related items from R.TagI18ns (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+func (o *User) RemoveTagI18ns(exec boil.Executor, related ...*TagI18n) error {
+	var err error
+	for _, rel := range related {
+		rel.UserID.Valid = false
+		if rel.R != nil {
+			rel.R.User = nil
+		}
+		if err = rel.Update(exec, "user_id"); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.TagI18ns {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.TagI18ns)
+			if ln > 1 && i < ln-1 {
+				o.R.TagI18ns[i] = o.R.TagI18ns[ln-1]
+			}
+			o.R.TagI18ns = o.R.TagI18ns[:ln-1]
 			break
 		}
 	}

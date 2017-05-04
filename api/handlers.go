@@ -2,17 +2,14 @@ package api
 
 import (
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/queries"
-	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/nullbio/null.v6"
 
@@ -247,7 +244,7 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, error
 	// Original
 	original, _, err := FindFileBySHA1(exec, r.Original.Sha1)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Lookup original file")
 	}
 	if original.Name == r.Original.FileName {
 		log.Info("Original's name hasn't change")
@@ -256,14 +253,14 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, error
 		original.Name = r.Original.FileName
 		err = original.Update(exec, "name")
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Rename original file")
 		}
 	}
 
 	// Proxy
 	proxy, _, err := FindFileBySHA1(exec, r.Proxy.Sha1)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Lookup proxy file")
 	}
 	if proxy.Name == r.Proxy.FileName {
 		log.Info("Proxy's name hasn't change")
@@ -272,21 +269,37 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, error
 		proxy.Name = r.Proxy.FileName
 		err = proxy.Update(exec, "name")
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "Rename proxy file")
 		}
 	}
 
+	log.Info("Processing CIT Metadata")
+	err = ProcessCITMetadata(exec, r.Metadata, original, proxy)
+	if err != nil {
+		return nil, errors.Wrap(err, "Process CIT Metadata")
+	}
+
 	log.Info("Creating operation")
-	props := map[string]interface{}{
-		"worklow_type": r.WorkflowType,
+	props := make(map[string]interface{})
+	b, err := json.Marshal(r.Metadata)
+	if err != nil {
+		return nil, errors.Wrap(err, "json Marshal")
+	}
+	if err = json.Unmarshal(b, &props); err != nil {
+		return nil, errors.Wrap(err, "json Unmarshal")
 	}
 	operation, err := CreateOperation(exec, OP_SEND, r.Operation, props)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Create operation")
 	}
 
 	log.Info("Associating files to operation")
-	return operation, operation.AddFiles(exec, false, original, proxy)
+	err = operation.AddFiles(exec, false, original, proxy)
+	if err != nil {
+		return nil, errors.Wrap(err, "Associate files")
+	}
+
+	return operation, nil
 }
 
 func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, error) {
@@ -388,129 +401,6 @@ func handleOperation(c *gin.Context, input interface{},
 			NewBadRequestError(err).Abort(c)
 		default:
 			NewInternalError(err).Abort(c)
-		}
-	}
-}
-
-func CreateOperation(exec boil.Executor, name string, o Operation, properties map[string]interface{}) (*models.Operation, error) {
-	operation := models.Operation{
-		TypeID:  OPERATION_TYPE_REGISTRY.ByName[name].ID,
-		UID:     utils.GenerateUID(8),
-		Station: null.StringFrom(o.Station),
-	}
-
-	// Lookup user, skip if doesn't exist
-	user, err := models.Users(exec, qm.Where("email=?", o.User)).One()
-	if err == nil {
-		operation.UserID = null.Int64From(user.ID)
-	} else {
-		if err == sql.ErrNoRows {
-			log.Debugf("Unknown User [%s]. Skipping.", o.User)
-		} else {
-			return nil, err
-		}
-	}
-
-	// Handle properties
-	if o.WorkflowID != "" {
-		if properties == nil {
-			properties = make(map[string]interface{})
-		}
-		properties["workflow_id"] = o.WorkflowID
-	}
-	if properties != nil {
-		props, err := json.Marshal(properties)
-		if err != nil {
-			return nil, err
-		}
-		operation.Properties = null.JSONFrom(props)
-	}
-
-	return &operation, operation.Insert(exec)
-}
-
-func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[string]interface{}) (*models.File, error) {
-	sha1, err := hex.DecodeString(f.Sha1)
-	if err != nil {
-		return nil, err
-	}
-
-	// validate language + convert from code3 if necessary
-	var mdbLang = ""
-	switch len(f.Language) {
-	case 2:
-		if !KNOWN_LANGS.MatchString(strings.ToLower(f.Language)) {
-			return nil, errors.Errorf("Unknown language %s", f.Language)
-		}
-		mdbLang = strings.ToLower(f.Language)
-		break
-	case 3:
-		var ok bool
-		mdbLang, ok = LANG_MAP[strings.ToUpper(f.Language)]
-		if !ok {
-			return nil, errors.Errorf("Unknown language %s", f.Language)
-		}
-		break
-	case 0:
-		break
-	default:
-		return nil, errors.Errorf("Unknown language %s", f.Language)
-	}
-
-	file := models.File{
-		UID:           utils.GenerateUID(8),
-		Name:          f.FileName,
-		Sha1:          null.BytesFrom(sha1),
-		Size:          f.Size,
-		FileCreatedAt: null.TimeFrom(f.CreatedAt.Time),
-		Type:          f.Type,
-		SubType:       f.SubType,
-		Language:      null.NewString(mdbLang, mdbLang != ""),
-	}
-
-	if f.MimeType != "" {
-		file.MimeType = null.StringFrom(f.MimeType)
-
-		// Try to complement missing type and subtype
-		if file.Type == "" && file.SubType == "" {
-			if mt, ok := MEDIA_TYPE_REGISTRY.ByMime[strings.ToLower(f.MimeType)]; ok {
-				file.Type = mt.Type
-				file.SubType = mt.SubType
-			}
-		}
-	}
-
-	if parent != nil {
-		file.ParentID = null.Int64From(parent.ID)
-	}
-
-	// Handle properties
-	if properties != nil {
-		props, err := json.Marshal(properties)
-		if err != nil {
-			return nil, err
-		}
-		file.Properties = null.JSONFrom(props)
-	}
-
-	return &file, file.Insert(exec)
-}
-
-func FindFileBySHA1(exec boil.Executor, sha1 string) (*models.File, []byte, error) {
-	log.Debugf("Looking up file, sha1=%s", sha1)
-	s, err := hex.DecodeString(sha1)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	f, err := models.Files(exec, qm.Where("sha1=?", s)).One()
-	if err == nil {
-		return f, s, nil
-	} else {
-		if err == sql.ErrNoRows {
-			return nil, s, FileNotFound{Sha1: sha1}
-		} else {
-			return nil, s, err
 		}
 	}
 }

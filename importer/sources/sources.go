@@ -55,7 +55,7 @@ func ImportSources() {
 	boil.SetDB(mdb)
 	//boil.DebugMode = true
 
-	utils.Must(api.SOURCE_TYPE_REGISTRY.Init())
+	utils.Must(api.InitTypeRegistries(mdb))
 
 	utils.Must(handleAuthors(mdb))
 	utils.Must(handleCollections(mdb))

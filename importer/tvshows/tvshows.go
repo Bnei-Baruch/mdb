@@ -51,7 +51,8 @@ func ImportTVShows() {
 	boil.SetDB(mdb)
 	//boil.DebugMode = true
 
-	utils.Must(api.CONTENT_TYPE_REGISTRY.Init())
+	utils.Must(api.InitTypeRegistries(mdb))
+
 	utils.Must(handleTVShows(mdb))
 
 	log.Info("Success")

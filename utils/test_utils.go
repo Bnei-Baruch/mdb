@@ -1,16 +1,19 @@
 package utils
 
 import (
+	"crypto/sha1"
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/Bnei-Baruch/mdb/migrations"
 	"github.com/spf13/viper"
 	"github.com/vattle/sqlboiler/boil"
+
+	"github.com/Bnei-Baruch/mdb/migrations"
 
 	// List all test dependencies here until this bug is fixed in godeps
 	// which should allow us to use `godeps save -t`
@@ -126,4 +129,14 @@ func (m *TestDBManager) runMigrations(db *sql.DB) error {
 	}
 
 	return filepath.Walk("../migrations", visit)
+}
+
+func Sha1(s string) string {
+	h := sha1.New()
+	io.WriteString(h, s)
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func RandomSHA1() string {
+	return Sha1(GenerateName(1024))
 }
