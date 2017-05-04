@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"gopkg.in/nullbio/null.v6"
-
 	"github.com/Bnei-Baruch/mdb/models"
 )
 
