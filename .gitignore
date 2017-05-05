@@ -6,7 +6,7 @@
 config.toml
 sqlboiler.toml
 **/rambler.json
-*/**/*.apib
-*.dump.sql
-visio.SQL
+
 mdb
+
+**/*.apib
