@@ -898,8 +898,14 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	suite.Require().Nil(err)
 	cu := original.R.ContentUnit
 
+	isDerived := metadata.ArtifactType.Valid && metadata.ArtifactType.String != "main"
+	ct := metadata.ContentType
+	if isDerived {
+		ct = strings.ToUpper(metadata.ArtifactType.String)
+	}
+
 	// properties
-	suite.Equal(cu.TypeID, CONTENT_TYPE_REGISTRY.ByName[metadata.ContentType].ID, "cu.type_id")
+	suite.Equal(cu.TypeID, CONTENT_TYPE_REGISTRY.ByName[ct].ID, "cu.type_id")
 
 	capDate := metadata.CaptureDate
 	filmDate := metadata.CaptureDate
@@ -921,7 +927,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	suite.Equal(original.ContentUnitID.Int64, proxy.ContentUnitID.Int64, "original.cuid = proxy.cuid")
 
 	// ancestors ?
-	if metadata.ArtifactType.Valid && metadata.ArtifactType.String != "main" {
+	if isDerived {
 		suite.Equal(2, len(cu.R.Files), "len(cu.R.Files)")
 	} else {
 		ancestors, err := FindFileAncestors(suite.tx, original.ID)

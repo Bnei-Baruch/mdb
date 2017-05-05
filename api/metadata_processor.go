@@ -69,8 +69,13 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	}
 
 	// Create content_unit (content_type, dates)
-	log.Infof("Creating content unit of type %s", metadata.ContentType)
-	cu, err := CreateContentUnit(exec, metadata.ContentType, props)
+	isDerived := metadata.ArtifactType.Valid && metadata.ArtifactType.String != "main"
+	ct := metadata.ContentType
+	if isDerived {
+		ct = strings.ToUpper(metadata.ArtifactType.String)
+	}
+	log.Infof("Creating content unit of type %s", ct)
+	cu, err := CreateContentUnit(exec, ct, props)
 	if err != nil {
 		return errors.Wrap(err, "Create content unit")
 	}
@@ -83,8 +88,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	}
 
 	// Add ancestor files to unit (not for derived units)
-	if !metadata.ArtifactType.Valid ||
-		metadata.ArtifactType.String == "main" {
+	if !isDerived {
 		log.Info("Main unit, adding ancestors...")
 		ancestors, err := FindFileAncestors(exec, original.ID)
 		if err != nil {
@@ -188,9 +192,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				return errors.Wrap(err, "Lookup collection in DB")
 			}
 		}
-	} else if metadata.ContentType == CT_LESSON_PART ||
-		metadata.ContentType == CT_FULL_LESSON {
-		log.Info("Daily lesson reconciliation")
+	} else if ct == CT_LESSON_PART || ct == CT_FULL_LESSON {
+		log.Info("Lesson reconciliation")
 
 		// Reconcile or create new
 		// Reconciliation is done by looking up the operation chain of original to capture_stop.
@@ -212,11 +215,11 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			captureID, ok := oProps["collection_uid"]
 			if ok {
 				log.Infof("Reconcile by capture_id %s", captureID)
-				var ct string
+				var cct string
 				if metadata.WeekDate == nil {
-					ct = CT_DAILY_LESSON
+					cct = CT_DAILY_LESSON
 				} else {
-					ct = CT_SATURDAY_LESSON
+					cct = CT_SATURDAY_LESSON
 				}
 
 				// Keep this property on the collection for other parts to find it
@@ -233,16 +236,16 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 
 					// Create new collection
 					log.Info("Creating new collection")
-					c, err = CreateCollection(exec, ct, props)
+					c, err = CreateCollection(exec, cct, props)
 					if err != nil {
 						return err
 					}
-				} else if metadata.ContentType == CT_FULL_LESSON {
+				} else if ct == CT_FULL_LESSON {
 					// Update collection properties to those of full lesson
 					log.Info("Full lesson, overriding collection properties")
-					if c.TypeID != CONTENT_TYPE_REGISTRY.ByName[ct].ID {
-						log.Infof("Full lesson, content_type changed to %s", ct)
-						c.TypeID = CONTENT_TYPE_REGISTRY.ByName[ct].ID
+					if c.TypeID != CONTENT_TYPE_REGISTRY.ByName[cct].ID {
+						log.Infof("Full lesson, content_type changed to %s", cct)
+						c.TypeID = CONTENT_TYPE_REGISTRY.ByName[cct].ID
 						err = c.Update(exec, "type_id")
 						if err != nil {
 							return errors.Wrap(err, "Update collection type in DB")
@@ -270,7 +273,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			CollectionID:  c.ID,
 			ContentUnitID: cu.ID,
 		}
-		switch metadata.ContentType {
+		switch ct {
 		case CT_FULL_LESSON:
 			if c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID ||
 				c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_SATURDAY_LESSON].ID {
