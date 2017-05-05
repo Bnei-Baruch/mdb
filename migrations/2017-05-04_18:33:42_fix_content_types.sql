@@ -24,7 +24,8 @@ UPDATE content_types SET name = 'PICNIC' WHERE name = 'PIKNIK';
 WITH data(name) AS (VALUES
   ('CLIP'),
   ('TRAINING'),
-  ('KITEI_MAKOR'))
+  ('KITEI_MAKOR'),
+  ('FRIENDS_GATHERINGS'))
 INSERT INTO content_types (name)
   SELECT d.name
   FROM data AS d

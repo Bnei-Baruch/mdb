@@ -28,7 +28,6 @@ type MetadataProcessorSuite struct {
 func (suite *MetadataProcessorSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
 	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
-	fmt.Printf("CTs: %v", CONTENT_TYPE_REGISTRY.ByName)
 }
 
 func (suite *MetadataProcessorSuite) TearDownSuite() {
