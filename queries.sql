@@ -323,6 +323,58 @@ WITH RECURSIVE rf AS (
   WHERE id != 353590;
 
 
+-- find all descendants of a file
+WITH RECURSIVE rf AS (
+  SELECT f.*
+  FROM files f
+  WHERE f.id = 360841
+  UNION
+  SELECT f.*
+  FROM files f INNER JOIN rf ON f.parent_id = rf.id
+) SELECT *
+  FROM rf
+  WHERE id != 360841;
+
+-- WITH RECURSIVE rf AS (
+--   SELECT f.*
+--   FROM files f
+--   WHERE f.id = 360841
+--   UNION
+--   SELECT f.*
+--   FROM files f INNER JOIN rf ON f.parent_id = rf.id
+-- ) SELECT id, parent_id, content_unit_id, name
+--   FROM rf
+--   WHERE id != 360841 order by parent_id, id;
+
+-- UPDATE files SET content_unit_id = 25378 WHERE id IN
+--    (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 360841 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25382 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 360896 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25383 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 360961 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25384 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 360975 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25385 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 361036 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25386 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 361100 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25387 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 361155 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25388 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 361265 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25389 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 361282 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25390 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 361340 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25391 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 361405 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25392 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 361483 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+-- UPDATE files SET content_unit_id = 25393 WHERE id IN
+--                                                (WITH RECURSIVE rf AS ( SELECT f.* FROM files f WHERE f.id = 361638 UNION SELECT f.* FROM files f INNER JOIN rf ON f.parent_id = rf.id ) SELECT id FROM rf);
+
+
+
 SELECT
   cu.id,
   cu.properties ->> 'artifact_type'
