@@ -340,6 +340,8 @@ func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit
 	ccus, err := models.CollectionsContentUnits(exec, qm.Where("collection_id = ?", id)).All()
 	if err != nil {
 		return nil, NewInternalError(err)
+	} else if len(ccus) == 0 {
+		return make([]*CollectionContentUnit, 0), nil
 	}
 
 	ids := make([]int64, len(ccus))
@@ -489,6 +491,8 @@ func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUni
 	ccus, err := models.CollectionsContentUnits(exec, qm.Where("content_unit_id = ?", id)).All()
 	if err != nil {
 		return nil, NewInternalError(err)
+	} else if len(ccus) == 0 {
+		return make([]*CollectionContentUnit, 0), nil
 	}
 
 	ids := make([]int64, len(ccus))
