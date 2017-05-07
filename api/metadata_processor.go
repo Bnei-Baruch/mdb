@@ -99,7 +99,9 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		if err != nil {
 			return errors.Wrap(err, "Load proxy's parent")
 		}
-		ancestors = append(ancestors, proxy.R.Parent)
+		if proxy.R.Parent != nil {
+			ancestors = append(ancestors, proxy.R.Parent)
+		}
 
 		err = cu.AddFiles(exec, false, ancestors...)
 		if err != nil {
