@@ -931,6 +931,9 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	} else {
 		ancestors, err := FindFileAncestors(suite.tx, original.ID)
 		suite.Require().Nil(err)
+		proxy.L.LoadParent(suite.tx, true, proxy)
+		suite.Require().Nil(err)
+		ancestors = append(ancestors, proxy.R.Parent)
 		suite.Equal(2+len(ancestors), len(cu.R.Files), "len(cu.R.Files)")
 		for i, f := range ancestors {
 			suite.True(f.ContentUnitID.Valid, "Ancestor[%d].ContentUnitID.Valid", i)
