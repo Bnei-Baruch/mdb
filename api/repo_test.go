@@ -131,6 +131,10 @@ func (suite *RepoSuite) TestCreateFile() {
 		MimeType:  "mimetype",
 		Language:  LANG_RUSSIAN,
 	}
+	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+	err = file.SetContentUnit(suite.tx, false, cu)
+	suite.Require().Nil(err)
 	file2, err := CreateFile(suite.tx, file, f2, nil)
 	suite.Require().Nil(err)
 	suite.Require().Nil(file2.Reload(suite.tx))
@@ -145,6 +149,8 @@ func (suite *RepoSuite) TestCreateFile() {
 	suite.Equal(f2.Language, file2.Language.String, "file2.Language.String")
 	suite.True(file2.ParentID.Valid, "file2.ParentID.Valid")
 	suite.Equal(file.ID, file2.ParentID.Int64, "file2.ParentID.Int64")
+	suite.True(file2.ContentUnitID.Valid, "file2.ContentUnitID.Valid")
+	suite.Equal(file.ContentUnitID.Int64, file2.ContentUnitID.Int64, "file2.ContentUnitID.Int64")
 
 	// test with custom props
 	f3 := File{

@@ -305,6 +305,7 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 
 	if parent != nil {
 		file.ParentID = null.Int64From(parent.ID)
+		file.ContentUnitID = parent.ContentUnitID
 	}
 
 	// Handle properties
