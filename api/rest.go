@@ -661,7 +661,7 @@ func handleOperationFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
 
 func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
 	if r.OrderBy == "" {
-		*mods = append(*mods, qm.OrderBy("id"))
+		*mods = append(*mods, qm.OrderBy("id desc"))
 	} else {
 		*mods = append(*mods, qm.OrderBy(r.OrderBy))
 	}
