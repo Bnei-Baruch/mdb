@@ -270,18 +270,19 @@ func (suite *RestSuite) assertEqualDummyOperation(o *models.Operation, x *models
 func createDummyCollections(exec boil.Executor, n int) []*models.Collection {
 	collections := make([]*models.Collection, n)
 	for i := range collections {
-		collections[i] = &models.Collection{
+		j := n-i-1
+		collections[j] = &models.Collection{
 			UID:    utils.GenerateUID(8),
 			TypeID: CONTENT_TYPE_REGISTRY.ByName[ALL_CONTENT_TYPES[rand.Intn(len(ALL_CONTENT_TYPES))]].ID,
 		}
-		utils.Must(collections[i].Insert(exec))
+		utils.Must(collections[j].Insert(exec))
 
 		i18ns := []*models.CollectionI18n{
 			{Language: LANG_HEBREW, Name: null.StringFrom("name")},
 			{Language: LANG_ENGLISH, Name: null.StringFrom("name")},
 			{Language: LANG_RUSSIAN, Name: null.StringFrom("name")},
 		}
-		collections[i].AddCollectionI18ns(exec, true, i18ns...)
+		collections[j].AddCollectionI18ns(exec, true, i18ns...)
 	}
 
 	return collections
@@ -290,18 +291,19 @@ func createDummyCollections(exec boil.Executor, n int) []*models.Collection {
 func createDummyContentUnits(exec boil.Executor, n int) []*models.ContentUnit {
 	units := make([]*models.ContentUnit, n)
 	for i := range units {
-		units[i] = &models.ContentUnit{
+		j := n-i-1
+		units[j] = &models.ContentUnit{
 			UID:    utils.GenerateUID(8),
 			TypeID: CONTENT_TYPE_REGISTRY.ByName[ALL_CONTENT_TYPES[rand.Intn(len(ALL_CONTENT_TYPES))]].ID,
 		}
-		utils.Must(units[i].Insert(exec))
+		utils.Must(units[j].Insert(exec))
 
 		i18ns := []*models.ContentUnitI18n{
 			{Language: LANG_HEBREW, Name: null.StringFrom("name")},
 			{Language: LANG_ENGLISH, Name: null.StringFrom("name")},
 			{Language: LANG_RUSSIAN, Name: null.StringFrom("name")},
 		}
-		units[i].AddContentUnitI18ns(exec, true, i18ns...)
+		units[j].AddContentUnitI18ns(exec, true, i18ns...)
 	}
 
 	return units
@@ -310,15 +312,16 @@ func createDummyContentUnits(exec boil.Executor, n int) []*models.ContentUnit {
 func createDummyFiles(exec boil.Executor, n int) []*models.File {
 	files := make([]*models.File, n)
 	for i := range files {
+		j := n-i-1
 		sha1 := make([]byte, 20)
 		rand.Read(sha1)
-		files[i] = &models.File{
+		files[j] = &models.File{
 			UID:  utils.GenerateUID(8),
-			Name: fmt.Sprintf("test_file_%d", i),
+			Name: fmt.Sprintf("test_file_%d", j),
 			Size: rand.Int63(),
 			Sha1: null.BytesFrom(sha1),
 		}
-		utils.Must(files[i].Insert(exec))
+		utils.Must(files[j].Insert(exec))
 	}
 
 	return files
@@ -327,16 +330,17 @@ func createDummyFiles(exec boil.Executor, n int) []*models.File {
 func createDummyOperations(exec boil.Executor, n int) []*models.Operation {
 	operations := make([]*models.Operation, n)
 	for i := range operations {
-		sha1 := make([]byte, 20)
-		rand.Read(sha1)
-		operations[i] = &models.Operation{
+		j := n-i-1
+		//sha1 := make([]byte, 20)
+		//rand.Read(sha1)
+		operations[j] = &models.Operation{
 			UID:     utils.GenerateUID(8),
-			Station: null.StringFrom(fmt.Sprintf("station_%d", i)),
+			Station: null.StringFrom(fmt.Sprintf("station_%d", j)),
 			UserID:  null.Int64From(1),
 			TypeID: OPERATION_TYPE_REGISTRY.
 				ByName[ALL_OPERATION_TYPES[rand.Intn(len(ALL_OPERATION_TYPES))]].ID,
 		}
-		utils.Must(operations[i].Insert(exec))
+		utils.Must(operations[j].Insert(exec))
 	}
 
 	return operations
