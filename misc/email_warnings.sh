@@ -6,7 +6,7 @@ set -x
 DATE="$(date -d "yesterday 13:00" '+%Y-%m-%d')"
 #DATE="2017-04-30"
 
-LINES="$(egrep "${DATE}(.*) level=warning" /sites/mdb/logs/mdb.log)"
+LINES="$(egrep "${DATE}(.*) level=(warning|error)" /sites/mdb/logs/mdb.log)"
 
 if [ "$LINES" = "" ];then
 	echo "No warnings"
