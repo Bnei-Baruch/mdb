@@ -10,3 +10,5 @@ sqlboiler.toml
 mdb
 
 **/*.apib
+
+storage/.index

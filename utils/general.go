@@ -3,20 +3,16 @@ package utils
 import (
 	"math/rand"
 	"time"
+	"regexp"
 )
 
 const uidBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const lettersBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
+var SHA1_RE = regexp.MustCompile("^[0-9a-f]{40}$")
+
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
-}
-
-// panic if err != nil
-func Must(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
 
 func GenerateUID(n int) string {
