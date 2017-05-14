@@ -60,10 +60,24 @@ WITH RECURSIVE
                 WHERE o_type = $2);
 `
 
+
 func CreateOperation(exec boil.Executor, name string, o Operation, properties map[string]interface{}) (*models.Operation, error) {
+
+	var uid string
+	for {
+		uid = utils.GenerateUID(8)
+		exists, err := models.Operations(exec, qm.Where("uid = ?", uid)).Exists()
+		if err != nil {
+			return nil, errors.Wrap(err, "Check UID exists")
+		}
+		if !exists {
+			break
+		}
+	}
+
 	operation := models.Operation{
 		TypeID:  OPERATION_TYPE_REGISTRY.ByName[name].ID,
-		UID:     utils.GenerateUID(8),
+		UID:     uid,
 		Station: null.StringFrom(o.Station),
 	}
 
@@ -97,13 +111,15 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 	return &operation, operation.Insert(exec)
 }
 
-func FindUpChainOperation(exec boil.Executor, fileID int64, opType int64) (*models.Operation, error) {
+func FindUpChainOperation(exec boil.Executor, fileID int64, opType string) (*models.Operation, error) {
 	var op models.Operation
 
-	err := queries.Raw(exec, UPCHAIN_OPERATION_SQL, fileID, opType).Bind(&op)
+	opTypeID := OPERATION_TYPE_REGISTRY.ByName[opType].ID
+
+	err := queries.Raw(exec, UPCHAIN_OPERATION_SQL, fileID, opTypeID).Bind(&op)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, UpChainOperationNotFound{FileID: fileID, OperationType: opType}
+			return nil, UpChainOperationNotFound{FileID: fileID, opType: opType}
 		} else {
 			return nil, errors.Wrap(err, "DB lookup")
 		}
@@ -130,7 +146,7 @@ func CreateCollection(exec boil.Executor, contentType string, properties map[str
 		}
 	}
 
-	unit := &models.Collection{
+	collection := &models.Collection{
 		UID:    uid,
 		TypeID: ct.ID,
 	}
@@ -140,15 +156,15 @@ func CreateCollection(exec boil.Executor, contentType string, properties map[str
 		if err != nil {
 			return nil, errors.Wrap(err, "json Marshal")
 		}
-		unit.Properties = null.JSONFrom(props)
+		collection.Properties = null.JSONFrom(props)
 	}
 
-	err := unit.Insert(exec)
+	err := collection.Insert(exec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Save to DB")
 	}
 
-	return unit, err
+	return collection, err
 }
 
 func UpdateCollectionProperties(exec boil.Executor, collection *models.Collection, props map[string]interface{}) error {
@@ -280,8 +296,20 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 		}
 	}
 
+	var uid string
+	for {
+		uid = utils.GenerateUID(8)
+		exists, err := models.Files(exec, qm.Where("uid = ?", uid)).Exists()
+		if err != nil {
+			return nil, errors.Wrap(err, "Check UID exists")
+		}
+		if !exists {
+			break
+		}
+	}
+
 	file := &models.File{
-		UID:           utils.GenerateUID(8),
+		UID:           uid,
 		Name:          f.FileName,
 		Sha1:          null.BytesFrom(sha1),
 		Size:          f.Size,
