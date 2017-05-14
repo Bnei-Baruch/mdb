@@ -321,13 +321,25 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, er
 	files[0] = in
 	props := make(map[string]interface{})
 	for i, x := range r.Output {
-		props["duration"] = x.Duration
-		f, err := CreateFile(exec, in, x.File, props)
+
+		// lookup by sha1 as it might be a "reconvert"
+		f, _, err := FindFileBySHA1(exec, x.Sha1)
 		if err == nil {
-			files[i+1] = f
+			log.Infof("File already exists: %s", x.Sha1)
 		} else {
-			return nil, err
+			if _, ok := err.(FileNotFound); ok {
+				// new file
+				props["duration"] = x.Duration
+				f, err = CreateFile(exec, in, x.File, props)
+				if err != nil {
+					return nil, errors.Wrap(err, "Create file")
+				}
+			} else {
+				return nil, errors.Wrap(err, "Lookup file in DB")
+			}
 		}
+
+		files[i+1] = f
 	}
 
 	log.Info("Associating files to operation")

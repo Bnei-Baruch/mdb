@@ -47,11 +47,11 @@ func (x FileNotFound) Error() string {
 
 type UpChainOperationNotFound struct {
 	FileID int64
-	OperationType int64
+	opType string
 }
 
 func (x UpChainOperationNotFound) Error() string {
-	return fmt.Sprintf("Up chain operaiton type_id %d not found for file_id %d", x.OperationType, x.FileID)
+	return fmt.Sprintf("Up chain operation %s not found for file_id %d", x.opType, x.FileID)
 }
 
 type CollectionNotFound struct {

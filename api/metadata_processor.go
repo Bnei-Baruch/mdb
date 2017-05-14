@@ -72,6 +72,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	isDerived := metadata.ArtifactType.Valid && metadata.ArtifactType.String != "main"
 	ct := metadata.ContentType
 	if isDerived {
+		// TODO: verify user input. artifact_type should be either invalid, "main" or a known content_type
 		ct = strings.ToUpper(metadata.ArtifactType.String)
 	}
 	log.Infof("Creating content unit of type %s", ct)
@@ -207,8 +208,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		// Reconcile or create new
 		// Reconciliation is done by looking up the operation chain of original to capture_stop.
 		// There we have a property of saying the capture_id of the full lesson capture.
-		captureStop, err := FindUpChainOperation(exec, original.ID,
-			OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_STOP].ID)
+		captureStop, err := FindUpChainOperation(exec, original.ID, OP_CAPTURE_STOP)
 		if err != nil {
 			if ex, ok := err.(UpChainOperationNotFound); ok {
 				log.Warnf(ex.Error())
@@ -305,6 +305,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			if metadata.Number.Valid {
 				ccu.Name = strconv.Itoa(metadata.Number.Int)
 			}
+
+			// first 3 event part types are lesson, YH and meal, we skip them.
 			if metadata.PartType.Valid && metadata.PartType.Int > 2 {
 				idx := metadata.PartType.Int - 3
 				if idx < len(MISC_EVENT_PART_TYPES) {
@@ -359,8 +361,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				return errors.Wrap(err, "Load derived content units")
 			}
 
-			// put results in map due to this bug:
-			// https://github.com/lib/pq/issues/81
+			// put results in a map first since we can't process them while iterating.
+			// see this bug:  https://github.com/lib/pq/issues/81
 			derivedCUs := make(map[int64]string)
 			for rows.Next() {
 				var cuid int64

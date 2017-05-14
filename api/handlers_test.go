@@ -517,4 +517,8 @@ func (suite *HandlersSuite) TestHandleConvert() {
 		suite.Require().Nil(err)
 		suite.Equal(x.Duration, props["duration"], "Output[%d] props: duration", i)
 	}
+
+	// test "reconvert" doesn't crash
+	op, err = handleConvert(suite.tx, input)
+	suite.Require().Nil(err)
 }
