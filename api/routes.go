@@ -29,6 +29,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.GET("/operations/", OperationsListHandler)
 	rest.GET("/operations/:id/", OperationItemHandler)
 	rest.GET("/operations/:id/files/", OperationFilesHandler)
+	rest.GET("/tags/:id/", TagItemHandler)
 
 	hierarchy := router.Group("hierarchy")
 	hierarchy.GET("/sources/", SourcesHierarchyHandler)

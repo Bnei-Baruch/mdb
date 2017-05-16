@@ -114,11 +114,11 @@ func SourcesHierarchyHandler(c *gin.Context) {
 	defer rows.Close()
 
 	// Iterate rows, build tree
-	sources := make(map[int64]*Source)
-	roots := make([]*Source, 0)
+	sources := make(map[int64]*SourceH)
+	roots := make([]*SourceH, 0)
 	for rows.Next() {
 		// Scan source
-		s := new(Source)
+		s := new(SourceH)
 		var typeID, d int64
 		err := rows.Scan(&s.ID, &s.UID, &s.Pattern, &s.ParentID, &s.Position, &typeID, &s.Name, &s.Description, &d)
 		if err != nil {
@@ -133,7 +133,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 			p, ok := sources[s.ParentID.Int64]
 			if ok {
 				if p.Children == nil {
-					p.Children = make([]*Source, 0)
+					p.Children = make([]*SourceH, 0)
 				}
 				p.Children = append(p.Children, s)
 			} else {
@@ -158,9 +158,9 @@ func SourcesHierarchyHandler(c *gin.Context) {
 		}
 		defer rows.Close()
 
-		authors := make([]*Author, 0)
+		authors := make([]*AuthorH, 0)
 		for rows.Next() {
-			a := new(Author)
+			a := new(AuthorH)
 			var sids pq.Int64Array
 			err := rows.Scan(&a.Code, &a.Name, &a.FullName, &sids)
 			if err != nil {
@@ -169,7 +169,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 			}
 
 			// Associate sources
-			a.Children = make([]*Source, len(sids))
+			a.Children = make([]*SourceH, len(sids))
 			for i, x := range sids {
 				a.Children[i] = sources[x]
 			}
@@ -224,11 +224,11 @@ func TagsHierarchyHandler(c *gin.Context) {
 	defer rows.Close()
 
 	// Iterate rows, build tree
-	tags := make(map[int64]*Tag)
-	roots := make([]*Tag, 0)
+	tags := make(map[int64]*TagH)
+	roots := make([]*TagH, 0)
 	for rows.Next() {
 		// Scan tag
-		t := new(Tag)
+		t := new(TagH)
 		var d int64
 		err := rows.Scan(&t.ID, &t.UID, &t.Pattern, &t.ParentID, &t.Label, &d)
 		if err != nil {
@@ -242,7 +242,7 @@ func TagsHierarchyHandler(c *gin.Context) {
 			p, ok := tags[t.ParentID.Int64]
 			if ok {
 				if p.Children == nil {
-					p.Children = make([]*Tag, 0)
+					p.Children = make([]*TagH, 0)
 				}
 				p.Children = append(p.Children, t)
 			} else {

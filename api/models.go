@@ -239,7 +239,12 @@ type (
 		Sha1Str string `json:"sha1"`
 	}
 
-	Source struct {
+	Tag struct {
+		models.Tag
+		I18n map[string]*models.TagI18n
+	}
+
+	SourceH struct {
 		ID          int64       `json:"id"`
 		UID         string      `json:"uid"`
 		ParentID    null.Int64  `json:"parent_id"`
@@ -248,23 +253,23 @@ type (
 		Pattern     null.String `json:"pattern,omitempty"`
 		Name        null.String `json:"name"`
 		Description null.String `json:"description,omitempty"`
-		Children    []*Source   `json:"children,omitempty"`
+		Children    []*SourceH   `json:"children,omitempty"`
 	}
 
-	Author struct {
+	AuthorH struct {
 		Code     string      `json:"code"`
 		Name     string      `json:"name"`
 		FullName null.String `json:"full_name,omitempty"`
-		Children []*Source   `json:"children,omitempty"`
+		Children []*SourceH   `json:"children,omitempty"`
 	}
 
-	Tag struct {
+	TagH struct {
 		ID       int64       `json:"id"`
 		UID      string      `json:"uid"`
 		ParentID null.Int64  `json:"parent_id"`
 		Pattern  null.String `json:"pattern,omitempty"`
 		Label    null.String `json:"label"`
-		Children []*Tag      `json:"children,omitempty"`
+		Children []*TagH      `json:"children,omitempty"`
 	}
 )
 

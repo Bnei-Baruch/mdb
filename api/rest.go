@@ -217,6 +217,21 @@ func OperationFilesHandler(c *gin.Context) {
 	}
 }
 
+func TagItemHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := handleTagItem(boil.GetDB(), id)
+	if err == nil {
+		c.JSON(http.StatusOK, resp)
+	} else {
+		err.Abort(c)
+	}
+}
+
 // Handlers Logic
 
 func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*CollectionsResponse, *HttpError) {
@@ -659,6 +674,29 @@ func handleOperationFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
 	}
 
 	return data, nil
+}
+
+func handleTagItem(exec boil.Executor, id int64) (*Tag, *HttpError) {
+	tag, err := models.Tags(exec,
+		qm.Where("id = ?", id),
+		qm.Load("TagI18ns")).
+		One()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// i18n
+	x := &Tag{Tag: *tag}
+	x.I18n = make(map[string]*models.TagI18n, len(tag.R.TagI18ns))
+	for _, i18n := range tag.R.TagI18ns {
+		x.I18n[i18n.Language] = i18n
+	}
+
+	return x, nil
 }
 
 // Query Helpers
