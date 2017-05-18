@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gopkg.in/nullbio/null.v6"
+
 	"github.com/Bnei-Baruch/mdb/models"
 )
 
@@ -203,6 +204,15 @@ type (
 		Operations []*models.Operation `json:"data"`
 	}
 
+	TagsRequest struct {
+		ListRequest
+	}
+
+	TagsResponse struct {
+		ListResponse
+		Tags []*Tag `json:"data"`
+	}
+
 	HierarchyRequest struct {
 		Language string `json:"language" form:"language" binding:"omitempty,len=2"`
 		RootUID  string `json:"root" form:"root" binding:"omitempty,len=8"`
@@ -241,7 +251,7 @@ type (
 
 	Tag struct {
 		models.Tag
-		I18n map[string]*models.TagI18n
+		I18n map[string]*models.TagI18n `json:"i18n"`
 	}
 
 	SourceH struct {
@@ -253,14 +263,14 @@ type (
 		Pattern     null.String `json:"pattern,omitempty"`
 		Name        null.String `json:"name"`
 		Description null.String `json:"description,omitempty"`
-		Children    []*SourceH   `json:"children,omitempty"`
+		Children    []*SourceH  `json:"children,omitempty"`
 	}
 
 	AuthorH struct {
 		Code     string      `json:"code"`
 		Name     string      `json:"name"`
 		FullName null.String `json:"full_name,omitempty"`
-		Children []*SourceH   `json:"children,omitempty"`
+		Children []*SourceH  `json:"children,omitempty"`
 	}
 
 	TagH struct {
@@ -269,7 +279,7 @@ type (
 		ParentID null.Int64  `json:"parent_id"`
 		Pattern  null.String `json:"pattern,omitempty"`
 		Label    null.String `json:"label"`
-		Children []*TagH      `json:"children,omitempty"`
+		Children []*TagH     `json:"children,omitempty"`
 	}
 )
 
@@ -295,6 +305,10 @@ func NewMFile(f *models.File) *MFile {
 
 func NewOperationsResponse() *OperationsResponse {
 	return &OperationsResponse{Operations: make([]*models.Operation, 0)}
+}
+
+func NewTagsResponse() *TagsResponse {
+	return &TagsResponse{Tags: make([]*Tag, 0)}
 }
 
 func (drf *DateRangeFilter) Range() (time.Time, time.Time, error) {

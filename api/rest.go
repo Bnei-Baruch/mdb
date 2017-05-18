@@ -217,6 +217,45 @@ func OperationFilesHandler(c *gin.Context) {
 	}
 }
 
+func TagsListHandler(c *gin.Context) {
+	var r TagsRequest
+	if c.Bind(&r) != nil {
+		return
+	}
+
+	resp, err := handleTagsList(boil.GetDB(), r)
+	if err == nil {
+		c.JSON(http.StatusOK, resp)
+	} else {
+		err.Abort(c)
+	}
+}
+
+func CreateTagHandler(c *gin.Context) {
+	var t Tag
+	if c.Bind(&t) != nil {
+		return
+	}
+
+	for _, x := range t.I18n {
+		if StdLang(x.Language) == LANG_UNKNOWN {
+			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+			return
+		}
+	}
+
+	tx, ex := boil.Begin()
+	utils.Must(ex)
+	resp, err := handleCreateTag(tx, &t)
+	if err == nil {
+		utils.Must(tx.Commit())
+		c.JSON(http.StatusOK, resp)
+	} else {
+		utils.Must(tx.Rollback())
+		err.Abort(c)
+	}
+}
+
 func TagItemHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
@@ -228,6 +267,36 @@ func TagItemHandler(c *gin.Context) {
 	if err == nil {
 		c.JSON(http.StatusOK, resp)
 	} else {
+		err.Abort(c)
+	}
+}
+
+func TagItemI18nHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var i18ns []*models.TagI18n
+	if c.Bind(&i18ns) != nil {
+		return
+	}
+	for _, x := range i18ns {
+		if StdLang(x.Language) == LANG_UNKNOWN {
+			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+			return
+		}
+	}
+
+	tx, ex := boil.Begin()
+	utils.Must(ex)
+	resp, err := handleTagItemI18n(tx, id, i18ns)
+	if err == nil {
+		utils.Must(tx.Commit())
+		c.JSON(http.StatusOK, resp)
+	} else {
+		utils.Must(tx.Rollback())
 		err.Abort(c)
 	}
 }
@@ -676,6 +745,91 @@ func handleOperationFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
 	return data, nil
 }
 
+func handleTagsList(exec boil.Executor, r TagsRequest) (*TagsResponse, *HttpError) {
+	mods := make([]qm.QueryMod, 0)
+
+	// count query
+	total, err := models.Tags(exec, mods...).Count()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if total == 0 {
+		return NewTagsResponse(), nil
+	}
+
+	// order, limit, offset
+	if err = appendListMods(&mods, r.ListRequest); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+
+	// Eager loading
+	mods = append(mods, qm.Load("TagI18ns"))
+
+	// data query
+	tags, err := models.Tags(exec, mods...).All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// i18n
+	data := make([]*Tag, len(tags))
+	for i, t := range tags {
+		x := &Tag{Tag: *t}
+		data[i] = x
+		x.I18n = make(map[string]*models.TagI18n, len(t.R.TagI18ns))
+		for _, i18n := range t.R.TagI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+	}
+
+	return &TagsResponse{
+		ListResponse: ListResponse{Total: total},
+		Tags:         data,
+	}, nil
+}
+
+func handleCreateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
+	// make sure parent tag exists if given
+	if t.ParentID.Valid {
+		ok, err := models.Tags(exec, qm.Where("id = ?", t.ParentID.Int64)).Exists()
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		if !ok {
+			return nil, NewBadRequestError(errors.Errorf("Unknown parent tag %d", t.ParentID.Int64))
+		}
+	}
+
+	// save tag
+	var uid string
+	for {
+		uid = utils.GenerateUID(8)
+		exists, err := models.ContentUnits(exec, qm.Where("uid = ?", uid)).Exists()
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		if !exists {
+			break
+		}
+	}
+
+	t.UID = uid
+	err := t.Tag.Insert(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// save i18n
+	for _, v := range t.I18n {
+		err := t.AddTagI18ns(exec, true, v)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	return handleTagItem(exec, t.ID)
+}
+
 func handleTagItem(exec boil.Executor, id int64) (*Tag, *HttpError) {
 	tag, err := models.Tags(exec,
 		qm.Where("id = ?", id),
@@ -697,6 +851,36 @@ func handleTagItem(exec boil.Executor, id int64) (*Tag, *HttpError) {
 	}
 
 	return x, nil
+}
+
+func handleTagItemI18n(exec boil.Executor, id int64, i18ns []*models.TagI18n) (*Tag, *HttpError) {
+	tag, err := handleTagItem(exec, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Upsert all new i18ns
+	nI18n := make(map[string]*models.TagI18n, len(i18ns))
+	for _, i18n := range i18ns {
+		i18n.TagID = id
+		nI18n[i18n.Language] = i18n
+		err := i18n.Upsert(exec, true, []string{"tag_id", "language"}, []string{"label"})
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// Delete old i18ns not in new i18ns
+	for k, v := range tag.I18n {
+		if _, ok := nI18n[k]; !ok {
+			err := v.Delete(exec)
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+		}
+	}
+
+	return handleTagItem(exec, id)
 }
 
 // Query Helpers
