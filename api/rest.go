@@ -32,11 +32,7 @@ func CollectionsListHandler(c *gin.Context) {
 	}
 
 	resp, err := handleCollectionsList(boil.GetDB(), r)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 func CollectionItemHandler(c *gin.Context) {
@@ -47,11 +43,7 @@ func CollectionItemHandler(c *gin.Context) {
 	}
 
 	resp, err := handleCollectionItem(boil.GetDB(), id)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 func CollectionContentUnitsHandler(c *gin.Context) {
@@ -62,11 +54,7 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 	}
 
 	resp, err := handleCollectionCCU(boil.GetDB(), id)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 // Toggle the active flag of a single container
@@ -78,11 +66,7 @@ func CollectionActivateHandler(c *gin.Context) {
 	}
 
 	err := handleCollectionActivate(boil.GetDB(), id)
-	if err == nil {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, gin.H{"status": "ok"}, err)
 }
 
 func ContentUnitsListHandler(c *gin.Context) {
@@ -92,11 +76,7 @@ func ContentUnitsListHandler(c *gin.Context) {
 	}
 
 	resp, err := handleContentUnitsList(boil.GetDB(), r)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 func ContentUnitItemHandler(c *gin.Context) {
@@ -107,11 +87,7 @@ func ContentUnitItemHandler(c *gin.Context) {
 	}
 
 	resp, err := handleContentUnitItem(boil.GetDB(), id)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 func ContentUnitFilesHandler(c *gin.Context) {
@@ -122,11 +98,7 @@ func ContentUnitFilesHandler(c *gin.Context) {
 	}
 
 	resp, err := handleContentUnitFiles(boil.GetDB(), id)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 func ContentUnitCollectionsHandler(c *gin.Context) {
@@ -137,11 +109,7 @@ func ContentUnitCollectionsHandler(c *gin.Context) {
 	}
 
 	resp, err := handleContentUnitCCU(boil.GetDB(), id)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 func FilesListHandler(c *gin.Context) {
@@ -151,11 +119,7 @@ func FilesListHandler(c *gin.Context) {
 	}
 
 	resp, err := handleFilesList(boil.GetDB(), r)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 func FileItemHandler(c *gin.Context) {
@@ -166,11 +130,7 @@ func FileItemHandler(c *gin.Context) {
 	}
 
 	resp, err := handleFileItem(boil.GetDB(), id)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 func OperationsListHandler(c *gin.Context) {
@@ -180,11 +140,7 @@ func OperationsListHandler(c *gin.Context) {
 	}
 
 	resp, err := handleOperationsList(boil.GetDB(), r)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 func OperationItemHandler(c *gin.Context) {
@@ -195,11 +151,7 @@ func OperationItemHandler(c *gin.Context) {
 	}
 
 	resp, err := handleOperationItem(boil.GetDB(), id)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
 func OperationFilesHandler(c *gin.Context) {
@@ -210,68 +162,72 @@ func OperationFilesHandler(c *gin.Context) {
 	}
 
 	resp, err := handleOperationFiles(boil.GetDB(), id)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
-func TagsListHandler(c *gin.Context) {
-	var r TagsRequest
-	if c.Bind(&r) != nil {
-		return
-	}
+func TagsHandler(c *gin.Context) {
+	var err *HttpError
+	var resp interface{}
 
-	resp, err := handleTagsList(boil.GetDB(), r)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
-	} else {
-		err.Abort(c)
-	}
-}
-
-func CreateTagHandler(c *gin.Context) {
-	var t Tag
-	if c.Bind(&t) != nil {
-		return
-	}
-
-	for _, x := range t.I18n {
-		if StdLang(x.Language) == LANG_UNKNOWN {
-			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		var r TagsRequest
+		if c.Bind(&r) != nil {
 			return
+		}
+		resp, err = handleGetTags(boil.GetDB(), r)
+	} else {
+		if c.Request.Method == http.MethodPost {
+			var t Tag
+			if c.Bind(&t) != nil {
+				return
+			}
+
+			for _, x := range t.I18n {
+				if StdLang(x.Language) == LANG_UNKNOWN {
+					NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+					return
+				}
+			}
+
+			tx := mustBeginTx()
+			resp, err = handleCreateTag(tx, &t)
+			mustConcludeTx(tx, err)
 		}
 	}
 
-	tx, ex := boil.Begin()
-	utils.Must(ex)
-	resp, err := handleCreateTag(tx, &t)
-	if err == nil {
-		utils.Must(tx.Commit())
-		c.JSON(http.StatusOK, resp)
-	} else {
-		utils.Must(tx.Rollback())
-		err.Abort(c)
-	}
+	concludeRequest(c, resp, err)
 }
 
-func TagItemHandler(c *gin.Context) {
+func TagHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
 		return
 	}
 
-	resp, err := handleTagItem(boil.GetDB(), id)
-	if err == nil {
-		c.JSON(http.StatusOK, resp)
+	var err *HttpError
+	var resp interface{}
+
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		resp, err = handleGetTag(boil.GetDB(), id)
 	} else {
-		err.Abort(c)
+		if c.Request.Method == http.MethodPut {
+			var t Tag
+			if c.Bind(&t) != nil {
+				return
+			}
+
+			t.ID = id
+			tx := mustBeginTx()
+			resp, err = handleUpdateTag(tx, &t)
+			mustConcludeTx(tx, err)
+		}
 	}
+
+	concludeRequest(c, resp, err)
 }
 
-func TagItemI18nHandler(c *gin.Context) {
+func TagI18nHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
@@ -289,16 +245,10 @@ func TagItemI18nHandler(c *gin.Context) {
 		}
 	}
 
-	tx, ex := boil.Begin()
-	utils.Must(ex)
-	resp, err := handleTagItemI18n(tx, id, i18ns)
-	if err == nil {
-		utils.Must(tx.Commit())
-		c.JSON(http.StatusOK, resp)
-	} else {
-		utils.Must(tx.Rollback())
-		err.Abort(c)
-	}
+	tx := mustBeginTx()
+	resp, err := handleUpdateTagI18n(tx, id, i18ns)
+	mustConcludeTx(tx, err)
+	concludeRequest(c, resp, err)
 }
 
 // Handlers Logic
@@ -745,7 +695,7 @@ func handleOperationFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
 	return data, nil
 }
 
-func handleTagsList(exec boil.Executor, r TagsRequest) (*TagsResponse, *HttpError) {
+func handleGetTags(exec boil.Executor, r TagsRequest) (*TagsResponse, *HttpError) {
 	mods := make([]qm.QueryMod, 0)
 
 	// count query
@@ -800,7 +750,7 @@ func handleCreateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
 		}
 	}
 
-	// save tag
+	// save tag to DB
 	var uid string
 	for {
 		uid = utils.GenerateUID(8)
@@ -827,10 +777,10 @@ func handleCreateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
 		}
 	}
 
-	return handleTagItem(exec, t.ID)
+	return handleGetTag(exec, t.ID)
 }
 
-func handleTagItem(exec boil.Executor, id int64) (*Tag, *HttpError) {
+func handleGetTag(exec boil.Executor, id int64) (*Tag, *HttpError) {
 	tag, err := models.Tags(exec,
 		qm.Where("id = ?", id),
 		qm.Load("TagI18ns")).
@@ -853,8 +803,28 @@ func handleTagItem(exec boil.Executor, id int64) (*Tag, *HttpError) {
 	return x, nil
 }
 
-func handleTagItemI18n(exec boil.Executor, id int64, i18ns []*models.TagI18n) (*Tag, *HttpError) {
-	tag, err := handleTagItem(exec, id)
+func handleUpdateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
+	tag, err := models.FindTag(exec, t.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	tag.Pattern = t.Pattern
+	tag.Description = t.Description
+	err = t.Update(exec, "pattern", "description")
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return handleGetTag(exec, t.ID)
+}
+
+func handleUpdateTagI18n(exec boil.Executor, id int64, i18ns []*models.TagI18n) (*Tag, *HttpError) {
+	tag, err := handleGetTag(exec, id)
 	if err != nil {
 		return nil, err
 	}
@@ -880,7 +850,7 @@ func handleTagItemI18n(exec boil.Executor, id int64, i18ns []*models.TagI18n) (*
 		}
 	}
 
-	return handleTagItem(exec, id)
+	return handleGetTag(exec, id)
 }
 
 // Query Helpers
@@ -1055,4 +1025,30 @@ func appendTagsFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f TagsFilter)
 		qm.WhereIn("cut.tag_id in ?", utils.ConvertArgsInt64(ids)...))
 
 	return nil
+}
+
+// mustBeginTx begins a transaction, panics on error.
+func mustBeginTx() boil.Transactor {
+	tx, ex := boil.Begin()
+	utils.Must(ex)
+	return tx
+}
+
+// mustConcludeTx commits or rollback the given transaction according to given error.
+// Panics if Commit() or Rollback() fails.
+func mustConcludeTx(tx boil.Transactor, err *HttpError) {
+	if err == nil {
+		utils.Must(tx.Commit())
+	} else {
+		utils.Must(tx.Rollback())
+	}
+}
+
+// concludeRequest responds with JSON of given response or aborts the request with the given error.
+func concludeRequest(c *gin.Context, resp interface{}, err *HttpError) {
+	if err == nil {
+		c.JSON(http.StatusOK, resp)
+	} else {
+		err.Abort(c)
+	}
 }
