@@ -381,6 +381,11 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, err
 		return nil, err
 	}
 
+	err = PublishFile(exec, file)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Info("Associating file to operation")
 	return operation, operation.AddFiles(exec, false, file)
 }

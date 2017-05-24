@@ -28,8 +28,8 @@ type ContentUnitDerivation struct {
 
 // contentUnitDerivationR is where relationships are stored.
 type contentUnitDerivationR struct {
-	Source  *ContentUnit
 	Derived *ContentUnit
+	Source  *ContentUnit
 }
 
 // contentUnitDerivationL is where Load methods for each relationship are stored.
@@ -171,25 +171,6 @@ func (q contentUnitDerivationQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-// SourceG pointed to by the foreign key.
-func (o *ContentUnitDerivation) SourceG(mods ...qm.QueryMod) contentUnitQuery {
-	return o.Source(boil.GetDB(), mods...)
-}
-
-// Source pointed to by the foreign key.
-func (o *ContentUnitDerivation) Source(exec boil.Executor, mods ...qm.QueryMod) contentUnitQuery {
-	queryMods := []qm.QueryMod{
-		qm.Where("id=?", o.SourceID),
-	}
-
-	queryMods = append(queryMods, mods...)
-
-	query := ContentUnits(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"content_units\"")
-
-	return query
-}
-
 // DerivedG pointed to by the foreign key.
 func (o *ContentUnitDerivation) DerivedG(mods ...qm.QueryMod) contentUnitQuery {
 	return o.Derived(boil.GetDB(), mods...)
@@ -209,70 +190,23 @@ func (o *ContentUnitDerivation) Derived(exec boil.Executor, mods ...qm.QueryMod)
 	return query
 }
 
-// LoadSource allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (contentUnitDerivationL) LoadSource(e boil.Executor, singular bool, maybeContentUnitDerivation interface{}) error {
-	var slice []*ContentUnitDerivation
-	var object *ContentUnitDerivation
+// SourceG pointed to by the foreign key.
+func (o *ContentUnitDerivation) SourceG(mods ...qm.QueryMod) contentUnitQuery {
+	return o.Source(boil.GetDB(), mods...)
+}
 
-	count := 1
-	if singular {
-		object = maybeContentUnitDerivation.(*ContentUnitDerivation)
-	} else {
-		slice = *maybeContentUnitDerivation.(*ContentUnitDerivationSlice)
-		count = len(slice)
+// Source pointed to by the foreign key.
+func (o *ContentUnitDerivation) Source(exec boil.Executor, mods ...qm.QueryMod) contentUnitQuery {
+	queryMods := []qm.QueryMod{
+		qm.Where("id=?", o.SourceID),
 	}
 
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &contentUnitDerivationR{}
-		}
-		args[0] = object.SourceID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &contentUnitDerivationR{}
-			}
-			args[i] = obj.SourceID
-		}
-	}
+	queryMods = append(queryMods, mods...)
 
-	query := fmt.Sprintf(
-		"select * from \"content_units\" where \"id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
-	)
+	query := ContentUnits(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"content_units\"")
 
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
-
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load ContentUnit")
-	}
-	defer results.Close()
-
-	var resultSlice []*ContentUnit
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice ContentUnit")
-	}
-
-	if singular && len(resultSlice) != 0 {
-		object.R.Source = resultSlice[0]
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.SourceID == foreign.ID {
-				local.R.Source = foreign
-				break
-			}
-		}
-	}
-
-	return nil
+	return query
 }
 
 // LoadDerived allows an eager lookup of values, cached into the
@@ -341,77 +275,67 @@ func (contentUnitDerivationL) LoadDerived(e boil.Executor, singular bool, maybeC
 	return nil
 }
 
-// SetSourceG of the content_unit_derivation to the related item.
-// Sets o.R.Source to related.
-// Adds o to related.R.SourceContentUnitDerivations.
-// Uses the global database handle.
-func (o *ContentUnitDerivation) SetSourceG(insert bool, related *ContentUnit) error {
-	return o.SetSource(boil.GetDB(), insert, related)
-}
+// LoadSource allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (contentUnitDerivationL) LoadSource(e boil.Executor, singular bool, maybeContentUnitDerivation interface{}) error {
+	var slice []*ContentUnitDerivation
+	var object *ContentUnitDerivation
 
-// SetSourceP of the content_unit_derivation to the related item.
-// Sets o.R.Source to related.
-// Adds o to related.R.SourceContentUnitDerivations.
-// Panics on error.
-func (o *ContentUnitDerivation) SetSourceP(exec boil.Executor, insert bool, related *ContentUnit) {
-	if err := o.SetSource(exec, insert, related); err != nil {
-		panic(boil.WrapErr(err))
+	count := 1
+	if singular {
+		object = maybeContentUnitDerivation.(*ContentUnitDerivation)
+	} else {
+		slice = *maybeContentUnitDerivation.(*ContentUnitDerivationSlice)
+		count = len(slice)
 	}
-}
 
-// SetSourceGP of the content_unit_derivation to the related item.
-// Sets o.R.Source to related.
-// Adds o to related.R.SourceContentUnitDerivations.
-// Uses the global database handle and panics on error.
-func (o *ContentUnitDerivation) SetSourceGP(insert bool, related *ContentUnit) {
-	if err := o.SetSource(boil.GetDB(), insert, related); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// SetSource of the content_unit_derivation to the related item.
-// Sets o.R.Source to related.
-// Adds o to related.R.SourceContentUnitDerivations.
-func (o *ContentUnitDerivation) SetSource(exec boil.Executor, insert bool, related *ContentUnit) error {
-	var err error
-	if insert {
-		if err = related.Insert(exec); err != nil {
-			return errors.Wrap(err, "failed to insert into foreign table")
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &contentUnitDerivationR{}
+		}
+		args[0] = object.SourceID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &contentUnitDerivationR{}
+			}
+			args[i] = obj.SourceID
 		}
 	}
 
-	updateQuery := fmt.Sprintf(
-		"UPDATE \"content_unit_derivations\" SET %s WHERE %s",
-		strmangle.SetParamNames("\"", "\"", 1, []string{"source_id"}),
-		strmangle.WhereClause("\"", "\"", 2, contentUnitDerivationPrimaryKeyColumns),
+	query := fmt.Sprintf(
+		"select * from \"content_units\" where \"id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
 	)
-	values := []interface{}{related.ID, o.SourceID, o.DerivedID}
 
 	if boil.DebugMode {
-		fmt.Fprintln(boil.DebugWriter, updateQuery)
-		fmt.Fprintln(boil.DebugWriter, values)
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
 	}
 
-	if _, err = exec.Exec(updateQuery, values...); err != nil {
-		return errors.Wrap(err, "failed to update local table")
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load ContentUnit")
+	}
+	defer results.Close()
+
+	var resultSlice []*ContentUnit
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice ContentUnit")
 	}
 
-	o.SourceID = related.ID
+	if singular && len(resultSlice) != 0 {
+		object.R.Source = resultSlice[0]
+		return nil
+	}
 
-	if o.R == nil {
-		o.R = &contentUnitDerivationR{
-			Source: related,
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.SourceID == foreign.ID {
+				local.R.Source = foreign
+				break
+			}
 		}
-	} else {
-		o.R.Source = related
-	}
-
-	if related.R == nil {
-		related.R = &contentUnitR{
-			SourceContentUnitDerivations: ContentUnitDerivationSlice{o},
-		}
-	} else {
-		related.R.SourceContentUnitDerivations = append(related.R.SourceContentUnitDerivations, o)
 	}
 
 	return nil
@@ -488,6 +412,82 @@ func (o *ContentUnitDerivation) SetDerived(exec boil.Executor, insert bool, rela
 		}
 	} else {
 		related.R.DerivedContentUnitDerivations = append(related.R.DerivedContentUnitDerivations, o)
+	}
+
+	return nil
+}
+
+// SetSourceG of the content_unit_derivation to the related item.
+// Sets o.R.Source to related.
+// Adds o to related.R.SourceContentUnitDerivations.
+// Uses the global database handle.
+func (o *ContentUnitDerivation) SetSourceG(insert bool, related *ContentUnit) error {
+	return o.SetSource(boil.GetDB(), insert, related)
+}
+
+// SetSourceP of the content_unit_derivation to the related item.
+// Sets o.R.Source to related.
+// Adds o to related.R.SourceContentUnitDerivations.
+// Panics on error.
+func (o *ContentUnitDerivation) SetSourceP(exec boil.Executor, insert bool, related *ContentUnit) {
+	if err := o.SetSource(exec, insert, related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetSourceGP of the content_unit_derivation to the related item.
+// Sets o.R.Source to related.
+// Adds o to related.R.SourceContentUnitDerivations.
+// Uses the global database handle and panics on error.
+func (o *ContentUnitDerivation) SetSourceGP(insert bool, related *ContentUnit) {
+	if err := o.SetSource(boil.GetDB(), insert, related); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetSource of the content_unit_derivation to the related item.
+// Sets o.R.Source to related.
+// Adds o to related.R.SourceContentUnitDerivations.
+func (o *ContentUnitDerivation) SetSource(exec boil.Executor, insert bool, related *ContentUnit) error {
+	var err error
+	if insert {
+		if err = related.Insert(exec); err != nil {
+			return errors.Wrap(err, "failed to insert into foreign table")
+		}
+	}
+
+	updateQuery := fmt.Sprintf(
+		"UPDATE \"content_unit_derivations\" SET %s WHERE %s",
+		strmangle.SetParamNames("\"", "\"", 1, []string{"source_id"}),
+		strmangle.WhereClause("\"", "\"", 2, contentUnitDerivationPrimaryKeyColumns),
+	)
+	values := []interface{}{related.ID, o.SourceID, o.DerivedID}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, updateQuery)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	if _, err = exec.Exec(updateQuery, values...); err != nil {
+		return errors.Wrap(err, "failed to update local table")
+	}
+
+	o.SourceID = related.ID
+
+	if o.R == nil {
+		o.R = &contentUnitDerivationR{
+			Source: related,
+		}
+	} else {
+		o.R.Source = related
+	}
+
+	if related.R == nil {
+		related.R = &contentUnitR{
+			SourceContentUnitDerivations: ContentUnitDerivationSlice{o},
+		}
+	} else {
+		related.R.SourceContentUnitDerivations = append(related.R.SourceContentUnitDerivations, o)
 	}
 
 	return nil

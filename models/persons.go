@@ -29,8 +29,8 @@ type Person struct {
 
 // personR is where relationships are stored.
 type personR struct {
-	PersonI18ns         PersonI18nSlice
 	ContentUnitsPersons ContentUnitsPersonSlice
+	PersonI18ns         PersonI18nSlice
 }
 
 // personL is where Load methods for each relationship are stored.
@@ -172,30 +172,6 @@ func (q personQuery) Exists() (bool, error) {
 	return count > 0, nil
 }
 
-// PersonI18nsG retrieves all the person_i18n's person i18n.
-func (o *Person) PersonI18nsG(mods ...qm.QueryMod) personI18nQuery {
-	return o.PersonI18ns(boil.GetDB(), mods...)
-}
-
-// PersonI18ns retrieves all the person_i18n's person i18n with an executor.
-func (o *Person) PersonI18ns(exec boil.Executor, mods ...qm.QueryMod) personI18nQuery {
-	queryMods := []qm.QueryMod{
-		qm.Select("\"a\".*"),
-	}
-
-	if len(mods) != 0 {
-		queryMods = append(queryMods, mods...)
-	}
-
-	queryMods = append(queryMods,
-		qm.Where("\"a\".\"person_id\"=?", o.ID),
-	)
-
-	query := PersonI18ns(exec, queryMods...)
-	queries.SetFrom(query.Query, "\"person_i18n\" as \"a\"")
-	return query
-}
-
 // ContentUnitsPersonsG retrieves all the content_units_person's content units persons.
 func (o *Person) ContentUnitsPersonsG(mods ...qm.QueryMod) contentUnitsPersonQuery {
 	return o.ContentUnitsPersons(boil.GetDB(), mods...)
@@ -220,69 +196,28 @@ func (o *Person) ContentUnitsPersons(exec boil.Executor, mods ...qm.QueryMod) co
 	return query
 }
 
-// LoadPersonI18ns allows an eager lookup of values, cached into the
-// loaded structs of the objects.
-func (personL) LoadPersonI18ns(e boil.Executor, singular bool, maybePerson interface{}) error {
-	var slice []*Person
-	var object *Person
+// PersonI18nsG retrieves all the person_i18n's person i18n.
+func (o *Person) PersonI18nsG(mods ...qm.QueryMod) personI18nQuery {
+	return o.PersonI18ns(boil.GetDB(), mods...)
+}
 
-	count := 1
-	if singular {
-		object = maybePerson.(*Person)
-	} else {
-		slice = *maybePerson.(*PersonSlice)
-		count = len(slice)
+// PersonI18ns retrieves all the person_i18n's person i18n with an executor.
+func (o *Person) PersonI18ns(exec boil.Executor, mods ...qm.QueryMod) personI18nQuery {
+	queryMods := []qm.QueryMod{
+		qm.Select("\"a\".*"),
 	}
 
-	args := make([]interface{}, count)
-	if singular {
-		if object.R == nil {
-			object.R = &personR{}
-		}
-		args[0] = object.ID
-	} else {
-		for i, obj := range slice {
-			if obj.R == nil {
-				obj.R = &personR{}
-			}
-			args[i] = obj.ID
-		}
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
 	}
 
-	query := fmt.Sprintf(
-		"select * from \"person_i18n\" where \"person_id\" in (%s)",
-		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	queryMods = append(queryMods,
+		qm.Where("\"a\".\"person_id\"=?", o.ID),
 	)
-	if boil.DebugMode {
-		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
-	}
 
-	results, err := e.Query(query, args...)
-	if err != nil {
-		return errors.Wrap(err, "failed to eager load person_i18n")
-	}
-	defer results.Close()
-
-	var resultSlice []*PersonI18n
-	if err = queries.Bind(results, &resultSlice); err != nil {
-		return errors.Wrap(err, "failed to bind eager loaded slice person_i18n")
-	}
-
-	if singular {
-		object.R.PersonI18ns = resultSlice
-		return nil
-	}
-
-	for _, foreign := range resultSlice {
-		for _, local := range slice {
-			if local.ID == foreign.PersonID {
-				local.R.PersonI18ns = append(local.R.PersonI18ns, foreign)
-				break
-			}
-		}
-	}
-
-	return nil
+	query := PersonI18ns(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"person_i18n\" as \"a\"")
+	return query
 }
 
 // LoadContentUnitsPersons allows an eager lookup of values, cached into the
@@ -350,87 +285,68 @@ func (personL) LoadContentUnitsPersons(e boil.Executor, singular bool, maybePers
 	return nil
 }
 
-// AddPersonI18nsG adds the given related objects to the existing relationships
-// of the person, optionally inserting them as new records.
-// Appends related to o.R.PersonI18ns.
-// Sets related.R.Person appropriately.
-// Uses the global database handle.
-func (o *Person) AddPersonI18nsG(insert bool, related ...*PersonI18n) error {
-	return o.AddPersonI18ns(boil.GetDB(), insert, related...)
-}
+// LoadPersonI18ns allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (personL) LoadPersonI18ns(e boil.Executor, singular bool, maybePerson interface{}) error {
+	var slice []*Person
+	var object *Person
 
-// AddPersonI18nsP adds the given related objects to the existing relationships
-// of the person, optionally inserting them as new records.
-// Appends related to o.R.PersonI18ns.
-// Sets related.R.Person appropriately.
-// Panics on error.
-func (o *Person) AddPersonI18nsP(exec boil.Executor, insert bool, related ...*PersonI18n) {
-	if err := o.AddPersonI18ns(exec, insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddPersonI18nsGP adds the given related objects to the existing relationships
-// of the person, optionally inserting them as new records.
-// Appends related to o.R.PersonI18ns.
-// Sets related.R.Person appropriately.
-// Uses the global database handle and panics on error.
-func (o *Person) AddPersonI18nsGP(insert bool, related ...*PersonI18n) {
-	if err := o.AddPersonI18ns(boil.GetDB(), insert, related...); err != nil {
-		panic(boil.WrapErr(err))
-	}
-}
-
-// AddPersonI18ns adds the given related objects to the existing relationships
-// of the person, optionally inserting them as new records.
-// Appends related to o.R.PersonI18ns.
-// Sets related.R.Person appropriately.
-func (o *Person) AddPersonI18ns(exec boil.Executor, insert bool, related ...*PersonI18n) error {
-	var err error
-	for _, rel := range related {
-		if insert {
-			rel.PersonID = o.ID
-			if err = rel.Insert(exec); err != nil {
-				return errors.Wrap(err, "failed to insert into foreign table")
-			}
-		} else {
-			updateQuery := fmt.Sprintf(
-				"UPDATE \"person_i18n\" SET %s WHERE %s",
-				strmangle.SetParamNames("\"", "\"", 1, []string{"person_id"}),
-				strmangle.WhereClause("\"", "\"", 2, personI18nPrimaryKeyColumns),
-			)
-			values := []interface{}{o.ID, rel.PersonID, rel.Language}
-
-			if boil.DebugMode {
-				fmt.Fprintln(boil.DebugWriter, updateQuery)
-				fmt.Fprintln(boil.DebugWriter, values)
-			}
-
-			if _, err = exec.Exec(updateQuery, values...); err != nil {
-				return errors.Wrap(err, "failed to update foreign table")
-			}
-
-			rel.PersonID = o.ID
-		}
-	}
-
-	if o.R == nil {
-		o.R = &personR{
-			PersonI18ns: related,
-		}
+	count := 1
+	if singular {
+		object = maybePerson.(*Person)
 	} else {
-		o.R.PersonI18ns = append(o.R.PersonI18ns, related...)
+		slice = *maybePerson.(*PersonSlice)
+		count = len(slice)
 	}
 
-	for _, rel := range related {
-		if rel.R == nil {
-			rel.R = &personI18nR{
-				Person: o,
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &personR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &personR{}
 			}
-		} else {
-			rel.R.Person = o
+			args[i] = obj.ID
 		}
 	}
+
+	query := fmt.Sprintf(
+		"select * from \"person_i18n\" where \"person_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load person_i18n")
+	}
+	defer results.Close()
+
+	var resultSlice []*PersonI18n
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice person_i18n")
+	}
+
+	if singular {
+		object.R.PersonI18ns = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.PersonID {
+				local.R.PersonI18ns = append(local.R.PersonI18ns, foreign)
+				break
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -509,6 +425,90 @@ func (o *Person) AddContentUnitsPersons(exec boil.Executor, insert bool, related
 	for _, rel := range related {
 		if rel.R == nil {
 			rel.R = &contentUnitsPersonR{
+				Person: o,
+			}
+		} else {
+			rel.R.Person = o
+		}
+	}
+	return nil
+}
+
+// AddPersonI18nsG adds the given related objects to the existing relationships
+// of the person, optionally inserting them as new records.
+// Appends related to o.R.PersonI18ns.
+// Sets related.R.Person appropriately.
+// Uses the global database handle.
+func (o *Person) AddPersonI18nsG(insert bool, related ...*PersonI18n) error {
+	return o.AddPersonI18ns(boil.GetDB(), insert, related...)
+}
+
+// AddPersonI18nsP adds the given related objects to the existing relationships
+// of the person, optionally inserting them as new records.
+// Appends related to o.R.PersonI18ns.
+// Sets related.R.Person appropriately.
+// Panics on error.
+func (o *Person) AddPersonI18nsP(exec boil.Executor, insert bool, related ...*PersonI18n) {
+	if err := o.AddPersonI18ns(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddPersonI18nsGP adds the given related objects to the existing relationships
+// of the person, optionally inserting them as new records.
+// Appends related to o.R.PersonI18ns.
+// Sets related.R.Person appropriately.
+// Uses the global database handle and panics on error.
+func (o *Person) AddPersonI18nsGP(insert bool, related ...*PersonI18n) {
+	if err := o.AddPersonI18ns(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddPersonI18ns adds the given related objects to the existing relationships
+// of the person, optionally inserting them as new records.
+// Appends related to o.R.PersonI18ns.
+// Sets related.R.Person appropriately.
+func (o *Person) AddPersonI18ns(exec boil.Executor, insert bool, related ...*PersonI18n) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.PersonID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"person_i18n\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"person_id"}),
+				strmangle.WhereClause("\"", "\"", 2, personI18nPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.PersonID, rel.Language}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.PersonID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &personR{
+			PersonI18ns: related,
+		}
+	} else {
+		o.R.PersonI18ns = append(o.R.PersonI18ns, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &personI18nR{
 				Person: o,
 			}
 		} else {

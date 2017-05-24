@@ -60,7 +60,6 @@ WITH RECURSIVE
                 WHERE o_type = $2);
 `
 
-
 func CreateOperation(exec boil.Executor, name string, o Operation, properties map[string]interface{}) (*models.Operation, error) {
 
 	var uid string
@@ -377,6 +376,35 @@ func UpdateFileProperties(exec boil.Executor, file *models.File, props map[strin
 	err = file.Update(exec, "properties")
 	if err != nil {
 		return errors.Wrap(err, "Save properties to DB")
+	}
+
+	return nil
+}
+
+func PublishFile(exec boil.Executor, file *models.File) error {
+	log.Infof("Publishing file [%d]", file.ID)
+	file.Published = true
+	err := file.Update(exec, "published")
+	if err != nil {
+		return errors.Wrap(err, "Save file to DB")
+	}
+
+	if file.ContentUnitID.Valid {
+		cuid := file.ContentUnitID.Int64
+		log.Infof("Publishing content unit [%d]", cuid)
+		err = models.ContentUnits(exec, qm.Where("id = ?", cuid)).
+			UpdateAll(models.M{"published": true})
+		if err != nil {
+			return errors.Wrap(err, "Update content unit in DB")
+		}
+
+		log.Info("Publishing collections")
+		_, err := queries.Raw(exec, `UPDATE collections SET published = TRUE WHERE id IN
+		(SELECT DISTINCT collection_id FROM collections_content_units WHERE content_unit_id = $1)`, cuid).
+			Exec()
+		if err != nil {
+			return errors.Wrap(err, "Update collections in DB")
+		}
 	}
 
 	return nil

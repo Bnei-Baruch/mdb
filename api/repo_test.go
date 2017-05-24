@@ -119,6 +119,8 @@ func (suite *RepoSuite) TestCreateFile() {
 	suite.False(file.MimeType.Valid, "MimeType.Valid")
 	suite.False(file.Language.Valid, "Language.Valid")
 	suite.False(file.ParentID.Valid, "ParentID.Valid")
+	suite.False(file.Published, "Published")
+	suite.EqualValues(SEC_PUBLIC, file.Secure, "Secure")
 
 	// test with optional attributes
 	f2 := File{
@@ -192,6 +194,38 @@ func (suite *RepoSuite) TestCreateFile() {
 	suite.Equal(ALL_MEDIA_TYPES[0].SubType, file5.SubType, "file5.SubType")
 	suite.True(file5.MimeType.Valid, "file5.MimeType.Valid")
 	suite.Equal(ALL_MEDIA_TYPES[0].MimeType, file5.MimeType.String, "file5.MimeType.String")
+}
+
+
+func (suite *RepoSuite) TestPublishFile() {
+	f := File{
+		FileName:  "file_name",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef0123456789",
+		Size:      math.MaxInt64,
+	}
+	file, err := CreateFile(suite.tx, nil, f, nil)
+	suite.Require().Nil(err)
+	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+	err = file.SetContentUnit(suite.tx, false, cu)
+	suite.Require().Nil(err)
+	c, err := CreateCollection(suite.tx,CT_DAILY_LESSON, nil)
+	suite.Require().Nil(err)
+	err = c.AddCollectionsContentUnits(suite.tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID})
+	suite.Require().Nil(err)
+
+	err = PublishFile(suite.tx, file)
+	suite.Require().Nil(err)
+	file.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(file.Published)
+	cu.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(cu.Published)
+	c.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(c.Published)
 }
 
 func (suite *RepoSuite) TestFindFileBySHA1() {
