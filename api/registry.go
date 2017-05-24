@@ -117,7 +117,7 @@ var (
 		{Extension: "doc", Type: "text", SubType: "", MimeType: "application/msword"},
 		{Extension: "docx", Type: "text", SubType: "", MimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
 		{Extension: "htm", Type: "text", SubType: "", MimeType: "text/html"},
-		{Extension: "htm", Type: "text", SubType: "", MimeType: "text/html"},
+		{Extension: "html", Type: "text", SubType: "", MimeType: "text/html"},
 		{Extension: "pdf", Type: "text", SubType: "", MimeType: "application/pdf"},
 		{Extension: "epub", Type: "text", SubType: "", MimeType: "application/epub+zip"},
 		{Extension: "rtf", Type: "text", SubType: "", MimeType: "text/rtf"},
