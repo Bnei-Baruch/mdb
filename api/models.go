@@ -158,10 +158,20 @@ type (
 		EndDate   string `json:"end_date" form:"end_date" binding:"omitempty"`
 	}
 
+	SecureFilter struct {
+		Levels []int16 `json:"security_levels" form:"secure" binding:"omitempty"`
+	}
+
+	PublishedFilter struct {
+		Published string `json:"published" form:"published" binding:"omitempty"`
+	}
+
 	CollectionsRequest struct {
 		ListRequest
-		DateRangeFilter
 		ContentTypesFilter
+		DateRangeFilter
+		SecureFilter
+		PublishedFilter
 	}
 
 	CollectionsResponse struct {
@@ -171,8 +181,10 @@ type (
 
 	ContentUnitsRequest struct {
 		ListRequest
-		DateRangeFilter
 		ContentTypesFilter
+		DateRangeFilter
+		SecureFilter
+		PublishedFilter
 		SourcesFilter
 		TagsFilter
 	}
@@ -185,6 +197,8 @@ type (
 	FilesRequest struct {
 		ListRequest
 		DateRangeFilter
+		SecureFilter
+		PublishedFilter
 		SearchTermFilter
 	}
 

@@ -257,12 +257,16 @@ func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*Collectio
 	mods := make([]qm.QueryMod, 0)
 
 	// filters
-	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "(properties->>'film_date')::date"); err != nil {
-		return nil, NewBadRequestError(err)
-	}
 	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
 		return nil, NewBadRequestError(err)
 	}
+	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "(properties->>'film_date')::date"); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	appendPublishedFilterMods(&mods, r.PublishedFilter)
 
 	// count query
 	total, err := models.Collections(exec, mods...).Count()
@@ -415,10 +419,10 @@ func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*Content
 	mods := make([]qm.QueryMod, 0)
 
 	// filters
-	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "(properties->>'film_date')::date"); err != nil {
+	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
 		return nil, NewBadRequestError(err)
 	}
-	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
+	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "(properties->>'film_date')::date"); err != nil {
 		return nil, NewBadRequestError(err)
 	}
 	if err := appendSourcesFilterMods(exec, &mods, r.SourcesFilter); err != nil {
@@ -427,6 +431,10 @@ func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*Content
 	if err := appendTagsFilterMods(exec, &mods, r.TagsFilter); err != nil {
 		return nil, NewInternalError(err)
 	}
+	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	appendPublishedFilterMods(&mods, r.PublishedFilter)
 
 	// count query
 	total, err := models.ContentUnits(exec, mods...).Count()
@@ -570,6 +578,10 @@ func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpE
 	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "file_created_at"); err != nil {
 		return nil, NewBadRequestError(err)
 	}
+	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	appendPublishedFilterMods(&mods, r.PublishedFilter)
 	if r.Query != "" {
 		mods = append(mods, qm.Where("name ~ ?", r.Query),
 			qm.Or("uid ~ ?", r.Query),
@@ -936,6 +948,33 @@ func appendContentTypesFilterMods(mods *[]qm.QueryMod, f ContentTypesFilter) err
 	*mods = append(*mods, qm.WhereIn("type_id in ?", a...))
 
 	return nil
+}
+
+func appendSecureFilterMods(mods *[]qm.QueryMod, f SecureFilter) error {
+	if len(f.Levels) == 0 {
+		return nil
+	}
+
+	a := make([]interface{}, len(f.Levels))
+	for i, x := range f.Levels {
+		if x == SEC_PUBLIC || x == SEC_SENSITIVE || x == SEC_PRIVATE {
+			a[i] = x
+		} else {
+			return errors.Errorf("Unknown security level: %d", x)
+		}
+	}
+
+	*mods = append(*mods, qm.WhereIn("secure in ?", a...))
+
+	return nil
+}
+
+func appendPublishedFilterMods(mods *[]qm.QueryMod, f PublishedFilter) {
+	var val null.Bool
+	val.UnmarshalText([]byte(f.Published))
+	if val.Valid {
+		*mods = append(*mods, qm.Where("published = ?", val.Bool))
+	}
 }
 
 func appendOperationTypesFilterMods(mods *[]qm.QueryMod, f OperationTypesFilter) error {
