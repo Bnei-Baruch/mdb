@@ -522,3 +522,114 @@ func (suite *HandlersSuite) TestHandleConvert() {
 	op, err = handleConvert(suite.tx, input)
 	suite.Require().Nil(err)
 }
+
+
+func (suite *HandlersSuite) TestHandleUpload() {
+	// First seen, unknown, file
+	input := UploadRequest{
+		Operation: Operation{
+			Station: "Upload station",
+			User:    "operator@dev.com",
+		},
+		AVFile: AVFile{
+			File: File{
+				FileName:  "file.mp4",
+				Sha1:      "0987654321fedcba0987654321fedcba33333333",
+				Size:      694,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 871,
+		},
+		Url: "http://example.com/some/url/to/file.mp4",
+	}
+
+	op, err := handleUpload(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_UPLOAD].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	suite.False(op.Properties.Valid, "Operation properties")
+
+	// Check file
+	err = op.L.LoadFiles(suite.tx, true, op)
+	suite.Require().Nil(err)
+	suite.Require().Len(op.R.Files, 1, "Operation Files length")
+	f := op.R.Files[0]
+	suite.Equal(input.FileName, f.Name, "File.Name")
+	suite.Equal(input.Sha1, hex.EncodeToString(f.Sha1.Bytes), "File.SHA1")
+	suite.Equal(input.Size, f.Size, "File.Size")
+	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File.FileCreatedAt")
+	suite.False(f.ParentID.Valid, "File.ParentID")
+	suite.True(f.Published, "File.Published")
+	suite.Equal(SEC_PUBLIC, f.Secure, "File.Secure")
+	var props map[string]interface{}
+	err = f.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Url, props["url"], "file props: url")
+	suite.Equal(input.Duration, props["duration"], "file props: duration")
+
+
+	// Existing file in a content unit and collection structure
+	f2 := File{
+		FileName:  "file.mp4",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef0123456789",
+		Size:      math.MaxInt64,
+	}
+	file, err := CreateFile(suite.tx, nil, f2, nil)
+	suite.Require().Nil(err)
+	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+	err = file.SetContentUnit(suite.tx, false, cu)
+	suite.Require().Nil(err)
+	c, err := CreateCollection(suite.tx,CT_DAILY_LESSON, nil)
+	suite.Require().Nil(err)
+	err = c.AddCollectionsContentUnits(suite.tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID})
+	suite.Require().Nil(err)
+
+	input = UploadRequest{
+		Operation: Operation{
+			Station: "Upload station",
+			User:    "operator@dev.com",
+		},
+		AVFile: AVFile{
+			File: f2,
+			Duration: 871,
+		},
+		Url: "http://example.com/some/url/to/file.mp4",
+	}
+
+	op, err = handleUpload(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_UPLOAD].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	suite.False(op.Properties.Valid, "Operation properties")
+
+	// Check file
+	err = op.L.LoadFiles(suite.tx, true, op)
+	suite.Require().Nil(err)
+	suite.Require().Len(op.R.Files, 1, "Operation Files length")
+	f = op.R.Files[0]
+	suite.Equal(input.FileName, f.Name, "File.Name")
+	suite.Equal(input.Sha1, hex.EncodeToString(f.Sha1.Bytes), "File.SHA1")
+	suite.Equal(input.Size, f.Size, "File.Size")
+	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File.FileCreatedAt")
+	suite.False(f.ParentID.Valid, "File.ParentID")
+	suite.True(f.Published, "File.Published")
+	suite.Equal(SEC_PUBLIC, f.Secure, "File.Secure")
+	err = f.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Url, props["url"], "file props: url")
+	suite.Equal(input.Duration, props["duration"], "file props: duration")
+
+	// Check content unit and collection
+	err = cu.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(cu.Published)
+	err = c.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(c.Published)
+}

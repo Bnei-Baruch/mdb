@@ -59,9 +59,9 @@ const (
 	P_RAV = "rav"
 
 	// Security levels
-	SEC_PUBLIC = 0
-	SEC_SENSITIVE = 1
-	SEC_PRIVATE = 2
+	SEC_PUBLIC = int16(0)
+	SEC_SENSITIVE = int16(1)
+	SEC_PRIVATE = int16(2)
 
 	// Languages
 	LANG_ENGLISH    = "en"

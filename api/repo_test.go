@@ -120,7 +120,7 @@ func (suite *RepoSuite) TestCreateFile() {
 	suite.False(file.Language.Valid, "Language.Valid")
 	suite.False(file.ParentID.Valid, "ParentID.Valid")
 	suite.False(file.Published, "Published")
-	suite.EqualValues(SEC_PUBLIC, file.Secure, "Secure")
+	suite.Equal(SEC_PUBLIC, file.Secure, "Secure")
 
 	// test with optional attributes
 	f2 := File{
@@ -217,13 +217,13 @@ func (suite *RepoSuite) TestPublishFile() {
 
 	err = PublishFile(suite.tx, file)
 	suite.Require().Nil(err)
-	file.Reload(suite.tx)
+	err = file.Reload(suite.tx)
 	suite.Require().Nil(err)
 	suite.True(file.Published)
-	cu.Reload(suite.tx)
+	err = cu.Reload(suite.tx)
 	suite.Require().Nil(err)
 	suite.True(cu.Published)
-	c.Reload(suite.tx)
+	err = c.Reload(suite.tx)
 	suite.Require().Nil(err)
 	suite.True(c.Published)
 }
