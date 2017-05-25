@@ -51,7 +51,7 @@ func (suite *RegistrySuite) TestTypeRegistries() {
 	}
 
 	for _, x := range []string{P_RAV} {
-		p, ok := PERSONS_REGISTRY.ByPattern[x]
+		p, ok := PERSON_REGISTRY.ByPattern[x]
 		suite.True(ok, "P exists %s", x)
 		suite.NotNil(p, "P not nil %s", x)
 	}

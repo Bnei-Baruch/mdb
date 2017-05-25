@@ -1,19 +1,22 @@
 package api
 
 import (
-	"github.com/Bnei-Baruch/mdb/models"
+	"regexp"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/queries/qm"
-	"regexp"
-	"strings"
+
+	"github.com/Bnei-Baruch/mdb/models"
 )
 
 var (
 	CONTENT_TYPE_REGISTRY      = &ContentTypeRegistry{}
 	OPERATION_TYPE_REGISTRY    = &OperationTypeRegistry{}
 	CONTENT_ROLE_TYPE_REGISTRY = &ContentRoleTypeRegistry{}
-	PERSONS_REGISTRY           = &PersonsRegistry{}
+	PERSON_REGISTRY            = &PersonRegistry{}
+	AUTHOR_REGISTRY            = &AuthorRegistry{}
 	SOURCE_TYPE_REGISTRY       = &SourceTypeRegistry{}
 	MEDIA_TYPE_REGISTRY        = &MediaTypeRegistry{}
 
@@ -143,7 +146,8 @@ func InitTypeRegistries(exec boil.Executor) error {
 	registries := []TypeRegistry{CONTENT_TYPE_REGISTRY,
 		OPERATION_TYPE_REGISTRY,
 		CONTENT_ROLE_TYPE_REGISTRY,
-		PERSONS_REGISTRY,
+		PERSON_REGISTRY,
+		AUTHOR_REGISTRY,
 		SOURCE_TYPE_REGISTRY,
 		MEDIA_TYPE_REGISTRY}
 
@@ -214,11 +218,11 @@ func (r *ContentRoleTypeRegistry) Init(exec boil.Executor) error {
 	return nil
 }
 
-type PersonsRegistry struct {
+type PersonRegistry struct {
 	ByPattern map[string]*models.Person
 }
 
-func (r *PersonsRegistry) Init(exec boil.Executor) error {
+func (r *PersonRegistry) Init(exec boil.Executor) error {
 	types, err := models.Persons(exec, qm.Where("pattern is not null")).All()
 	if err != nil {
 		return errors.Wrap(err, "Load persons from DB")
@@ -227,6 +231,24 @@ func (r *PersonsRegistry) Init(exec boil.Executor) error {
 	r.ByPattern = make(map[string]*models.Person)
 	for _, t := range types {
 		r.ByPattern[t.Pattern.String] = t
+	}
+
+	return nil
+}
+
+type AuthorRegistry struct {
+	ByCode map[string]*models.Author
+}
+
+func (r *AuthorRegistry) Init(exec boil.Executor) error {
+	authors, err := models.Authors(exec).All()
+	if err != nil {
+		return errors.Wrap(err, "Load authors from DB")
+	}
+
+	r.ByCode = make(map[string]*models.Author)
+	for _, a := range authors {
+		r.ByCode[a.Code] = a
 	}
 
 	return nil

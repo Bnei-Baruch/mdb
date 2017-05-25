@@ -179,7 +179,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	if strings.ToLower(metadata.Lecturer) == P_RAV {
 		log.Info("Associating unit to rav")
 		cup := &models.ContentUnitsPerson{
-			PersonID: PERSONS_REGISTRY.ByPattern[P_RAV].ID,
+			PersonID: PERSON_REGISTRY.ByPattern[P_RAV].ID,
 			RoleID:   CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID,
 		}
 		err = cu.AddContentUnitsPersons(exec, true, cup)

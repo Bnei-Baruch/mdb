@@ -426,7 +426,11 @@ func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*Content
 		return nil, NewBadRequestError(err)
 	}
 	if err := appendSourcesFilterMods(exec, &mods, r.SourcesFilter); err != nil {
-		return nil, NewInternalError(err)
+		if e, ok := err.(*HttpError); ok {
+			return nil, e
+		} else {
+			NewInternalError(err)
+		}
 	}
 	if err := appendTagsFilterMods(exec, &mods, r.TagsFilter); err != nil {
 		return nil, NewInternalError(err)
@@ -1003,6 +1007,12 @@ func appendSourcesFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SourcesF
 
 	// fetch source ids by authors
 	if !utils.IsEmpty(f.Authors) {
+		for _, x := range f.Authors {
+			if _, ok := AUTHOR_REGISTRY.ByCode[strings.ToLower(x)]; !ok {
+				return NewBadRequestError(errors.Errorf("Unknown author: %s", x))
+			}
+		}
+
 		var ids pq.Int64Array
 		q := `SELECT array_agg(DISTINCT "as".source_id)
 		      FROM authors a INNER JOIN authors_sources "as" ON a.id = "as".author_id
@@ -1034,9 +1044,13 @@ func appendSourcesFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SourcesF
 		return err
 	}
 
-	*mods = append(*mods,
-		qm.InnerJoin("content_units_sources cus ON id = cus.content_unit_id"),
-		qm.WhereIn("cus.source_id in ?", utils.ConvertArgsInt64(ids)...))
+	if ids == nil || len(ids) == 0 {
+		*mods = append(*mods, qm.Where("id < 0")) // so results would be empty
+	} else {
+		*mods = append(*mods,
+			qm.InnerJoin("content_units_sources cus ON id = cus.content_unit_id"),
+			qm.WhereIn("cus.source_id in ?", utils.ConvertArgsInt64(ids)...))
+	}
 
 	return nil
 }
@@ -1059,9 +1073,13 @@ func appendTagsFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f TagsFilter)
 		return err
 	}
 
-	*mods = append(*mods,
-		qm.InnerJoin("content_units_tags cut ON id = cut.content_unit_id"),
-		qm.WhereIn("cut.tag_id in ?", utils.ConvertArgsInt64(ids)...))
+	if ids == nil || len(ids) == 0 {
+		*mods = append(*mods, qm.Where("id < 0")) // so results would be empty
+	} else {
+		*mods = append(*mods,
+			qm.InnerJoin("content_units_tags cut ON id = cut.content_unit_id"),
+			qm.WhereIn("cut.tag_id in ?", utils.ConvertArgsInt64(ids)...))
+	}
 
 	return nil
 }

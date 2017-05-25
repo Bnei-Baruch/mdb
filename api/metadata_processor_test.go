@@ -977,7 +977,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	if metadata.Lecturer == "rav" {
 		suite.Require().Len(cu.R.ContentUnitsPersons, 1, "cu.R.ContentUnitsPersons Length")
 		cup := cu.R.ContentUnitsPersons[0]
-		suite.Equal(PERSONS_REGISTRY.ByPattern[P_RAV].ID, cup.PersonID, "cup.PersonID")
+		suite.Equal(PERSON_REGISTRY.ByPattern[P_RAV].ID, cup.PersonID, "cup.PersonID")
 		suite.Equal(CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID, cup.RoleID, "cup.PersonID")
 	} else {
 		suite.Empty(cu.R.ContentUnitsPersons, "Empty cu.R.ContentUnitsPersons")
