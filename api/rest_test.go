@@ -77,7 +77,7 @@ func (suite *RestSuite) TestCollectionsList() {
 }
 
 func (suite *RestSuite) TestCollectionItem() {
-	c, err := handleCollectionItem(suite.tx, 1)
+	c, err := handleGetCollection(suite.tx, 1)
 	suite.Nil(c, "Collection nil")
 	suite.Require().NotNil(err, "Not Found error")
 	suite.Equal(http.StatusNotFound, err.Code, "Error http status code")
@@ -85,7 +85,7 @@ func (suite *RestSuite) TestCollectionItem() {
 
 	collections := createDummyCollections(suite.tx, 3)
 	for i, c := range collections {
-		x, err := handleCollectionItem(suite.tx, c.ID)
+		x, err := handleGetCollection(suite.tx, c.ID)
 		suite.Require().Nil(err, "Collection item err [%d]", i)
 		suite.assertEqualDummyCollection(c, x, i)
 	}
@@ -120,7 +120,7 @@ func (suite *RestSuite) TestContentUnitsList() {
 }
 
 func (suite *RestSuite) TestContentUnitItem() {
-	cu, err := handleContentUnitItem(suite.tx, 1)
+	cu, err := handleGetContentUnit(suite.tx, 1)
 	suite.Nil(cu, "ContentUnit nil")
 	suite.Require().NotNil(err, "Not Found error")
 	suite.Equal(http.StatusNotFound, err.Code, "Error http status code")
@@ -128,7 +128,7 @@ func (suite *RestSuite) TestContentUnitItem() {
 
 	units := createDummyContentUnits(suite.tx, 3)
 	for i, cu := range units {
-		x, err := handleContentUnitItem(suite.tx, cu.ID)
+		x, err := handleGetContentUnit(suite.tx, cu.ID)
 		suite.Require().Nil(err, "ContentUnit item err [%d]", i)
 		suite.assertEqualDummyContentUnit(cu, x, i)
 	}
@@ -163,7 +163,7 @@ func (suite *RestSuite) TestFilesList() {
 }
 
 func (suite *RestSuite) TestFileItem() {
-	f, err := handleFileItem(suite.tx, 1)
+	f, err := handleGetFile(suite.tx, 1)
 	suite.Nil(f, "file nil")
 	suite.Require().NotNil(err, "Not Found error")
 	suite.Equal(http.StatusNotFound, err.Code, "Error http status code")
@@ -171,7 +171,7 @@ func (suite *RestSuite) TestFileItem() {
 
 	files := createDummyFiles(suite.tx, 3)
 	for i, f := range files {
-		x, err := handleFileItem(suite.tx, f.ID)
+		x, err := handleGetFile(suite.tx, f.ID)
 		suite.Require().Nil(err, "file item err [%d]", i)
 		suite.assertEqualDummyFile(f, x, i)
 	}
@@ -206,7 +206,7 @@ func (suite *RestSuite) TestOperationsList() {
 }
 
 func (suite *RestSuite) TestOperationItem() {
-	f, err := handleFileItem(suite.tx, 1)
+	f, err := handleGetFile(suite.tx, 1)
 	suite.Nil(f, "file nil")
 	suite.Require().NotNil(err, "Not Found error")
 	suite.Equal(http.StatusNotFound, err.Code, "Error http status code")
@@ -214,7 +214,7 @@ func (suite *RestSuite) TestOperationItem() {
 
 	files := createDummyFiles(suite.tx, 3)
 	for i, f := range files {
-		x, err := handleFileItem(suite.tx, f.ID)
+		x, err := handleGetFile(suite.tx, f.ID)
 		suite.Require().Nil(err, "file item err [%d]", i)
 		suite.assertEqualDummyFile(f, x, i)
 	}

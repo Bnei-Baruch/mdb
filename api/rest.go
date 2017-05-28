@@ -35,14 +35,32 @@ func CollectionsListHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
-func CollectionItemHandler(c *gin.Context) {
+func CollectionHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
 		return
 	}
 
-	resp, err := handleCollectionItem(boil.GetDB(), id)
+	var err *HttpError
+	var resp interface{}
+
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		resp, err = handleGetCollection(boil.GetDB(), id)
+	} else {
+		if c.Request.Method == http.MethodPut {
+			var cl Collection
+			if c.Bind(&cl) != nil {
+				return
+			}
+
+			cl.ID = id
+			tx := mustBeginTx()
+			resp, err = handleUpdateCollection(tx, &cl)
+			mustConcludeTx(tx, err)
+		}
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -79,14 +97,32 @@ func ContentUnitsListHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
-func ContentUnitItemHandler(c *gin.Context) {
+func ContentUnitHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
 		return
 	}
 
-	resp, err := handleContentUnitItem(boil.GetDB(), id)
+	var err *HttpError
+	var resp interface{}
+
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		resp, err = handleGetContentUnit(boil.GetDB(), id)
+	} else {
+		if c.Request.Method == http.MethodPut {
+			var cu ContentUnit
+			if c.Bind(&cu) != nil {
+				return
+			}
+
+			cu.ID = id
+			tx := mustBeginTx()
+			resp, err = handleUpdateContentUnit(tx, &cu)
+			mustConcludeTx(tx, err)
+		}
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -122,14 +158,32 @@ func FilesListHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
-func FileItemHandler(c *gin.Context) {
+func FileHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
 		return
 	}
 
-	resp, err := handleFileItem(boil.GetDB(), id)
+	var err *HttpError
+	var resp interface{}
+
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		resp, err = handleGetFile(boil.GetDB(), id)
+	} else {
+		if c.Request.Method == http.MethodPut {
+			var f MFile
+			if c.Bind(&f) != nil {
+				return
+			}
+
+			f.ID = id
+			tx := mustBeginTx()
+			resp, err = handleUpdateFile(tx, &f)
+			mustConcludeTx(tx, err)
+		}
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -308,7 +362,7 @@ func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*Collectio
 	}, nil
 }
 
-func handleCollectionItem(exec boil.Executor, id int64) (*Collection, *HttpError) {
+func handleGetCollection(exec boil.Executor, id int64) (*Collection, *HttpError) {
 	collection, err := models.Collections(exec,
 		qm.Where("id = ?", id),
 		qm.Load("CollectionI18ns")).
@@ -329,6 +383,25 @@ func handleCollectionItem(exec boil.Executor, id int64) (*Collection, *HttpError
 	}
 
 	return x, nil
+}
+
+func handleUpdateCollection(exec boil.Executor, c *Collection) (*Collection, *HttpError) {
+	collection, err := models.FindCollection(exec, c.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	collection.Secure = c.Secure
+	err = collection.Update(exec, "secure")
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return handleGetCollection(exec, c.ID)
 }
 
 func handleCollectionActivate(exec boil.Executor, id int64) *HttpError {
@@ -480,7 +553,7 @@ func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*Content
 	}, nil
 }
 
-func handleContentUnitItem(exec boil.Executor, id int64) (*ContentUnit, *HttpError) {
+func handleGetContentUnit(exec boil.Executor, id int64) (*ContentUnit, *HttpError) {
 	unit, err := models.ContentUnits(exec,
 		qm.Where("id = ?", id),
 		qm.Load("ContentUnitI18ns")).
@@ -501,6 +574,26 @@ func handleContentUnitItem(exec boil.Executor, id int64) (*ContentUnit, *HttpErr
 	}
 
 	return x, nil
+}
+
+
+func handleUpdateContentUnit(exec boil.Executor, cu *ContentUnit) (*ContentUnit, *HttpError) {
+	unit, err := models.FindContentUnit(exec, cu.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	unit.Secure = cu.Secure
+	err = unit.Update(exec, "secure")
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return handleGetContentUnit(exec, cu.ID)
 }
 
 func handleContentUnitFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
@@ -623,7 +716,7 @@ func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpE
 	}, nil
 }
 
-func handleFileItem(exec boil.Executor, id int64) (*MFile, *HttpError) {
+func handleGetFile(exec boil.Executor, id int64) (*MFile, *HttpError) {
 	file, err := models.FindFile(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -634,6 +727,25 @@ func handleFileItem(exec boil.Executor, id int64) (*MFile, *HttpError) {
 	}
 
 	return NewMFile(file), nil
+}
+
+func handleUpdateFile(exec boil.Executor, f *MFile) (*MFile, *HttpError) {
+	file, err := models.FindFile(exec, f.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	file.Secure = f.Secure
+	err = file.Update(exec, "secure")
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return handleGetFile(exec, f.ID)
 }
 
 func handleOperationsList(exec boil.Executor, r OperationsRequest) (*OperationsResponse, *HttpError) {
