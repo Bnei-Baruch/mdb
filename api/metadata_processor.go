@@ -41,7 +41,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		"capture_date": metadata.CaptureDate,
 		"film_date":    filmDate,
 	}
-	log.Infof("Updaing files properties: %v", props)
+	log.Infof("Updating files properties: %v", props)
 	err := UpdateFileProperties(exec, original, props)
 	if err != nil {
 		return err
@@ -62,7 +62,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		}
 		original.Language = null.StringFrom(l)
 	}
-	log.Infof("Updaing original.Language to %s", original.Language.String)
+	log.Infof("Updating original.Language to %s", original.Language.String)
 	err = original.Update(exec, "language")
 	if err != nil {
 		return errors.Wrap(err, "Save original to DB")
@@ -193,7 +193,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	// Get or create collection
 	var c *models.Collection
 	if metadata.CollectionUID.Valid {
-		log.Infof("Specific collection %s", metadata.CollectionUID .String)
+		log.Infof("Specific collection %s", metadata.CollectionUID.String)
 		c, err = models.Collections(exec, qm.Where("uid = ?", metadata.CollectionUID.String)).One()
 		if err != nil {
 			if err == sql.ErrNoRows {

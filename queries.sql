@@ -410,3 +410,11 @@ FROM rec_sources
 WHERE pattern IS NOT NULL
 ORDER BY pattern)
 to '/var/lib/postgres/data/titles.csv' (format CSV);
+
+-- insert into collections (uid, type_id, properties) values
+--   ('VwCQ0OBq', 16, '{"active": true, "pattern": "webinar"}'),
+--   ('pjoTcgvx', 16, '{"active": true, "pattern": "zman-kabbalah"}');
+--
+-- insert into collection_i18n (collection_id, language, name) VALUES
+--   (10648, 'he', 'וובינר'),
+--   (10649, 'he', 'זמן קבלה');

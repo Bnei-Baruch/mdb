@@ -218,6 +218,7 @@ func (suite *DocsSuite) Test5SendHandler() {
 			Part:           null.IntFrom(2),
 			Sources:        []string{"12345678", "87654321", "abcdefgh"},
 			Tags:           []string{"12345678", "87654321"},
+			Major:          &CITMetadataMajor{Type: "source", Idx: 1},
 		},
 	}
 

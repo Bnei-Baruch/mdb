@@ -1,0 +1,18 @@
+{
+  "lesson_by_topic_tag": {
+    "he":"שיעור בנושא \"%s\"",
+    "en": "lesson on the topic of \"%s\""
+  },
+  "lesson_preparation": {
+    "he": "הכנה לשיעור",
+    "en": "lesson preparation"
+  },
+  "content_types.LESSON_PART": {
+    "he": "חלק שיעור",
+    "en": "lesson part"
+  },
+  "content_types.DAILY_LESSON": {
+    "he": "שיעור יומי",
+    "en": "daily lesson"
+  }
+}

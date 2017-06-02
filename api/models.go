@@ -37,25 +37,30 @@ type (
 		Duration float64 `json:"duration"`
 	}
 
+	CITMetadataMajor struct {
+		Type string `json:"type" binding:"required,eq=source|eq=tag"`
+		Idx  int    `json:"idx" binding:"required"`
+	}
 	CITMetadata struct {
-		ContentType    string      `json:"content_type" binding:"required"`
-		CaptureDate    Date        `json:"capture_date" binding:"required"`
-		FinalName      string      `json:"final_name" binding:"required,max=255"`
-		Language       string      `json:"language" binding:"required,min=2,max=3"`
-		Lecturer       string      `json:"lecturer" binding:"required"`
-		AutoName       string      `json:"auto_name"`
-		ManualName     string      `json:"manual_name"`
-		WeekDate       *Date       `json:"week_date"`
-		Number         null.Int    `json:"number"`
-		Part           null.Int    `json:"part"`
-		Sources        []string    `json:"sources" binding:"omitempty,dive,len=8"`
-		Tags           []string    `json:"tags" binding:"omitempty,dive,len=8"`
-		ArtifactType   null.String `json:"artifact_type"`
-		HasTranslation bool        `json:"has_translation"`
-		RequireTest    bool        `json:"require_test"`
-		CollectionUID  null.String `json:"collection_uid" binding:"omitempty,len=8"`
-		Episode        null.String `json:"episode"`
-		PartType       null.Int    `json:"part_type"`
+		ContentType    string           `json:"content_type" binding:"required"`
+		CaptureDate    Date             `json:"capture_date" binding:"required"`
+		FinalName      string           `json:"final_name" binding:"required,max=255"`
+		Language       string           `json:"language" binding:"required,min=2,max=3"`
+		Lecturer       string           `json:"lecturer" binding:"required"`
+		AutoName       string           `json:"auto_name"`
+		ManualName     string           `json:"manual_name"`
+		WeekDate       *Date            `json:"week_date"`
+		Number         null.Int         `json:"number"`
+		Part           null.Int         `json:"part"`
+		Sources        []string         `json:"sources" binding:"omitempty,dive,len=8"`
+		Tags           []string         `json:"tags" binding:"omitempty,dive,len=8"`
+		ArtifactType   null.String      `json:"artifact_type"`
+		HasTranslation bool             `json:"has_translation"`
+		RequireTest    bool             `json:"require_test"`
+		CollectionUID  null.String      `json:"collection_uid" binding:"omitempty,len=8"`
+		Episode        null.String      `json:"episode"`
+		PartType       null.Int         `json:"part_type"`
+		Major          *CITMetadataMajor `json:"major" binding:"omitempty"`
 	}
 
 	Rename struct {

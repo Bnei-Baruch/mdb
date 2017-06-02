@@ -10,3 +10,4 @@ sqlboiler.toml
 mdb
 
 **/*.apib
+bindata/bindata.go

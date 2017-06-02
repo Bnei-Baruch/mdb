@@ -166,6 +166,7 @@ type TypeRegistry interface {
 
 type ContentTypeRegistry struct {
 	ByName map[string]*models.ContentType
+	ByID   map[int64]*models.ContentType
 }
 
 func (r *ContentTypeRegistry) Init(exec boil.Executor) error {
@@ -175,8 +176,10 @@ func (r *ContentTypeRegistry) Init(exec boil.Executor) error {
 	}
 
 	r.ByName = make(map[string]*models.ContentType)
+	r.ByID = make(map[int64]*models.ContentType)
 	for _, t := range types {
 		r.ByName[t.Name] = t
+		r.ByID[t.ID] = t
 	}
 
 	return nil
