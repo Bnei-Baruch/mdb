@@ -1048,7 +1048,9 @@ func handleUpdateSourceI18n(exec boil.Executor, id int64, i18ns []*models.Source
 	for _, i18n := range i18ns {
 		i18n.SourceID = id
 		nI18n[i18n.Language] = i18n
-		err := i18n.Upsert(exec, true, []string{"source_id", "language"}, []string{"label"})
+		err := i18n.Upsert(exec, true,
+			[]string{"source_id", "language"},
+			[]string{"name", "description"})
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
