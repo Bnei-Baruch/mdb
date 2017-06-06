@@ -223,6 +223,15 @@ type (
 		Operations []*models.Operation `json:"data"`
 	}
 
+	SourcesRequest struct {
+		ListRequest
+	}
+
+	SourcesResponse struct {
+		ListResponse
+		Sources []*Source `json:"data"`
+	}
+
 	TagsRequest struct {
 		ListRequest
 	}
@@ -266,6 +275,11 @@ type (
 	MFile struct {
 		models.File
 		Sha1Str string `json:"sha1"`
+	}
+
+	Source struct {
+		models.Source
+		I18n map[string]*models.SourceI18n `json:"i18n"`
 	}
 
 	Tag struct {
@@ -324,6 +338,10 @@ func NewMFile(f *models.File) *MFile {
 
 func NewOperationsResponse() *OperationsResponse {
 	return &OperationsResponse{Operations: make([]*models.Operation, 0)}
+}
+
+func NewSourcesResponse() *SourcesResponse {
+	return &SourcesResponse{Sources: make([]*Source, 0)}
 }
 
 func NewTagsResponse() *TagsResponse {

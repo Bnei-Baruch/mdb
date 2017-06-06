@@ -219,6 +219,92 @@ func OperationFilesHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func SourcesHandler(c *gin.Context) {
+	var err *HttpError
+	var resp interface{}
+
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		var r SourcesRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+		resp, err = handleGetSources(boil.GetDB(), r)
+	} else {
+		if c.Request.Method == http.MethodPost {
+			var s Source
+			if c.Bind(&s) != nil {
+				return
+			}
+
+			for _, x := range s.I18n {
+				if StdLang(x.Language) == LANG_UNKNOWN {
+					NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+					return
+				}
+			}
+
+			tx := mustBeginTx()
+			resp, err = handleCreateSource(tx, &s)
+			mustConcludeTx(tx, err)
+		}
+	}
+
+	concludeRequest(c, resp, err)
+}
+
+func SourceHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var err *HttpError
+	var resp interface{}
+
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		resp, err = handleGetSource(boil.GetDB(), id)
+	} else {
+		if c.Request.Method == http.MethodPut {
+			var s Source
+			if c.Bind(&s) != nil {
+				return
+			}
+
+			s.ID = id
+			tx := mustBeginTx()
+			resp, err = handleUpdateSource(tx, &s)
+			mustConcludeTx(tx, err)
+		}
+	}
+
+	concludeRequest(c, resp, err)
+}
+
+func SourceI18nHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var i18ns []*models.SourceI18n
+	if c.Bind(&i18ns) != nil {
+		return
+	}
+	for _, x := range i18ns {
+		if StdLang(x.Language) == LANG_UNKNOWN {
+			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+			return
+		}
+	}
+
+	tx := mustBeginTx()
+	resp, err := handleUpdateSourceI18n(tx, id, i18ns)
+	mustConcludeTx(tx, err)
+	concludeRequest(c, resp, err)
+}
+
 func TagsHandler(c *gin.Context) {
 	var err *HttpError
 	var resp interface{}
@@ -823,6 +909,166 @@ func handleOperationFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
 	return data, nil
 }
 
+func handleGetSources(exec boil.Executor, r SourcesRequest) (*SourcesResponse, *HttpError) {
+	mods := make([]qm.QueryMod, 0)
+
+	// count query
+	total, err := models.Sources(exec, mods...).Count()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if total == 0 {
+		return NewSourcesResponse(), nil
+	}
+
+	// order, limit, offset
+	if err = appendListMods(&mods, r.ListRequest); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+
+	// Eager loading
+	mods = append(mods, qm.Load("SourceI18ns"))
+
+	// data query
+	sources, err := models.Sources(exec, mods...).All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// i18n
+	data := make([]*Source, len(sources))
+	for i, s := range sources {
+		x := &Source{Source: *s}
+		data[i] = x
+		x.I18n = make(map[string]*models.SourceI18n, len(s.R.SourceI18ns))
+		for _, i18n := range s.R.SourceI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+	}
+
+	return &SourcesResponse{
+		ListResponse: ListResponse{Total: total},
+		Sources:         data,
+	}, nil
+}
+
+func handleCreateSource(exec boil.Executor, s *Source) (*Source, *HttpError) {
+	// make sure parent source exists if given
+	if s.ParentID.Valid {
+		ok, err := models.Sources(exec, qm.Where("id = ?", s.ParentID.Int64)).Exists()
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		if !ok {
+			return nil, NewBadRequestError(errors.Errorf("Unknown parent source %d", s.ParentID.Int64))
+		}
+	}
+
+	// save tag to DB
+	var uid string
+	for {
+		uid = utils.GenerateUID(8)
+		exists, err := models.Sources(exec, qm.Where("uid = ?", uid)).Exists()
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		if !exists {
+			break
+		}
+	}
+
+	s.UID = uid
+	err := s.Source.Insert(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// save i18n
+	for _, v := range s.I18n {
+		err := s.AddSourceI18ns(exec, true, v)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	return handleGetSource(exec, s.ID)
+}
+
+func handleGetSource(exec boil.Executor, id int64) (*Source, *HttpError) {
+	source, err := models.Sources(exec,
+		qm.Where("id = ?", id),
+		qm.Load("SourceI18ns")).
+		One()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// i18n
+	x := &Source{Source: *source}
+	x.I18n = make(map[string]*models.SourceI18n, len(source.R.SourceI18ns))
+	for _, i18n := range source.R.SourceI18ns {
+		x.I18n[i18n.Language] = i18n
+	}
+
+	return x, nil
+}
+
+func handleUpdateSource(exec boil.Executor, s *Source) (*Source, *HttpError) {
+	source, err := models.FindSource(exec, s.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	source.Pattern = s.Pattern
+	source.Description = s.Description
+	err = s.Update(exec, "pattern", "description")
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return handleGetSource(exec, s.ID)
+}
+
+func handleUpdateSourceI18n(exec boil.Executor, id int64, i18ns []*models.SourceI18n) (*Source, *HttpError) {
+	source, err := handleGetSource(exec, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Upsert all new i18ns
+	nI18n := make(map[string]*models.SourceI18n, len(i18ns))
+	for _, i18n := range i18ns {
+		i18n.SourceID = id
+		nI18n[i18n.Language] = i18n
+		err := i18n.Upsert(exec, true,
+			[]string{"source_id", "language"},
+			[]string{"name", "description"})
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// Delete old i18ns not in new i18ns
+	for k, v := range source.I18n {
+		if _, ok := nI18n[k]; !ok {
+			err := v.Delete(exec)
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+		}
+	}
+
+	return handleGetSource(exec, id)
+}
+
 func handleGetTags(exec boil.Executor, r TagsRequest) (*TagsResponse, *HttpError) {
 	mods := make([]qm.QueryMod, 0)
 
@@ -882,7 +1128,7 @@ func handleCreateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
 	var uid string
 	for {
 		uid = utils.GenerateUID(8)
-		exists, err := models.ContentUnits(exec, qm.Where("uid = ?", uid)).Exists()
+		exists, err := models.Tags(exec, qm.Where("uid = ?", uid)).Exists()
 		if err != nil {
 			return nil, NewInternalError(err)
 		}

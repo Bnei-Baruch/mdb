@@ -176,7 +176,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Require().Nil(err)
 	err = c.Reload(suite.tx)
 	suite.Require().Nil(err)
-	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SATURDAY_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID, c.TypeID, "c.TypeID")
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
@@ -226,7 +226,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	// no changes to collection
 	err = c.Reload(suite.tx)
 	suite.Require().Nil(err)
-	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SATURDAY_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID, c.TypeID, "c.TypeID")
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
