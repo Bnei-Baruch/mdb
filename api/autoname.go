@@ -60,7 +60,7 @@ type ContentUnitDescriber interface {
 }
 
 type CollectionDescriber interface {
-	DescribeCollection(boil.Executor, *models.Collection, CITMetadata) ([]*models.CollectionI18n, error)
+	DescribeCollection(*models.Collection) ([]*models.CollectionI18n, error)
 }
 
 type GenericDescriber struct{}
@@ -69,13 +69,48 @@ func (d GenericDescriber) DescribeContentUnit(exec boil.Executor,
 	cu *models.ContentUnit,
 	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
 
-	return nil, nil
+	names := map[string]string{
+		LANG_HEBREW:  metadata.FinalName,
+		LANG_ENGLISH: metadata.FinalName,
+		LANG_RUSSIAN: metadata.FinalName,
+	}
+
+	i18ns := make([]*models.ContentUnitI18n, 0)
+	for k, v := range names {
+		i18n := &models.ContentUnitI18n{
+			ContentUnitID: cu.ID,
+			Language:      k,
+			Name:          null.StringFrom(v),
+		}
+		i18ns = append(i18ns, i18n)
+	}
+
+	return i18ns, nil
 }
 
-func (d GenericDescriber) DescribeCollection(exec boil.Executor,
-	cu *models.Collection,
-	metadata CITMetadata) ([]*models.CollectionI18n, error) {
-	return nil, nil
+func (d GenericDescriber) DescribeCollection(c *models.Collection) ([]*models.CollectionI18n, error) {
+
+	i18nKey := fmt.Sprintf("content_type.%s", CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name)
+	names, err := GetI18ns(i18nKey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Get I18ns")
+	}
+
+	i18ns := make([]*models.CollectionI18n, 0)
+	if len(names) == 0 {
+		return i18ns, nil
+	}
+
+	for k, v := range names {
+		i18n := &models.CollectionI18n{
+			CollectionID: c.ID,
+			Language:     k,
+			Name:         null.StringFrom(v),
+		}
+		i18ns = append(i18ns, i18n)
+	}
+
+	return i18ns, nil
 }
 
 type LessonPartDescriber struct{}
@@ -84,36 +119,40 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 	cu *models.ContentUnit,
 	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
 
+	var err error
+	var names map[string]string
+
 	if metadata.Part.Valid && metadata.Part.Int == 0 {
-		i18ns, err := GetI18ns("lesson_preparation")
+		names, err = GetI18ns("lesson_preparation")
 		if err != nil {
 			return nil, errors.Wrapf(err, "Get I18ns")
 		}
-
-		cui81ns := make([]*models.ContentUnitI18n, 0)
-		for k, v := range i18ns {
-			i18n := &models.ContentUnitI18n{
-				ContentUnitID: cu.ID,
-				Language:      k,
-				Name:          null.StringFrom(v),
-			}
-			cui81ns = append(cui81ns, i18n)
-		}
-		return cui81ns, nil
 	}
 
-	return nil, nil
+	if len(names) == 0 {
+		return new(GenericDescriber).DescribeContentUnit(exec, cu, metadata)
+	}
+
+	i18ns := make([]*models.ContentUnitI18n, 0)
+	for k, v := range names {
+		i18n := &models.ContentUnitI18n{
+			ContentUnitID: cu.ID,
+			Language:      k,
+			Name:          null.StringFrom(v),
+		}
+		i18ns = append(i18ns, i18n)
+	}
+
+	return i18ns, nil
 }
 
 var CUDescribers = map[string]ContentUnitDescriber{
 	CT_LESSON_PART: LessonPartDescriber{},
 }
 
-var CDescribers = map[string]CollectionDescriber{
-	CT_DAILY_LESSON: GenericDescriber{},
-}
+var CDescribers = map[string]CollectionDescriber{}
 
-func AutonameContentUnit(exec boil.Executor, cu *models.ContentUnit, metadata CITMetadata) error {
+func DescribeContentUnit(exec boil.Executor, cu *models.ContentUnit, metadata CITMetadata) error {
 	describer, ok := CUDescribers[CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name]
 	if !ok {
 		describer = GenericDescriber{}
@@ -133,13 +172,13 @@ func AutonameContentUnit(exec boil.Executor, cu *models.ContentUnit, metadata CI
 	return nil
 }
 
-func AutonameCollection(exec boil.Executor, c *models.Collection, metadata CITMetadata) error {
+func DescribeCollection(exec boil.Executor, c *models.Collection) error {
 	describer, ok := CDescribers[CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name]
 	if !ok {
 		describer = GenericDescriber{}
 	}
 
-	i18ns, err := describer.DescribeCollection(exec, c, metadata)
+	i18ns, err := describer.DescribeCollection(c)
 	if err != nil {
 		return errors.Wrap(err, "Auto naming collection")
 	}

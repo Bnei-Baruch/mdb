@@ -1,18 +1,137 @@
 {
   "lesson_by_topic_tag": {
-    "he":"שיעור בנושא \"%s\"",
-    "en": "lesson on the topic of \"%s\""
+    "he": "שיעור בנושא",
+    "en": "Lesson on the topic of",
+    "ru": "Урок на тему"
   },
   "lesson_preparation": {
     "he": "הכנה לשיעור",
-    "en": "lesson preparation"
+    "en": "Preparation to the Lesson",
+    "ru": "Подготовка к Уроку"
   },
-  "content_types.LESSON_PART": {
-    "he": "חלק שיעור",
-    "en": "lesson part"
-  },
-  "content_types.DAILY_LESSON": {
+  "content_type.DAILY_LESSON": {
     "he": "שיעור יומי",
-    "en": "daily lesson"
+    "en": "Daily Lesson",
+    "ru": "Урок"
+  },
+  "content_type.SPECIAL_LESSON": {
+    "he": "שיעור יומי",
+    "en": "Daily Lesson",
+    "ru": "Урок"
+  },
+  "content_type.FRIENDS_GATHERINGS": {
+    "he": "ישיבות חברים",
+    "en": "Gatherings of Friends",
+    "ru": "Ешиват Хаверим"
+  },
+  "content_type.CONGRESS": {
+    "he": "כנס",
+    "en": "Congress",
+    "ru": "Конгресс"
+  },
+  "content_type.VIDEO_PROGRAM": {
+    "he": "תוכנית טלוויזיה",
+    "en": "Tv Show",
+    "ru": "ТВ Программа"
+  },
+  "content_type.LECTURE_SERIES": {
+    "he": "סדרת הרצאות",
+    "en": "Lecture Series",
+    "ru": "Серия Лекций"
+  },
+  "content_type.MEALS": {
+    "he": "סעודות",
+    "en": "Meals",
+    "ru": "Трапезы"
+  },
+  "content_type.HOLIDAY": {
+    "he": "חג",
+    "en": "Holiday",
+    "ru": "Праздник"
+  },
+  "content_type.PICNIC": {
+    "he": "פיקניק",
+    "en": "Picnic",
+    "ru": "Пикник"
+  },
+  "content_type.UNITY_DAY": {
+    "he": "יום איחוד",
+    "en": "Unity Day",
+    "ru": "День Народного Единства"
+  },
+  "content_type.LESSON_PART": {
+    "he": "חלק שיעור",
+    "en": "Lesson Part",
+    "ru": "Урок Часть"
+  },
+  "content_type.LECTURE": {
+    "he": "הרצאה",
+    "en": "Lecture",
+    "ru": "Лекция"
+  },
+  "content_type.CHILDREN_LESSON_PART": {
+    "he": "שיעור ילדים",
+    "en": "Children Lesson",
+    "ru": "Дети Урок"
+  },
+  "content_type.WOMEN_LESSON_PART": {
+    "he": "שיעור נשים",
+    "en": "Women Lesson",
+    "ru": "Женщины Урок"
+  },
+  "content_type.VIRTUAL_LESSON": {
+    "he": "שיעור וירטואלי",
+    "en": "Virtual Lesson",
+    "ru": "Виртуальный Урок"
+  },
+  "content_type.FRIENDS_GATHERING": {
+    "he": "ישיבת חברים",
+    "en": "Gathering of Friends",
+    "ru": "Ешиват Хаверим"
+  },
+  "content_type.MEAL": {
+    "he": "סעודה",
+    "en": "Meal",
+    "ru": "Трапеза"
+  },
+  "content_type.VIDEO_PROGRAM_CHAPTER": {
+    "he": "פרק",
+    "en": "Episode",
+    "ru": "Эпизод"
+  },
+  "content_type.FULL_LESSON": {
+    "he": "שיעור מלא",
+    "en": "Full Lesson",
+    "ru": "Полный Урок"
+  },
+  "content_type.TEXT": {
+    "he": "טקסט",
+    "en": "Text",
+    "ru": "Текст"
+  },
+  "content_type.UNKNOWN": {
+    "he": "לא ידוע",
+    "en": "Unknown",
+    "ru": "Неизвестный"
+  },
+  "content_type.EVENT_PART": {
+    "he": "חלק מאירוע",
+    "en": "Event Part",
+    "ru": "Событие Часть"
+  },
+  "content_type.CLIP": {
+    "he": "קליפ",
+    "en": "Clip",
+    "ru": "Клип"
+  },
+  "content_type.TRAINING": {
+    "he": "הכשרה",
+    "en": "Training",
+    "ru": "Обучение"
+  },
+  "content_type.KITEI_MAKOR": {
+    "he": "קטעי מקור",
+    "en": "Source Excerpts",
+    "ru": "Исходные Выдержки"
   }
 }
