@@ -368,7 +368,7 @@ func handleCollection(exec boil.Executor, vl *kmodels.VirtualLesson) (*models.Co
 	}
 
 	if vl.FilmDate.Time.Weekday() == 6 {
-		collection.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[api.CT_SATURDAY_LESSON].ID
+		collection.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[api.CT_SPECIAL_LESSON].ID
 	} else {
 		collection.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[api.CT_DAILY_LESSON].ID
 	}

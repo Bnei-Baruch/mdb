@@ -228,7 +228,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				if metadata.WeekDate == nil {
 					cct = CT_DAILY_LESSON
 				} else {
-					cct = CT_SATURDAY_LESSON
+					cct = CT_SPECIAL_LESSON
 				}
 
 				// Keep this property on the collection for other parts to find it
@@ -285,7 +285,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		switch ct {
 		case CT_FULL_LESSON:
 			if c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID ||
-				c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_SATURDAY_LESSON].ID {
+				c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID {
 				ccu.Name = "full"
 			} else if metadata.Number.Valid {
 				ccu.Name = strconv.Itoa(metadata.Number.Int)
