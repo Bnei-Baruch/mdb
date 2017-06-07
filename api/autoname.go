@@ -123,7 +123,7 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 	var names map[string]string
 
 	if metadata.Part.Valid && metadata.Part.Int == 0 {
-		names, err = GetI18ns("lesson_preparation")
+		names, err = GetI18ns("autoname.lesson_preparation")
 		if err != nil {
 			return nil, errors.Wrapf(err, "Get I18ns")
 		}

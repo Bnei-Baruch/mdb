@@ -1,14 +1,4 @@
 {
-  "lesson_by_topic_tag": {
-    "he": "שיעור בנושא",
-    "en": "Lesson on the topic of",
-    "ru": "Урок на тему"
-  },
-  "lesson_preparation": {
-    "he": "הכנה לשיעור",
-    "en": "Preparation to the Lesson",
-    "ru": "Подготовка к Уроку"
-  },
   "content_type.DAILY_LESSON": {
     "he": "שיעור יומי",
     "en": "Daily Lesson",
@@ -26,12 +16,12 @@
   },
   "content_type.CONGRESS": {
     "he": "כנס",
-    "en": "Congress",
+    "en": "Convention",
     "ru": "Конгресс"
   },
   "content_type.VIDEO_PROGRAM": {
     "he": "תוכנית טלוויזיה",
-    "en": "Tv Show",
+    "en": "TV Show",
     "ru": "ТВ Программа"
   },
   "content_type.LECTURE_SERIES": {
@@ -133,5 +123,15 @@
     "he": "קטעי מקור",
     "en": "Source Excerpts",
     "ru": "Исходные Выдержки"
+  },
+  "autoname.lesson_by_topic_tag": {
+    "he": "שיעור בנושא",
+    "en": "Lesson on the topic of",
+    "ru": "Урок на тему"
+  },
+  "autoname.lesson_preparation": {
+    "he": "הכנה לשיעור",
+    "en": "Preparation to the Lesson",
+    "ru": "Подготовка к Уроку"
   }
 }
