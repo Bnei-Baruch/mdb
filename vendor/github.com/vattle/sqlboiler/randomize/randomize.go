@@ -346,7 +346,6 @@ func randomizeField(s *Seed, field reflect.Value, fieldType string, canBeNull bo
 		// if canBeNull is false, then never return null values.
 		isNull = false
 	}
-	fmt.Printf("isNull: %s", isNull)
 
 	// If it's a Postgres array, treat it like one
 	if strings.HasPrefix(fieldType, "ARRAY") {

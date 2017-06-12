@@ -1105,10 +1105,10 @@ func testTagToOneTagUsingParent(t *testing.T) {
 	var foreign Tag
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, tagDBTypes, false, tagColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, tagDBTypes, true, tagColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Tag struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, tagDBTypes, false, tagColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, tagDBTypes, true, tagColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Tag struct: %s", err)
 	}
 
