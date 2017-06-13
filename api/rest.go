@@ -148,6 +148,28 @@ func ContentUnitCollectionsHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func ContentUnitSourcesHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := handleContentUnitSources(boil.GetDB(), id)
+	concludeRequest(c, resp, err)
+}
+
+func ContentUnitTagsHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := handleContentUnitTags(boil.GetDB(), id)
+	concludeRequest(c, resp, err)
+}
+
 func FilesListHandler(c *gin.Context) {
 	var r FilesRequest
 	if c.Bind(&r) != nil {
@@ -793,6 +815,60 @@ func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUni
 	return data, nil
 }
 
+func handleContentUnitSources(exec boil.Executor, id int64) ([]*Source, *HttpError) {
+	unit, err := models.ContentUnits(exec,
+		qm.Where("id = ?", id),
+		qm.Load("Sources", "Sources.SourceI18ns")).
+		One()
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	data := make([]*Source, len(unit.R.Sources))
+	for i, source := range unit.R.Sources {
+		x := &Source{Source: *source}
+		x.I18n = make(map[string]*models.SourceI18n, len(source.R.SourceI18ns))
+		for _, i18n := range source.R.SourceI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+		data[i] = x
+	}
+
+	return data, nil
+}
+
+func handleContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError) {
+	unit, err := models.ContentUnits(exec,
+		qm.Where("id = ?", id),
+		qm.Load("Tags", "Tags.TagI18ns")).
+		One()
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	data := make([]*Tag, len(unit.R.Tags))
+	for i, tag := range unit.R.Tags {
+		x := &Tag{Tag: *tag}
+		x.I18n = make(map[string]*models.TagI18n, len(tag.R.TagI18ns))
+		for _, i18n := range tag.R.TagI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+		data[i] = x
+	}
+
+	return data, nil
+}
+
 func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpError) {
 
 	mods := make([]qm.QueryMod, 0)
@@ -995,7 +1071,6 @@ func handleGetSources(exec boil.Executor, r SourcesRequest) (*SourcesResponse, *
 func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *HttpError) {
 	s := r.Source
 
-
 	// check pattern unique constraint
 	if s.Pattern.Valid {
 		ok, err := models.Sources(exec, qm.Where("pattern = ?", s.Pattern.String)).Exists()
@@ -1103,7 +1178,7 @@ func handleUpdateSource(exec boil.Executor, s *Source) (*Source, *HttpError) {
 		}
 	}
 
-	if s.TypeID != 0 {  // to allow partial updates
+	if s.TypeID != 0 { // to allow partial updates
 		source.TypeID = s.TypeID
 	}
 	source.Pattern = s.Pattern

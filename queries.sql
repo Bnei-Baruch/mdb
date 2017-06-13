@@ -410,3 +410,9 @@ FROM rec_sources
 WHERE pattern IS NOT NULL
 ORDER BY pattern)
 to '/var/lib/postgres/data/titles.csv' (format CSV);
+
+
+INSERT INTO collections (uid, type_id, properties)
+VALUES ('ZNZCqldj', 10, '{"active": true}');
+
+INSERT into collection_i18n (collection_id, language, name) values (10708, 'he', 'מאיחוד להפצה');
