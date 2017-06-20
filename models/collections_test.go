@@ -625,10 +625,10 @@ func testCollectionToOneContentTypeUsingType(t *testing.T) {
 	var foreign ContentType
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, collectionDBTypes, true, collectionColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, collectionDBTypes, false, collectionColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Collection struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, contentTypeDBTypes, true, contentTypeColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, contentTypeDBTypes, false, contentTypeColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentType struct: %s", err)
 	}
 

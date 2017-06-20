@@ -1412,7 +1412,7 @@ func testSourceToOneSourceUsingParent(t *testing.T) {
 	if err := randomize.Struct(seed, &local, sourceDBTypes, true, sourceColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Source struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, sourceDBTypes, true, sourceColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, sourceDBTypes, false, sourceColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Source struct: %s", err)
 	}
 
@@ -1461,10 +1461,10 @@ func testSourceToOneSourceTypeUsingType(t *testing.T) {
 	var foreign SourceType
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, sourceDBTypes, true, sourceColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, sourceDBTypes, false, sourceColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Source struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, sourceTypeDBTypes, true, sourceTypeColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, sourceTypeDBTypes, false, sourceTypeColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize SourceType struct: %s", err)
 	}
 

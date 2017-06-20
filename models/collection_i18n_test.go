@@ -333,10 +333,10 @@ func testCollectionI18nToOneCollectionUsingCollection(t *testing.T) {
 	var foreign Collection
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, collectionI18nDBTypes, true, collectionI18nColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, collectionI18nDBTypes, false, collectionI18nColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize CollectionI18n struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, collectionDBTypes, true, collectionColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, collectionDBTypes, false, collectionColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Collection struct: %s", err)
 	}
 
@@ -386,7 +386,7 @@ func testCollectionI18nToOneUserUsingUser(t *testing.T) {
 	if err := randomize.Struct(seed, &local, collectionI18nDBTypes, true, collectionI18nColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize CollectionI18n struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, userDBTypes, true, userColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, userDBTypes, false, userColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize User struct: %s", err)
 	}
 

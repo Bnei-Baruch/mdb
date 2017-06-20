@@ -333,10 +333,10 @@ func testContentUnitsPersonToOneContentUnitUsingContentUnit(t *testing.T) {
 	var foreign ContentUnit
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, contentUnitsPersonDBTypes, true, contentUnitsPersonColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, contentUnitsPersonDBTypes, false, contentUnitsPersonColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentUnitsPerson struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, contentUnitDBTypes, false, contentUnitColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
 	}
 
@@ -383,10 +383,10 @@ func testContentUnitsPersonToOnePersonUsingPerson(t *testing.T) {
 	var foreign Person
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, contentUnitsPersonDBTypes, true, contentUnitsPersonColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, contentUnitsPersonDBTypes, false, contentUnitsPersonColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentUnitsPerson struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, personDBTypes, true, personColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, personDBTypes, false, personColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Person struct: %s", err)
 	}
 
@@ -433,10 +433,10 @@ func testContentUnitsPersonToOneContentRoleTypeUsingRole(t *testing.T) {
 	var foreign ContentRoleType
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, contentUnitsPersonDBTypes, true, contentUnitsPersonColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, contentUnitsPersonDBTypes, false, contentUnitsPersonColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentUnitsPerson struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, contentRoleTypeDBTypes, true, contentRoleTypeColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, contentRoleTypeDBTypes, false, contentRoleTypeColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentRoleType struct: %s", err)
 	}
 

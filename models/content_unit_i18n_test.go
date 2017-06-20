@@ -333,10 +333,10 @@ func testContentUnitI18nToOneContentUnitUsingContentUnit(t *testing.T) {
 	var foreign ContentUnit
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, contentUnitI18nDBTypes, true, contentUnitI18nColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, contentUnitI18nDBTypes, false, contentUnitI18nColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentUnitI18n struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, contentUnitDBTypes, false, contentUnitColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
 	}
 
@@ -386,7 +386,7 @@ func testContentUnitI18nToOneUserUsingUser(t *testing.T) {
 	if err := randomize.Struct(seed, &local, contentUnitI18nDBTypes, true, contentUnitI18nColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentUnitI18n struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, userDBTypes, true, userColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, userDBTypes, false, userColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize User struct: %s", err)
 	}
 

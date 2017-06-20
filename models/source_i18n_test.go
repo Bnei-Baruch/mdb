@@ -333,10 +333,10 @@ func testSourceI18nToOneSourceUsingSource(t *testing.T) {
 	var foreign Source
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, sourceI18nDBTypes, true, sourceI18nColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, sourceI18nDBTypes, false, sourceI18nColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize SourceI18n struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, sourceDBTypes, true, sourceColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, sourceDBTypes, false, sourceColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Source struct: %s", err)
 	}
 
