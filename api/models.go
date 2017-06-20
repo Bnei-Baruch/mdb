@@ -223,6 +223,11 @@ type (
 		Operations []*models.Operation `json:"data"`
 	}
 
+	AuthorsResponse struct {
+		ListResponse
+		Authors []*Author `json:"data"`
+	}
+
 	SourcesRequest struct {
 		ListRequest
 	}
@@ -230,6 +235,11 @@ type (
 	SourcesResponse struct {
 		ListResponse
 		Sources []*Source `json:"data"`
+	}
+
+	CreateSourceRequest struct {
+		Source
+		AuthorID null.Int64 `json:"author"`
 	}
 
 	TagsRequest struct {
@@ -275,6 +285,12 @@ type (
 	MFile struct {
 		models.File
 		Sha1Str string `json:"sha1"`
+	}
+
+	Author struct {
+		models.Author
+		I18n    map[string]*models.AuthorI18n `json:"i18n"`
+		Sources []*Source                     `json:"sources"`
 	}
 
 	Source struct {

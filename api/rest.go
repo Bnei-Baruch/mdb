@@ -148,6 +148,28 @@ func ContentUnitCollectionsHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func ContentUnitSourcesHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := handleContentUnitSources(boil.GetDB(), id)
+	concludeRequest(c, resp, err)
+}
+
+func ContentUnitTagsHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := handleContentUnitTags(boil.GetDB(), id)
+	concludeRequest(c, resp, err)
+}
+
 func FilesListHandler(c *gin.Context) {
 	var r FilesRequest
 	if c.Bind(&r) != nil {
@@ -219,6 +241,40 @@ func OperationFilesHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func AuthorsHandler(c *gin.Context) {
+	authors, err := models.Authors(boil.GetDB(),
+		qm.Load("AuthorI18ns", "Sources")).
+		All()
+	if err != nil {
+		NewInternalError(errors.Wrap(err, "Load authors from DB")).Abort(c)
+		return
+	}
+
+	data := make([]*Author, len(authors))
+
+	for i, a := range authors {
+		x := &Author{Author: *a}
+		data[i] = x
+
+		x.I18n = make(map[string]*models.AuthorI18n, len(a.R.AuthorI18ns))
+		for _, i18n := range a.R.AuthorI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+
+		x.Sources = make([]*Source, len(a.R.Sources))
+		for j, s := range a.R.Sources {
+			x.Sources[j] = &Source{Source: *s}
+		}
+	}
+
+	resp := AuthorsResponse{
+		ListResponse: ListResponse{Total: int64(len(data))},
+		Authors:      data,
+	}
+
+	concludeRequest(c, resp, nil)
+}
+
 func SourcesHandler(c *gin.Context) {
 	var err *HttpError
 	var resp interface{}
@@ -231,20 +287,27 @@ func SourcesHandler(c *gin.Context) {
 		resp, err = handleGetSources(boil.GetDB(), r)
 	} else {
 		if c.Request.Method == http.MethodPost {
-			var s Source
-			if c.Bind(&s) != nil {
+			var r CreateSourceRequest
+			if c.Bind(&r) != nil {
 				return
 			}
 
-			for _, x := range s.I18n {
+			if _, ok := SOURCE_TYPE_REGISTRY.ByID[r.Source.TypeID]; !ok {
+				err := errors.Errorf("Unknown source type %d", r.Source.TypeID)
+				NewBadRequestError(err).Abort(c)
+				return
+			}
+
+			for _, x := range r.Source.I18n {
 				if StdLang(x.Language) == LANG_UNKNOWN {
-					NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+					err := errors.Errorf("Unknown language %s", x.Language)
+					NewBadRequestError(err).Abort(c)
 					return
 				}
 			}
 
 			tx := mustBeginTx()
-			resp, err = handleCreateSource(tx, &s)
+			resp, err = handleCreateSource(tx, r)
 			mustConcludeTx(tx, err)
 		}
 	}
@@ -662,7 +725,6 @@ func handleGetContentUnit(exec boil.Executor, id int64) (*ContentUnit, *HttpErro
 	return x, nil
 }
 
-
 func handleUpdateContentUnit(exec boil.Executor, cu *ContentUnit) (*ContentUnit, *HttpError) {
 	unit, err := models.FindContentUnit(exec, cu.ID)
 	if err != nil {
@@ -748,6 +810,60 @@ func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUni
 			Name:       ccu.Name,
 			Collection: csById[ccu.CollectionID],
 		}
+	}
+
+	return data, nil
+}
+
+func handleContentUnitSources(exec boil.Executor, id int64) ([]*Source, *HttpError) {
+	unit, err := models.ContentUnits(exec,
+		qm.Where("id = ?", id),
+		qm.Load("Sources", "Sources.SourceI18ns")).
+		One()
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	data := make([]*Source, len(unit.R.Sources))
+	for i, source := range unit.R.Sources {
+		x := &Source{Source: *source}
+		x.I18n = make(map[string]*models.SourceI18n, len(source.R.SourceI18ns))
+		for _, i18n := range source.R.SourceI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+		data[i] = x
+	}
+
+	return data, nil
+}
+
+func handleContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError) {
+	unit, err := models.ContentUnits(exec,
+		qm.Where("id = ?", id),
+		qm.Load("Tags", "Tags.TagI18ns")).
+		One()
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	data := make([]*Tag, len(unit.R.Tags))
+	for i, tag := range unit.R.Tags {
+		x := &Tag{Tag: *tag}
+		x.I18n = make(map[string]*models.TagI18n, len(tag.R.TagI18ns))
+		for _, i18n := range tag.R.TagI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+		data[i] = x
 	}
 
 	return data, nil
@@ -948,11 +1064,25 @@ func handleGetSources(exec boil.Executor, r SourcesRequest) (*SourcesResponse, *
 
 	return &SourcesResponse{
 		ListResponse: ListResponse{Total: total},
-		Sources:         data,
+		Sources:      data,
 	}, nil
 }
 
-func handleCreateSource(exec boil.Executor, s *Source) (*Source, *HttpError) {
+func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *HttpError) {
+	s := r.Source
+
+	// check pattern unique constraint
+	if s.Pattern.Valid {
+		ok, err := models.Sources(exec, qm.Where("pattern = ?", s.Pattern.String)).Exists()
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		if ok {
+			err = errors.Errorf("Pattern already in use: %s", s.Pattern.String)
+			return nil, NewBadRequestError(err)
+		}
+	}
+
 	// make sure parent source exists if given
 	if s.ParentID.Valid {
 		ok, err := models.Sources(exec, qm.Where("id = ?", s.ParentID.Int64)).Exists()
@@ -960,7 +1090,20 @@ func handleCreateSource(exec boil.Executor, s *Source) (*Source, *HttpError) {
 			return nil, NewInternalError(err)
 		}
 		if !ok {
-			return nil, NewBadRequestError(errors.Errorf("Unknown parent source %d", s.ParentID.Int64))
+			err = errors.Errorf("Unknown parent source: %d", s.ParentID.Int64)
+			return nil, NewBadRequestError(err)
+		}
+	}
+
+	// make sure author exists if given
+	if r.AuthorID.Valid {
+		ok, err := models.Authors(exec, qm.Where("id = ?", r.AuthorID.Int64)).Exists()
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		if !ok {
+			err = errors.Errorf("Unknown author: %d", r.AuthorID.Int64)
+			return nil, NewBadRequestError(err)
 		}
 	}
 
@@ -986,6 +1129,14 @@ func handleCreateSource(exec boil.Executor, s *Source) (*Source, *HttpError) {
 	// save i18n
 	for _, v := range s.I18n {
 		err := s.AddSourceI18ns(exec, true, v)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// save author
+	if r.AuthorID.Valid {
+		err := s.Source.AddAuthors(exec, false, &models.Author{ID: r.AuthorID.Int64})
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -1027,9 +1178,12 @@ func handleUpdateSource(exec boil.Executor, s *Source) (*Source, *HttpError) {
 		}
 	}
 
+	if s.TypeID != 0 { // to allow partial updates
+		source.TypeID = s.TypeID
+	}
 	source.Pattern = s.Pattern
 	source.Description = s.Description
-	err = s.Update(exec, "pattern", "description")
+	err = s.Update(exec, "pattern", "description", "type_id")
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
