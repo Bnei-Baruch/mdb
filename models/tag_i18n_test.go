@@ -333,10 +333,10 @@ func testTagI18nToOneTagUsingTag(t *testing.T) {
 	var foreign Tag
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, tagI18nDBTypes, true, tagI18nColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, tagI18nDBTypes, false, tagI18nColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize TagI18n struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, tagDBTypes, true, tagColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, tagDBTypes, false, tagColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Tag struct: %s", err)
 	}
 
@@ -386,7 +386,7 @@ func testTagI18nToOneUserUsingUser(t *testing.T) {
 	if err := randomize.Struct(seed, &local, tagI18nDBTypes, true, tagI18nColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize TagI18n struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, userDBTypes, true, userColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, userDBTypes, false, userColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize User struct: %s", err)
 	}
 

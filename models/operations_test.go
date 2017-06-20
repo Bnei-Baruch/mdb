@@ -637,10 +637,10 @@ func testOperationToOneOperationTypeUsingType(t *testing.T) {
 	var foreign OperationType
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, operationDBTypes, true, operationColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, operationDBTypes, false, operationColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Operation struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, operationTypeDBTypes, true, operationTypeColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, operationTypeDBTypes, false, operationTypeColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize OperationType struct: %s", err)
 	}
 
@@ -690,7 +690,7 @@ func testOperationToOneUserUsingUser(t *testing.T) {
 	if err := randomize.Struct(seed, &local, operationDBTypes, true, operationColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Operation struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, userDBTypes, true, userColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, userDBTypes, false, userColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize User struct: %s", err)
 	}
 

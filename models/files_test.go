@@ -962,7 +962,7 @@ func testFileToOneContentUnitUsingContentUnit(t *testing.T) {
 	if err := randomize.Struct(seed, &local, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, contentUnitDBTypes, false, contentUnitColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
 	}
 
@@ -1014,7 +1014,7 @@ func testFileToOneFileUsingParent(t *testing.T) {
 	if err := randomize.Struct(seed, &local, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, fileDBTypes, false, fileColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize File struct: %s", err)
 	}
 

@@ -333,10 +333,10 @@ func testCollectionsContentUnitToOneCollectionUsingCollection(t *testing.T) {
 	var foreign Collection
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, collectionsContentUnitDBTypes, true, collectionsContentUnitColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, collectionsContentUnitDBTypes, false, collectionsContentUnitColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize CollectionsContentUnit struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, collectionDBTypes, true, collectionColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, collectionDBTypes, false, collectionColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Collection struct: %s", err)
 	}
 
@@ -383,10 +383,10 @@ func testCollectionsContentUnitToOneContentUnitUsingContentUnit(t *testing.T) {
 	var foreign ContentUnit
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, collectionsContentUnitDBTypes, true, collectionsContentUnitColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, collectionsContentUnitDBTypes, false, collectionsContentUnitColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize CollectionsContentUnit struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, contentUnitDBTypes, false, contentUnitColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
 	}
 

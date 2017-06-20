@@ -333,10 +333,10 @@ func testAuthorI18nToOneAuthorUsingAuthor(t *testing.T) {
 	var foreign Author
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, authorI18nDBTypes, true, authorI18nColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, authorI18nDBTypes, false, authorI18nColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize AuthorI18n struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, authorDBTypes, true, authorColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, authorDBTypes, false, authorColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Author struct: %s", err)
 	}
 

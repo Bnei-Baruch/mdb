@@ -333,10 +333,10 @@ func testPersonI18nToOnePersonUsingPerson(t *testing.T) {
 	var foreign Person
 
 	seed := randomize.NewSeed()
-	if err := randomize.Struct(seed, &local, personI18nDBTypes, true, personI18nColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &local, personI18nDBTypes, false, personI18nColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize PersonI18n struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, personDBTypes, true, personColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, personDBTypes, false, personColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize Person struct: %s", err)
 	}
 
@@ -386,7 +386,7 @@ func testPersonI18nToOneUserUsingUser(t *testing.T) {
 	if err := randomize.Struct(seed, &local, personI18nDBTypes, true, personI18nColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize PersonI18n struct: %s", err)
 	}
-	if err := randomize.Struct(seed, &foreign, userDBTypes, true, userColumnsWithDefault...); err != nil {
+	if err := randomize.Struct(seed, &foreign, userDBTypes, false, userColumnsWithDefault...); err != nil {
 		t.Errorf("Unable to randomize User struct: %s", err)
 	}
 
