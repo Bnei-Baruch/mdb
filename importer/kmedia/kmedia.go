@@ -210,7 +210,7 @@ func ImportKmedia() {
 		go worker(jobs, &workersWG)
 	}
 
-	log.Info("Queing work")
+	log.Info("Queueing work")
 	for _, vl := range vls {
 		jobs <- vl
 	}
@@ -327,7 +327,7 @@ func getValidContainers(exec boil.Executor, vl *kmodels.VirtualLesson) ([]*kmode
 		qm.Load("FileAssets")).
 		All()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "load containers from DB [%d]", vl.ID)
 	}
 	stats.ContainersVisited.Inc(int32(len(containers)))
 

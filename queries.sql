@@ -418,3 +418,13 @@ to '/var/lib/postgres/data/titles.csv' (format CSV);
 -- insert into collection_i18n (collection_id, language, name) VALUES
 --   (10648, 'he', 'וובינר'),
 --   (10649, 'he', 'זמן קבלה');
+
+DROP TABLE IF EXISTS file_mappings;
+CREATE TABLE file_mappings (
+  sha1     CHAR(40),
+  k_id     INT    NULL,
+  k_cid    INT    NULL,
+  m_id     BIGINT NULL,
+  m_cuid   BIGINT NULL,
+  m_exists BOOLEAN
+);

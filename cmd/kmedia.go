@@ -20,6 +20,24 @@ func init() {
 	RootCmd.AddCommand(command)
 
 	command = &cobra.Command{
+		Use:   "kmedia-map-units",
+		Short: "Do unit mappings analysis",
+		Run: func(cmd *cobra.Command, args []string) {
+			kmedia.MapUnits()
+		},
+	}
+	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
+		Use:   "kmedia-update-units",
+		Short: "Update i18ns for content units based on kmedia_id",
+		Run: func(cmd *cobra.Command, args []string) {
+			kmedia.UpdateUnits()
+		},
+	}
+	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
 		Use:   "kmedia-fkeys",
 		Short: "Add foreign keys to kmedia",
 		Long:  "Add foreign keys to kmedia, then run:\n\tsqlboiler -o gmodels_old -p gmodels --no-hooks postgres",
