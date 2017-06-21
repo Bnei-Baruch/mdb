@@ -258,7 +258,10 @@ func UpdateContentUnitProperties(exec boil.Executor, unit *models.ContentUnit, p
 
 	var p map[string]interface{}
 	if unit.Properties.Valid {
-		unit.Properties.Unmarshal(&p)
+		err := unit.Properties.Unmarshal(&p)
+		if err != nil {
+			return errors.Wrap(err, "json.Unmarshal")
+		}
 		for k, v := range props {
 			p[k] = v
 		}
@@ -359,7 +362,10 @@ func UpdateFileProperties(exec boil.Executor, file *models.File, props map[strin
 
 	var p map[string]interface{}
 	if file.Properties.Valid {
-		file.Properties.Unmarshal(&p)
+		err := file.Properties.Unmarshal(&p)
+		if err != nil {
+			return errors.Wrap(err, "json.Unmarshal")
+		}
 		for k, v := range props {
 			p[k] = v
 		}

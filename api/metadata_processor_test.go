@@ -911,12 +911,18 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	if metadata.WeekDate != nil {
 		filmDate = *metadata.WeekDate
 	}
+	suite.Require().True(original.Properties.Valid)
+	var originalProps map[string]interface{}
+	err = original.Properties.Unmarshal(&originalProps)
+	suite.Require().Nil(err)
+
 	suite.Require().True(cu.Properties.Valid)
 	var props map[string]interface{}
 	err = cu.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
 	suite.Equal(capDate.Format("2006-01-02"), props["capture_date"], "cu.Properties[\"capture_date\"]")
 	suite.Equal(filmDate.Format("2006-01-02"), props["film_date"], "cu.Properties[\"film_date\"]")
+	suite.Equal(originalProps["duration"], props["duration"], "cu.Properties[\"duration\"]")
 
 	// files in unit
 	err = cu.L.LoadFiles(suite.tx, true, cu)

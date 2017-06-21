@@ -75,6 +75,18 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		// TODO: verify user input. artifact_type should be either invalid, "main" or a known content_type
 		ct = strings.ToUpper(metadata.ArtifactType.String)
 	}
+
+	var originalProps map[string]interface{}
+	err = original.Properties.Unmarshal(&originalProps)
+	if err !=nil {
+		return errors.Wrap(err, "json.Unmarshal original properties")
+	}
+	if duration, ok := originalProps["duration"]; ok {
+		props["duration"] = duration
+	} else {
+		log.Infof("Original is missing duration property [%d]", original.ID)
+	}
+
 	log.Infof("Creating content unit of type %s", ct)
 	cu, err := CreateContentUnit(exec, ct, props)
 	if err != nil {
@@ -123,6 +135,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		if err != nil {
 			return errors.Wrap(err, "Lookup sources in DB")
 		}
+
+		// are we missing some source ?
 		if len(sources) != len(metadata.Sources) {
 			missing := make([]string, 0)
 			for _, x := range metadata.Sources {
@@ -139,6 +153,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			}
 			log.Warnf("Unknown sources: %s", missing)
 		}
+
 		err = cu.AddSources(exec, false, sources...)
 		if err != nil {
 			return errors.Wrap(err, "Associate sources")
@@ -153,6 +168,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		if err != nil {
 			return errors.Wrap(err, "Lookup tags  in DB")
 		}
+
+		// are we missing some tag ?
 		if len(tags) != len(metadata.Tags) {
 			missing := make([]string, 0)
 			for _, x := range metadata.Tags {
@@ -277,7 +294,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	// Associate collection and unit
 	if c != nil &&
 		(!metadata.ArtifactType.Valid || metadata.ArtifactType.String == "main") {
-		log.Info("Associating unit and collection")
+		log.Info("Associating unit and collection [c-cu]=[%d-%d]", c.ID, cu.ID)
 		ccu := &models.CollectionsContentUnit{
 			CollectionID:  c.ID,
 			ContentUnitID: cu.ID,

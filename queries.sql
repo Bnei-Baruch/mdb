@@ -327,13 +327,20 @@ WITH RECURSIVE rf AS (
 WITH RECURSIVE rf AS (
   SELECT f.*
   FROM files f
-  WHERE f.id = 360841
+  WHERE f.id = 364821
   UNION
   SELECT f.*
   FROM files f INNER JOIN rf ON f.parent_id = rf.id
-) SELECT *
-  FROM rf
-  WHERE id != 360841;
+) SELECT
+    id,
+    parent_id,
+    name,
+    size,
+    sha1,
+--     created_at,
+    content_unit_id,
+    properties ->> 'duration'
+  FROM rf;
 
 -- WITH RECURSIVE rf AS (
 --   SELECT f.*
@@ -428,3 +435,24 @@ CREATE TABLE file_mappings (
   m_cuid   BIGINT NULL,
   m_exists BOOLEAN
 );
+
+
+-- update content_units duration property
+UPDATE content_units
+SET properties = properties || jsonb_build_object('duration', b.duration)
+FROM
+  (SELECT
+     content_unit_id,
+     round(a) AS duration
+   FROM (SELECT
+           content_unit_id,
+           avg((properties ->> 'duration') :: REAL)    AS a,
+           stddev((properties ->> 'duration') :: REAL) AS s
+         FROM files
+         WHERE type IN ('audio', 'video') AND content_unit_id IN (SELECT id
+                                                                  FROM content_units
+                                                                  WHERE properties ? 'duration' IS FALSE)
+         GROUP BY content_unit_id) AS t) AS b
+WHERE id = b.content_unit_id;
+
+
