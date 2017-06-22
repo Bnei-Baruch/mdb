@@ -195,7 +195,7 @@ func ImportKmedia() {
 	log.Infof("Got %d mappings", len(catalogsTagsMappings))
 
 	log.Info("Loading all virtual_lessons")
-	vls, err := kmodels.VirtualLessons(kmdb).All()
+	vls, err := kmodels.VirtualLessons(kmdb, qm.Where("film_date between '2017-03-24' and '2017-05-08'")).All()
 	utils.Must(err)
 	log.Infof("Got %d lessons", len(vls))
 
@@ -291,23 +291,37 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 				break
 			}
 
+			var file *models.File
 			for _, fileAsset := range container.R.FileAssets {
 				log.Infof("Processing file_asset %d", fileAsset.ID)
 				stats.FileAssetsProcessed.Inc(1)
 
 				// Create or update MDB file
-				_, err = handleFile(tx, fileAsset, unit, operation)
+				file, err = handleFile(tx, fileAsset, unit, operation)
 				if err != nil {
 					log.Error(err)
 					debug.PrintStack()
 					break
 				}
+				if file.Published {
+					unit.Published = true
+				}
+			}
+			if err != nil {
+				break
+			}
+			if unit.Published {
+				collection.Published = true
+				err = unit.Update(tx, "published")
 			}
 			if err != nil {
 				break
 			}
 		}
 
+		if collection.Published {
+			err = collection.Update(tx, "published")
+		}
 		if err == nil {
 			utils.Must(tx.Commit())
 			stats.TxCommitted.Inc(1)
@@ -400,6 +414,7 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 			unit = &models.ContentUnit{
 				UID:    utils.GenerateUID(8),
 				TypeID: api.CONTENT_TYPE_REGISTRY.ByName[api.CT_LESSON_PART].ID,
+				Secure: int16(container.Secure),
 			}
 			err = unit.Insert(exec)
 			if err != nil {
@@ -417,7 +432,6 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 		unit.Properties.Unmarshal(&props)
 	}
 	props["kmedia_id"] = container.ID
-	props["secure"] = container.Secure
 	if container.LangID.Valid {
 		props["original_language"] = api.LANG_MAP[container.LangID.String]
 	}
@@ -503,19 +517,11 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 	unqSrc := make(map[*models.Source]bool, 0)
 	unqTags := make(map[*models.Tag]bool, 0)
 	for _, x := range container.R.Catalogs {
-		s, ok := catalogsSourcesMappings[x.ID]
-		if ok {
+		if s, ok := catalogsSourcesMappings[x.ID]; ok {
 			unqSrc[s] = true
-		}
-		t, ok := catalogsTagsMappings[x.ID]
-		if ok {
+		} else if t, ok := catalogsTagsMappings[x.ID]; ok {
 			unqTags[t] = true
-		}
-	}
-
-	// If no matches add all his catalogs to unknown catalogs
-	if len(unqSrc)+len(unqTags) == 0 {
-		for _, x := range container.R.Catalogs {
+		} else {
 			stats.UnkownCatalogs.Inc(fmt.Sprintf("%s [%d]", x.Name, x.ID), 1)
 		}
 	}
@@ -629,13 +635,18 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 		file.Language = null.NewString(l, l != "")
 	}
 
+	// Secure
+	if fileAsset.Secure.Valid {
+		file.Secure = int16(fileAsset.Secure.Int)
+	}
+	file.Published = file.Secure == 0
+
 	// Properties
 	props := make(map[string]interface{})
 	if file.Properties.Valid {
 		file.Properties.Unmarshal(&props)
 	}
 	props["kmedia_id"] = fileAsset.ID
-	props["secure"] = fileAsset.Secure
 	props["url"] = serverUrls[fileAsset.ServernameID.String] + "/" + file.Name
 	if fileAsset.PlaytimeSecs.Valid {
 		props["duration"] = fileAsset.PlaytimeSecs.Int
