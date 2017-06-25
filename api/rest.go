@@ -1514,6 +1514,10 @@ func appendOperationTypesFilterMods(mods *[]qm.QueryMod, f OperationTypesFilter)
 }
 
 func appendSourcesFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SourcesFilter) error {
+	if utils.IsEmpty(f.Authors) && len(f.Sources) == 0 {
+		return nil
+	}
+
 	// slice of all source ids we want
 	source_ids := make([]int64, 0)
 
