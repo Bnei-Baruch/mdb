@@ -1539,10 +1539,6 @@ func appendSourcesFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SourcesF
 	// blend in requested sources
 	source_ids = append(source_ids, f.Sources...)
 
-	if len(source_ids) == 0 {
-		return nil
-	}
-
 	// find all nested source_ids
 	q := `WITH RECURSIVE rec_sources AS (
 		  SELECT s.id FROM sources s WHERE s.id = ANY($1)
