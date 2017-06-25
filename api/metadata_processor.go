@@ -97,7 +97,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	log.Infof("Describing content unit [%d]", cu.ID)
 	err = DescribeContentUnit(exec, cu, metadata)
 	if err != nil {
-		return errors.Wrap(err, "Describe content unit")
+		log.Errorf("Error describing content unit: %s", err.Error())
 	}
 
 	// Add files to new unit
