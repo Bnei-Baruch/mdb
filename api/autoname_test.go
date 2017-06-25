@@ -160,3 +160,46 @@ func (suite *AutonameSuite) TestDescribeCollection() {
 		suite.Equal(names[i18n.Language], i18n.Name.String, "%s name", i18n.Language)
 	}
 }
+
+func (suite *AutonameSuite) TestSourceNamers() {
+	author := &models.Author{ID: -1}
+	author.L.LoadAuthorI18ns(suite.tx, true, author) // dummy call to initialize R
+	author.R.AuthorI18ns = make(models.AuthorI18nSlice, 0)
+	author.R.AuthorI18ns = append(author.R.AuthorI18ns,
+		&models.AuthorI18n{
+			Language: LANG_HEBREW,
+			Name:     null.StringFrom("author"),
+		},
+		&models.AuthorI18n{
+			Language: LANG_ENGLISH,
+			Name:     null.StringFrom("author"),
+		},
+	)
+
+	path := make([]*models.Source, 4)
+	for i := 1; i < 5; i++ {
+		s := &models.Source{ID: -1}
+		s.L.LoadSourceI18ns(suite.tx, true, s) // dummy call to initialize R
+		s.R.SourceI18ns = make(models.SourceI18nSlice, 0)
+		s.R.SourceI18ns = append(s.R.SourceI18ns,
+			&models.SourceI18n{
+				Language: LANG_HEBREW,
+				Name:     null.StringFrom(fmt.Sprintf("source %d", i)),
+			})
+		path[i-1] = s
+	}
+
+	var namer sourceNamer
+	namer = new(PlainNamer)
+	names := namer.GetName(author, path)
+	suite.Len(names, 1, "len(names)")
+	name := names[LANG_HEBREW]
+	suite.Equal("author, source 1, source 2, source 3, source 4", name, "name")
+
+	path[1].R.SourceI18ns[0].Description = null.StringFrom("source 2 description")
+	namer = new(ZoharNamer)
+	names = namer.GetName(author, path)
+	suite.Len(names, 1, "len(names)")
+	name = names[LANG_HEBREW]
+	suite.Equal("source 1, source 2 description, source 3, source 4", name, "name")
+}

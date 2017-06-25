@@ -31,6 +31,30 @@ WITH RECURSIVE rf AS (
   WHERE id != $1
 `
 
+const SOURCE_PATH_SQL = `
+WITH RECURSIVE rs AS (
+  SELECT s.*
+  FROM sources s
+  WHERE s.id = $1
+  UNION
+  SELECT s.*
+  FROM sources s INNER JOIN rs ON s.id = rs.parent_id
+) SELECT *
+  FROM rs;
+`
+
+const TAG_PATH_SQL = `
+WITH RECURSIVE rt AS (
+  SELECT t.*
+  FROM tags t
+  WHERE t.id = $1
+  UNION
+  SELECT t.*
+  FROM tags t INNER JOIN rt ON t.id = rt.parent_id
+) SELECT *
+  FROM rt;
+`
+
 const UPCHAIN_OPERATION_SQL = `
 WITH RECURSIVE
     rf AS (
@@ -434,10 +458,47 @@ func FindFileBySHA1(exec boil.Executor, sha1 string) (*models.File, []byte, erro
 	}
 }
 
-func FindFileAncestors(exec boil.Executor, fileID int64) ([]*models.File, error) {
+func FindFileAncestors(exec boil.Executor, id int64) ([]*models.File, error) {
 	var ancestors []*models.File
 
-	err := queries.Raw(exec, FILE_ANCESTORS_SQL, fileID).Bind(&ancestors)
+	err := queries.Raw(exec, FILE_ANCESTORS_SQL, id).Bind(&ancestors)
+	if err != nil {
+		return nil, errors.Wrap(err, "DB lookup")
+	}
+
+	return ancestors, nil
+}
+
+func FindSourceByUID(exec boil.Executor, uid string) (*models.Source, error) {
+	return models.Sources(exec, qm.Where("uid = ?", uid)).One()
+}
+
+func FindSourcePath(exec boil.Executor, id int64) ([]*models.Source, error) {
+	var ancestors []*models.Source
+
+	err := queries.Raw(exec, SOURCE_PATH_SQL, id).Bind(&ancestors)
+	if err != nil {
+		return nil, errors.Wrap(err, "DB lookup")
+	}
+
+	return ancestors, nil
+}
+
+func FindAuthorBySourceID(exec boil.Executor, id int64) (*models.Author, error) {
+	return models.Authors(exec,
+		qm.InnerJoin("authors_sources as x on x.author_id=id and x.source_id = ?", id),
+		qm.Load("AuthorI18ns")).
+		One()
+}
+
+func FindTagByUID(exec boil.Executor, uid string) (*models.Tag, error) {
+	return models.Tags(exec, qm.Where("uid = ?", uid)).One()
+}
+
+func FindTagPath(exec boil.Executor, id int64) ([]*models.Tag, error) {
+	var ancestors []*models.Tag
+
+	err := queries.Raw(exec, TAG_PATH_SQL, id).Bind(&ancestors)
 	if err != nil {
 		return nil, errors.Wrap(err, "DB lookup")
 	}

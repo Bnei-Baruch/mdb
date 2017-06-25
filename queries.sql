@@ -456,3 +456,12 @@ FROM
 WHERE id = b.content_unit_id;
 
 
+WITH RECURSIVE rs AS (
+  SELECT s.*
+  FROM sources s
+  WHERE s.id = 1817
+  UNION
+  SELECT s.*
+  FROM sources s INNER JOIN rs ON s.id = rs.parent_id
+) SELECT *
+  FROM rs;

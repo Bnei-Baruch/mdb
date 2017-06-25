@@ -21,14 +21,15 @@ import (
 // 	1. Update properties for original and proxy (film_date, capture_date)
 //	2. Update language of original
 // 	3. Create content_unit (content_type, dates)
-//	4. Add files to new unit
-// 	5. Add ancestor files to unit
-// 	6. Associate unit with sources, tags, and persons
-// 	7. Get or create collection
-// 	8. Update collection (content_type, dates, number) if full lesson or new lesson
-// 	9. Associate collection and unit
-// 	10. Associate unit and derived units
-// 	11. Set default permissions ?!
+// 	4. Describe content unit (i18ns)
+//	5. Add files to new unit
+// 	6. Add ancestor files to unit
+// 	7. Associate unit with sources, tags, and persons
+// 	8. Get or create collection
+// 	9. Update collection (content_type, dates, number) if full lesson or new lesson
+// 	10. Associate collection and unit
+// 	11. Associate unit and derived units
+// 	12. Set default permissions ?!
 func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) error {
 	log.Info("Processing CITMetadata")
 
@@ -78,7 +79,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 
 	var originalProps map[string]interface{}
 	err = original.Properties.Unmarshal(&originalProps)
-	if err !=nil {
+	if err != nil {
 		return errors.Wrap(err, "json.Unmarshal original properties")
 	}
 	if duration, ok := originalProps["duration"]; ok {
@@ -91,6 +92,12 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	cu, err := CreateContentUnit(exec, ct, props)
 	if err != nil {
 		return errors.Wrap(err, "Create content unit")
+	}
+
+	log.Infof("Describing content unit [%d]", cu.ID)
+	err = DescribeContentUnit(exec, cu, metadata)
+	if err != nil {
+		return errors.Wrap(err, "Describe content unit")
 	}
 
 	// Add files to new unit
@@ -399,7 +406,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				return errors.Wrap(err, "Close rows")
 			}
 
-			log.Infof("%d dervied units pending our association", len(derivedCUs))
+			log.Infof("%d derived units pending our association", len(derivedCUs))
 			for k, v := range derivedCUs {
 				log.Infof("DerivedID: %d, Name: %s", k, v)
 				cud := &models.ContentUnitDerivation{
