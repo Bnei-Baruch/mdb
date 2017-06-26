@@ -922,7 +922,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	suite.Require().Nil(err)
 	suite.Equal(capDate.Format("2006-01-02"), props["capture_date"], "cu.Properties[\"capture_date\"]")
 	suite.Equal(filmDate.Format("2006-01-02"), props["film_date"], "cu.Properties[\"film_date\"]")
-	suite.Equal(originalProps["duration"], props["duration"], "cu.Properties[\"duration\"]")
+	suite.EqualValues(int(originalProps["duration"].(float64)), props["duration"], "cu.Properties[\"duration\"]")
 
 	// files in unit
 	err = cu.L.LoadFiles(suite.tx, true, cu)

@@ -83,7 +83,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		return errors.Wrap(err, "json.Unmarshal original properties")
 	}
 	if duration, ok := originalProps["duration"]; ok {
-		props["duration"] = duration
+		props["duration"] = int(duration.(float64))
 	} else {
 		log.Infof("Original is missing duration property [%d]", original.ID)
 	}
