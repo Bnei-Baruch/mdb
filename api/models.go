@@ -39,7 +39,7 @@ type (
 
 	CITMetadataMajor struct {
 		Type string `json:"type" binding:"required,eq=source|eq=tag"`
-		Idx  int    `json:"idx" binding:"required"`
+		Idx  int    `json:"idx" binding:"gte=0"`
 	}
 	CITMetadata struct {
 		ContentType    string           `json:"content_type" binding:"required"`
