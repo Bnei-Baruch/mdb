@@ -260,6 +260,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				if metadata.Number.Valid {
 					props["number"] = metadata.Number.Int
 				}
+				delete(props, "duration")
 
 				c, err = FindCollectionByCaptureID(exec, captureID)
 				if err != nil {
