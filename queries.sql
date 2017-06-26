@@ -327,7 +327,7 @@ WITH RECURSIVE rf AS (
 WITH RECURSIVE rf AS (
   SELECT f.*
   FROM files f
-  WHERE f.id = 364821
+  WHERE f.id = 380600
   UNION
   SELECT f.*
   FROM files f INNER JOIN rf ON f.parent_id = rf.id
@@ -341,6 +341,13 @@ WITH RECURSIVE rf AS (
     content_unit_id,
     properties ->> 'duration'
   FROM rf;
+
+-- update files set content_unit_id=26031 where parent_id=380610;
+-- update files set content_unit_id=26032 where parent_id=380662;
+-- update files set content_unit_id=26033 where parent_id=380667;
+-- update files set content_unit_id=26034 where parent_id=380739;
+-- update files set content_unit_id=26035 where parent_id=380791;
+update content_units set published=true where id in (26031, 26032, 26033, 26034, 26035);
 
 -- WITH RECURSIVE rf AS (
 --   SELECT f.*
