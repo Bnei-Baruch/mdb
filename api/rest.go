@@ -155,7 +155,39 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleContentUnitSources(boil.GetDB(), id)
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		resp, err = handleGetContentUnitSources(boil.GetDB(), id)
+	case http.MethodPost:
+		var body map[string]int64
+		if c.BindJSON(&body) != nil {
+			return
+		}
+
+		sourceID, ok := body["sourceID"]
+		if !ok {
+			err = NewBadRequestError(errors.Wrap(e, "No sourceID given"))
+			break
+		}
+
+		tx := mustBeginTx()
+		err = handleContentUnitAddSource(tx, id, sourceID)
+		mustConcludeTx(tx, err)
+	case http.MethodDelete:
+		sourceID, e := strconv.ParseInt(c.Param("sourceID"), 10, 0)
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "sourceID expects int64"))
+			break
+		}
+
+		tx := mustBeginTx()
+		err = handleContentUnitRemoveSource(tx, id, sourceID)
+		mustConcludeTx(tx, err)
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -166,7 +198,39 @@ func ContentUnitTagsHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleContentUnitTags(boil.GetDB(), id)
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		resp, err = handleGetContentUnitTags(boil.GetDB(), id)
+	case http.MethodPost:
+		var body map[string]int64
+		if c.BindJSON(&body) != nil {
+			return
+		}
+
+		tagID, ok := body["tagID"]
+		if !ok {
+			err = NewBadRequestError(errors.Wrap(e, "No tagID given"))
+			break
+		}
+
+		tx := mustBeginTx()
+		err = handleContentUnitAddTag(tx, id, tagID)
+		mustConcludeTx(tx, err)
+	case http.MethodDelete:
+		tagID, e := strconv.ParseInt(c.Param("tagID"), 10, 0)
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "tagID expects int64"))
+			break
+		}
+
+		tx := mustBeginTx()
+		err = handleContentUnitRemoveTag(tx, id, tagID)
+		mustConcludeTx(tx, err)
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -815,7 +879,7 @@ func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUni
 	return data, nil
 }
 
-func handleContentUnitSources(exec boil.Executor, id int64) ([]*Source, *HttpError) {
+func handleGetContentUnitSources(exec boil.Executor, id int64) ([]*Source, *HttpError) {
 	unit, err := models.ContentUnits(exec,
 		qm.Where("id = ?", id),
 		qm.Load("Sources", "Sources.SourceI18ns")).
@@ -842,7 +906,74 @@ func handleContentUnitSources(exec boil.Executor, id int64) ([]*Source, *HttpErr
 	return data, nil
 }
 
-func handleContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError) {
+func handleContentUnitAddSource(exec boil.Executor, id int64, sourceID int64) *HttpError {
+	unit, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	source, err := models.FindSource(exec, sourceID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewBadRequestError(errors.Errorf("Unknown source id %d", sourceID))
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	var count int64
+	err = queries.Raw(exec,
+		`SELECT COUNT(1) FROM content_units_sources WHERE content_unit_id=$1 AND source_id=$2`,
+		unit.ID, source.ID).
+		QueryRow().
+		Scan(&count)
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if count > 0 {
+		return nil // noop
+	}
+
+	err = unit.AddSources(exec, false, source)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
+}
+
+func handleContentUnitRemoveSource(exec boil.Executor, id int64, sourceID int64) *HttpError {
+	unit, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	source, err := models.FindSource(exec, sourceID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewBadRequestError(errors.Errorf("Unknown source id %d", sourceID))
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	err = unit.RemoveSources(exec, source)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
+}
+
+func handleGetContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError) {
 	unit, err := models.ContentUnits(exec,
 		qm.Where("id = ?", id),
 		qm.Load("Tags", "Tags.TagI18ns")).
@@ -867,6 +998,73 @@ func handleContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError) {
 	}
 
 	return data, nil
+}
+
+func handleContentUnitAddTag(exec boil.Executor, id int64, tagID int64) *HttpError {
+	unit, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	tag, err := models.FindTag(exec, tagID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewBadRequestError(errors.Errorf("Unknown tag id %d", tagID))
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	var count int64
+	err = queries.Raw(exec,
+		`SELECT COUNT(1) FROM content_units_tags WHERE content_unit_id=$1 AND tag_id=$2`,
+		unit.ID, tag.ID).
+		QueryRow().
+		Scan(&count)
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if count > 0 {
+		return nil // noop
+	}
+
+	err = unit.AddTags(exec, false, tag)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
+}
+
+func handleContentUnitRemoveTag(exec boil.Executor, id int64, tagID int64) *HttpError {
+	unit, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	tag, err := models.FindTag(exec, tagID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewBadRequestError(errors.Errorf("Unknown tag id %d", tagID))
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	err = unit.RemoveTags(exec, tag)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
 }
 
 func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpError) {
