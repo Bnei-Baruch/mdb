@@ -426,12 +426,10 @@ ORDER BY pattern)
 to '/var/lib/postgres/data/titles.csv' (format CSV);
 
 -- insert into collections (uid, type_id, properties) values
---   ('VwCQ0OBq', 16, '{"active": true, "pattern": "webinar"}'),
---   ('pjoTcgvx', 16, '{"active": true, "pattern": "zman-kabbalah"}');
---
+--   ('TdukhVNd', 5, '{"active": true, "pattern": "perehod", "default_language": "ru"}');
+-- --
 -- insert into collection_i18n (collection_id, language, name) VALUES
---   (10648, 'he', 'וובינר'),
---   (10649, 'he', 'זמן קבלה');
+--   (10796, 'ru', 'Переход');
 
 DROP TABLE IF EXISTS file_mappings;
 CREATE TABLE file_mappings (
