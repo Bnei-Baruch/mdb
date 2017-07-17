@@ -17,6 +17,7 @@ func SetupRoutes(router *gin.Engine) {
 
 	rest := router.Group("rest")
 	rest.GET("/collections/", CollectionsListHandler)
+	rest.POST("/collections/", CollectionsListHandler)
 	rest.GET("/collections/:id/", CollectionHandler)
 	rest.PUT("/collections/:id/", CollectionHandler)
 	rest.PUT("/collections/:id/i18n/", CollectionI18nHandler)

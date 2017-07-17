@@ -26,12 +26,28 @@ const (
 )
 
 func CollectionsListHandler(c *gin.Context) {
-	var r CollectionsRequest
-	if c.Bind(&r) != nil {
-		return
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		var r CollectionsRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+
+		resp, err = handleCollectionsList(boil.GetDB(), r)
+	case http.MethodPost:
+		var collection Collection
+		if c.BindJSON(&collection) != nil {
+			return
+		}
+
+		tx := mustBeginTx()
+		resp, err = handleCreateCollection(tx, collection)
+		mustConcludeTx(tx, err)
 	}
 
-	resp, err := handleCollectionsList(boil.GetDB(), r)
 	concludeRequest(c, resp, err)
 }
 
@@ -663,6 +679,10 @@ func handleUpdateCollection(exec boil.Executor, c *Collection) (*Collection, *Ht
 	}
 
 	return handleGetCollection(exec, c.ID)
+}
+
+func handleCreateCollection(exec boil.Executor, c Collection) (*Collection, *HttpError) {
+	return nil, nil
 }
 
 func handleUpdateCollectionI18n(exec boil.Executor, id int64, i18ns []*models.CollectionI18n) (*Collection, *HttpError) {
@@ -1418,20 +1438,13 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 	}
 
 	// save tag to DB
-	var uid string
-	for {
-		uid = utils.GenerateUID(8)
-		exists, err := models.Sources(exec, qm.Where("uid = ?", uid)).Exists()
-		if err != nil {
-			return nil, NewInternalError(err)
-		}
-		if !exists {
-			break
-		}
+	uid, err := GetFreeUID(exec, new(SourceUIDChecker))
+	if err != nil {
+		return nil, NewInternalError(err)
 	}
-
 	s.UID = uid
-	err := s.Source.Insert(exec)
+
+	err = s.Source.Insert(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -1589,20 +1602,13 @@ func handleCreateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
 	}
 
 	// save tag to DB
-	var uid string
-	for {
-		uid = utils.GenerateUID(8)
-		exists, err := models.Tags(exec, qm.Where("uid = ?", uid)).Exists()
-		if err != nil {
-			return nil, NewInternalError(err)
-		}
-		if !exists {
-			break
-		}
+	uid, err := GetFreeUID(exec, new(TagUIDChecker))
+	if err != nil {
+		return nil, NewInternalError(err)
 	}
-
 	t.UID = uid
-	err := t.Tag.Insert(exec)
+
+	err = t.Tag.Insert(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}

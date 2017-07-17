@@ -85,17 +85,9 @@ WITH RECURSIVE
 `
 
 func CreateOperation(exec boil.Executor, name string, o Operation, properties map[string]interface{}) (*models.Operation, error) {
-
-	var uid string
-	for {
-		uid = utils.GenerateUID(8)
-		exists, err := models.Operations(exec, qm.Where("uid = ?", uid)).Exists()
-		if err != nil {
-			return nil, errors.Wrap(err, "Check UID exists")
-		}
-		if !exists {
-			break
-		}
+	uid, err := GetFreeUID(exec, new(OperationUIDChecker))
+	if err != nil {
+		return nil, err
 	}
 
 	operation := models.Operation{
@@ -157,16 +149,9 @@ func CreateCollection(exec boil.Executor, contentType string, properties map[str
 		return nil, errors.Errorf("Unknown content type %s", contentType)
 	}
 
-	var uid string
-	for {
-		uid = utils.GenerateUID(8)
-		exists, err := models.Collections(exec, qm.Where("uid = ?", uid)).Exists()
-		if err != nil {
-			return nil, errors.Wrap(err, "Check UID exists")
-		}
-		if !exists {
-			break
-		}
+	uid, err := GetFreeUID(exec, new(CollectionUIDChecker))
+	if err != nil {
+		return nil, err
 	}
 
 	collection := &models.Collection{
@@ -182,7 +167,7 @@ func CreateCollection(exec boil.Executor, contentType string, properties map[str
 		collection.Properties = null.JSONFrom(props)
 	}
 
-	err := collection.Insert(exec)
+	err = collection.Insert(exec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Save to DB")
 	}
@@ -242,16 +227,9 @@ func CreateContentUnit(exec boil.Executor, contentType string, properties map[st
 		return nil, errors.Errorf("Unknown content type %s", contentType)
 	}
 
-	var uid string
-	for {
-		uid = utils.GenerateUID(8)
-		exists, err := models.ContentUnits(exec, qm.Where("uid = ?", uid)).Exists()
-		if err != nil {
-			return nil, errors.Wrap(err, "Check UID exists")
-		}
-		if !exists {
-			break
-		}
+	uid, err := GetFreeUID(exec, new(ContentUnitUIDChecker))
+	if err != nil {
+		return nil, err
 	}
 
 	unit := &models.ContentUnit{
@@ -267,7 +245,7 @@ func CreateContentUnit(exec boil.Executor, contentType string, properties map[st
 		unit.Properties = null.JSONFrom(props)
 	}
 
-	err := unit.Insert(exec)
+	err = unit.Insert(exec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Save to DB")
 	}
@@ -322,16 +300,9 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 		}
 	}
 
-	var uid string
-	for {
-		uid = utils.GenerateUID(8)
-		exists, err := models.Files(exec, qm.Where("uid = ?", uid)).Exists()
-		if err != nil {
-			return nil, errors.Wrap(err, "Check UID exists")
-		}
-		if !exists {
-			break
-		}
+	uid, err := GetFreeUID(exec, new(FileUIDChecker))
+	if err != nil {
+		return nil, err
 	}
 
 	file := &models.File{
@@ -523,4 +494,60 @@ func StdLang(lang string) string {
 	}
 
 	return LANG_UNKNOWN
+}
+
+type UIDChecker interface {
+	Check(exec boil.Executor, uid string) (exists bool, err error)
+}
+
+type CollectionUIDChecker struct{}
+
+func (c *CollectionUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Collections(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+type ContentUnitUIDChecker struct{}
+
+func (c *ContentUnitUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.ContentUnits(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+type FileUIDChecker struct{}
+
+func (c *FileUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Files(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+type OperationUIDChecker struct{}
+
+func (c *OperationUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Operations(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+type SourceUIDChecker struct{}
+
+func (c *SourceUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Sources(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+type TagUIDChecker struct{}
+
+func (c *TagUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Tags(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+func GetFreeUID(exec boil.Executor, checker UIDChecker) (uid string, err error) {
+	for {
+		uid = utils.GenerateUID(8)
+		exists, ex := checker.Check(exec, uid)
+		if ex != nil {
+			err = errors.Wrap(ex, "Check UID exists")
+			break
+		}
+		if !exists {
+			break
+		}
+	}
+
+	return
 }

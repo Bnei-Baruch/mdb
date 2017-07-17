@@ -97,8 +97,12 @@ func handleCaptureStart(exec boil.Executor, input interface{}) (*models.Operatio
 	}
 
 	log.Info("Creating file and associating to operation")
+	uid, err := GetFreeUID(exec, new(FileUIDChecker))
+	if err != nil {
+		return nil, err
+	}
 	file := models.File{
-		UID:  utils.GenerateUID(8),
+		UID:  uid,
 		Name: r.FileName,
 	}
 	return operation, operation.AddFiles(exec, true, &file)
