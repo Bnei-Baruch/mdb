@@ -64,6 +64,30 @@ func CollectionHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func CollectionI18nHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var i18ns []*models.CollectionI18n
+	if c.Bind(&i18ns) != nil {
+		return
+	}
+	for _, x := range i18ns {
+		if StdLang(x.Language) == LANG_UNKNOWN {
+			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+			return
+		}
+	}
+
+	tx := mustBeginTx()
+	resp, err := handleUpdateCollectionI18n(tx, id, i18ns)
+	mustConcludeTx(tx, err)
+	concludeRequest(c, resp, err)
+}
+
 func CollectionContentUnitsHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
@@ -123,6 +147,30 @@ func ContentUnitHandler(c *gin.Context) {
 		}
 	}
 
+	concludeRequest(c, resp, err)
+}
+
+func ContentUnitI18nHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var i18ns []*models.ContentUnitI18n
+	if c.Bind(&i18ns) != nil {
+		return
+	}
+	for _, x := range i18ns {
+		if StdLang(x.Language) == LANG_UNKNOWN {
+			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+			return
+		}
+	}
+
+	tx := mustBeginTx()
+	resp, err := handleUpdateContentUnitI18n(tx, id, i18ns)
+	mustConcludeTx(tx, err)
 	concludeRequest(c, resp, err)
 }
 
@@ -617,6 +665,38 @@ func handleUpdateCollection(exec boil.Executor, c *Collection) (*Collection, *Ht
 	return handleGetCollection(exec, c.ID)
 }
 
+func handleUpdateCollectionI18n(exec boil.Executor, id int64, i18ns []*models.CollectionI18n) (*Collection, *HttpError) {
+	collection, err := handleGetCollection(exec, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Upsert all new i18ns
+	nI18n := make(map[string]*models.CollectionI18n, len(i18ns))
+	for _, i18n := range i18ns {
+		i18n.CollectionID = id
+		nI18n[i18n.Language] = i18n
+		err := i18n.Upsert(exec, true,
+			[]string{"collection_id", "language"},
+			[]string{"name", "description"})
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// Delete old i18ns not in new i18ns
+	for k, v := range collection.I18n {
+		if _, ok := nI18n[k]; !ok {
+			err := v.Delete(exec)
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+		}
+	}
+
+	return handleGetCollection(exec, id)
+}
+
 func handleCollectionActivate(exec boil.Executor, id int64) *HttpError {
 	collection, err := models.FindCollection(exec, id)
 	if err != nil {
@@ -806,6 +886,38 @@ func handleUpdateContentUnit(exec boil.Executor, cu *ContentUnit) (*ContentUnit,
 	}
 
 	return handleGetContentUnit(exec, cu.ID)
+}
+
+func handleUpdateContentUnitI18n(exec boil.Executor, id int64, i18ns []*models.ContentUnitI18n) (*ContentUnit, *HttpError) {
+	unit, err := handleGetContentUnit(exec, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Upsert all new i18ns
+	nI18n := make(map[string]*models.ContentUnitI18n, len(i18ns))
+	for _, i18n := range i18ns {
+		i18n.ContentUnitID = id
+		nI18n[i18n.Language] = i18n
+		err := i18n.Upsert(exec, true,
+			[]string{"content_unit_id", "language"},
+			[]string{"name", "description"})
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// Delete old i18ns not in new i18ns
+	for k, v := range unit.I18n {
+		if _, ok := nI18n[k]; !ok {
+			err := v.Delete(exec)
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+		}
+	}
+
+	return handleGetContentUnit(exec, id)
 }
 
 func handleContentUnitFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
