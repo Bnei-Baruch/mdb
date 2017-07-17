@@ -107,8 +107,8 @@ func CollectionActivateHandler(c *gin.Context) {
 		return
 	}
 
-	err := handleCollectionActivate(boil.GetDB(), id)
-	concludeRequest(c, gin.H{"status": "ok"}, err)
+	resp, err := handleCollectionActivate(boil.GetDB(), id)
+	concludeRequest(c, resp, err)
 }
 
 func ContentUnitsListHandler(c *gin.Context) {
@@ -697,13 +697,13 @@ func handleUpdateCollectionI18n(exec boil.Executor, id int64, i18ns []*models.Co
 	return handleGetCollection(exec, id)
 }
 
-func handleCollectionActivate(exec boil.Executor, id int64) *HttpError {
+func handleCollectionActivate(exec boil.Executor, id int64) (*Collection, *HttpError) {
 	collection, err := models.FindCollection(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
@@ -721,15 +721,15 @@ func handleCollectionActivate(exec boil.Executor, id int64) *HttpError {
 
 	pbytes, err := json.Marshal(props)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 	collection.Properties = null.JSONFrom(pbytes)
 	err = collection.Update(exec, "properties")
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	return nil
+	return handleGetCollection(exec, id)
 }
 
 func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit, *HttpError) {
