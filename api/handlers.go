@@ -413,6 +413,7 @@ func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, e
 	}
 
 	log.Info("Creating file")
+	r.File.Type = "image"
 	file, err := CreateFile(exec, nil, r.File, nil)
 	if err != nil {
 		return nil, err
