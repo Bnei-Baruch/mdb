@@ -43,6 +43,20 @@ func CollectionsListHandler(c *gin.Context) {
 			return
 		}
 
+		if _, ok := CONTENT_TYPE_REGISTRY.ByID[collection.TypeID]; !ok {
+			err := errors.Errorf("Unknown content type %d", collection.TypeID)
+			NewBadRequestError(err).Abort(c)
+			return
+		}
+
+		for _, x := range collection.I18n {
+			if StdLang(x.Language) == LANG_UNKNOWN {
+				err := errors.Errorf("Unknown language %s", x.Language)
+				NewBadRequestError(err).Abort(c)
+				return
+			}
+		}
+
 		tx := mustBeginTx()
 		resp, err = handleCreateCollection(tx, collection)
 		mustConcludeTx(tx, err)
@@ -639,6 +653,34 @@ func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*Collectio
 	}, nil
 }
 
+func handleCreateCollection(exec boil.Executor, c Collection) (*Collection, *HttpError) {
+	// unmarshal properties
+	props := make(map[string]interface{})
+	if c.Properties.Valid {
+		err := json.Unmarshal(c.Properties.JSON, &props)
+		if err != nil {
+			return nil, NewBadRequestError(errors.Wrap(err, "json.Unmarshal properties"))
+		}
+	}
+
+	// create collection in DB
+	ct := CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name
+	collection, err := CreateCollection(exec, ct, props)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// save i18n
+	for _, v := range c.I18n {
+		err := collection.AddCollectionI18ns(exec, true, v)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	return handleGetCollection(exec, collection.ID)
+}
+
 func handleGetCollection(exec boil.Executor, id int64) (*Collection, *HttpError) {
 	collection, err := models.Collections(exec,
 		qm.Where("id = ?", id),
@@ -679,10 +721,6 @@ func handleUpdateCollection(exec boil.Executor, c *Collection) (*Collection, *Ht
 	}
 
 	return handleGetCollection(exec, c.ID)
-}
-
-func handleCreateCollection(exec boil.Executor, c Collection) (*Collection, *HttpError) {
-	return nil, nil
 }
 
 func handleUpdateCollectionI18n(exec boil.Executor, id int64, i18ns []*models.CollectionI18n) (*Collection, *HttpError) {
@@ -1437,7 +1475,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 		}
 	}
 
-	// save tag to DB
+	// save source to DB
 	uid, err := GetFreeUID(exec, new(SourceUIDChecker))
 	if err != nil {
 		return nil, NewInternalError(err)
