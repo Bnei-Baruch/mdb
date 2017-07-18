@@ -302,7 +302,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	// Associate collection and unit
 	if c != nil &&
 		(!metadata.ArtifactType.Valid || metadata.ArtifactType.String == "main") {
-		log.Info("Associating unit and collection [c-cu]=[%d-%d]", c.ID, cu.ID)
+		log.Infof("Associating unit and collection [c-cu]=[%d-%d]", c.ID, cu.ID)
 		ccu := &models.CollectionsContentUnit{
 			CollectionID:  c.ID,
 			ContentUnitID: cu.ID,
