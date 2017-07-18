@@ -81,6 +81,15 @@ func UploadHandler(c *gin.Context) {
 	}
 }
 
+// Sirtutim archive file generated
+func SirtutimHandler(c *gin.Context) {
+	log.Info(OP_SIRTUTIM)
+	var i SirtutimRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleSirtutim)
+	}
+}
+
 // Handler logic
 
 func handleCaptureStart(exec boil.Executor, input interface{}) (*models.Operation, error) {
@@ -392,6 +401,50 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, err
 
 	log.Info("Associating file to operation")
 	return operation, operation.AddFiles(exec, false, file)
+}
+
+func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, error) {
+	r := input.(SirtutimRequest)
+
+	log.Info("Creating operation")
+	operation, err := CreateOperation(exec, OP_SIRTUTIM, r.Operation, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("Creating file")
+	file, err := CreateFile(exec, nil, r.File, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// content_unit association
+	var original *models.File
+	if r.OriginalSha1 != "" {
+		log.Info("Looking up content unit by original sha1")
+		original, _, err = FindFileBySHA1(exec, r.OriginalSha1)
+		if err != nil {
+			if _, ok := err.(FileNotFound); ok {
+				log.Warnf("Original file not found [%s]", r.OriginalSha1)
+			} else {
+				return nil, err
+			}
+		} else {
+			if original.ContentUnitID.Valid {
+				log.Infof("Associating to content_unit [%d]", original.ContentUnitID.Int64)
+				file.ContentUnitID = original.ContentUnitID
+				err = file.Update(exec, "content_unit_id")
+				if err != nil {
+					return nil, errors.Wrap(err, "Save file.content_unit_id to DB")
+				}
+			} else {
+				log.Warn("Original file is not associated to any content unit")
+			}
+		}
+	}
+
+	log.Info("Associating files to operation")
+	return operation, operation.AddFiles(exec, false, original, file)
 }
 
 // Helpers

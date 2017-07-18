@@ -123,6 +123,12 @@ type (
 		Url string `json:"url" binding:"required"`
 	}
 
+	SirtutimRequest struct {
+		Operation
+		File
+		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
+	}
+
 	// REST
 
 	ListRequest struct {

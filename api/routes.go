@@ -14,6 +14,7 @@ func SetupRoutes(router *gin.Engine) {
 	operations.POST("/send", SendHandler)
 	operations.POST("/convert", ConvertHandler)
 	operations.POST("/upload", UploadHandler)
+	operations.POST("/sirtutim", SirtutimHandler)
 
 	rest := router.Group("rest")
 	rest.GET("/collections/", CollectionsListHandler)

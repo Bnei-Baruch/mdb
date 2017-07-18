@@ -39,6 +39,7 @@ const (
 	OP_CONVERT       = "convert"
 	OP_UPLOAD        = "upload"
 	OP_IMPORT_KMEDIA = "import_kmedia"
+	OP_SIRTUTIM      = "sirtutim"
 
 	// Source Types
 	SRC_COLLECTION = "COLLECTION"
@@ -59,9 +60,9 @@ const (
 	P_RAV = "rav"
 
 	// Security levels
-	SEC_PUBLIC = int16(0)
+	SEC_PUBLIC    = int16(0)
 	SEC_SENSITIVE = int16(1)
-	SEC_PRIVATE = int16(2)
+	SEC_PRIVATE   = int16(2)
 
 	// Languages
 	LANG_ENGLISH    = "en"

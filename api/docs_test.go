@@ -305,6 +305,27 @@ func (suite *DocsSuite) Test7UploadHandler() {
 	suite.assertJsonOK(resp)
 }
 
+func (suite *DocsSuite) Test8SirtutimHandler() {
+	input := SirtutimRequest{
+		Operation: Operation{
+			Station: "Upload station",
+			User:    "111operator@dev.com",
+		},
+		File: File{
+			FileName:  "heb_o_rav_2016-09-14_lesson_o.zip",
+			Sha1:      "0987654321fedcba0987654321fedcba09876544",
+			Size:      19837,
+			CreatedAt: &Timestamp{Time: time.Now()},
+			Language: LANG_HEBREW,
+		},
+		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
+	}
+
+	resp, err := suite.testOperation(OP_SIRTUTIM, input)
+	suite.Require().Nil(err)
+	suite.assertJsonOK(resp)
+}
+
 func (suite *DocsSuite) testOperation(name string, input interface{}) (*http.Response, error) {
 	b := new(bytes.Buffer)
 	err := json.NewEncoder(b).Encode(input)
