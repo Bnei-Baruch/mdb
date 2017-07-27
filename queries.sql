@@ -426,8 +426,8 @@ ORDER BY pattern)
 to '/var/lib/postgres/data/titles.csv' (format CSV);
 
 -- insert into collections (uid, type_id, properties) values
---   ('TdukhVNd', 5, '{"active": true, "pattern": "perehod", "default_language": "ru"}');
--- --
+--   ('TYbA7WoZ', 4, '{"active": true, "pattern": "italy", "country": "Italy", "city": "Rome", "start_date": "2017-07-28", "end_date": "2017-07-30", "full_address": "SHG Hotel Antonella, Via Pontina, 00040 Pomezia RM, Italy" }');
+--
 -- insert into collection_i18n (collection_id, language, name) VALUES
 --   (10796, 'ru', 'Переход');
 
