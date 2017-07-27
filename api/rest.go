@@ -75,20 +75,23 @@ func CollectionHandler(c *gin.Context) {
 	var err *HttpError
 	var resp interface{}
 
-	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+	switch c.Request.Method {
+	case http.MethodGet, "":
 		resp, err = handleGetCollection(boil.GetDB(), id)
-	} else {
-		if c.Request.Method == http.MethodPut {
-			var cl Collection
-			if c.Bind(&cl) != nil {
-				return
-			}
-
-			cl.ID = id
-			tx := mustBeginTx()
-			resp, err = handleUpdateCollection(tx, &cl)
-			mustConcludeTx(tx, err)
+	case http.MethodPut:
+		var cl Collection
+		if c.Bind(&cl) != nil {
+			return
 		}
+
+		cl.ID = id
+		tx := mustBeginTx()
+		resp, err = handleUpdateCollection(tx, &cl)
+		mustConcludeTx(tx, err)
+	case http.MethodDelete:
+		tx := mustBeginTx()
+		err = handleDeleteCollection(tx, id)
+		mustConcludeTx(tx, err)
 	}
 
 	concludeRequest(c, resp, err)
@@ -721,6 +724,34 @@ func handleUpdateCollection(exec boil.Executor, c *Collection) (*Collection, *Ht
 	}
 
 	return handleGetCollection(exec, c.ID)
+}
+
+func handleDeleteCollection(exec boil.Executor, id int64) *HttpError {
+	collection, err := models.FindCollection(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	err = models.CollectionsContentUnits(exec, qm.Where("collection_id = ?", id)).DeleteAll()
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	err = models.CollectionI18ns(exec, qm.Where("collection_id = ?", id)).DeleteAll()
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	err = collection.Delete(exec)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
 }
 
 func handleUpdateCollectionI18n(exec boil.Executor, id int64, i18ns []*models.CollectionI18n) (*Collection, *HttpError) {
