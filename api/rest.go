@@ -717,10 +717,25 @@ func handleUpdateCollection(exec boil.Executor, c *Collection) (*Collection, *Ht
 		}
 	}
 
+	// update entity attributes
 	collection.Secure = c.Secure
 	err = collection.Update(exec, "secure")
 	if err != nil {
 		return nil, NewInternalError(err)
+	}
+
+	// update properties bag
+	if c.Properties.Valid {
+		var props map[string]interface{}
+		err = c.Properties.Unmarshal(&props)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+
+		err = UpdateCollectionProperties(exec, collection, props)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
 	}
 
 	return handleGetCollection(exec, c.ID)
