@@ -38,6 +38,15 @@ func init() {
 	RootCmd.AddCommand(command)
 
 	command = &cobra.Command{
+		Use:   "kmedia-congress",
+		Short: "Import Congresses from KMedia",
+		Run: func(cmd *cobra.Command, args []string) {
+			kmedia.DumpCongresses()
+		},
+	}
+	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
 		Use:   "kmedia-fkeys",
 		Short: "Add foreign keys to kmedia",
 		Long:  "Add foreign keys to kmedia, then run:\n\tsqlboiler -o gmodels_old -p gmodels --no-hooks postgres",

@@ -470,3 +470,54 @@ WITH RECURSIVE rs AS (
   FROM sources s INNER JOIN rs ON s.id = rs.parent_id
 ) SELECT *
   FROM rs;
+
+-- kmedia congresses
+WITH RECURSIVE rc AS (
+  SELECT c.*
+  FROM catalogs c
+  WHERE c.id = 40
+  UNION
+  SELECT c.*
+  FROM catalogs c INNER JOIN rc ON c.parent_id = rc.id
+) SELECT
+    count(cn.*)
+  FROM rc inner join catalogs_containers cc on rc.id = cc.catalog_id
+inner join containers cn on cc.container_id = cn.id;
+
+
+-- all sources for translation (Dima Perkin)
+COPY (
+WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id,
+    s.uid,
+    s.position,
+    (SELECT name
+     FROM source_i18n
+     WHERE source_id = s.id AND language = 'he') AS "he.name",
+    (SELECT name
+     FROM source_i18n
+     WHERE source_id = s.id AND language = 'ru') AS "ru.name",
+    ARRAY [s.id]                                    "path"
+  FROM sources s
+  WHERE s.parent_id IS NULL
+  UNION
+  SELECT
+    s.id,
+    s.uid,
+    s.position,
+    (SELECT name
+     FROM source_i18n
+     WHERE source_id = s.id AND language = 'he') AS "he.name",
+    (SELECT name
+     FROM source_i18n
+     WHERE source_id = s.id AND language = 'ru') AS "ru.name",
+    rs.path || s.id
+  FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+  --   WHERE rs.depth < 2
+)
+SELECT *
+FROM rec_sources
+ORDER BY path, position
+) TO '/var/lib/postgres/data/all_sources.csv'  (
+FORMAT CSV );
