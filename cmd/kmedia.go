@@ -11,10 +11,19 @@ import (
 
 func init() {
 	command := &cobra.Command{
-		Use:   "kmedia",
-		Short: "Migrate kmedia to MDB",
+		Use:   "kmedia-lessons",
+		Short: "Import kmedia VirtualLessons to MDB",
 		Run: func(cmd *cobra.Command, args []string) {
-			kmedia.ImportKmedia()
+			kmedia.ImportVirtualLessons()
+		},
+	}
+	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
+		Use:   "kmedia-congresses",
+		Short: "Import KMedia Congresses to MDB",
+		Run: func(cmd *cobra.Command, args []string) {
+			kmedia.ImportCongresses()
 		},
 	}
 	RootCmd.AddCommand(command)
@@ -33,15 +42,6 @@ func init() {
 		Short: "Update i18ns for content units based on kmedia_id",
 		Run: func(cmd *cobra.Command, args []string) {
 			kmedia.UpdateUnits()
-		},
-	}
-	RootCmd.AddCommand(command)
-
-	command = &cobra.Command{
-		Use:   "kmedia-congress",
-		Short: "Import Congresses from KMedia",
-		Run: func(cmd *cobra.Command, args []string) {
-			kmedia.DumpCongresses()
 		},
 	}
 	RootCmd.AddCommand(command)

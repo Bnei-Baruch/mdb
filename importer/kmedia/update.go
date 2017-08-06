@@ -2,6 +2,7 @@ package kmedia
 
 import (
 	"database/sql"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"runtime/debug"
 )
 
 func UpdateUnits() {

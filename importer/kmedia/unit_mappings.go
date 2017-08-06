@@ -62,15 +62,15 @@ func MapUnits() {
 	serverUrls, err = initServers(kmdb)
 	utils.Must(err)
 
-	log.Info("Loading all virtual_lessons")
-	vls, err := kmodels.VirtualLessons(kmdb).All()
+	log.Info("Loading all containers")
+	containers, err := kmodels.Containers(kmdb).All()
 	utils.Must(err)
-	log.Infof("Got %d lessons", len(vls))
+	log.Infof("Got %d containers", len(containers))
 
 	stats = NewImportStatistics()
 
 	log.Info("Setting up workers")
-	jobs := make(chan *kmodels.VirtualLesson, 100)
+	jobs := make(chan *kmodels.Container, 100)
 	results := make(chan []*FileMappings, 100)
 	done := make(chan []*FileMappings)
 
@@ -83,8 +83,8 @@ func MapUnits() {
 	go mappingsAggregator(results, done)
 
 	log.Info("Queueing work")
-	for _, vl := range vls {
-		jobs <- vl
+	for _, container := range containers {
+		jobs <- container
 	}
 
 	log.Info("Closing jobs channel")
@@ -107,61 +107,48 @@ func MapUnits() {
 	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
 }
 
-func fileMappingsWorker(jobs <-chan *kmodels.VirtualLesson, results chan []*FileMappings, wg *sync.WaitGroup) {
-	for vl := range jobs {
-		//log.Infof("Processing virtual_lesson %d", vl.ID)
-		stats.LessonsProcessed.Inc(1)
+func fileMappingsWorker(jobs <-chan *kmodels.Container, results chan []*FileMappings, wg *sync.WaitGroup) {
+	for container := range jobs {
+		stats.ContainersProcessed.Inc(1)
 
-		// Validate virtual lesson data
-		containers, err := getValidContainers(kmdb, vl)
+		err := container.L.LoadFileAssets(kmdb, true, container)
 		if err != nil {
 			log.Error(err)
 			debug.PrintStack()
 			continue
 		}
-		if len(containers) == 0 {
-			//log.Warnf("Invalid lesson [%d]", vl.ID)
-			stats.InvalidLessons.Inc(1)
-			continue
-		}
-
-		stats.ValidLessons.Inc(1)
 
 		sha1s := make([][]byte, 0)
 		bySha1 := make(map[string]*FileMappings, 0)
 		mappings := make([]*FileMappings, 0)
-		for _, container := range containers {
-			//log.Infof("Processing container %d", container.ID)
-			stats.ContainersProcessed.Inc(1)
 
-			for _, fileAsset := range container.R.FileAssets {
-				//log.Infof("Processing file_asset %d", fileAsset.ID)
-				stats.FileAssetsProcessed.Inc(1)
+		for _, fileAsset := range container.R.FileAssets {
+			//log.Infof("Processing file_asset %d", fileAsset.ID)
+			stats.FileAssetsProcessed.Inc(1)
 
-				if !fileAsset.Sha1.Valid {
-					stats.FileAssetsMissingSHA1.Inc(1)
-					continue
-				}
-
-				sha1 := fileAsset.Sha1.String
-
-				hexSha1, err := hex.DecodeString(sha1)
-				if err != nil {
-					log.Error(err)
-					debug.PrintStack()
-					continue
-				}
-
-				sha1s = append(sha1s, hexSha1)
-				fm := &FileMappings{
-					Sha1:              fileAsset.Sha1.String,
-					KMediaID:          fileAsset.ID,
-					KMediaContainerID: container.ID,
-					MdbExists:         false,
-				}
-				bySha1[sha1] = fm
-				mappings = append(mappings, fm)
+			if !fileAsset.Sha1.Valid {
+				stats.FileAssetsMissingSHA1.Inc(1)
+				continue
 			}
+
+			sha1 := fileAsset.Sha1.String
+
+			hexSha1, err := hex.DecodeString(sha1)
+			if err != nil {
+				log.Error(err)
+				debug.PrintStack()
+				continue
+			}
+
+			sha1s = append(sha1s, hexSha1)
+			fm := &FileMappings{
+				Sha1:              fileAsset.Sha1.String,
+				KMediaID:          fileAsset.ID,
+				KMediaContainerID: container.ID,
+				MdbExists:         false,
+			}
+			bySha1[sha1] = fm
+			mappings = append(mappings, fm)
 		}
 
 		if len(sha1s) > 0 {
@@ -219,8 +206,9 @@ func analyzeFileMappings(mappings []*FileMappings) error {
 		if !ok {
 			cm = make(map[int64]bool)
 		}
-		if fm.MdbUnitID > 25822 {
-			cm[fm.MdbUnitID] = true
+		if fm.MdbUnitID > 25316 {
+		//if fm.MdbUnitID > 0 {
+		cm[fm.MdbUnitID] = true
 		}
 		unitMap[fm.KMediaContainerID] = cm
 	}
@@ -237,27 +225,40 @@ func analyzeFileMappings(mappings []*FileMappings) error {
 
 	tx, err := mdb.Begin()
 	utils.Must(err)
-	expectedCT := map[int64]bool{
-		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_LESSON_PART].ID: true,
-		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_FULL_LESSON].ID: true,
+	unexpectedCT := map[int64]bool{
+		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_KITEI_MAKOR].ID: true,
 	}
 	for k, v := range bySize {
 		fmt.Printf("size %d\n", k)
 		for _, kcid := range v {
 			for mcuid := range unitMap[kcid] {
-				fmt.Printf("%d,%d\n", kcid, mcuid)
+				//fmt.Printf("%d,%d\n", kcid, mcuid)
 				u, err := models.FindContentUnit(mdb, mcuid)
 				if err != nil {
-					return errors.Wrap(err, "Load CU from DB")
+					return errors.Wrapf(err, "Load CU from DB %d", mcuid)
 				}
-				if _, ok := expectedCT[u.TypeID]; !ok {
+				if _, ok := unexpectedCT[u.TypeID]; ok {
 					fmt.Printf("!!!%s!!! [%d]\n", api.CONTENT_TYPE_REGISTRY.ByID[u.TypeID].Name, mcuid)
 				} else {
+					// check if mapping changed before updating
+					if u.Properties.Valid {
+						var props map[string]interface{}
+						err := u.Properties.Unmarshal(&props)
+						if err != nil {
+							return errors.Wrapf(err, "json.Unmarshal unit properties [%d]", u.ID)
+						}
+						if kmid, ok := props["kmedia_id"]; ok && int(kmid.(float64)) == kcid {
+							continue
+						}
+					}
+
+					log.Infof("Mapping kmedia container %d to mdb unit %d", kcid, u.ID)
 					err = api.UpdateContentUnitProperties(tx, u, map[string]interface{}{"kmedia_id": kcid})
 					if err != nil {
 						utils.Must(tx.Rollback())
 						return errors.Wrapf(err, "Update CU properties [%d]", u.ID)
 					}
+					stats.ContentUnitsUpdated.Inc(1)
 				}
 			}
 		}

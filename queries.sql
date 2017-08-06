@@ -521,3 +521,13 @@ FROM rec_sources
 ORDER BY path, position
 ) TO '/var/lib/postgres/data/all_sources.csv'  (
 FORMAT CSV );
+
+
+-- manual mapping of existing congresses in MDB
+update collections set properties = properties || '{"kmedia_id": 8024}' where id = 10641;
+update collections set properties = properties || '{"kmedia_id": 8029}' where id = 10642;
+update collections set properties = properties || '{"kmedia_id": 8027}' where id = 10643;
+update collections set properties = properties || '{"kmedia_id": 8100}' where id = 10644;
+update collections set properties = properties || '{"kmedia_id": 8084}' where id = 10713;
+update collections set properties = properties || '{"kmedia_id": 8127}' where id = 10813;
+
