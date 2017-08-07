@@ -176,7 +176,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Require().Nil(err)
 	err = c.Reload(suite.tx)
 	suite.Require().Nil(err)
-	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SATURDAY_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID, c.TypeID, "c.TypeID")
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
@@ -226,7 +226,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	// no changes to collection
 	err = c.Reload(suite.tx)
 	suite.Require().Nil(err)
-	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SATURDAY_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID, c.TypeID, "c.TypeID")
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
@@ -911,12 +911,18 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	if metadata.WeekDate != nil {
 		filmDate = *metadata.WeekDate
 	}
+	suite.Require().True(original.Properties.Valid)
+	var originalProps map[string]interface{}
+	err = original.Properties.Unmarshal(&originalProps)
+	suite.Require().Nil(err)
+
 	suite.Require().True(cu.Properties.Valid)
 	var props map[string]interface{}
 	err = cu.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
 	suite.Equal(capDate.Format("2006-01-02"), props["capture_date"], "cu.Properties[\"capture_date\"]")
 	suite.Equal(filmDate.Format("2006-01-02"), props["film_date"], "cu.Properties[\"film_date\"]")
+	suite.EqualValues(int(originalProps["duration"].(float64)), props["duration"], "cu.Properties[\"duration\"]")
 
 	// files in unit
 	err = cu.L.LoadFiles(suite.tx, true, cu)
@@ -977,7 +983,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	if metadata.Lecturer == "rav" {
 		suite.Require().Len(cu.R.ContentUnitsPersons, 1, "cu.R.ContentUnitsPersons Length")
 		cup := cu.R.ContentUnitsPersons[0]
-		suite.Equal(PERSONS_REGISTRY.ByPattern[P_RAV].ID, cup.PersonID, "cup.PersonID")
+		suite.Equal(PERSON_REGISTRY.ByPattern[P_RAV].ID, cup.PersonID, "cup.PersonID")
 		suite.Equal(CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID, cup.RoleID, "cup.PersonID")
 	} else {
 		suite.Empty(cu.R.ContentUnitsPersons, "Empty cu.R.ContentUnitsPersons")

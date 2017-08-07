@@ -29,6 +29,8 @@ import (
 	_ "github.com/vattle/sqlboiler/strmangle"
 )
 
+var UID_REGEX = regexp.MustCompile("[a-zA-z0-9]{8}")
+
 type TestDBManager struct {
 	testDB string
 }

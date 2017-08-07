@@ -327,13 +327,27 @@ WITH RECURSIVE rf AS (
 WITH RECURSIVE rf AS (
   SELECT f.*
   FROM files f
-  WHERE f.id = 361693
+  WHERE f.id = 380600
   UNION
   SELECT f.*
   FROM files f INNER JOIN rf ON f.parent_id = rf.id
-) SELECT *
-  FROM rf
-  WHERE id != 361693;
+) SELECT
+    id,
+    parent_id,
+    name,
+    size,
+    sha1,
+--     created_at,
+    content_unit_id,
+    properties ->> 'duration'
+  FROM rf;
+
+-- update files set content_unit_id=26031 where parent_id=380610;
+-- update files set content_unit_id=26032 where parent_id=380662;
+-- update files set content_unit_id=26033 where parent_id=380667;
+-- update files set content_unit_id=26034 where parent_id=380739;
+-- update files set content_unit_id=26035 where parent_id=380791;
+update content_units set published=true where id in (26031, 26032, 26033, 26034, 26035);
 
 -- WITH RECURSIVE rf AS (
 --   SELECT f.*
@@ -416,3 +430,110 @@ FROM rec_sources
 WHERE pattern IS NOT NULL
 ORDER BY pattern)
 to '/var/lib/postgres/data/titles.csv' (format CSV);
+
+-- insert into collections (uid, type_id, properties) values
+--   ('TYbA7WoZ', 4, '{"active": true, "pattern": "italy", "country": "Italy", "city": "Rome", "start_date": "2017-07-28", "end_date": "2017-07-30", "full_address": "SHG Hotel Antonella, Via Pontina, 00040 Pomezia RM, Italy" }');
+--
+-- insert into collection_i18n (collection_id, language, name) VALUES
+--   (10796, 'ru', 'Переход');
+
+DROP TABLE IF EXISTS file_mappings;
+CREATE TABLE file_mappings (
+  sha1     CHAR(40),
+  k_id     INT    NULL,
+  k_cid    INT    NULL,
+  m_id     BIGINT NULL,
+  m_cuid   BIGINT NULL,
+  m_exists BOOLEAN
+);
+
+
+-- update content_units duration property
+UPDATE content_units
+SET properties = properties || jsonb_build_object('duration', b.duration)
+FROM
+  (SELECT
+     content_unit_id,
+     round(a) AS duration
+   FROM (SELECT
+           content_unit_id,
+           avg((properties ->> 'duration') :: REAL)    AS a,
+           stddev((properties ->> 'duration') :: REAL) AS s
+         FROM files
+         WHERE type IN ('audio', 'video') AND content_unit_id IN (SELECT id
+                                                                  FROM content_units
+                                                                  WHERE properties ? 'duration' IS FALSE)
+         GROUP BY content_unit_id) AS t) AS b
+WHERE id = b.content_unit_id;
+
+
+WITH RECURSIVE rs AS (
+  SELECT s.*
+  FROM sources s
+  WHERE s.id = 1817
+  UNION
+  SELECT s.*
+  FROM sources s INNER JOIN rs ON s.id = rs.parent_id
+) SELECT *
+  FROM rs;
+
+-- kmedia congresses
+WITH RECURSIVE rc AS (
+  SELECT c.*
+  FROM catalogs c
+  WHERE c.id = 40
+  UNION
+  SELECT c.*
+  FROM catalogs c INNER JOIN rc ON c.parent_id = rc.id
+) SELECT
+    count(cn.*)
+  FROM rc inner join catalogs_containers cc on rc.id = cc.catalog_id
+inner join containers cn on cc.container_id = cn.id;
+
+
+-- all sources for translation (Dima Perkin)
+COPY (
+WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id,
+    s.uid,
+    s.position,
+    (SELECT name
+     FROM source_i18n
+     WHERE source_id = s.id AND language = 'he') AS "he.name",
+    (SELECT name
+     FROM source_i18n
+     WHERE source_id = s.id AND language = 'ru') AS "ru.name",
+    ARRAY [s.id]                                    "path"
+  FROM sources s
+  WHERE s.parent_id IS NULL
+  UNION
+  SELECT
+    s.id,
+    s.uid,
+    s.position,
+    (SELECT name
+     FROM source_i18n
+     WHERE source_id = s.id AND language = 'he') AS "he.name",
+    (SELECT name
+     FROM source_i18n
+     WHERE source_id = s.id AND language = 'ru') AS "ru.name",
+    rs.path || s.id
+  FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+  --   WHERE rs.depth < 2
+)
+SELECT *
+FROM rec_sources
+ORDER BY path, position
+) TO '/var/lib/postgres/data/all_sources.csv'  (
+FORMAT CSV );
+
+
+-- manual mapping of existing congresses in MDB
+update collections set properties = properties || '{"kmedia_id": 8024}' where id = 10641;
+update collections set properties = properties || '{"kmedia_id": 8029}' where id = 10642;
+update collections set properties = properties || '{"kmedia_id": 8027}' where id = 10643;
+update collections set properties = properties || '{"kmedia_id": 8100}' where id = 10644;
+update collections set properties = properties || '{"kmedia_id": 8084}' where id = 10713;
+update collections set properties = properties || '{"kmedia_id": 8127}' where id = 10813;
+

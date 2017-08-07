@@ -66,3 +66,11 @@ func ConvertArgsString(args []string) []interface{} {
 	}
 	return c
 }
+
+func ConvertArgsBytes(args [][]byte) []interface{} {
+	c := make([]interface{}, len(args))
+	for i, a := range args {
+		c[i] = a
+	}
+	return c
+}

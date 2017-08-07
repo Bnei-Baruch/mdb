@@ -31,6 +31,30 @@ WITH RECURSIVE rf AS (
   WHERE id != $1
 `
 
+const SOURCE_PATH_SQL = `
+WITH RECURSIVE rs AS (
+  SELECT s.*
+  FROM sources s
+  WHERE s.id = $1
+  UNION
+  SELECT s.*
+  FROM sources s INNER JOIN rs ON s.id = rs.parent_id
+) SELECT *
+  FROM rs;
+`
+
+const TAG_PATH_SQL = `
+WITH RECURSIVE rt AS (
+  SELECT t.*
+  FROM tags t
+  WHERE t.id = $1
+  UNION
+  SELECT t.*
+  FROM tags t INNER JOIN rt ON t.id = rt.parent_id
+) SELECT *
+  FROM rt;
+`
+
 const UPCHAIN_OPERATION_SQL = `
 WITH RECURSIVE
     rf AS (
@@ -61,9 +85,14 @@ WITH RECURSIVE
 `
 
 func CreateOperation(exec boil.Executor, name string, o Operation, properties map[string]interface{}) (*models.Operation, error) {
+	uid, err := GetFreeUID(exec, new(OperationUIDChecker))
+	if err != nil {
+		return nil, err
+	}
+
 	operation := models.Operation{
 		TypeID:  OPERATION_TYPE_REGISTRY.ByName[name].ID,
-		UID:     utils.GenerateUID(8),
+		UID:     uid,
 		Station: null.StringFrom(o.Station),
 	}
 
@@ -97,13 +126,15 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 	return &operation, operation.Insert(exec)
 }
 
-func FindUpChainOperation(exec boil.Executor, fileID int64, opType int64) (*models.Operation, error) {
+func FindUpChainOperation(exec boil.Executor, fileID int64, opType string) (*models.Operation, error) {
 	var op models.Operation
 
-	err := queries.Raw(exec, UPCHAIN_OPERATION_SQL, fileID, opType).Bind(&op)
+	opTypeID := OPERATION_TYPE_REGISTRY.ByName[opType].ID
+
+	err := queries.Raw(exec, UPCHAIN_OPERATION_SQL, fileID, opTypeID).Bind(&op)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, UpChainOperationNotFound{FileID: fileID, OperationType: opType}
+			return nil, UpChainOperationNotFound{FileID: fileID, opType: opType}
 		} else {
 			return nil, errors.Wrap(err, "DB lookup")
 		}
@@ -118,19 +149,12 @@ func CreateCollection(exec boil.Executor, contentType string, properties map[str
 		return nil, errors.Errorf("Unknown content type %s", contentType)
 	}
 
-	var uid string
-	for {
-		uid = utils.GenerateUID(8)
-		exists, err := models.Collections(exec, qm.Where("uid = ?", uid)).Exists()
-		if err != nil {
-			return nil, errors.Wrap(err, "Check UID exists")
-		}
-		if !exists {
-			break
-		}
+	uid, err := GetFreeUID(exec, new(CollectionUIDChecker))
+	if err != nil {
+		return nil, err
 	}
 
-	unit := &models.Collection{
+	collection := &models.Collection{
 		UID:    uid,
 		TypeID: ct.ID,
 	}
@@ -140,15 +164,15 @@ func CreateCollection(exec boil.Executor, contentType string, properties map[str
 		if err != nil {
 			return nil, errors.Wrap(err, "json Marshal")
 		}
-		unit.Properties = null.JSONFrom(props)
+		collection.Properties = null.JSONFrom(props)
 	}
 
-	err := unit.Insert(exec)
+	err = collection.Insert(exec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Save to DB")
 	}
 
-	return unit, err
+	return collection, err
 }
 
 func UpdateCollectionProperties(exec boil.Executor, collection *models.Collection, props map[string]interface{}) error {
@@ -203,16 +227,9 @@ func CreateContentUnit(exec boil.Executor, contentType string, properties map[st
 		return nil, errors.Errorf("Unknown content type %s", contentType)
 	}
 
-	var uid string
-	for {
-		uid = utils.GenerateUID(8)
-		exists, err := models.ContentUnits(exec, qm.Where("uid = ?", uid)).Exists()
-		if err != nil {
-			return nil, errors.Wrap(err, "Check UID exists")
-		}
-		if !exists {
-			break
-		}
+	uid, err := GetFreeUID(exec, new(ContentUnitUIDChecker))
+	if err != nil {
+		return nil, err
 	}
 
 	unit := &models.ContentUnit{
@@ -228,7 +245,7 @@ func CreateContentUnit(exec boil.Executor, contentType string, properties map[st
 		unit.Properties = null.JSONFrom(props)
 	}
 
-	err := unit.Insert(exec)
+	err = unit.Insert(exec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Save to DB")
 	}
@@ -243,7 +260,10 @@ func UpdateContentUnitProperties(exec boil.Executor, unit *models.ContentUnit, p
 
 	var p map[string]interface{}
 	if unit.Properties.Valid {
-		unit.Properties.Unmarshal(&p)
+		err := unit.Properties.Unmarshal(&p)
+		if err != nil {
+			return errors.Wrap(err, "json.Unmarshal")
+		}
 		for k, v := range props {
 			p[k] = v
 		}
@@ -280,8 +300,13 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 		}
 	}
 
+	uid, err := GetFreeUID(exec, new(FileUIDChecker))
+	if err != nil {
+		return nil, err
+	}
+
 	file := &models.File{
-		UID:           utils.GenerateUID(8),
+		UID:           uid,
 		Name:          f.FileName,
 		Sha1:          null.BytesFrom(sha1),
 		Size:          f.Size,
@@ -332,7 +357,10 @@ func UpdateFileProperties(exec boil.Executor, file *models.File, props map[strin
 
 	var p map[string]interface{}
 	if file.Properties.Valid {
-		file.Properties.Unmarshal(&p)
+		err := file.Properties.Unmarshal(&p)
+		if err != nil {
+			return errors.Wrap(err, "json.Unmarshal")
+		}
 		for k, v := range props {
 			p[k] = v
 		}
@@ -349,6 +377,35 @@ func UpdateFileProperties(exec boil.Executor, file *models.File, props map[strin
 	err = file.Update(exec, "properties")
 	if err != nil {
 		return errors.Wrap(err, "Save properties to DB")
+	}
+
+	return nil
+}
+
+func PublishFile(exec boil.Executor, file *models.File) error {
+	log.Infof("Publishing file [%d]", file.ID)
+	file.Published = true
+	err := file.Update(exec, "published")
+	if err != nil {
+		return errors.Wrap(err, "Save file to DB")
+	}
+
+	if file.ContentUnitID.Valid {
+		cuid := file.ContentUnitID.Int64
+		log.Infof("Publishing content unit [%d]", cuid)
+		err = models.ContentUnits(exec, qm.Where("id = ?", cuid)).
+			UpdateAll(models.M{"published": true})
+		if err != nil {
+			return errors.Wrap(err, "Update content unit in DB")
+		}
+
+		log.Info("Publishing collections")
+		_, err := queries.Raw(exec, `UPDATE collections SET published = TRUE WHERE id IN
+		(SELECT DISTINCT collection_id FROM collections_content_units WHERE content_unit_id = $1)`, cuid).
+			Exec()
+		if err != nil {
+			return errors.Wrap(err, "Update collections in DB")
+		}
 	}
 
 	return nil
@@ -372,10 +429,47 @@ func FindFileBySHA1(exec boil.Executor, sha1 string) (*models.File, []byte, erro
 	}
 }
 
-func FindFileAncestors(exec boil.Executor, fileID int64) ([]*models.File, error) {
+func FindFileAncestors(exec boil.Executor, id int64) ([]*models.File, error) {
 	var ancestors []*models.File
 
-	err := queries.Raw(exec, FILE_ANCESTORS_SQL, fileID).Bind(&ancestors)
+	err := queries.Raw(exec, FILE_ANCESTORS_SQL, id).Bind(&ancestors)
+	if err != nil {
+		return nil, errors.Wrap(err, "DB lookup")
+	}
+
+	return ancestors, nil
+}
+
+func FindSourceByUID(exec boil.Executor, uid string) (*models.Source, error) {
+	return models.Sources(exec, qm.Where("uid = ?", uid)).One()
+}
+
+func FindSourcePath(exec boil.Executor, id int64) ([]*models.Source, error) {
+	var ancestors []*models.Source
+
+	err := queries.Raw(exec, SOURCE_PATH_SQL, id).Bind(&ancestors)
+	if err != nil {
+		return nil, errors.Wrap(err, "DB lookup")
+	}
+
+	return ancestors, nil
+}
+
+func FindAuthorBySourceID(exec boil.Executor, id int64) (*models.Author, error) {
+	return models.Authors(exec,
+		qm.InnerJoin("authors_sources as x on x.author_id=id and x.source_id = ?", id),
+		qm.Load("AuthorI18ns")).
+		One()
+}
+
+func FindTagByUID(exec boil.Executor, uid string) (*models.Tag, error) {
+	return models.Tags(exec, qm.Where("uid = ?", uid)).One()
+}
+
+func FindTagPath(exec boil.Executor, id int64) ([]*models.Tag, error) {
+	var ancestors []*models.Tag
+
+	err := queries.Raw(exec, TAG_PATH_SQL, id).Bind(&ancestors)
 	if err != nil {
 		return nil, errors.Wrap(err, "DB lookup")
 	}
@@ -400,4 +494,60 @@ func StdLang(lang string) string {
 	}
 
 	return LANG_UNKNOWN
+}
+
+type UIDChecker interface {
+	Check(exec boil.Executor, uid string) (exists bool, err error)
+}
+
+type CollectionUIDChecker struct{}
+
+func (c *CollectionUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Collections(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+type ContentUnitUIDChecker struct{}
+
+func (c *ContentUnitUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.ContentUnits(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+type FileUIDChecker struct{}
+
+func (c *FileUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Files(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+type OperationUIDChecker struct{}
+
+func (c *OperationUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Operations(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+type SourceUIDChecker struct{}
+
+func (c *SourceUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Sources(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+type TagUIDChecker struct{}
+
+func (c *TagUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Tags(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
+func GetFreeUID(exec boil.Executor, checker UIDChecker) (uid string, err error) {
+	for {
+		uid = utils.GenerateUID(8)
+		exists, ex := checker.Check(exec, uid)
+		if ex != nil {
+			err = errors.Wrap(ex, "Check UID exists")
+			break
+		}
+		if !exists {
+			break
+		}
+	}
+
+	return
 }

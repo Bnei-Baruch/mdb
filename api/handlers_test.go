@@ -11,6 +11,7 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"gopkg.in/nullbio/null.v6"
 )
 
 type HandlersSuite struct {
@@ -517,4 +518,187 @@ func (suite *HandlersSuite) TestHandleConvert() {
 		suite.Require().Nil(err)
 		suite.Equal(x.Duration, props["duration"], "Output[%d] props: duration", i)
 	}
+
+	// test "reconvert" doesn't crash
+	op, err = handleConvert(suite.tx, input)
+	suite.Require().Nil(err)
+}
+
+func (suite *HandlersSuite) TestHandleUpload() {
+	// First seen, unknown, file
+	input := UploadRequest{
+		Operation: Operation{
+			Station: "Upload station",
+			User:    "operator@dev.com",
+		},
+		AVFile: AVFile{
+			File: File{
+				FileName:  "file.mp4",
+				Sha1:      "0987654321fedcba0987654321fedcba33333333",
+				Size:      694,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 871,
+		},
+		Url: "http://example.com/some/url/to/file.mp4",
+	}
+
+	op, err := handleUpload(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_UPLOAD].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	suite.False(op.Properties.Valid, "Operation properties")
+
+	// Check file
+	err = op.L.LoadFiles(suite.tx, true, op)
+	suite.Require().Nil(err)
+	suite.Require().Len(op.R.Files, 1, "Operation Files length")
+	f := op.R.Files[0]
+	suite.Equal(input.FileName, f.Name, "File.Name")
+	suite.Equal(input.Sha1, hex.EncodeToString(f.Sha1.Bytes), "File.SHA1")
+	suite.Equal(input.Size, f.Size, "File.Size")
+	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File.FileCreatedAt")
+	suite.False(f.ParentID.Valid, "File.ParentID")
+	suite.True(f.Published, "File.Published")
+	suite.Equal(SEC_PUBLIC, f.Secure, "File.Secure")
+	var props map[string]interface{}
+	err = f.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Url, props["url"], "file props: url")
+	suite.Equal(input.Duration, props["duration"], "file props: duration")
+
+	// Existing file in a content unit and collection structure
+	f2 := File{
+		FileName:  "file.mp4",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef0123456789",
+		Size:      math.MaxInt64,
+	}
+	file, err := CreateFile(suite.tx, nil, f2, nil)
+	suite.Require().Nil(err)
+	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+	err = file.SetContentUnit(suite.tx, false, cu)
+	suite.Require().Nil(err)
+	c, err := CreateCollection(suite.tx, CT_DAILY_LESSON, nil)
+	suite.Require().Nil(err)
+	err = c.AddCollectionsContentUnits(suite.tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID})
+	suite.Require().Nil(err)
+
+	input = UploadRequest{
+		Operation: Operation{
+			Station: "Upload station",
+			User:    "operator@dev.com",
+		},
+		AVFile: AVFile{
+			File:     f2,
+			Duration: 871,
+		},
+		Url: "http://example.com/some/url/to/file.mp4",
+	}
+
+	op, err = handleUpload(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_UPLOAD].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	suite.False(op.Properties.Valid, "Operation properties")
+
+	// Check file
+	err = op.L.LoadFiles(suite.tx, true, op)
+	suite.Require().Nil(err)
+	suite.Require().Len(op.R.Files, 1, "Operation Files length")
+	f = op.R.Files[0]
+	suite.Equal(input.FileName, f.Name, "File.Name")
+	suite.Equal(input.Sha1, hex.EncodeToString(f.Sha1.Bytes), "File.SHA1")
+	suite.Equal(input.Size, f.Size, "File.Size")
+	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File.FileCreatedAt")
+	suite.False(f.ParentID.Valid, "File.ParentID")
+	suite.True(f.Published, "File.Published")
+	suite.Equal(SEC_PUBLIC, f.Secure, "File.Secure")
+	err = f.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Url, props["url"], "file props: url")
+	suite.Equal(input.Duration, props["duration"], "file props: duration")
+
+	// Check content unit and collection
+	err = cu.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(cu.Published)
+	err = c.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(c.Published)
+}
+
+func (suite *HandlersSuite) TestHandleSirtutim() {
+	// Create dummy original parent files
+	ofi := File{
+		FileName:  "dummy original parent file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+	}
+	original, err := CreateFile(suite.tx, nil, ofi, nil)
+	suite.Require().Nil(err)
+
+	// Create dummy content unit
+	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+
+	// associate original and content unit
+	original.ContentUnitID = null.Int64From(cu.ID)
+	err = original.Update(suite.tx, "content_unit_id")
+	suite.Require().Nil(err)
+
+	// Do sirtutim operation
+	input := SirtutimRequest{
+		Operation: Operation{
+			Station: "Some station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: ofi.Sha1,
+		File: File{
+			FileName:  "sirtutim.zip",
+			Sha1:      "012356789abcdef012356789abcdef1111111111",
+			Size:      98737,
+			CreatedAt: &Timestamp{Time: time.Now()},
+		},
+	}
+
+	op, err := handleSirtutim(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_SIRTUTIM].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	suite.False(op.Properties.Valid, "properties.Valid")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 2, "Number of files")
+	fm := make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	originalParent := fm[ofi.FileName]
+	suite.Equal(original.ID, originalParent.ID, "original <-> operation")
+
+	// Check sirtutim file
+	sirtutim := fm[input.FileName]
+	suite.Equal(input.FileName, sirtutim.Name, "sirtutim: Name")
+	suite.Equal(input.Sha1, hex.EncodeToString(sirtutim.Sha1.Bytes), "sirtutim: SHA1")
+	suite.Equal(input.Size, sirtutim.Size, "sirtutim: Size")
+	suite.Equal(input.CreatedAt.Time.Unix(), sirtutim.FileCreatedAt.Time.Unix(), "sirtutim: FileCreatedAt")
+
+	// check content unit association
+	suite.True(sirtutim.ContentUnitID.Valid, "sirtutim: ContentUnitID.Valid")
+	suite.Equal(cu.ID, sirtutim.ContentUnitID.Int64, "sirtutim: ContentUnitID.Int64")
 }

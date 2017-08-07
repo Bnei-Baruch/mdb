@@ -5,12 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"runtime/debug"
-	"sort"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -35,124 +31,13 @@ const (
 var (
 	mdb                     *sql.DB
 	kmdb                    *sql.DB
-	kmediaLessonCT          *kmodels.ContentType
+	stats                   *ImportStatistics
 	serverUrls              map[string]string
 	catalogsSourcesMappings map[int]*models.Source
 	catalogsTagsMappings    map[int]*models.Tag
-	stats                   *ImportStatistics
 )
 
-type AtomicInt32 struct {
-	value int32
-}
-
-func (a *AtomicInt32) Inc(delta int32) {
-	atomic.AddInt32(&a.value, delta)
-}
-
-func (a *AtomicInt32) Get() int32 {
-	return atomic.LoadInt32(&a.value)
-}
-
-type AtomicHistogram struct {
-	value        map[string]int
-	sync.RWMutex // Read Write mutex, guards access to internal map
-}
-
-func NewAtomicHistogram() *AtomicHistogram {
-	return &AtomicHistogram{value: make(map[string]int)}
-}
-
-func (h *AtomicHistogram) Inc(key string, delta int) {
-	h.Lock()
-	h.value[key] += delta
-	h.Unlock()
-}
-
-func (h *AtomicHistogram) Get() map[string]int {
-	h.RLock()
-	r := make(map[string]int, len(h.value))
-	for k, v := range h.value {
-		r[k] = v
-	}
-	h.RUnlock()
-	return r
-}
-
-type ImportStatistics struct {
-	LessonsProcessed       AtomicInt32
-	ValidLessons           AtomicInt32
-	InvalidLessons         AtomicInt32
-	ContainersProcessed    AtomicInt32
-	ContainersVisited      AtomicInt32
-	ContainersWithFiles    AtomicInt32
-	ContainersWithoutFiles AtomicInt32
-	FileAssetsProcessed    AtomicInt32
-	FileAssetsMissingSHA1  AtomicInt32
-	FileAssetsWInvalidMT   AtomicInt32
-	FileAssetsMissingType  AtomicInt32
-
-	OperationsCreated   AtomicInt32
-	CollectionsCreated  AtomicInt32
-	CollectionsUpdated  AtomicInt32
-	ContentUnitsCreated AtomicInt32
-	ContentUnitsUpdated AtomicInt32
-	FilesCreated        AtomicInt32
-	FilesUpdated        AtomicInt32
-
-	TxCommitted  AtomicInt32
-	TxRolledBack AtomicInt32
-
-	UnkownCatalogs AtomicHistogram
-}
-
-func NewImportStatistics() *ImportStatistics {
-	return &ImportStatistics{UnkownCatalogs: *NewAtomicHistogram()}
-}
-
-func (s *ImportStatistics) dump() {
-	fmt.Println("Here comes import statistics:")
-
-	fmt.Println("Kmedia:")
-	fmt.Printf("ValidLessons            		%d\n", s.ValidLessons.Get())
-	fmt.Printf("InvalidLessons          		%d\n", s.InvalidLessons.Get())
-	fmt.Printf("LessonsProcessed        		%d\n", s.LessonsProcessed.Get())
-	fmt.Printf("ContainersVisited       		%d\n", s.ContainersVisited.Get())
-	fmt.Printf("ContainersWithFiles     		%d\n", s.ContainersWithFiles.Get())
-	fmt.Printf("ContainersWithoutFiles  		%d\n", s.ContainersWithoutFiles.Get())
-	fmt.Printf("ContainersProcessed     		%d\n", s.ContainersProcessed.Get())
-	fmt.Printf("FileAssetsProcessed     		%d\n", s.FileAssetsProcessed.Get())
-	fmt.Printf("FileAssetsMissingSHA1   		%d\n", s.FileAssetsMissingSHA1.Get())
-	fmt.Printf("FileAssetsWInvalidMT    		%d\n", s.FileAssetsWInvalidMT.Get())
-	fmt.Printf("FileAssetsMissingType   		%d\n", s.FileAssetsMissingType.Get())
-
-	fmt.Println("MDB:")
-	fmt.Printf("OperationsCreated       		%d\n", s.OperationsCreated.Get())
-	fmt.Printf("CollectionsCreated      		%d\n", s.CollectionsCreated.Get())
-	fmt.Printf("CollectionsUpdated      		%d\n", s.CollectionsUpdated.Get())
-	fmt.Printf("ContentUnitsCreated     		%d\n", s.ContentUnitsCreated.Get())
-	fmt.Printf("ContentUnitsUpdated     		%d\n", s.ContentUnitsUpdated.Get())
-	fmt.Printf("FilesCreated            		%d\n", s.FilesCreated.Get())
-	fmt.Printf("FilesUpdated            		%d\n", s.FilesUpdated.Get())
-
-	fmt.Printf("TxCommitted             		%d\n", s.TxCommitted.Get())
-	fmt.Printf("TxRolledBack            		%d\n", s.TxRolledBack.Get())
-
-	uc := s.UnkownCatalogs.Get()
-	fmt.Printf("UnkownCatalogs            		%d\n", len(uc))
-	keys := make([]string, len(uc))
-	i := 0
-	for k := range uc {
-		keys[i] = k
-		i++
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		fmt.Printf("%s\t%d\n", k, uc[k])
-	}
-}
-
-func ImportKmedia() {
+func Init() time.Time {
 	var err error
 	clock := time.Now()
 
@@ -165,7 +50,7 @@ func ImportKmedia() {
 	mdb, err = sql.Open("postgres", viper.GetString("mdb.url"))
 	utils.Must(err)
 	utils.Must(mdb.Ping())
-	defer mdb.Close()
+	//defer mdb.Close()
 	boil.SetDB(mdb)
 	//boil.DebugMode = true
 
@@ -173,7 +58,7 @@ func ImportKmedia() {
 	kmdb, err = sql.Open("postgres", viper.GetString("kmedia.url"))
 	utils.Must(err)
 	utils.Must(kmdb.Ping())
-	defer kmdb.Close()
+	//defer kmdb.Close()
 
 	log.Info("Initializing static data from MDB")
 	utils.Must(api.InitTypeRegistries(mdb))
@@ -194,201 +79,20 @@ func ImportKmedia() {
 	utils.Must(err)
 	log.Infof("Got %d mappings", len(catalogsTagsMappings))
 
-	log.Info("Loading all virtual_lessons")
-	vls, err := kmodels.VirtualLessons(kmdb).All()
-	utils.Must(err)
-	log.Infof("Got %d lessons", len(vls))
-
-	// Process lessons
-	stats = NewImportStatistics()
-
-	log.Info("Setting up workers")
-	jobs := make(chan *kmodels.VirtualLesson, 100)
-	var workersWG sync.WaitGroup
-	for w := 1; w <= 5; w++ {
-		workersWG.Add(1)
-		go worker(jobs, &workersWG)
-	}
-
-	log.Info("Queing work")
-	for _, vl := range vls {
-		jobs <- vl
-	}
-
-	log.Info("Closing jobs channel")
-	close(jobs)
-
-	log.Info("Waiting for workers to finish")
-	workersWG.Wait()
-
-	// TODO: clean mdb stale data that no longer exists in kmedia
-	// This would require some good understanding of how data can go stale.
-	// Files are removed from kmedia ?
-	// Containers merged ? what happens to old container ? removed / flagged ?
-	// Lessons change ?
-
-	stats.dump()
-
-	log.Info("Success")
-	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
+	return clock
 }
 
-func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
-	for vl := range jobs {
-		log.Infof("Processing virtual_lesson %d", vl.ID)
-		stats.LessonsProcessed.Inc(1)
-
-		// Validate virtual lesson data
-		containers, err := getValidContainers(kmdb, vl)
-		if err != nil {
-			log.Error(err)
-			debug.PrintStack()
-			continue
-		}
-		if len(containers) == 0 {
-			log.Warnf("Invalid lesson [%d]", vl.ID)
-			stats.InvalidLessons.Inc(1)
-			continue
-		}
-		stats.ValidLessons.Inc(1)
-
-		// Begin mdb transaction
-		tx, err := mdb.Begin()
-		utils.Must(err)
-
-		// Create import operation
-		operation, err := api.CreateOperation(tx, api.OP_IMPORT_KMEDIA,
-			api.Operation{WorkflowID: strconv.Itoa(vl.ID)}, nil)
-		if err != nil {
-			utils.Must(tx.Rollback())
-			stats.TxRolledBack.Inc(1)
-			log.Error(err)
-			debug.PrintStack()
-			continue
-		}
-		stats.OperationsCreated.Inc(1)
-
-		// Handle MDB collection
-		collection, err := handleCollection(tx, vl)
-		if err != nil {
-			utils.Must(tx.Rollback())
-			stats.TxRolledBack.Inc(1)
-			log.Error(err)
-			debug.PrintStack()
-			continue
-		}
-
-		var unit *models.ContentUnit
-		for _, container := range containers {
-			log.Infof("Processing container %d", container.ID)
-			stats.ContainersProcessed.Inc(1)
-
-			// Create or update MDB content_unit
-			unit, err = handleContentUnit(tx, container, collection)
-			if err != nil {
-				log.Error(err)
-				debug.PrintStack()
-				break
-			}
-
-			for _, fileAsset := range container.R.FileAssets {
-				log.Infof("Processing file_asset %d", fileAsset.ID)
-				stats.FileAssetsProcessed.Inc(1)
-
-				// Create or update MDB file
-				_, err = handleFile(tx, fileAsset, unit, operation)
-				if err != nil {
-					log.Error(err)
-					debug.PrintStack()
-					break
-				}
-			}
-			if err != nil {
-				break
-			}
-		}
-
-		if err == nil {
-			utils.Must(tx.Commit())
-			stats.TxCommitted.Inc(1)
-		} else {
-			utils.Must(tx.Rollback())
-			stats.TxRolledBack.Inc(1)
-		}
-	}
-
-	wg.Done()
+func Shutdown() {
+	utils.Must(mdb.Close())
+	utils.Must(kmdb.Close())
 }
 
-func getValidContainers(exec boil.Executor, vl *kmodels.VirtualLesson) ([]*kmodels.Container, error) {
-	// Fetch containers with file assets
-	containers, err := vl.Containers(exec,
-		qm.Where("content_type_id = ?", kmediaLessonCT.ID),
-		qm.Load("FileAssets")).
-		All()
-	if err != nil {
-		return nil, err
-	}
-	stats.ContainersVisited.Inc(int32(len(containers)))
-
-	// Filter out containers without file_assets
-	validContainers := containers[:0]
-	for _, x := range containers {
-		if len(x.R.FileAssets) > 0 {
-			validContainers = append(validContainers, x)
-			stats.ContainersWithFiles.Inc(1)
-		} else {
-			log.Warningf("Empty container [%d]", x.ID)
-			stats.ContainersWithoutFiles.Inc(1)
-		}
-	}
-
-	return validContainers, nil
-}
-
-func handleCollection(exec boil.Executor, vl *kmodels.VirtualLesson) (*models.Collection, error) {
-	collection, err := models.Collections(exec, qm.Where("(properties->>'kmedia_id')::int = ?", vl.ID)).One()
-	if err == nil {
-		stats.CollectionsUpdated.Inc(1)
-	} else {
-		if err == sql.ErrNoRows {
-			// Create new collection
-			collection = &models.Collection{
-				UID:    utils.GenerateUID(8),
-				TypeID: api.CONTENT_TYPE_REGISTRY.ByName[api.CT_DAILY_LESSON].ID,
-			}
-			err = collection.Insert(exec)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Insert collection, virtual lesson [%d]", vl.ID)
-			}
-			stats.CollectionsCreated.Inc(1)
-		} else {
-			return nil, errors.Wrapf(err, "Lookup collection, virtual lesson [%d]", vl.ID)
-		}
-	}
-
-	if vl.FilmDate.Time.Weekday() == 6 {
-		collection.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[api.CT_SATURDAY_LESSON].ID
-	} else {
-		collection.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[api.CT_DAILY_LESSON].ID
-	}
-
-	var props = make(map[string]interface{})
-	if collection.Properties.Valid {
-		collection.Properties.Unmarshal(&props)
-	}
-	props["kmedia_id"] = vl.ID
-	props["film_date"] = vl.FilmDate.Time.Format("2006-01-02")
-	p, _ := json.Marshal(props)
-	collection.Properties = null.JSONFrom(p)
-
-	// TODO: what to do with name and description ?
-
-	return collection, collection.Update(exec)
-}
-
-func handleContentUnit(exec boil.Executor, container *kmodels.Container,
-	collection *models.Collection) (*models.ContentUnit, error) {
+func importContainer(exec boil.Executor,
+	container *kmodels.Container,
+	collection *models.Collection,
+	contentType string,
+	ccuName string,
+) (*models.ContentUnit, error) {
 
 	// Get or create content unit by kmedia_id
 	unit, err := models.ContentUnits(exec, qm.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One()
@@ -397,11 +101,7 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 	} else {
 		if err == sql.ErrNoRows {
 			// Create new content unit
-			unit = &models.ContentUnit{
-				UID:    utils.GenerateUID(8),
-				TypeID: api.CONTENT_TYPE_REGISTRY.ByName[api.CT_LESSON_PART].ID,
-			}
-			err = unit.Insert(exec)
+			unit, err = api.CreateContentUnit(exec, contentType, nil)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Insert unit, container_id [%d]", container.ID)
 			}
@@ -411,13 +111,19 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 		}
 	}
 
+	// Secure
+	unit.Secure = mapSecure(container.Secure)
+	err = unit.Update(exec, "secure")
+	if err != nil {
+		return nil, errors.Wrapf(err, "Update secure, unit [%d]", unit.ID)
+	}
+
 	// Properties
 	props := make(map[string]interface{})
 	if unit.Properties.Valid {
 		unit.Properties.Unmarshal(&props)
 	}
 	props["kmedia_id"] = container.ID
-	props["secure"] = container.Secure
 	if container.LangID.Valid {
 		props["original_language"] = api.LANG_MAP[container.LangID.String]
 	}
@@ -427,15 +133,12 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 	if container.PlaytimeSecs.Valid {
 		props["duration"] = container.PlaytimeSecs.Int
 	}
-	p, _ := json.Marshal(props)
-	unit.Properties = null.JSONFrom(p)
-
-	// TODO: what to do with censor workflow information ?
-
-	err = unit.Update(exec, "properties")
+	err = api.UpdateContentUnitProperties(exec, unit, props)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Update properties, unit [%d]", unit.ID)
 	}
+
+	// TODO: what to do with censor workflow information ?
 
 	// I18n
 	descriptions, err := container.ContainerDescriptions(kmdb).All()
@@ -467,13 +170,13 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 		return nil, errors.Wrapf(err, "Fetch unit collections, unit [%d]", unit.ID)
 	}
 
-	position := strconv.Itoa(container.Position.Int)
+	//position := strconv.Itoa(container.Position.Int)
 	if unit.R.CollectionsContentUnits == nil {
 		// Create
 		err = unit.AddCollectionsContentUnits(exec, true, &models.CollectionsContentUnit{
 			CollectionID:  collection.ID,
 			ContentUnitID: unit.ID,
-			Name:          position,
+			Name:          ccuName,
 		})
 		if err != nil {
 			return nil, errors.Wrapf(err, "Add unit collections, unit [%d]", unit.ID)
@@ -481,8 +184,8 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 	} else {
 		// Update
 		for _, x := range unit.R.CollectionsContentUnits {
-			if x.CollectionID == collection.ID && x.Name != position {
-				x.Name = position
+			if x.CollectionID == collection.ID && x.Name != ccuName {
+				x.Name = ccuName
 				err = x.Update(exec, "name")
 				if err != nil {
 					return nil, errors.Wrapf(err,
@@ -503,19 +206,11 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 	unqSrc := make(map[*models.Source]bool, 0)
 	unqTags := make(map[*models.Tag]bool, 0)
 	for _, x := range container.R.Catalogs {
-		s, ok := catalogsSourcesMappings[x.ID]
-		if ok {
+		if s, ok := catalogsSourcesMappings[x.ID]; ok {
 			unqSrc[s] = true
-		}
-		t, ok := catalogsTagsMappings[x.ID]
-		if ok {
+		} else if t, ok := catalogsTagsMappings[x.ID]; ok {
 			unqTags[t] = true
-		}
-	}
-
-	// If no matches add all his catalogs to unknown catalogs
-	if len(unqSrc)+len(unqTags) == 0 {
-		for _, x := range container.R.Catalogs {
+		} else {
 			stats.UnkownCatalogs.Inc(fmt.Sprintf("%s [%d]", x.Name, x.ID), 1)
 		}
 	}
@@ -547,7 +242,7 @@ func handleContentUnit(exec boil.Executor, container *kmodels.Container,
 	return unit, nil
 }
 
-func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.ContentUnit,
+func importFileAsset(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.ContentUnit,
 	operation *models.Operation) (*models.File, error) {
 
 	// Get or Create MDB file by SHA1
@@ -629,13 +324,18 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 		file.Language = null.NewString(l, l != "")
 	}
 
+	// Secure
+	if fileAsset.Secure.Valid {
+		file.Secure = mapSecure(fileAsset.Secure.Int)
+	}
+	file.Published = file.Secure == 0
+
 	// Properties
 	props := make(map[string]interface{})
 	if file.Properties.Valid {
 		file.Properties.Unmarshal(&props)
 	}
 	props["kmedia_id"] = fileAsset.ID
-	props["secure"] = fileAsset.Secure
 	props["url"] = serverUrls[fileAsset.ServernameID.String] + "/" + file.Name
 	if fileAsset.PlaytimeSecs.Valid {
 		props["duration"] = fileAsset.PlaytimeSecs.Int
@@ -652,6 +352,9 @@ func handleFile(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.C
 	// We don't take anything from file_asset_descriptions as it`s mostly junk
 
 	// Associate files with content unit
+	if file.ContentUnitID.Valid && file.ContentUnitID.Int64 != unit.ID {
+		log.Warnf("Changing file's unit association from %d to %d", file.ContentUnitID.Int64, unit.ID)
+	}
 	err = unit.AddFiles(exec, false, file)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Associate file [%d] to unit [%d]", file.ID, unit.ID)
@@ -779,4 +482,13 @@ func initCatalogTagsMappings() (map[int]*models.Tag, error) {
 	}
 
 	return mappings, nil
+}
+
+func mapSecure(kmVal int) int16 {
+	if kmVal == 0 {
+		return api.SEC_PUBLIC
+	} else if kmVal < 4 {
+		return api.SEC_SENSITIVE
+	}
+	return api.SEC_PRIVATE
 }

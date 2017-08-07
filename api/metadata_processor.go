@@ -21,14 +21,15 @@ import (
 // 	1. Update properties for original and proxy (film_date, capture_date)
 //	2. Update language of original
 // 	3. Create content_unit (content_type, dates)
-//	4. Add files to new unit
-// 	5. Add ancestor files to unit
-// 	6. Associate unit with sources, tags, and persons
-// 	7. Get or create collection
-// 	8. Update collection (content_type, dates, number) if full lesson or new lesson
-// 	9. Associate collection and unit
-// 	10. Associate unit and derived units
-// 	11. Set default permissions ?!
+// 	4. Describe content unit (i18ns)
+//	5. Add files to new unit
+// 	6. Add ancestor files to unit
+// 	7. Associate unit with sources, tags, and persons
+// 	8. Get or create collection
+// 	9. Update collection (content_type, dates, number) if full lesson or new lesson
+// 	10. Associate collection and unit
+// 	11. Associate unit and derived units
+// 	12. Set default permissions ?!
 func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) error {
 	log.Info("Processing CITMetadata")
 
@@ -41,7 +42,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		"capture_date": metadata.CaptureDate,
 		"film_date":    filmDate,
 	}
-	log.Infof("Updaing files properties: %v", props)
+	log.Infof("Updating files properties: %v", props)
 	err := UpdateFileProperties(exec, original, props)
 	if err != nil {
 		return err
@@ -62,7 +63,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		}
 		original.Language = null.StringFrom(l)
 	}
-	log.Infof("Updaing original.Language to %s", original.Language.String)
+	log.Infof("Updating original.Language to %s", original.Language.String)
 	err = original.Update(exec, "language")
 	if err != nil {
 		return errors.Wrap(err, "Save original to DB")
@@ -72,12 +73,31 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	isDerived := metadata.ArtifactType.Valid && metadata.ArtifactType.String != "main"
 	ct := metadata.ContentType
 	if isDerived {
+		// TODO: verify user input. artifact_type should be either invalid, "main" or a known content_type
 		ct = strings.ToUpper(metadata.ArtifactType.String)
 	}
+
+	var originalProps map[string]interface{}
+	err = original.Properties.Unmarshal(&originalProps)
+	if err != nil {
+		return errors.Wrap(err, "json.Unmarshal original properties")
+	}
+	if duration, ok := originalProps["duration"]; ok {
+		props["duration"] = int(duration.(float64))
+	} else {
+		log.Infof("Original is missing duration property [%d]", original.ID)
+	}
+
 	log.Infof("Creating content unit of type %s", ct)
 	cu, err := CreateContentUnit(exec, ct, props)
 	if err != nil {
 		return errors.Wrap(err, "Create content unit")
+	}
+
+	log.Infof("Describing content unit [%d]", cu.ID)
+	err = DescribeContentUnit(exec, cu, metadata)
+	if err != nil {
+		log.Errorf("Error describing content unit: %s", err.Error())
 	}
 
 	// Add files to new unit
@@ -122,6 +142,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		if err != nil {
 			return errors.Wrap(err, "Lookup sources in DB")
 		}
+
+		// are we missing some source ?
 		if len(sources) != len(metadata.Sources) {
 			missing := make([]string, 0)
 			for _, x := range metadata.Sources {
@@ -138,6 +160,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			}
 			log.Warnf("Unknown sources: %s", missing)
 		}
+
 		err = cu.AddSources(exec, false, sources...)
 		if err != nil {
 			return errors.Wrap(err, "Associate sources")
@@ -152,6 +175,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		if err != nil {
 			return errors.Wrap(err, "Lookup tags  in DB")
 		}
+
+		// are we missing some tag ?
 		if len(tags) != len(metadata.Tags) {
 			missing := make([]string, 0)
 			for _, x := range metadata.Tags {
@@ -178,7 +203,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	if strings.ToLower(metadata.Lecturer) == P_RAV {
 		log.Info("Associating unit to rav")
 		cup := &models.ContentUnitsPerson{
-			PersonID: PERSONS_REGISTRY.ByPattern[P_RAV].ID,
+			PersonID: PERSON_REGISTRY.ByPattern[P_RAV].ID,
 			RoleID:   CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID,
 		}
 		err = cu.AddContentUnitsPersons(exec, true, cup)
@@ -192,7 +217,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	// Get or create collection
 	var c *models.Collection
 	if metadata.CollectionUID.Valid {
-		log.Infof("Specific collection %s", metadata.CollectionUID .String)
+		log.Infof("Specific collection %s", metadata.CollectionUID.String)
 		c, err = models.Collections(exec, qm.Where("uid = ?", metadata.CollectionUID.String)).One()
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -207,8 +232,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		// Reconcile or create new
 		// Reconciliation is done by looking up the operation chain of original to capture_stop.
 		// There we have a property of saying the capture_id of the full lesson capture.
-		captureStop, err := FindUpChainOperation(exec, original.ID,
-			OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_STOP].ID)
+		captureStop, err := FindUpChainOperation(exec, original.ID, OP_CAPTURE_STOP)
 		if err != nil {
 			if ex, ok := err.(UpChainOperationNotFound); ok {
 				log.Warnf(ex.Error())
@@ -228,7 +252,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				if metadata.WeekDate == nil {
 					cct = CT_DAILY_LESSON
 				} else {
-					cct = CT_SATURDAY_LESSON
+					cct = CT_SPECIAL_LESSON
 				}
 
 				// Keep this property on the collection for other parts to find it
@@ -236,6 +260,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				if metadata.Number.Valid {
 					props["number"] = metadata.Number.Int
 				}
+				delete(props, "duration")
 
 				c, err = FindCollectionByCaptureID(exec, captureID)
 				if err != nil {
@@ -277,7 +302,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	// Associate collection and unit
 	if c != nil &&
 		(!metadata.ArtifactType.Valid || metadata.ArtifactType.String == "main") {
-		log.Info("Associating unit and collection")
+		log.Infof("Associating unit and collection [c-cu]=[%d-%d]", c.ID, cu.ID)
 		ccu := &models.CollectionsContentUnit{
 			CollectionID:  c.ID,
 			ContentUnitID: cu.ID,
@@ -285,7 +310,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		switch ct {
 		case CT_FULL_LESSON:
 			if c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID ||
-				c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_SATURDAY_LESSON].ID {
+				c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID {
 				ccu.Name = "full"
 			} else if metadata.Number.Valid {
 				ccu.Name = strconv.Itoa(metadata.Number.Int)
@@ -305,6 +330,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			if metadata.Number.Valid {
 				ccu.Name = strconv.Itoa(metadata.Number.Int)
 			}
+
+			// first 3 event part types are lesson, YH and meal, we skip them.
 			if metadata.PartType.Valid && metadata.PartType.Int > 2 {
 				idx := metadata.PartType.Int - 3
 				if idx < len(MISC_EVENT_PART_TYPES) {
@@ -359,8 +386,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				return errors.Wrap(err, "Load derived content units")
 			}
 
-			// put results in map due to this bug:
-			// https://github.com/lib/pq/issues/81
+			// put results in a map first since we can't process them while iterating.
+			// see this bug:  https://github.com/lib/pq/issues/81
 			derivedCUs := make(map[int64]string)
 			for rows.Next() {
 				var cuid int64
@@ -380,7 +407,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				return errors.Wrap(err, "Close rows")
 			}
 
-			log.Infof("%d dervied units pending our association", len(derivedCUs))
+			log.Infof("%d derived units pending our association", len(derivedCUs))
 			for k, v := range derivedCUs {
 				log.Infof("DerivedID: %d, Name: %s", k, v)
 				cud := &models.ContentUnitDerivation{

@@ -3,7 +3,7 @@ package api
 const (
 	// Collection Types
 	CT_DAILY_LESSON       = "DAILY_LESSON"
-	CT_SATURDAY_LESSON    = "SATURDAY_LESSON"
+	CT_SPECIAL_LESSON     = "SPECIAL_LESSON"
 	CT_FRIENDS_GATHERINGS = "FRIENDS_GATHERINGS"
 	CT_CONGRESS           = "CONGRESS"
 	CT_VIDEO_PROGRAM      = "VIDEO_PROGRAM"
@@ -18,7 +18,7 @@ const (
 	CT_LECTURE               = "LECTURE"
 	CT_CHILDREN_LESSON_PART  = "CHILDREN_LESSON_PART"
 	CT_WOMEN_LESSON_PART     = "WOMEN_LESSON_PART"
-	CT_LC_LESSON             = "LC_LESSON"
+	CT_VIRTUAL_LESSON        = "VIRTUAL_LESSON"
 	CT_FRIENDS_GATHERING     = "FRIENDS_GATHERING"
 	CT_MEAL                  = "MEAL"
 	CT_VIDEO_PROGRAM_CHAPTER = "VIDEO_PROGRAM_CHAPTER"
@@ -39,6 +39,7 @@ const (
 	OP_CONVERT       = "convert"
 	OP_UPLOAD        = "upload"
 	OP_IMPORT_KMEDIA = "import_kmedia"
+	OP_SIRTUTIM      = "sirtutim"
 
 	// Source Types
 	SRC_COLLECTION = "COLLECTION"
@@ -57,6 +58,11 @@ const (
 
 	// Persons patterns
 	P_RAV = "rav"
+
+	// Security levels
+	SEC_PUBLIC    = int16(0)
+	SEC_SENSITIVE = int16(1)
+	SEC_PRIVATE   = int16(2)
 
 	// Languages
 	LANG_ENGLISH    = "en"

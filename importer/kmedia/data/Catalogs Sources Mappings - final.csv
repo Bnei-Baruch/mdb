@@ -10,7 +10,7 @@ catalog_id,catalog_name,MDB named path
 188,bs-akdama-zohar_lessons,bs/Akdamot/Akdama Zohar
 130,bs-aravut_lessons,bs/Maamarim/Aravut
 95,bs-ashalom_lessons,bs/Maamarim/Ashalom
-683,bs-beit-shaar-kavanot/lessons,bs/Maamarim/Beit Shaar Kavanot
+683,bs-beit-shaar-kavanot/lessons,bs/Beit Shaar Kavanot
 1337,bs-binyan-hevra-atidit_lessons,bs/Maamarim/Binyan Hevra Atidit
 747,bs-dalet-olamot_lessons,bs/Maamarim/Dalet Olamot
 1873,bs-dor-acharon_lessons,bs/Maamarim/Dor Acharon
@@ -86,7 +86,7 @@ catalog_id,catalog_name,MDB named path
 743,bs-kabbala-ve-mahuta_lessons,bs/Maamarim/Kabbala Ve Mahuta
 4340,bs-kol-mitztaer_lessons,bs/Maamarim/Kol Mitztaer
 144,bs-maamar-herut_lessons,bs/Maamarim/Maamar Herut
-205,bs-maamar-le-sium-zohar_lessons,bs/Akdamot/Maamar Le Sium Zohar
+205,bs-maamar-le-sium-zohar_lessons,bs/Maamarim/Maamar Le Sium Zohar
 134,bs-mahut-dat-ve-matrata_lessons,bs/Maamarim/Mahut Dat Ve Matrata
 81,bs-mahut-hochmat-kabbala_lessons,bs/Maamarim/Mahut Hochmat Kabbala
 143,bs-matan-tora_lessons,bs/Maamarim/Matan Tora
@@ -94,7 +94,7 @@ catalog_id,catalog_name,MDB named path
 1286,bs-mi-bsari-echeze_lessons,bs/Maamarim/Mi Bsari Echeze
 744,bs-mitzva-achat_lessons,bs/Maamarim/Mitzva Achat
 1416,bs-nevua_lessons,bs/Maamarim/Nevua
-2063,bs-or-bahir/lessons,bs/Maamarim/Or Bahir
+2063,bs-or-bahir/lessons,bs/Or Bahir
 771,bs-pitaron_lessons,bs/Maamarim/Pitaron
 197,bs-pticha_lessons,bs/Akdamot/Pticha
 196,bs-pticha-kolelet_lessons,bs/Akdamot/Pticha Kolelet
@@ -389,6 +389,7 @@ catalog_id,catalog_name,MDB named path
 7059,rb-1984-17-1-hashivut-haverim_lessons,rb/Maamarim/(1984-17-1) Hashivut Haverim
 7062,rb-1984-17-2-seder-yeshivat-hevra_lessons,rb/Maamarim/(1984-17-2) Seder Yeshivat Hevra
 7065,rb-1984-18-ve-haya-ki_lessons,rb/Maamarim/(1984-18) Ve Haya Ki
+7067,rb-1984-19-atem-nitzavim_lessons,rb/Maamarim/(1984-19) Atem Nitzavim
 7068,rb-1984-19-atem-nitzavim_lessons,rb/Maamarim/(1984-19) Atem Nitzavim
 7071,rb-1985-01-asa-lecha-rav_lessons,rb/Maamarim/(1985-01) Asa Lecha Rav
 7074,rb-1985-02-inyan-anaf_lessons,rb/Maamarim/(1985-02) Inyan Anaf
@@ -1347,6 +1348,7 @@ catalog_id,catalog_name,MDB named path
 6242,rb-dargot-sulam-682-ieziia-ve-bia,rb/Records/682 Ieziia Ve Bia
 6244,rb-dargot-sulam-683-haham-roe-nolad,rb/Records/683 Haham Roe Nolad
 6246,rb-dargot-sulam-684-bhinat-moshe,rb/Records/684 Bhinat Moshe
+8021,rb-dargot-sulam-684-bhinat-moshe_lessons,rb/Records/684 Bhinat Moshe
 6248,rb-dargot-sulam-685-ashem-mashlim-razon_lessons,rb/Records/685 Ashem Mashlim Razon
 6250,rb-dargot-sulam-686-ikar-iamin,rb/Records/686 Ikar Iamin
 6252,rb-dargot-sulam-687-asita-leha-aron,rb/Records/687 Asita Leha Aron

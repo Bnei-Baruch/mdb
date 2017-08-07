@@ -218,6 +218,7 @@ func (suite *DocsSuite) Test5SendHandler() {
 			Part:           null.IntFrom(2),
 			Sources:        []string{"12345678", "87654321", "abcdefgh"},
 			Tags:           []string{"12345678", "87654321"},
+			Major:          &CITMetadataMajor{Type: "source", Idx: 1},
 		},
 	}
 
@@ -300,6 +301,27 @@ func (suite *DocsSuite) Test7UploadHandler() {
 	}
 
 	resp, err := suite.testOperation(OP_UPLOAD, input)
+	suite.Require().Nil(err)
+	suite.assertJsonOK(resp)
+}
+
+func (suite *DocsSuite) Test8SirtutimHandler() {
+	input := SirtutimRequest{
+		Operation: Operation{
+			Station: "Upload station",
+			User:    "111operator@dev.com",
+		},
+		File: File{
+			FileName:  "heb_o_rav_2016-09-14_lesson_o.zip",
+			Sha1:      "0987654321fedcba0987654321fedcba09876544",
+			Size:      19837,
+			CreatedAt: &Timestamp{Time: time.Now()},
+			Language: LANG_HEBREW,
+		},
+		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
+	}
+
+	resp, err := suite.testOperation(OP_SIRTUTIM, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }

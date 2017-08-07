@@ -81,6 +81,15 @@ func UploadHandler(c *gin.Context) {
 	}
 }
 
+// Sirtutim archive file generated
+func SirtutimHandler(c *gin.Context) {
+	log.Info(OP_SIRTUTIM)
+	var i SirtutimRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleSirtutim)
+	}
+}
+
 // Handler logic
 
 func handleCaptureStart(exec boil.Executor, input interface{}) (*models.Operation, error) {
@@ -97,8 +106,12 @@ func handleCaptureStart(exec boil.Executor, input interface{}) (*models.Operatio
 	}
 
 	log.Info("Creating file and associating to operation")
+	uid, err := GetFreeUID(exec, new(FileUIDChecker))
+	if err != nil {
+		return nil, err
+	}
 	file := models.File{
-		UID:  utils.GenerateUID(8),
+		UID:  uid,
 		Name: r.FileName,
 	}
 	return operation, operation.AddFiles(exec, true, &file)
@@ -321,13 +334,25 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, er
 	files[0] = in
 	props := make(map[string]interface{})
 	for i, x := range r.Output {
-		props["duration"] = x.Duration
-		f, err := CreateFile(exec, in, x.File, props)
+
+		// lookup by sha1 as it might be a "reconvert"
+		f, _, err := FindFileBySHA1(exec, x.Sha1)
 		if err == nil {
-			files[i+1] = f
+			log.Infof("File already exists: %s", x.Sha1)
 		} else {
-			return nil, err
+			if _, ok := err.(FileNotFound); ok {
+				// new file
+				props["duration"] = x.Duration
+				f, err = CreateFile(exec, in, x.File, props)
+				if err != nil {
+					return nil, errors.Wrap(err, "Create file")
+				}
+			} else {
+				return nil, errors.Wrap(err, "Lookup file in DB")
+			}
 		}
+
+		files[i+1] = f
 	}
 
 	log.Info("Associating files to operation")
@@ -369,8 +394,58 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, err
 		return nil, err
 	}
 
+	err = PublishFile(exec, file)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Info("Associating file to operation")
 	return operation, operation.AddFiles(exec, false, file)
+}
+
+func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, error) {
+	r := input.(SirtutimRequest)
+
+	log.Info("Creating operation")
+	operation, err := CreateOperation(exec, OP_SIRTUTIM, r.Operation, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("Creating file")
+	r.File.Type = "image"
+	file, err := CreateFile(exec, nil, r.File, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// content_unit association
+	var original *models.File
+	if r.OriginalSha1 != "" {
+		log.Info("Looking up content unit by original sha1")
+		original, _, err = FindFileBySHA1(exec, r.OriginalSha1)
+		if err != nil {
+			if _, ok := err.(FileNotFound); ok {
+				log.Warnf("Original file not found [%s]", r.OriginalSha1)
+			} else {
+				return nil, err
+			}
+		} else {
+			if original.ContentUnitID.Valid {
+				log.Infof("Associating to content_unit [%d]", original.ContentUnitID.Int64)
+				file.ContentUnitID = original.ContentUnitID
+				err = file.Update(exec, "content_unit_id")
+				if err != nil {
+					return nil, errors.Wrap(err, "Save file.content_unit_id to DB")
+				}
+			} else {
+				log.Warn("Original file is not associated to any content unit")
+			}
+		}
+	}
+
+	log.Info("Associating files to operation")
+	return operation, operation.AddFiles(exec, false, original, file)
 }
 
 // Helpers

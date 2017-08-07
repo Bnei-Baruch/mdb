@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/hex"
 	"math"
-	"regexp"
 	"testing"
 	"time"
 
@@ -58,7 +57,7 @@ func (suite *RepoSuite) TestCreateOperation() {
 	suite.Require().Nil(op.Reload(suite.tx))
 
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_START].ID, op.TypeID, "TypeID")
-	suite.Regexp(regexp.MustCompile("[a-zA-z0-9]{8}"), op.UID, "UID")
+	suite.Regexp(utils.UID_REGEX, op.UID, "UID")
 	suite.True(op.Station.Valid, "Station.Valid")
 	suite.Equal(o.Station, op.Station.String, "Station.String")
 	user, err := models.Users(suite.tx, qm.Where("email=?", o.User)).One()
@@ -107,7 +106,7 @@ func (suite *RepoSuite) TestCreateFile() {
 	suite.Require().Nil(err)
 	suite.Require().Nil(file.Reload(suite.tx))
 
-	suite.Regexp(regexp.MustCompile("[a-zA-z0-9]{8}"), file.UID, "UID")
+	suite.Regexp(utils.UID_REGEX, file.UID, "UID")
 	suite.Equal(f.FileName, file.Name, "Name")
 	suite.True(file.FileCreatedAt.Valid, "FileCreatedAt.Valid")
 	suite.Equal(f.CreatedAt.Unix(), file.FileCreatedAt.Time.Unix(), "FileCreatedAt.Time")
@@ -119,6 +118,8 @@ func (suite *RepoSuite) TestCreateFile() {
 	suite.False(file.MimeType.Valid, "MimeType.Valid")
 	suite.False(file.Language.Valid, "Language.Valid")
 	suite.False(file.ParentID.Valid, "ParentID.Valid")
+	suite.False(file.Published, "Published")
+	suite.Equal(SEC_PUBLIC, file.Secure, "Secure")
 
 	// test with optional attributes
 	f2 := File{
@@ -194,6 +195,37 @@ func (suite *RepoSuite) TestCreateFile() {
 	suite.Equal(ALL_MEDIA_TYPES[0].MimeType, file5.MimeType.String, "file5.MimeType.String")
 }
 
+func (suite *RepoSuite) TestPublishFile() {
+	f := File{
+		FileName:  "file_name",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef0123456789",
+		Size:      math.MaxInt64,
+	}
+	file, err := CreateFile(suite.tx, nil, f, nil)
+	suite.Require().Nil(err)
+	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+	err = file.SetContentUnit(suite.tx, false, cu)
+	suite.Require().Nil(err)
+	c, err := CreateCollection(suite.tx, CT_DAILY_LESSON, nil)
+	suite.Require().Nil(err)
+	err = c.AddCollectionsContentUnits(suite.tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID})
+	suite.Require().Nil(err)
+
+	err = PublishFile(suite.tx, file)
+	suite.Require().Nil(err)
+	err = file.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(file.Published)
+	err = cu.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(cu.Published)
+	err = c.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(c.Published)
+}
+
 func (suite *RepoSuite) TestFindFileBySHA1() {
 	const (
 		sha1         = "012356789abcdef012356789abcdef0123456789"
@@ -225,6 +257,32 @@ func (suite *RepoSuite) TestFindFileBySHA1() {
 	suite.Exactly(FileNotFound{Sha1: unknown_sha1}, err, "miss error")
 	suite.Equal(unknown_sha1, hex.EncodeToString(sha1b), "miss.sha1 bytes")
 	suite.Nil(file)
+}
+
+func (suite *RepoSuite) TestGetFreeUID() {
+	checkers := [6]UIDChecker{
+		new(CollectionUIDChecker),
+		new(ContentUnitUIDChecker),
+		new(FileUIDChecker),
+		new(OperationUIDChecker),
+		new(SourceUIDChecker),
+		new(TagUIDChecker),
+	}
+
+	for i := range checkers {
+		checker := checkers[i]
+		var uids = make(map[string]bool, 100)
+		for i := 0; i < 100; i++ {
+			uid, err := GetFreeUID(suite.tx, checker)
+			suite.Require().Nil(err)
+			suite.Regexp(utils.UID_REGEX, uid, "UID")
+			if _, ok := uids[uid]; ok {
+				suite.Fail("UID not unique")
+			} else {
+				uids[uid] = true
+			}
+		}
+	}
 }
 
 // Helpers

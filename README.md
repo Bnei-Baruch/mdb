@@ -167,6 +167,7 @@ git clone https://github.com/Bnei-Baruch/mdb.git
 
 ### Install Packages - Using godep
 ```Shell
+go get -u github.com/jteeuwen/go-bindata/...
 go get gopkg.in/gin-gonic/gin.v1
 go get github.com/lib/pq
 go get github.com/tools/godep

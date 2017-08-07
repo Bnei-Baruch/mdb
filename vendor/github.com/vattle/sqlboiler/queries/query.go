@@ -52,6 +52,9 @@ type Dialect struct {
 	// Bool flag indicating whether indexed
 	// placeholders ($1) are used, or ? placeholders.
 	IndexPlaceholders bool
+	// Bool flag indicating whether "TOP" or "LIMIT" clause
+	// must be used for rows limitation
+	UseTopClause bool
 }
 
 type where struct {
@@ -183,6 +186,11 @@ func AppendLoad(q *Query, relationships ...string) {
 // SetSelect on the query.
 func SetSelect(q *Query, sel []string) {
 	q.selectCols = sel
+}
+
+// GetSelect from the query
+func GetSelect(q *Query) []string {
+	return q.selectCols
 }
 
 // SetCount on the query.

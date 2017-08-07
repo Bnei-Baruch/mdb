@@ -1,19 +1,22 @@
 package api
 
 import (
-	"github.com/Bnei-Baruch/mdb/models"
+	"regexp"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/queries/qm"
-	"regexp"
-	"strings"
+
+	"github.com/Bnei-Baruch/mdb/models"
 )
 
 var (
 	CONTENT_TYPE_REGISTRY      = &ContentTypeRegistry{}
 	OPERATION_TYPE_REGISTRY    = &OperationTypeRegistry{}
 	CONTENT_ROLE_TYPE_REGISTRY = &ContentRoleTypeRegistry{}
-	PERSONS_REGISTRY           = &PersonsRegistry{}
+	PERSON_REGISTRY            = &PersonRegistry{}
+	AUTHOR_REGISTRY            = &AuthorRegistry{}
 	SOURCE_TYPE_REGISTRY       = &SourceTypeRegistry{}
 	MEDIA_TYPE_REGISTRY        = &MediaTypeRegistry{}
 
@@ -65,15 +68,16 @@ var (
 	}
 
 	ALL_CONTENT_TYPES = []string{
-		CT_DAILY_LESSON, CT_SATURDAY_LESSON, CT_FRIENDS_GATHERINGS, CT_CONGRESS, CT_VIDEO_PROGRAM,
+		CT_DAILY_LESSON, CT_SPECIAL_LESSON, CT_FRIENDS_GATHERINGS, CT_CONGRESS, CT_VIDEO_PROGRAM,
 		CT_LECTURE_SERIES, CT_MEALS, CT_HOLIDAY, CT_PICNIC, CT_UNITY_DAY, CT_LESSON_PART, CT_LECTURE,
-		CT_CHILDREN_LESSON_PART, CT_WOMEN_LESSON_PART, CT_LC_LESSON, CT_FRIENDS_GATHERING, CT_MEAL,
+		CT_CHILDREN_LESSON_PART, CT_WOMEN_LESSON_PART, CT_VIRTUAL_LESSON, CT_FRIENDS_GATHERING, CT_MEAL,
 		CT_VIDEO_PROGRAM_CHAPTER, CT_FULL_LESSON, CT_TEXT, CT_EVENT_PART, CT_UNKNOWN, CT_CLIP, CT_TRAINING,
 		CT_KITEI_MAKOR,
 	}
 
 	ALL_OPERATION_TYPES = []string{
 		OP_CAPTURE_START, OP_CAPTURE_STOP, OP_DEMUX, OP_TRIM, OP_SEND, OP_CONVERT, OP_UPLOAD, OP_IMPORT_KMEDIA,
+		OP_SIRTUTIM,
 	}
 
 	// Types of various, secondary, content slots in big events like congress, unity day, etc...
@@ -117,7 +121,7 @@ var (
 		{Extension: "doc", Type: "text", SubType: "", MimeType: "application/msword"},
 		{Extension: "docx", Type: "text", SubType: "", MimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
 		{Extension: "htm", Type: "text", SubType: "", MimeType: "text/html"},
-		{Extension: "htm", Type: "text", SubType: "", MimeType: "text/html"},
+		{Extension: "html", Type: "text", SubType: "", MimeType: "text/html"},
 		{Extension: "pdf", Type: "text", SubType: "", MimeType: "application/pdf"},
 		{Extension: "epub", Type: "text", SubType: "", MimeType: "application/epub+zip"},
 		{Extension: "rtf", Type: "text", SubType: "", MimeType: "text/rtf"},
@@ -143,7 +147,8 @@ func InitTypeRegistries(exec boil.Executor) error {
 	registries := []TypeRegistry{CONTENT_TYPE_REGISTRY,
 		OPERATION_TYPE_REGISTRY,
 		CONTENT_ROLE_TYPE_REGISTRY,
-		PERSONS_REGISTRY,
+		PERSON_REGISTRY,
+		AUTHOR_REGISTRY,
 		SOURCE_TYPE_REGISTRY,
 		MEDIA_TYPE_REGISTRY}
 
@@ -162,6 +167,7 @@ type TypeRegistry interface {
 
 type ContentTypeRegistry struct {
 	ByName map[string]*models.ContentType
+	ByID   map[int64]*models.ContentType
 }
 
 func (r *ContentTypeRegistry) Init(exec boil.Executor) error {
@@ -171,8 +177,10 @@ func (r *ContentTypeRegistry) Init(exec boil.Executor) error {
 	}
 
 	r.ByName = make(map[string]*models.ContentType)
+	r.ByID = make(map[int64]*models.ContentType)
 	for _, t := range types {
 		r.ByName[t.Name] = t
+		r.ByID[t.ID] = t
 	}
 
 	return nil
@@ -214,11 +222,11 @@ func (r *ContentRoleTypeRegistry) Init(exec boil.Executor) error {
 	return nil
 }
 
-type PersonsRegistry struct {
+type PersonRegistry struct {
 	ByPattern map[string]*models.Person
 }
 
-func (r *PersonsRegistry) Init(exec boil.Executor) error {
+func (r *PersonRegistry) Init(exec boil.Executor) error {
 	types, err := models.Persons(exec, qm.Where("pattern is not null")).All()
 	if err != nil {
 		return errors.Wrap(err, "Load persons from DB")
@@ -227,6 +235,24 @@ func (r *PersonsRegistry) Init(exec boil.Executor) error {
 	r.ByPattern = make(map[string]*models.Person)
 	for _, t := range types {
 		r.ByPattern[t.Pattern.String] = t
+	}
+
+	return nil
+}
+
+type AuthorRegistry struct {
+	ByCode map[string]*models.Author
+}
+
+func (r *AuthorRegistry) Init(exec boil.Executor) error {
+	authors, err := models.Authors(exec).All()
+	if err != nil {
+		return errors.Wrap(err, "Load authors from DB")
+	}
+
+	r.ByCode = make(map[string]*models.Author)
+	for _, a := range authors {
+		r.ByCode[a.Code] = a
 	}
 
 	return nil

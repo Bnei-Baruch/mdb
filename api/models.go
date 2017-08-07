@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gopkg.in/nullbio/null.v6"
+
 	"github.com/Bnei-Baruch/mdb/models"
 )
 
@@ -36,25 +37,30 @@ type (
 		Duration float64 `json:"duration"`
 	}
 
+	CITMetadataMajor struct {
+		Type string `json:"type" binding:"omitempty,eq=source|eq=tag"`
+		Idx  int    `json:"idx" binding:"omitempty,gte=0"`
+	}
 	CITMetadata struct {
-		ContentType    string      `json:"content_type" binding:"required"`
-		CaptureDate    Date        `json:"capture_date" binding:"required"`
-		FinalName      string      `json:"final_name" binding:"required,max=255"`
-		Language       string      `json:"language" binding:"required,min=2,max=3"`
-		Lecturer       string      `json:"lecturer" binding:"required"`
-		AutoName       string      `json:"auto_name"`
-		ManualName     string      `json:"manual_name"`
-		WeekDate       *Date       `json:"week_date"`
-		Number         null.Int    `json:"number"`
-		Part           null.Int    `json:"part"`
-		Sources        []string    `json:"sources" binding:"omitempty,dive,len=8"`
-		Tags           []string    `json:"tags" binding:"omitempty,dive,len=8"`
-		ArtifactType   null.String `json:"artifact_type"`
-		HasTranslation bool        `json:"has_translation"`
-		RequireTest    bool        `json:"require_test"`
-		CollectionUID  null.String `json:"collection_uid" binding:"omitempty,len=8"`
-		Episode        null.String `json:"episode"`
-		PartType       null.Int    `json:"part_type"`
+		ContentType    string            `json:"content_type" binding:"required"`
+		CaptureDate    Date              `json:"capture_date" binding:"required"`
+		FinalName      string            `json:"final_name" binding:"required,max=255"`
+		Language       string            `json:"language" binding:"required,min=2,max=3"`
+		Lecturer       string            `json:"lecturer" binding:"required"`
+		AutoName       string            `json:"auto_name"`
+		ManualName     string            `json:"manual_name"`
+		WeekDate       *Date             `json:"week_date"`
+		Number         null.Int          `json:"number"`
+		Part           null.Int          `json:"part"`
+		Sources        []string          `json:"sources" binding:"omitempty,dive,len=8"`
+		Tags           []string          `json:"tags" binding:"omitempty,dive,len=8"`
+		ArtifactType   null.String       `json:"artifact_type"`
+		HasTranslation bool              `json:"has_translation"`
+		RequireTest    bool              `json:"require_test"`
+		CollectionUID  null.String       `json:"collection_uid" binding:"omitempty,len=8"`
+		Episode        null.String       `json:"episode"`
+		PartType       null.Int          `json:"part_type"`
+		Major          *CITMetadataMajor `json:"major" binding:"omitempty"`
 	}
 
 	Rename struct {
@@ -117,6 +123,12 @@ type (
 		Url string `json:"url" binding:"required"`
 	}
 
+	SirtutimRequest struct {
+		Operation
+		File
+		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
+	}
+
 	// REST
 
 	ListRequest struct {
@@ -157,10 +169,20 @@ type (
 		EndDate   string `json:"end_date" form:"end_date" binding:"omitempty"`
 	}
 
+	SecureFilter struct {
+		Levels []int16 `json:"security_levels" form:"secure" binding:"omitempty"`
+	}
+
+	PublishedFilter struct {
+		Published string `json:"published" form:"published" binding:"omitempty"`
+	}
+
 	CollectionsRequest struct {
 		ListRequest
-		DateRangeFilter
 		ContentTypesFilter
+		DateRangeFilter
+		SecureFilter
+		PublishedFilter
 	}
 
 	CollectionsResponse struct {
@@ -170,8 +192,10 @@ type (
 
 	ContentUnitsRequest struct {
 		ListRequest
-		DateRangeFilter
 		ContentTypesFilter
+		DateRangeFilter
+		SecureFilter
+		PublishedFilter
 		SourcesFilter
 		TagsFilter
 	}
@@ -184,6 +208,8 @@ type (
 	FilesRequest struct {
 		ListRequest
 		DateRangeFilter
+		SecureFilter
+		PublishedFilter
 		SearchTermFilter
 	}
 
@@ -201,6 +227,34 @@ type (
 	OperationsResponse struct {
 		ListResponse
 		Operations []*models.Operation `json:"data"`
+	}
+
+	AuthorsResponse struct {
+		ListResponse
+		Authors []*Author `json:"data"`
+	}
+
+	SourcesRequest struct {
+		ListRequest
+	}
+
+	SourcesResponse struct {
+		ListResponse
+		Sources []*Source `json:"data"`
+	}
+
+	CreateSourceRequest struct {
+		Source
+		AuthorID null.Int64 `json:"author"`
+	}
+
+	TagsRequest struct {
+		ListRequest
+	}
+
+	TagsResponse struct {
+		ListResponse
+		Tags []*Tag `json:"data"`
 	}
 
 	HierarchyRequest struct {
@@ -239,7 +293,23 @@ type (
 		Sha1Str string `json:"sha1"`
 	}
 
+	Author struct {
+		models.Author
+		I18n    map[string]*models.AuthorI18n `json:"i18n"`
+		Sources []*Source                     `json:"sources"`
+	}
+
 	Source struct {
+		models.Source
+		I18n map[string]*models.SourceI18n `json:"i18n"`
+	}
+
+	Tag struct {
+		models.Tag
+		I18n map[string]*models.TagI18n `json:"i18n"`
+	}
+
+	SourceH struct {
 		ID          int64       `json:"id"`
 		UID         string      `json:"uid"`
 		ParentID    null.Int64  `json:"parent_id"`
@@ -248,23 +318,23 @@ type (
 		Pattern     null.String `json:"pattern,omitempty"`
 		Name        null.String `json:"name"`
 		Description null.String `json:"description,omitempty"`
-		Children    []*Source   `json:"children,omitempty"`
+		Children    []*SourceH  `json:"children,omitempty"`
 	}
 
-	Author struct {
+	AuthorH struct {
 		Code     string      `json:"code"`
 		Name     string      `json:"name"`
 		FullName null.String `json:"full_name,omitempty"`
-		Children []*Source   `json:"children,omitempty"`
+		Children []*SourceH  `json:"children,omitempty"`
 	}
 
-	Tag struct {
+	TagH struct {
 		ID       int64       `json:"id"`
 		UID      string      `json:"uid"`
 		ParentID null.Int64  `json:"parent_id"`
 		Pattern  null.String `json:"pattern,omitempty"`
 		Label    null.String `json:"label"`
-		Children []*Tag      `json:"children,omitempty"`
+		Children []*TagH     `json:"children,omitempty"`
 	}
 )
 
@@ -290,6 +360,14 @@ func NewMFile(f *models.File) *MFile {
 
 func NewOperationsResponse() *OperationsResponse {
 	return &OperationsResponse{Operations: make([]*models.Operation, 0)}
+}
+
+func NewSourcesResponse() *SourcesResponse {
+	return &SourcesResponse{Sources: make([]*Source, 0)}
+}
+
+func NewTagsResponse() *TagsResponse {
+	return &TagsResponse{Tags: make([]*Tag, 0)}
 }
 
 func (drf *DateRangeFilter) Range() (time.Time, time.Time, error) {

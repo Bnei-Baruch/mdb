@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"database/sql"
+	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -45,13 +46,18 @@ func serverFn(cmd *cobra.Command, args []string) {
 	rollbar.Environment = viper.GetString("server.rollbar-environment")
 	rollbar.CodeVersion = version.Version
 
+	// cors
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowMethods = append(corsConfig.AllowMethods, http.MethodDelete)
+	corsConfig.AllowAllOrigins = true
+
 	// Setup gin
 	gin.SetMode(viper.GetString("server.mode"))
 	router := gin.New()
 	router.Use(
 		utils.MdbLoggerMiddleware(),
 		utils.ErrorHandlingMiddleware(),
-		cors.Default(),
+		cors.New(corsConfig),
 		utils.RecoveryMiddleware())
 
 	api.SetupRoutes(router)
