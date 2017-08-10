@@ -146,7 +146,7 @@ func MergeIndex(db *sql.DB, master MasterIndex, location string, indexPath strin
 	if err != nil {
 		return errors.Wrap(err, "Save diff to DB")
 	}
-	log.Infof("Successfuly updated %d out of %d files in diff", successful, len(diff))
+	log.Infof("Successfully updated %d out of %d files in diff", successful, len(diff))
 
 	if successful == len(diff) {
 		return nil
@@ -271,7 +271,7 @@ func fileDiff(prev, next []*PhysicalFile) (modified bool, changes int) {
 }
 
 // Saving the diff in the DB may involve many updates.
-// To increase performance we use the postgres's FROM cluase in UPDATE statement.
+// To increase performance we use the postgres's FROM clause in UPDATE statement.
 // We first create a temp table and insert updated 'storage' property of each file.
 // We then execute a single UPDATE statement.
 // Finally we drop the temporary table.
@@ -293,7 +293,7 @@ func saveDiff(db *sql.DB, master MasterIndex, diff LocationIndex, location strin
 		log.Infof("Dropping temp table: %s", tmpTable)
 		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s", tmpTable))
 		if err != nil {
-			log.Errorf("Error droping temp table [%s]: %s", tmpTable, err.Error())
+			log.Errorf("Error dropping temp table [%s]: %s", tmpTable, err.Error())
 		}
 	}()
 

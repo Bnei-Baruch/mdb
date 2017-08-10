@@ -9,9 +9,9 @@ import (
 func init() {
 	command := &cobra.Command{
 		Use:   "storage",
-		Short: "Create master storage index of files in MDB",
+		Short: "Import storage locations status of files in MDB",
 		Run: func(cmd *cobra.Command, args []string) {
-			storage.CreateMasterIndex()
+			storage.ImportStorageStatus()
 		},
 	}
 	RootCmd.AddCommand(command)

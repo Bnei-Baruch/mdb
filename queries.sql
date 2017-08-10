@@ -537,3 +537,8 @@ update collections set properties = properties || '{"kmedia_id": 8100}' where id
 update collections set properties = properties || '{"kmedia_id": 8084}' where id = 10713;
 update collections set properties = properties || '{"kmedia_id": 8127}' where id = 10813;
 
+copy (
+SELECT concat(sha1, ',[{"location":"il-merkaz","status":"online","storage":"ieush-3834-9203-fi2os"}]')
+FROM files
+WHERE sha1 IS NOT NULL
+) to '/var/lib/postgres/data/dummy_storage_status.csv' (FORMAT CSV);
