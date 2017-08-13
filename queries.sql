@@ -531,3 +531,48 @@ update collections set properties = properties || '{"kmedia_id": 8100}' where id
 update collections set properties = properties || '{"kmedia_id": 8084}' where id = 10713;
 update collections set properties = properties || '{"kmedia_id": 8127}' where id = 10813;
 
+-- kmedia programs with their containers
+copy (
+WITH RECURSIVE rc AS (
+  SELECT c.*
+  FROM catalogs c
+  WHERE c.id = 3672
+  UNION
+  SELECT c.*
+  FROM catalogs c INNER JOIN rc ON c.parent_id = rc.id
+) SELECT
+    rc.id,
+    rc.parent_id,
+    count(1),
+    array_agg(cc.container_id)
+  FROM rc
+    INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id
+  GROUP BY rc.id, rc.parent_id
+) TO '/var/lib/postgres/data/programs_chapters.csv'  (
+FORMAT CSV );
+
+
+-- missing proprams from kmedia
+INSERT INTO COLLECTIONS (TYPE_ID, UID, PROPERTIES) VALUES
+(5,'l4WQAsm9','{"kmedia_id":7861, "active": false, "pattern": "audio-program_radio103fm"}'),
+(5,'zaJ2GJwp','{"kmedia_id":3712, "active": false, "pattern": "radio-programa_besedi-s-kabbalistom"}'),
+(5,'VlXV1JrR','{"kmedia_id":3852, "active": false, "pattern": "radio_krizis-bez-paniki"}'),
+(5,'ytqTdyW2','{"kmedia_id":3853, "active": false, "pattern": "radio-skazki"}'),
+(5,'OozJ9DZa','{"kmedia_id":3668, "active": false, "pattern": "radio-music"}'),
+(5,'hXGbw8yC','{"kmedia_id":3711, "active": false, "pattern": "radio-territoriya-sveta"}'),
+(5,'vPb4im8H','{"kmedia_id":3714, "active": false, "pattern": "radio-tochka-otscheta"}'),
+(5,'9NZGugXL','{"kmedia_id":3713, "active": false, "pattern": "radio-programa_novoe-pokolenie"}'),
+(5,'BvebN6zp','{"kmedia_id":3839, "active": false, "pattern": "radio-sheelot mi shiurim virtualim"}'),
+(5,'HTeNptLa','{"kmedia_id":3847, "active": false, "pattern": "radio_tsitata"}'),
+(5,'OgWfr7vg','{"kmedia_id":3848, "active": false, "pattern": "radio-programa_effect babochki"}'),
+(5,'OXJTGsnd','{"kmedia_id":3913, "active": false, "pattern": "radio-tochka-soprikosnoveniya"}'),
+(5,'TbAZv8Vl','{"kmedia_id":3998, "active": false, "pattern": "radio-obzor-kabbalisticheskogo-uroka"}'),
+(5,'d66fNjIx','{"kmedia_id":3999, "active": false, "pattern": "radio-program_sprosi-kabbalista"}'),
+(5,'d28vdoem','{"kmedia_id":4063, "active": false, "pattern": "Channel Kabbalah_plus/spa/Tochniyot shonot"}'),
+(5,'fLdum23Q','{"kmedia_id":4448, "active": false, "pattern": "Channel Kabbalah_plus/spa/Radioconexion"}'),
+(5,'yDqbL3CP','{"kmedia_id":4449, "active": false, "pattern": "Channel Kabbalah_plus/spa/Paella"}'),
+(5,'rwTkuDfv','{"kmedia_id":3682, "active": false, "pattern": "channel-kabbalah/katava"}'),
+(5,'dPVJsA27','{"kmedia_id":3683, "active": false, "pattern": "channel-kabbalah/beyn-ha-milim"}'),
+(5,'010XrrBt','{"kmedia_id":3824, "active": false, "pattern": "channel-kabbalah/tochniyot-shonot"}'),
+(5,'idqITbgh','{"kmedia_id":3886, "active": false, "pattern": "program_other"}')
+;

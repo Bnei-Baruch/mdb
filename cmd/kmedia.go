@@ -38,10 +38,10 @@ func init() {
 	RootCmd.AddCommand(command)
 
 	command = &cobra.Command{
-		Use:   "kmedia-update-units",
-		Short: "Update i18ns for content units based on kmedia_id",
+		Use:   "kmedia-update",
+		Short: "Update i18ns for collections and content units based on kmedia_id",
 		Run: func(cmd *cobra.Command, args []string) {
-			kmedia.UpdateUnits()
+			kmedia.UpdateI18ns()
 		},
 	}
 	RootCmd.AddCommand(command)
