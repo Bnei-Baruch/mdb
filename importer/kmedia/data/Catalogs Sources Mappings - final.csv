@@ -1824,3 +1824,62 @@ catalog_id,catalog_name,MDB named path
 2001,ml-mekorot/Themes/ScienceArticles/ml-tchunat-hochmat-kabbala/ml-tchunat-hochmat-kabbala/lessons,ml/Maamarim/Thunot Hochmat Kabbala
 604,ml-mekorot/Themes/ScienceArticles/ml-tnaim-le-pirsum-kabbala,ml/Maamarim/Tnaim Le Pirsum Kabbala
 1999,ml-mekorot/Themes/ScienceArticles/ml-tnaim-le-pirsum-kabbala/ml-tnaim-le-pirsum-kabbala/lessons,ml/Maamarim/Tnaim Le Pirsum Kabbala
+4522,parashat_ashavua_bereshit,mr/Tora/Bereshit
+4523,parashat_ashavua_shmot,mr/Tora/Shmot
+4524,parashat_ashavua_vayikra,mr/Tora/Vayikra
+4525,parashat_ashavua_bamidbar,mr/Tora/Bamidbar
+4526,parashat_ashavua_dvarim,mr/Tora/Devarim
+4188,parashat_ashavua_bereshit_bereshit,mr/Tora/Bereshit/Bereshit
+4189,parashat_ashavua_bereshit_noah,mr/Tora/Bereshit/Noah
+4190,parashat_ashavua_bereshit_lech-lecha,mr/Tora/Bereshit/Lech Lecha
+4191,parashat_ashavua_bereshit_vayera,mr/Tora/Bereshit/VaYera
+4192,parashat-ashavua-bereshit-chayeisarah,mr/Tora/Bereshit/Chayei Sarah
+4193,parashat_ashavua_bereshit_toldot,mr/Tora/Bereshit/Toldot
+4194,parashat_ashavua_bereshit_vayetze,mr/Tora/Bereshit/VaYetze
+4195,parashat_ashavua_bereshit_vayeshlah,mr/Tora/Bereshit/VaYishlach
+4202,parashat_ashavua_bereshit_vayeshev,mr/Tora/Bereshit/VaYeshev
+4203,parashat_ashavua_bereshit_miketz,mr/Tora/Bereshit/Miketz
+4204,parashat_ashavua_bereshit_vayigash,mr/Tora/Bereshit/VaYigash
+4205,parashat_ashavua_bereshit_vayechi,mr/Tora/Bereshit/VaYechi
+4206,parashat_ashavua_shmot_shmot,mr/Tora/Shmot/Shmot
+4207,parashat_ashavua_shmot_vaera,mr/Tora/Shmot/VaEra
+4208,parashat_ashavua_shmot_bo,mr/Tora/Shmot/Bo
+4209,parashat_ashavua_shmot_beshalach,mr/Tora/Shmot/BeShalach
+4210,parashat_ashavua_shmot_yitro,mr/Tora/Shmot/Yitro
+4211,parashat_ashavua_shmot_mishpatim,mr/Tora/Shmot/Mishpatim
+4212,parashat_ashavua_shmot_truma,mr/Tora/Shmot/Truma
+4213,parashat_ashavua_shmot_tetzaveh,mr/Tora/Shmot/Tetzaveh
+4214,parashat_ashavua_shmot_ki-tisa,mr/Tora/Shmot/Ki Tisa
+4215,parashat_ashavua_shmot_vayakhel,mr/Tora/Shmot/VaYakhel
+4216,parashat_ashavua_shmot_pkudei,mr/Tora/Shmot/Pekudei
+4217,parashat_ashavua_vayikra_vayikra,mr/Tora/Vayikra/VaYikra
+4222,parashat_ashavua_vayikra_tzav,mr/Tora/Vayikra/Tzav
+4223,parashat_ashavua_vayikra_shmini,mr/Tora/Vayikra/Shmini
+4224,parashat_ashavua_vayikra_tazria,mr/Tora/Vayikra/Tazria
+4225,parashat_ashavua_vayikra_metzora,mr/Tora/Vayikra/Metzora
+4226,parashat_ashavua_vayikra_aharei-mot,mr/Tora/Vayikra/Acharei Mot
+4227,parashat_ashavua_vayikra_kedoshim,mr/Tora/Vayikra/Kdoshim
+4228,parashat_ashavua_vayikra_emor,mr/Tora/Vayikra/Emor
+4229,parashat_ashavua_vayikra_behar,mr/Tora/Vayikra/Behar
+4230,parashat_ashavua_vayikra_bechukotai,mr/Tora/Vayikra/BeHukotai
+4231,parashat_ashavua_bamidbar_bamidbar,mr/Tora/Bamidbar/Bamidbar
+4232,parashat_ashavua_bamidbar_naso,mr/Tora/Bamidbar/Naso
+4233,parashat_ashavua_bamidbar_bealutcha,mr/Tora/Bamidbar/Behaalotecha
+4234,parashat_ashavua_bamidbar_shlah-leha,mr/Tora/Bamidbar/Shlah
+4235,parashat_ashavua_bamidbar_korach,mr/Tora/Bamidbar/Korach
+4236,parashat_ashavua_bamidbar_chukat,mr/Tora/Bamidbar/Chukat
+4237,parashat_ashavua_bamidbar_balak,mr/Tora/Bamidbar/Balak
+4238,parashat_ashavua_bamidbar_pinchas,mr/Tora/Bamidbar/Pinchas
+4239,parashat_ashavua_bamidbar_matot,mr/Tora/Bamidbar/Matot
+4240,parashat_ashavua_bamidbar_masei,mr/Tora/Bamidbar/Masei
+4241,parashat_ashavua_dvarim_dvarim,mr/Tora/Devarim/Devarim
+4242,parashat_ashavua_dvarim_vaetchanan,mr/Tora/Devarim/Va'Etchanan
+4243,parashat_ashavua_dvarim_ekev,mr/Tora/Devarim/Ekev
+4244,parashat_ashavua_dvarim_reeh,mr/Tora/Devarim/Re'eh
+4245,parashat_ashavua_dvarim_shoftim,mr/Tora/Devarim/Shoftim
+4246,parashat_ashavua_dvarim_ki-tetze,mr/Tora/Devarim/Ki Tetze
+4247,parashat_ashavua_dvarim_ki-tavo,mr/Tora/Devarim/Ki Tavo
+4248,parashat_ashavua_dvarim_nitzavim,mr/Tora/Devarim/Nitzavim
+4249,parashat_ashavua_dvarim_veileh,mr/Tora/Devarim/VaYelech
+4250,parashat_ashavua_dvarim_haazinu,mr/Tora/Devarim/Haazinu
+4251,parashat_ashavua_dvarim_zot-a-braha,mr/Tora/Devarim/Ve Zot HaBracha
