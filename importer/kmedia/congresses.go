@@ -520,7 +520,7 @@ func doNewUnit(exec boil.Executor, h map[string]int, x []string) error {
 			debug.PrintStack()
 			break
 		}
-		if file.Published {
+		if file !=nil && file.Published {
 			unit.Published = true
 		}
 	}

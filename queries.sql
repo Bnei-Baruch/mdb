@@ -464,10 +464,10 @@ WHERE id = b.content_unit_id;
 WITH RECURSIVE rs AS (
   SELECT s.*
   FROM sources s
-  WHERE s.id = 1817
+  WHERE s.id = 1754
   UNION
   SELECT s.*
-  FROM sources s INNER JOIN rs ON s.id = rs.parent_id
+  FROM sources s INNER JOIN rs ON s.parent_id = rs.id
 ) SELECT *
   FROM rs;
 
@@ -523,6 +523,37 @@ ORDER BY path, position
 FORMAT CSV );
 
 
+-- all sources for roza mappings
+COPY (
+WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id,
+    s.position,
+    concat(ai.name, ', ', (SELECT name
+                           FROM source_i18n
+                           WHERE source_id = s.id AND language = 'he')) AS name,
+    ARRAY [s.id]                                                           "path"
+  FROM sources s INNER JOIN authors_sources aas ON s.id = aas.source_id
+    INNER JOIN authors a ON a.id = aas.author_id
+    INNER JOIN author_i18n ai ON a.id = ai.author_id AND ai.language = 'he'
+  WHERE s.parent_id IS NULL
+  UNION
+  SELECT
+    s.id,
+    s.position,
+    concat(rs.name, ', ', (SELECT name
+                           FROM source_i18n
+                           WHERE source_id = s.id AND language = 'he')) AS name,
+    rs.path || s.id
+  FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+)
+SELECT *
+FROM rec_sources
+ORDER BY path, position
+) TO '/var/lib/postgres/data/all_sources_roza.csv'  (
+FORMAT CSV );
+
+
 -- manual mapping of existing congresses in MDB
 update collections set properties = properties || '{"kmedia_id": 8024}' where id = 10641;
 update collections set properties = properties || '{"kmedia_id": 8029}' where id = 10642;
@@ -547,32 +578,41 @@ WITH RECURSIVE rc AS (
     array_agg(cc.container_id)
   FROM rc
     INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id
-  GROUP BY rc.id, rc.parent_id
-) TO '/var/lib/postgres/data/programs_chapters.csv'  (
+  GROUP BY rc.id, rc.parent_id order by rc.parent_id, rc.id
+) TO '/var/lib/postgres/data/programs_chapters2.csv'  (
 FORMAT CSV );
 
 
--- missing proprams from kmedia
-INSERT INTO COLLECTIONS (TYPE_ID, UID, PROPERTIES) VALUES
-(5,'l4WQAsm9','{"kmedia_id":7861, "active": false, "pattern": "audio-program_radio103fm"}'),
-(5,'zaJ2GJwp','{"kmedia_id":3712, "active": false, "pattern": "radio-programa_besedi-s-kabbalistom"}'),
-(5,'VlXV1JrR','{"kmedia_id":3852, "active": false, "pattern": "radio_krizis-bez-paniki"}'),
-(5,'ytqTdyW2','{"kmedia_id":3853, "active": false, "pattern": "radio-skazki"}'),
-(5,'OozJ9DZa','{"kmedia_id":3668, "active": false, "pattern": "radio-music"}'),
-(5,'hXGbw8yC','{"kmedia_id":3711, "active": false, "pattern": "radio-territoriya-sveta"}'),
-(5,'vPb4im8H','{"kmedia_id":3714, "active": false, "pattern": "radio-tochka-otscheta"}'),
-(5,'9NZGugXL','{"kmedia_id":3713, "active": false, "pattern": "radio-programa_novoe-pokolenie"}'),
-(5,'BvebN6zp','{"kmedia_id":3839, "active": false, "pattern": "radio-sheelot mi shiurim virtualim"}'),
-(5,'HTeNptLa','{"kmedia_id":3847, "active": false, "pattern": "radio_tsitata"}'),
-(5,'OgWfr7vg','{"kmedia_id":3848, "active": false, "pattern": "radio-programa_effect babochki"}'),
-(5,'OXJTGsnd','{"kmedia_id":3913, "active": false, "pattern": "radio-tochka-soprikosnoveniya"}'),
-(5,'TbAZv8Vl','{"kmedia_id":3998, "active": false, "pattern": "radio-obzor-kabbalisticheskogo-uroka"}'),
-(5,'d66fNjIx','{"kmedia_id":3999, "active": false, "pattern": "radio-program_sprosi-kabbalista"}'),
-(5,'d28vdoem','{"kmedia_id":4063, "active": false, "pattern": "Channel Kabbalah_plus/spa/Tochniyot shonot"}'),
-(5,'fLdum23Q','{"kmedia_id":4448, "active": false, "pattern": "Channel Kabbalah_plus/spa/Radioconexion"}'),
-(5,'yDqbL3CP','{"kmedia_id":4449, "active": false, "pattern": "Channel Kabbalah_plus/spa/Paella"}'),
-(5,'rwTkuDfv','{"kmedia_id":3682, "active": false, "pattern": "channel-kabbalah/katava"}'),
-(5,'dPVJsA27','{"kmedia_id":3683, "active": false, "pattern": "channel-kabbalah/beyn-ha-milim"}'),
-(5,'010XrrBt','{"kmedia_id":3824, "active": false, "pattern": "channel-kabbalah/tochniyot-shonot"}'),
-(5,'idqITbgh','{"kmedia_id":3886, "active": false, "pattern": "program_other"}')
-;
+
+-- flatten parashat shavua
+
+WITH RECURSIVE rc AS (
+  SELECT c.*
+  FROM catalogs c
+  WHERE c.parent_id = 3624
+  UNION
+  SELECT c.*
+  FROM catalogs c INNER JOIN rc ON c.parent_id = rc.id
+) SELECT
+    array_agg(cc.container_id)
+  FROM rc inner join catalogs_containers cc on rc.id = cc.catalog_id;
+
+
+WITH RECURSIVE rec_sources AS (
+SELECT
+  s.id,
+  concat(a.code, '/', s.name) path
+FROM sources s INNER JOIN authors_sources x ON s.id = x.source_id
+  INNER JOIN authors a ON x.author_id = a.id
+WHERE s.parent_id IS NULL
+UNION
+SELECT
+  s.id,
+  concat(rs.path, '/', s.name)
+FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+)
+SELECT *
+FROM rec_sources;
+
+update collections set properties = properties || '{"kmedia_id": 7899}' where id = 10651;
+update collections set properties = properties || '{"kmedia_id": 8159}' where id = 10796;

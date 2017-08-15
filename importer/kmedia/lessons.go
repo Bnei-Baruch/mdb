@@ -140,7 +140,7 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 					debug.PrintStack()
 					break
 				}
-				if file.Published {
+				if file !=nil && file.Published {
 					unit.Published = true
 				}
 			}

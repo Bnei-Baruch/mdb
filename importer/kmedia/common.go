@@ -170,8 +170,18 @@ func importContainer(exec boil.Executor,
 		return nil, errors.Wrapf(err, "Fetch unit collections, unit [%d]", unit.ID)
 	}
 
-	//position := strconv.Itoa(container.Position.Int)
-	if unit.R.CollectionsContentUnits == nil {
+	// lookup existing association
+	var ccu *models.CollectionsContentUnit
+	if unit.R.CollectionsContentUnits != nil {
+		for _, x := range unit.R.CollectionsContentUnits {
+			if x.CollectionID == collection.ID {
+				ccu = x
+				break
+			}
+		}
+	}
+
+	if ccu == nil {
 		// Create
 		err = unit.AddCollectionsContentUnits(exec, true, &models.CollectionsContentUnit{
 			CollectionID:  collection.ID,
@@ -182,16 +192,14 @@ func importContainer(exec boil.Executor,
 			return nil, errors.Wrapf(err, "Add unit collections, unit [%d]", unit.ID)
 		}
 	} else {
-		// Update
-		for _, x := range unit.R.CollectionsContentUnits {
-			if x.CollectionID == collection.ID && x.Name != ccuName {
-				x.Name = ccuName
-				err = x.Update(exec, "name")
-				if err != nil {
-					return nil, errors.Wrapf(err,
-						"Update unit collection association, unit [%d], collection [%d]",
-						unit.ID, collection.ID)
-				}
+		// update if name changed
+		if ccu.Name != ccuName {
+			ccu.Name = ccuName
+			err = ccu.Update(exec, "name")
+			if err != nil {
+				return nil, errors.Wrapf(err,
+					"Update unit collection association, unit [%d], collection [%d]",
+					unit.ID, collection.ID)
 			}
 		}
 	}
