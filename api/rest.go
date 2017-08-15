@@ -315,6 +315,24 @@ func ContentUnitTagsHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func ContentUnitPersonsHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		resp, err = handleGetContentUnitPersons(boil.GetDB(), id)
+	}
+
+	concludeRequest(c, resp, err)
+}
+
 func FilesListHandler(c *gin.Context) {
 	var r FilesRequest
 	if c.Bind(&r) != nil {
@@ -609,8 +627,7 @@ func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*Collectio
 		return nil, NewBadRequestError(err)
 	}
 	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter,
-		"(coalesce(properties->>'film_date', properties->>'start_date', created_at::text))::date");
-		err != nil {
+		"(coalesce(properties->>'film_date', properties->>'start_date', created_at::text))::date"); err != nil {
 		return nil, NewBadRequestError(err)
 	}
 	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
@@ -1213,6 +1230,35 @@ func handleGetContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError)
 			x.I18n[i18n.Language] = i18n
 		}
 		data[i] = x
+	}
+
+	return data, nil
+}
+
+func handleGetContentUnitPersons(exec boil.Executor, id int64) ([]*ContentUnitPerson, *HttpError) {
+	unit, err := models.ContentUnits(exec,
+		qm.Where("id = ?", id),
+		qm.Load("ContentUnitsPersons",
+			"ContentUnitsPersons.Person",
+			"ContentUnitsPersons.Person.PersonI18ns")).
+		One()
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	data := make([]*ContentUnitPerson, len(unit.R.ContentUnitsPersons))
+	for i, cup := range unit.R.ContentUnitsPersons {
+		p := &Person{Person: *cup.R.Person}
+		p.I18n = make(map[string]*models.PersonI18n, len(cup.R.Person.R.PersonI18ns))
+		for _, i18n := range cup.R.Person.R.PersonI18ns {
+			p.I18n[i18n.Language] = i18n
+		}
+		data[i] = &ContentUnitPerson{Person: p, RoleID: cup.RoleID}
 	}
 
 	return data, nil

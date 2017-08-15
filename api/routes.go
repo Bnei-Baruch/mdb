@@ -37,6 +37,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.GET("/content_units/:id/tags/", ContentUnitTagsHandler)
 	rest.POST("/content_units/:id/tags/", ContentUnitTagsHandler)
 	rest.DELETE("/content_units/:id/tags/:tagID", ContentUnitTagsHandler)
+	rest.GET("/content_units/:id/persons/", ContentUnitPersonsHandler)
 	rest.GET("/files/", FilesListHandler)
 	rest.GET("/files/:id/", FileHandler)
 	rest.PUT("/files/:id/", FileHandler)

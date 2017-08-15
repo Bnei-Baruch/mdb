@@ -309,6 +309,17 @@ type (
 		I18n map[string]*models.TagI18n `json:"i18n"`
 	}
 
+	Person struct {
+		models.Person
+		I18n map[string]*models.PersonI18n `json:"i18n"`
+	}
+
+	ContentUnitPerson struct {
+		ContentUnit *ContentUnit `json:"content_unit,omitempty"`
+		Person      *Person      `json:"person,omitempty"`
+		RoleID      int64        `json:"role_id,omitempty"`
+	}
+
 	SourceH struct {
 		ID          int64       `json:"id"`
 		UID         string      `json:"uid"`
