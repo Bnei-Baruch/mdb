@@ -608,7 +608,9 @@ func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*Collectio
 	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
 		return nil, NewBadRequestError(err)
 	}
-	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "(properties->>'film_date')::date"); err != nil {
+	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter,
+		"(coalesce(properties->>'film_date', properties->>'start_date', created_at::text))::date");
+		err != nil {
 		return nil, NewBadRequestError(err)
 	}
 	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
