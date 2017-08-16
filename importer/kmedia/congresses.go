@@ -502,7 +502,7 @@ func doNewUnit(exec boil.Executor, h map[string]int, x []string) error {
 	// import container
 	log.Infof("Processing container %d", cID)
 	stats.ContainersProcessed.Inc(1)
-	unit, err := importContainer(exec, container, collection, ct, ccuName)
+	unit, err := importContainer(exec, container, collection, ct, ccuName, container.Position.Int)
 	if err != nil {
 		return errors.Wrapf(err, "Import container %d", cID)
 	}

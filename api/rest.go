@@ -128,7 +128,49 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleCollectionCCU(boil.GetDB(), id)
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		resp, err = handleCollectionCCU(boil.GetDB(), id)
+	case http.MethodPost:
+		var ccu models.CollectionsContentUnit
+		if c.BindJSON(&ccu) != nil {
+			return
+		}
+
+		tx := mustBeginTx()
+		err = handleCollectionAddCCU(tx, id, ccu)
+		mustConcludeTx(tx, err)
+	case http.MethodPut:
+		var ccu models.CollectionsContentUnit
+		if c.BindJSON(&ccu) != nil {
+			return
+		}
+
+		cuID, e := strconv.ParseInt(c.Param("cuID"), 10, 0)
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "cuID expects int64"))
+			break
+		}
+		ccu.ContentUnitID = cuID
+
+		tx := mustBeginTx()
+		err = handleCollectionUpdateCCU(tx, id, ccu)
+		mustConcludeTx(tx, err)
+	case http.MethodDelete:
+		cuID, e := strconv.ParseInt(c.Param("cuID"), 10, 0)
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "cuID expects int64"))
+			break
+		}
+
+		tx := mustBeginTx()
+		err = handleCollectionRemoveCCU(tx, id, cuID)
+		mustConcludeTx(tx, err)
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -864,7 +906,10 @@ func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit
 		return nil, NewNotFoundError()
 	}
 
-	ccus, err := models.CollectionsContentUnits(exec, qm.Where("collection_id = ?", id)).All()
+	ccus, err := models.CollectionsContentUnits(exec,
+		qm.Where("collection_id = ?", id),
+		qm.OrderBy("position")).
+		All()
 	if err != nil {
 		return nil, NewInternalError(err)
 	} else if len(ccus) == 0 {
@@ -897,11 +942,104 @@ func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit
 	for i, ccu := range ccus {
 		data[i] = &CollectionContentUnit{
 			Name:        ccu.Name,
+			Position:    ccu.Position,
 			ContentUnit: cusById[ccu.ContentUnitID],
 		}
 	}
 
 	return data, nil
+}
+
+func handleCollectionAddCCU(exec boil.Executor, id int64, ccu models.CollectionsContentUnit) *HttpError {
+	c, err := models.FindCollection(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	exists, err := models.ContentUnits(exec,
+		qm.Where("id = ?", ccu.ContentUnitID)).
+		Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if !exists {
+		return NewBadRequestError(errors.Errorf("Unknown content unit id %d", ccu.ContentUnitID))
+	}
+
+	exists, err = models.CollectionsContentUnits(exec,
+		qm.Where("collection_id = ? AND content_unit_id = ?", id, ccu.ContentUnitID)).
+		Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if exists {
+		return NewBadRequestError(errors.New("Association already exists"))
+	}
+
+	err = c.AddCollectionsContentUnits(exec, true, &ccu)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
+}
+
+func handleCollectionUpdateCCU(exec boil.Executor, id int64, ccu models.CollectionsContentUnit) *HttpError {
+	exists, err := models.Collections(exec, qm.Where("id = ?", id)).Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if !exists {
+		return NewNotFoundError()
+	}
+
+	mCCU, err := models.FindCollectionsContentUnit(exec, id, ccu.ContentUnitID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	mCCU.Name = ccu.Name
+	mCCU.Position = ccu.Position
+	err = mCCU.Update(exec, "name", "position")
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
+}
+
+func handleCollectionRemoveCCU(exec boil.Executor, id int64, cuID int64) *HttpError {
+	exists, err := models.Collections(exec, qm.Where("id = ?", id)).Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if !exists {
+		return NewNotFoundError()
+	}
+
+	ccu, err := models.FindCollectionsContentUnit(exec, id, cuID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	err = ccu.Delete(exec)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
 }
 
 func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*ContentUnitsResponse, *HttpError) {
@@ -1074,7 +1212,9 @@ func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUni
 		return nil, NewNotFoundError()
 	}
 
-	ccus, err := models.CollectionsContentUnits(exec, qm.Where("content_unit_id = ?", id)).All()
+	ccus, err := models.CollectionsContentUnits(exec,
+		qm.Where("content_unit_id = ?", id)).
+		All()
 	if err != nil {
 		return nil, NewInternalError(err)
 	} else if len(ccus) == 0 {
@@ -1107,6 +1247,7 @@ func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUni
 	for i, ccu := range ccus {
 		data[i] = &CollectionContentUnit{
 			Name:       ccu.Name,
+			Position:   ccu.Position,
 			Collection: csById[ccu.CollectionID],
 		}
 	}

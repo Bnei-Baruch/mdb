@@ -285,6 +285,7 @@ type (
 		Collection  *Collection  `json:"collection,omitempty"`
 		ContentUnit *ContentUnit `json:"content_unit,omitempty"`
 		Name        string       `json:"name"`
+		Position    int          `json:"position"`
 	}
 
 	// Marshalable File

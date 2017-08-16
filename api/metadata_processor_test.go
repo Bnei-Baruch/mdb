@@ -94,6 +94,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu := cu.R.CollectionsContentUnits[0]
 	suite.Equal("0", ccu.Name, "ccu.Name")
+	suite.Equal(0, ccu.Position, "ccu.Position")
 
 	// collection
 	err = ccu.L.LoadCollection(suite.tx, true, ccu)
@@ -137,6 +138,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 		suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 		ccu := cu.R.CollectionsContentUnits[0]
 		suite.Equal(strconv.Itoa(i), ccu.Name, "ccu.Name")
+		suite.Equal(i, ccu.Position, "ccu.Position")
 		suite.Equal(c.ID, ccu.CollectionID, "ccu.CollectionID")
 	}
 
@@ -168,6 +170,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu = cu.R.CollectionsContentUnits[0]
 	suite.Equal("full", ccu.Name, "ccu.Name")
+	suite.Equal(4, ccu.Position, "ccu.Position")
 	suite.Equal(c.ID, ccu.CollectionID, "ccu.CollectionID")
 
 	// full with week_date different from capture_date
@@ -326,6 +329,7 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu := cu.R.CollectionsContentUnits[0]
 	suite.Equal("1", ccu.Name, "ccu.Name")
+	suite.Equal(0, ccu.Position, "ccu.Position")
 
 	// collection
 	err = ccu.L.LoadCollection(suite.tx, true, ccu)
@@ -383,6 +387,7 @@ func (suite *MetadataProcessorSuite) TestVideoProgram() {
 	ccu := cu.R.CollectionsContentUnits[0]
 	suite.Equal(c.ID, ccu.CollectionID, "ccu.CollectionID")
 	suite.Equal(metadata.Episode.String, ccu.Name, "ccu.Name")
+	suite.Equal(0, ccu.Position, "ccu.Position")
 }
 
 func (suite *MetadataProcessorSuite) TestEventPart() {
@@ -446,6 +451,7 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 				suite.Equal(MISC_EVENT_PART_TYPES[i-3]+strconv.Itoa(metadata.Number.Int),
 					ccu.Name, "ccu.Name")
 			}
+			suite.Equal(i, ccu.Position, "ccu.Position")
 		}
 	}
 }

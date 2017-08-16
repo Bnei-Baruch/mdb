@@ -343,6 +343,12 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			break
 		}
 
+		// Make this new unit the last one in this collection
+		ccu.Position, err = GetNextPositionInCollection(exec, c.ID)
+		if err != nil {
+			return errors.Wrap(err, "Get last position in collection")
+		}
+
 		log.Infof("Association name: %s", ccu.Name)
 		err = c.AddCollectionsContentUnits(exec, true, ccu)
 		if err != nil {

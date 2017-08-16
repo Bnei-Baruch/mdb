@@ -119,7 +119,8 @@ func importChapter(exec boil.Executor, collection *models.Collection, container 
 }
 
 func importChapterExistingUnit(exec boil.Executor, collection *models.Collection, container *kmodels.Container) error {
-	_, err := importContainer(exec, container, collection, "", strconv.Itoa(container.Position.Int))
+	_, err := importContainer(exec, container, collection, "",
+		strconv.Itoa(container.Position.Int), container.Position.Int)
 	return err
 }
 
@@ -139,7 +140,8 @@ func importChapterNewUnit(exec boil.Executor, collection *models.Collection, con
 
 	// import container
 	ccuName := strconv.Itoa(container.Position.Int)
-	unit, err := importContainer(exec, container, collection, api.CT_VIDEO_PROGRAM_CHAPTER, ccuName)
+	unit, err := importContainer(exec, container, collection, api.CT_VIDEO_PROGRAM_CHAPTER,
+		ccuName, container.Position.Int)
 	if err != nil {
 		return errors.Wrapf(err, "Import container %d", container.ID)
 	}

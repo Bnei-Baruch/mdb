@@ -599,7 +599,7 @@ func testCollectionsContentUnitsSelect(t *testing.T) {
 }
 
 var (
-	collectionsContentUnitDBTypes = map[string]string{`CollectionID`: `bigint`, `ContentUnitID`: `bigint`, `Name`: `character varying`}
+	collectionsContentUnitDBTypes = map[string]string{`CollectionID`: `bigint`, `ContentUnitID`: `bigint`, `Name`: `character varying`, `Position`: `integer`}
 	_                             = bytes.MinRead
 )
 

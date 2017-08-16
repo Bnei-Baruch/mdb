@@ -92,6 +92,7 @@ func importContainer(exec boil.Executor,
 	collection *models.Collection,
 	contentType string,
 	ccuName string,
+	ccuPosition int,
 ) (*models.ContentUnit, error) {
 
 	// Get or create content unit by kmedia_id
@@ -187,15 +188,17 @@ func importContainer(exec boil.Executor,
 			CollectionID:  collection.ID,
 			ContentUnitID: unit.ID,
 			Name:          ccuName,
+			Position:      ccuPosition,
 		})
 		if err != nil {
 			return nil, errors.Wrapf(err, "Add unit collections, unit [%d]", unit.ID)
 		}
 	} else {
 		// update if name changed
-		if ccu.Name != ccuName {
+		if ccu.Name != ccuName || ccu.Position != ccuPosition {
 			ccu.Name = ccuName
-			err = ccu.Update(exec, "name")
+			ccu.Position = ccuPosition
+			err = ccu.Update(exec, "name", "position")
 			if err != nil {
 				return nil, errors.Wrapf(err,
 					"Update unit collection association, unit [%d], collection [%d]",
