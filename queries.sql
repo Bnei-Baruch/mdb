@@ -616,3 +616,28 @@ FROM rec_sources;
 
 update collections set properties = properties || '{"kmedia_id": 7899}' where id = 10651;
 update collections set properties = properties || '{"kmedia_id": 8159}' where id = 10796;
+
+
+-- unit original_language from historical send operations metadata
+UPDATE content_units cu
+SET properties = properties - 'original_language'
+WHERE properties ->> 'original_language' = '';
+
+UPDATE content_units cu
+SET properties = properties || jsonb_build_object('original_language', tmp.lang) FROM
+  (SELECT DISTINCT ON (f.content_unit_id)
+     f.content_unit_id AS cuid,
+     CASE WHEN o.properties ->> 'language' = 'heb'
+       THEN 'he'
+     WHEN o.properties ->> 'language' = 'eng'
+       THEN 'en'
+     WHEN o.properties ->> 'language' = 'rus'
+       THEN 'ru'
+     WHEN o.properties ->> 'language' = 'mlt'
+       THEN 'zz'
+     ELSE 'xx' END     AS lang
+   FROM operations o INNER JOIN files_operations fo ON o.id = fo.operation_id AND o.type_id = 4
+     INNER JOIN files f ON fo.file_id = f.id AND f.content_unit_id IS NOT NULL
+   GROUP BY f.content_unit_id, o.id
+   ORDER BY f.content_unit_id, o.id DESC) AS tmp
+WHERE cu.id = tmp.cuid;
