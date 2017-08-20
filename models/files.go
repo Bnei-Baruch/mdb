@@ -52,6 +52,7 @@ type fileR struct {
 	Parent      *File
 	ParentFiles FileSlice
 	Operations  OperationSlice
+	Storages    StorageSlice
 }
 
 // fileL is where Load methods for each relationship are stored.
@@ -279,6 +280,33 @@ func (o *File) Operations(exec boil.Executor, mods ...qm.QueryMod) operationQuer
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"\"operations\".*"})
+	}
+
+	return query
+}
+
+// StoragesG retrieves all the storage's storages.
+func (o *File) StoragesG(mods ...qm.QueryMod) storageQuery {
+	return o.Storages(boil.GetDB(), mods...)
+}
+
+// Storages retrieves all the storage's storages with an executor.
+func (o *File) Storages(exec boil.Executor, mods ...qm.QueryMod) storageQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.InnerJoin("\"files_storages\" on \"storages\".\"id\" = \"files_storages\".\"storage_id\""),
+		qm.Where("\"files_storages\".\"file_id\"=?", o.ID),
+	)
+
+	query := Storages(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"storages\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"storages\".*"})
 	}
 
 	return query
@@ -562,6 +590,87 @@ func (fileL) LoadOperations(e boil.Executor, singular bool, maybeFile interface{
 		for _, local := range slice {
 			if local.ID == localJoinCol {
 				local.R.Operations = append(local.R.Operations, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadStorages allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (fileL) LoadStorages(e boil.Executor, singular bool, maybeFile interface{}) error {
+	var slice []*File
+	var object *File
+
+	count := 1
+	if singular {
+		object = maybeFile.(*File)
+	} else {
+		slice = *maybeFile.(*[]*File)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &fileR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &fileR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select \"a\".*, \"b\".\"file_id\" from \"storages\" as \"a\" inner join \"files_storages\" as \"b\" on \"a\".\"id\" = \"b\".\"storage_id\" where \"b\".\"file_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load storages")
+	}
+	defer results.Close()
+
+	var resultSlice []*Storage
+
+	var localJoinCols []int64
+	for results.Next() {
+		one := new(Storage)
+		var localJoinCol int64
+
+		err = results.Scan(&one.ID, &one.Name, &one.Country, &one.Location, &one.Status, &one.Access, &localJoinCol)
+		if err = results.Err(); err != nil {
+			return errors.Wrap(err, "failed to plebian-bind eager loaded slice storages")
+		}
+
+		resultSlice = append(resultSlice, one)
+		localJoinCols = append(localJoinCols, localJoinCol)
+	}
+
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "failed to plebian-bind eager loaded slice storages")
+	}
+
+	if singular {
+		object.R.Storages = resultSlice
+		return nil
+	}
+
+	for i, foreign := range resultSlice {
+		localJoinCol := localJoinCols[i]
+		for _, local := range slice {
+			if local.ID == localJoinCol {
+				local.R.Storages = append(local.R.Storages, foreign)
 				break
 			}
 		}
@@ -1282,6 +1391,242 @@ func (o *File) RemoveOperations(exec boil.Executor, related ...*Operation) error
 }
 
 func removeOperationsFromFilesSlice(o *File, related []*Operation) {
+	for _, rel := range related {
+		if rel.R == nil {
+			continue
+		}
+		for i, ri := range rel.R.Files {
+			if o.ID != ri.ID {
+				continue
+			}
+
+			ln := len(rel.R.Files)
+			if ln > 1 && i < ln-1 {
+				rel.R.Files[i] = rel.R.Files[ln-1]
+			}
+			rel.R.Files = rel.R.Files[:ln-1]
+			break
+		}
+	}
+}
+
+// AddStoragesG adds the given related objects to the existing relationships
+// of the file, optionally inserting them as new records.
+// Appends related to o.R.Storages.
+// Sets related.R.Files appropriately.
+// Uses the global database handle.
+func (o *File) AddStoragesG(insert bool, related ...*Storage) error {
+	return o.AddStorages(boil.GetDB(), insert, related...)
+}
+
+// AddStoragesP adds the given related objects to the existing relationships
+// of the file, optionally inserting them as new records.
+// Appends related to o.R.Storages.
+// Sets related.R.Files appropriately.
+// Panics on error.
+func (o *File) AddStoragesP(exec boil.Executor, insert bool, related ...*Storage) {
+	if err := o.AddStorages(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddStoragesGP adds the given related objects to the existing relationships
+// of the file, optionally inserting them as new records.
+// Appends related to o.R.Storages.
+// Sets related.R.Files appropriately.
+// Uses the global database handle and panics on error.
+func (o *File) AddStoragesGP(insert bool, related ...*Storage) {
+	if err := o.AddStorages(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddStorages adds the given related objects to the existing relationships
+// of the file, optionally inserting them as new records.
+// Appends related to o.R.Storages.
+// Sets related.R.Files appropriately.
+func (o *File) AddStorages(exec boil.Executor, insert bool, related ...*Storage) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		}
+	}
+
+	for _, rel := range related {
+		query := "insert into \"files_storages\" (\"file_id\", \"storage_id\") values ($1, $2)"
+		values := []interface{}{o.ID, rel.ID}
+
+		if boil.DebugMode {
+			fmt.Fprintln(boil.DebugWriter, query)
+			fmt.Fprintln(boil.DebugWriter, values)
+		}
+
+		_, err = exec.Exec(query, values...)
+		if err != nil {
+			return errors.Wrap(err, "failed to insert into join table")
+		}
+	}
+	if o.R == nil {
+		o.R = &fileR{
+			Storages: related,
+		}
+	} else {
+		o.R.Storages = append(o.R.Storages, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &storageR{
+				Files: FileSlice{o},
+			}
+		} else {
+			rel.R.Files = append(rel.R.Files, o)
+		}
+	}
+	return nil
+}
+
+// SetStoragesG removes all previously related items of the
+// file replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Files's Storages accordingly.
+// Replaces o.R.Storages with related.
+// Sets related.R.Files's Storages accordingly.
+// Uses the global database handle.
+func (o *File) SetStoragesG(insert bool, related ...*Storage) error {
+	return o.SetStorages(boil.GetDB(), insert, related...)
+}
+
+// SetStoragesP removes all previously related items of the
+// file replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Files's Storages accordingly.
+// Replaces o.R.Storages with related.
+// Sets related.R.Files's Storages accordingly.
+// Panics on error.
+func (o *File) SetStoragesP(exec boil.Executor, insert bool, related ...*Storage) {
+	if err := o.SetStorages(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetStoragesGP removes all previously related items of the
+// file replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Files's Storages accordingly.
+// Replaces o.R.Storages with related.
+// Sets related.R.Files's Storages accordingly.
+// Uses the global database handle and panics on error.
+func (o *File) SetStoragesGP(insert bool, related ...*Storage) {
+	if err := o.SetStorages(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetStorages removes all previously related items of the
+// file replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Files's Storages accordingly.
+// Replaces o.R.Storages with related.
+// Sets related.R.Files's Storages accordingly.
+func (o *File) SetStorages(exec boil.Executor, insert bool, related ...*Storage) error {
+	query := "delete from \"files_storages\" where \"file_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	removeStoragesFromFilesSlice(o, related)
+	if o.R != nil {
+		o.R.Storages = nil
+	}
+	return o.AddStorages(exec, insert, related...)
+}
+
+// RemoveStoragesG relationships from objects passed in.
+// Removes related items from R.Storages (uses pointer comparison, removal does not keep order)
+// Sets related.R.Files.
+// Uses the global database handle.
+func (o *File) RemoveStoragesG(related ...*Storage) error {
+	return o.RemoveStorages(boil.GetDB(), related...)
+}
+
+// RemoveStoragesP relationships from objects passed in.
+// Removes related items from R.Storages (uses pointer comparison, removal does not keep order)
+// Sets related.R.Files.
+// Panics on error.
+func (o *File) RemoveStoragesP(exec boil.Executor, related ...*Storage) {
+	if err := o.RemoveStorages(exec, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveStoragesGP relationships from objects passed in.
+// Removes related items from R.Storages (uses pointer comparison, removal does not keep order)
+// Sets related.R.Files.
+// Uses the global database handle and panics on error.
+func (o *File) RemoveStoragesGP(related ...*Storage) {
+	if err := o.RemoveStorages(boil.GetDB(), related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveStorages relationships from objects passed in.
+// Removes related items from R.Storages (uses pointer comparison, removal does not keep order)
+// Sets related.R.Files.
+func (o *File) RemoveStorages(exec boil.Executor, related ...*Storage) error {
+	var err error
+	query := fmt.Sprintf(
+		"delete from \"files_storages\" where \"file_id\" = $1 and \"storage_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, len(related), 2, 1),
+	)
+	values := []interface{}{o.ID}
+	for _, rel := range related {
+		values = append(values, rel.ID)
+	}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err = exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+	removeStoragesFromFilesSlice(o, related)
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.Storages {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.Storages)
+			if ln > 1 && i < ln-1 {
+				o.R.Storages[i] = o.R.Storages[ln-1]
+			}
+			o.R.Storages = o.R.Storages[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
+func removeStoragesFromFilesSlice(o *File, related []*Storage) {
 	for _, rel := range related {
 		if rel.R == nil {
 			continue

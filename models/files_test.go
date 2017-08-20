@@ -478,6 +478,85 @@ func testFileToManyOperations(t *testing.T) {
 	}
 }
 
+func testFileToManyStorages(t *testing.T) {
+	var err error
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c Storage
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, true, fileColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize File struct: %s", err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	randomize.Struct(seed, &b, storageDBTypes, false, storageColumnsWithDefault...)
+	randomize.Struct(seed, &c, storageDBTypes, false, storageColumnsWithDefault...)
+
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = tx.Exec("insert into \"files_storages\" (\"file_id\", \"storage_id\") values ($1, $2)", a.ID, b.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec("insert into \"files_storages\" (\"file_id\", \"storage_id\") values ($1, $2)", a.ID, c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	storage, err := a.Storages(tx).All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range storage {
+		if v.ID == b.ID {
+			bFound = true
+		}
+		if v.ID == c.ID {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := FileSlice{&a}
+	if err = a.L.LoadStorages(tx, false, (*[]*File)(&slice)); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.Storages); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.Storages = nil
+	if err = a.L.LoadStorages(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.Storages); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", storage)
+	}
+}
+
 func testFileToManyAddOpParentFiles(t *testing.T) {
 	var err error
 
@@ -947,6 +1026,231 @@ func testFileToManyRemoveOpOperations(t *testing.T) {
 		t.Error("relationship to d should have been preserved")
 	}
 	if a.R.Operations[0] != &e {
+		t.Error("relationship to e should have been preserved")
+	}
+}
+
+func testFileToManyAddOpStorages(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Storage
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Storage{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, storageDBTypes, false, strmangle.SetComplement(storagePrimaryKeyColumns, storageColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*Storage{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddStorages(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if first.R.Files[0] != &a {
+			t.Error("relationship was not added properly to the slice")
+		}
+		if second.R.Files[0] != &a {
+			t.Error("relationship was not added properly to the slice")
+		}
+
+		if a.R.Storages[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.Storages[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.Storages(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+
+func testFileToManySetOpStorages(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Storage
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Storage{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, storageDBTypes, false, strmangle.SetComplement(storagePrimaryKeyColumns, storageColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.SetStorages(tx, false, &b, &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.Storages(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.SetStorages(tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.Storages(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	// The following checks cannot be implemented since we have no handle
+	// to these when we call Set(). Leaving them here as wishful thinking
+	// and to let people know there's dragons.
+	//
+	// if len(b.R.Files) != 0 {
+	// 	t.Error("relationship was not removed properly from the slice")
+	// }
+	// if len(c.R.Files) != 0 {
+	// 	t.Error("relationship was not removed properly from the slice")
+	// }
+	if d.R.Files[0] != &a {
+		t.Error("relationship was not added properly to the slice")
+	}
+	if e.R.Files[0] != &a {
+		t.Error("relationship was not added properly to the slice")
+	}
+
+	if a.R.Storages[0] != &d {
+		t.Error("relationship struct slice not set to correct value")
+	}
+	if a.R.Storages[1] != &e {
+		t.Error("relationship struct slice not set to correct value")
+	}
+}
+
+func testFileToManyRemoveOpStorages(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a File
+	var b, c, d, e Storage
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, fileDBTypes, false, strmangle.SetComplement(filePrimaryKeyColumns, fileColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Storage{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, storageDBTypes, false, strmangle.SetComplement(storagePrimaryKeyColumns, storageColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.AddStorages(tx, true, foreigners...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.Storages(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.RemoveStorages(tx, foreigners[:2]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.Storages(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if len(b.R.Files) != 0 {
+		t.Error("relationship was not removed properly from the slice")
+	}
+	if len(c.R.Files) != 0 {
+		t.Error("relationship was not removed properly from the slice")
+	}
+	if d.R.Files[0] != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+	if e.R.Files[0] != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+
+	if len(a.R.Storages) != 2 {
+		t.Error("should have preserved two relationships")
+	}
+
+	// Removal doesn't do a stable deletion for performance so we have to flip the order
+	if a.R.Storages[1] != &d {
+		t.Error("relationship to d should have been preserved")
+	}
+	if a.R.Storages[0] != &e {
 		t.Error("relationship to e should have been preserved")
 	}
 }
