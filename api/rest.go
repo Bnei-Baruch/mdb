@@ -1049,7 +1049,8 @@ func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*Content
 	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
 		return nil, NewBadRequestError(err)
 	}
-	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "(properties->>'film_date')::date"); err != nil {
+	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter,
+		"(coalesce(properties->>'capture_date', properties->>'film_date', created_at::text))::date"); err != nil {
 		return nil, NewBadRequestError(err)
 	}
 	if err := appendSourcesFilterMods(exec, &mods, r.SourcesFilter); err != nil {
