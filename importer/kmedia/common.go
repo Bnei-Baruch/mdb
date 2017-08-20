@@ -92,6 +92,7 @@ func importContainer(exec boil.Executor,
 	collection *models.Collection,
 	contentType string,
 	ccuName string,
+	ccuPosition int,
 ) (*models.ContentUnit, error) {
 
 	// Get or create content unit by kmedia_id
@@ -125,7 +126,7 @@ func importContainer(exec boil.Executor,
 	}
 	props["kmedia_id"] = container.ID
 	if container.LangID.Valid {
-		props["original_language"] = api.LANG_MAP[container.LangID.String]
+		props["original_language"] = api.StdLang(container.LangID.String)
 	}
 	if container.Filmdate.Valid {
 		props["film_date"] = container.Filmdate.Time.Format("2006-01-02")
@@ -170,28 +171,38 @@ func importContainer(exec boil.Executor,
 		return nil, errors.Wrapf(err, "Fetch unit collections, unit [%d]", unit.ID)
 	}
 
-	//position := strconv.Itoa(container.Position.Int)
-	if unit.R.CollectionsContentUnits == nil {
+	// lookup existing association
+	var ccu *models.CollectionsContentUnit
+	if unit.R.CollectionsContentUnits != nil {
+		for _, x := range unit.R.CollectionsContentUnits {
+			if x.CollectionID == collection.ID {
+				ccu = x
+				break
+			}
+		}
+	}
+
+	if ccu == nil {
 		// Create
 		err = unit.AddCollectionsContentUnits(exec, true, &models.CollectionsContentUnit{
 			CollectionID:  collection.ID,
 			ContentUnitID: unit.ID,
 			Name:          ccuName,
+			Position:      ccuPosition,
 		})
 		if err != nil {
 			return nil, errors.Wrapf(err, "Add unit collections, unit [%d]", unit.ID)
 		}
 	} else {
-		// Update
-		for _, x := range unit.R.CollectionsContentUnits {
-			if x.CollectionID == collection.ID && x.Name != ccuName {
-				x.Name = ccuName
-				err = x.Update(exec, "name")
-				if err != nil {
-					return nil, errors.Wrapf(err,
-						"Update unit collection association, unit [%d], collection [%d]",
-						unit.ID, collection.ID)
-				}
+		// update if name changed
+		if ccu.Name != ccuName || ccu.Position != ccuPosition {
+			ccu.Name = ccuName
+			ccu.Position = ccuPosition
+			err = ccu.Update(exec, "name", "position")
+			if err != nil {
+				return nil, errors.Wrapf(err,
+					"Update unit collection association, unit [%d], collection [%d]",
+					unit.ID, collection.ID)
 			}
 		}
 	}

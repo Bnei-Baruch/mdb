@@ -470,10 +470,10 @@ WHERE id = b.content_unit_id;
 WITH RECURSIVE rs AS (
   SELECT s.*
   FROM sources s
-  WHERE s.id = 1817
+  WHERE s.id = 1754
   UNION
   SELECT s.*
-  FROM sources s INNER JOIN rs ON s.id = rs.parent_id
+  FROM sources s INNER JOIN rs ON s.parent_id = rs.id
 ) SELECT *
   FROM rs;
 
@@ -529,6 +529,37 @@ ORDER BY path, position
 FORMAT CSV );
 
 
+-- all sources for roza mappings
+COPY (
+WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id,
+    s.position,
+    concat(ai.name, ', ', (SELECT name
+                           FROM source_i18n
+                           WHERE source_id = s.id AND language = 'he')) AS name,
+    ARRAY [s.id]                                                           "path"
+  FROM sources s INNER JOIN authors_sources aas ON s.id = aas.source_id
+    INNER JOIN authors a ON a.id = aas.author_id
+    INNER JOIN author_i18n ai ON a.id = ai.author_id AND ai.language = 'he'
+  WHERE s.parent_id IS NULL
+  UNION
+  SELECT
+    s.id,
+    s.position,
+    concat(rs.name, ', ', (SELECT name
+                           FROM source_i18n
+                           WHERE source_id = s.id AND language = 'he')) AS name,
+    rs.path || s.id
+  FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+)
+SELECT *
+FROM rec_sources
+ORDER BY path, position
+) TO '/var/lib/postgres/data/all_sources_roza.csv'  (
+FORMAT CSV );
+
+
 -- manual mapping of existing congresses in MDB
 update collections set properties = properties || '{"kmedia_id": 8024}' where id = 10641;
 update collections set properties = properties || '{"kmedia_id": 8029}' where id = 10642;
@@ -537,8 +568,82 @@ update collections set properties = properties || '{"kmedia_id": 8100}' where id
 update collections set properties = properties || '{"kmedia_id": 8084}' where id = 10713;
 update collections set properties = properties || '{"kmedia_id": 8127}' where id = 10813;
 
+-- kmedia programs with their containers
 copy (
-SELECT concat(sha1, ',[{"location":"il-merkaz","status":"online","storage":"ieush-3834-9203-fi2os"}]')
-FROM files
-WHERE sha1 IS NOT NULL
-) to '/var/lib/postgres/data/dummy_storage_status.csv' (FORMAT CSV);
+WITH RECURSIVE rc AS (
+  SELECT c.*
+  FROM catalogs c
+  WHERE c.id = 3672
+  UNION
+  SELECT c.*
+  FROM catalogs c INNER JOIN rc ON c.parent_id = rc.id
+) SELECT
+    rc.id,
+    rc.parent_id,
+    count(1),
+    array_agg(cc.container_id)
+  FROM rc
+    INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id
+  GROUP BY rc.id, rc.parent_id order by rc.parent_id, rc.id
+) TO '/var/lib/postgres/data/programs_chapters2.csv'  (
+FORMAT CSV );
+
+
+
+-- flatten parashat shavua
+
+WITH RECURSIVE rc AS (
+  SELECT c.*
+  FROM catalogs c
+  WHERE c.parent_id = 3624
+  UNION
+  SELECT c.*
+  FROM catalogs c INNER JOIN rc ON c.parent_id = rc.id
+) SELECT
+    array_agg(cc.container_id)
+  FROM rc inner join catalogs_containers cc on rc.id = cc.catalog_id;
+
+
+WITH RECURSIVE rec_sources AS (
+SELECT
+  s.id,
+  concat(a.code, '/', s.name) path
+FROM sources s INNER JOIN authors_sources x ON s.id = x.source_id
+  INNER JOIN authors a ON x.author_id = a.id
+WHERE s.parent_id IS NULL
+UNION
+SELECT
+  s.id,
+  concat(rs.path, '/', s.name)
+FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+)
+SELECT *
+FROM rec_sources;
+
+update collections set properties = properties || '{"kmedia_id": 7899}' where id = 10651;
+update collections set properties = properties || '{"kmedia_id": 8159}' where id = 10796;
+
+
+-- unit original_language from historical send operations metadata
+UPDATE content_units cu
+SET properties = properties - 'original_language'
+WHERE properties ->> 'original_language' = '';
+
+UPDATE content_units cu
+SET properties = properties || jsonb_build_object('original_language', tmp.lang) FROM
+  (SELECT DISTINCT ON (f.content_unit_id)
+     f.content_unit_id AS cuid,
+     CASE WHEN o.properties ->> 'language' = 'heb'
+       THEN 'he'
+     WHEN o.properties ->> 'language' = 'eng'
+       THEN 'en'
+     WHEN o.properties ->> 'language' = 'rus'
+       THEN 'ru'
+     WHEN o.properties ->> 'language' = 'mlt'
+       THEN 'zz'
+     ELSE 'xx' END     AS lang
+   FROM operations o INNER JOIN files_operations fo ON o.id = fo.operation_id AND o.type_id = 4
+     INNER JOIN files f ON fo.file_id = f.id AND f.content_unit_id IS NOT NULL
+   GROUP BY f.content_unit_id, o.id
+   ORDER BY f.content_unit_id, o.id DESC) AS tmp
+WHERE cu.id = tmp.cuid;

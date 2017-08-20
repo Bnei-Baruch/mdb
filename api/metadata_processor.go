@@ -39,8 +39,9 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		filmDate = *metadata.WeekDate
 	}
 	props := map[string]interface{}{
-		"capture_date": metadata.CaptureDate,
-		"film_date":    filmDate,
+		"capture_date":      metadata.CaptureDate,
+		"film_date":         filmDate,
+		"original_language": StdLang(metadata.Language),
 	}
 	log.Infof("Updating files properties: %v", props)
 	err := UpdateFileProperties(exec, original, props)
@@ -85,7 +86,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	if duration, ok := originalProps["duration"]; ok {
 		props["duration"] = int(duration.(float64))
 	} else {
-		log.Infof("Original is missing duration property [%d]", original.ID)
+		log.Warnf("Original is missing duration property [%d]", original.ID)
 	}
 
 	log.Infof("Creating content unit of type %s", ct)
@@ -341,6 +342,12 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				}
 			}
 			break
+		}
+
+		// Make this new unit the last one in this collection
+		ccu.Position, err = GetNextPositionInCollection(exec, c.ID)
+		if err != nil {
+			return errors.Wrap(err, "Get last position in collection")
 		}
 
 		log.Infof("Association name: %s", ccu.Name)

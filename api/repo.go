@@ -253,6 +253,13 @@ func CreateContentUnit(exec boil.Executor, contentType string, properties map[st
 	return unit, err
 }
 
+func GetNextPositionInCollection(exec boil.Executor, id int64) (position int, err error) {
+	err = queries.Raw(exec,
+		"SELECT COALESCE(MAX(position), -1) + 1 FROM collections_content_units WHERE collection_id = $1", id).
+		QueryRow().Scan(&position)
+	return
+}
+
 func UpdateContentUnitProperties(exec boil.Executor, unit *models.ContentUnit, props map[string]interface{}) error {
 	if len(props) == 0 {
 		return nil

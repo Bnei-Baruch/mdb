@@ -121,7 +121,7 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 
 			// Create or update MDB content_unit
 			unit, err = importContainer(tx, container, collection,
-				api.CT_LESSON_PART, strconv.Itoa(container.Position.Int))
+				api.CT_LESSON_PART, strconv.Itoa(container.Position.Int), container.Position.Int)
 			if err != nil {
 				log.Error(err)
 				debug.PrintStack()
@@ -140,7 +140,7 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 					debug.PrintStack()
 					break
 				}
-				if file.Published {
+				if file !=nil && file.Published {
 					unit.Published = true
 				}
 			}

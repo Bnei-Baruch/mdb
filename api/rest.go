@@ -128,7 +128,49 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleCollectionCCU(boil.GetDB(), id)
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		resp, err = handleCollectionCCU(boil.GetDB(), id)
+	case http.MethodPost:
+		var ccu models.CollectionsContentUnit
+		if c.BindJSON(&ccu) != nil {
+			return
+		}
+
+		tx := mustBeginTx()
+		err = handleCollectionAddCCU(tx, id, ccu)
+		mustConcludeTx(tx, err)
+	case http.MethodPut:
+		var ccu models.CollectionsContentUnit
+		if c.BindJSON(&ccu) != nil {
+			return
+		}
+
+		cuID, e := strconv.ParseInt(c.Param("cuID"), 10, 0)
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "cuID expects int64"))
+			break
+		}
+		ccu.ContentUnitID = cuID
+
+		tx := mustBeginTx()
+		err = handleCollectionUpdateCCU(tx, id, ccu)
+		mustConcludeTx(tx, err)
+	case http.MethodDelete:
+		cuID, e := strconv.ParseInt(c.Param("cuID"), 10, 0)
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "cuID expects int64"))
+			break
+		}
+
+		tx := mustBeginTx()
+		err = handleCollectionRemoveCCU(tx, id, cuID)
+		mustConcludeTx(tx, err)
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -310,6 +352,24 @@ func ContentUnitTagsHandler(c *gin.Context) {
 		tx := mustBeginTx()
 		err = handleContentUnitRemoveTag(tx, id, tagID)
 		mustConcludeTx(tx, err)
+	}
+
+	concludeRequest(c, resp, err)
+}
+
+func ContentUnitPersonsHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		resp, err = handleGetContentUnitPersons(boil.GetDB(), id)
 	}
 
 	concludeRequest(c, resp, err)
@@ -608,7 +668,8 @@ func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*Collectio
 	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
 		return nil, NewBadRequestError(err)
 	}
-	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "(properties->>'film_date')::date"); err != nil {
+	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter,
+		"(coalesce(properties->>'film_date', properties->>'start_date', created_at::text))::date"); err != nil {
 		return nil, NewBadRequestError(err)
 	}
 	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
@@ -845,7 +906,10 @@ func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit
 		return nil, NewNotFoundError()
 	}
 
-	ccus, err := models.CollectionsContentUnits(exec, qm.Where("collection_id = ?", id)).All()
+	ccus, err := models.CollectionsContentUnits(exec,
+		qm.Where("collection_id = ?", id),
+		qm.OrderBy("position")).
+		All()
 	if err != nil {
 		return nil, NewInternalError(err)
 	} else if len(ccus) == 0 {
@@ -878,11 +942,104 @@ func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit
 	for i, ccu := range ccus {
 		data[i] = &CollectionContentUnit{
 			Name:        ccu.Name,
+			Position:    ccu.Position,
 			ContentUnit: cusById[ccu.ContentUnitID],
 		}
 	}
 
 	return data, nil
+}
+
+func handleCollectionAddCCU(exec boil.Executor, id int64, ccu models.CollectionsContentUnit) *HttpError {
+	c, err := models.FindCollection(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	exists, err := models.ContentUnits(exec,
+		qm.Where("id = ?", ccu.ContentUnitID)).
+		Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if !exists {
+		return NewBadRequestError(errors.Errorf("Unknown content unit id %d", ccu.ContentUnitID))
+	}
+
+	exists, err = models.CollectionsContentUnits(exec,
+		qm.Where("collection_id = ? AND content_unit_id = ?", id, ccu.ContentUnitID)).
+		Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if exists {
+		return NewBadRequestError(errors.New("Association already exists"))
+	}
+
+	err = c.AddCollectionsContentUnits(exec, true, &ccu)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
+}
+
+func handleCollectionUpdateCCU(exec boil.Executor, id int64, ccu models.CollectionsContentUnit) *HttpError {
+	exists, err := models.Collections(exec, qm.Where("id = ?", id)).Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if !exists {
+		return NewNotFoundError()
+	}
+
+	mCCU, err := models.FindCollectionsContentUnit(exec, id, ccu.ContentUnitID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	mCCU.Name = ccu.Name
+	mCCU.Position = ccu.Position
+	err = mCCU.Update(exec, "name", "position")
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
+}
+
+func handleCollectionRemoveCCU(exec boil.Executor, id int64, cuID int64) *HttpError {
+	exists, err := models.Collections(exec, qm.Where("id = ?", id)).Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if !exists {
+		return NewNotFoundError()
+	}
+
+	ccu, err := models.FindCollectionsContentUnit(exec, id, cuID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	err = ccu.Delete(exec)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
 }
 
 func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*ContentUnitsResponse, *HttpError) {
@@ -1055,7 +1212,9 @@ func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUni
 		return nil, NewNotFoundError()
 	}
 
-	ccus, err := models.CollectionsContentUnits(exec, qm.Where("content_unit_id = ?", id)).All()
+	ccus, err := models.CollectionsContentUnits(exec,
+		qm.Where("content_unit_id = ?", id)).
+		All()
 	if err != nil {
 		return nil, NewInternalError(err)
 	} else if len(ccus) == 0 {
@@ -1088,6 +1247,7 @@ func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUni
 	for i, ccu := range ccus {
 		data[i] = &CollectionContentUnit{
 			Name:       ccu.Name,
+			Position:   ccu.Position,
 			Collection: csById[ccu.CollectionID],
 		}
 	}
@@ -1211,6 +1371,35 @@ func handleGetContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError)
 			x.I18n[i18n.Language] = i18n
 		}
 		data[i] = x
+	}
+
+	return data, nil
+}
+
+func handleGetContentUnitPersons(exec boil.Executor, id int64) ([]*ContentUnitPerson, *HttpError) {
+	unit, err := models.ContentUnits(exec,
+		qm.Where("id = ?", id),
+		qm.Load("ContentUnitsPersons",
+			"ContentUnitsPersons.Person",
+			"ContentUnitsPersons.Person.PersonI18ns")).
+		One()
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	data := make([]*ContentUnitPerson, len(unit.R.ContentUnitsPersons))
+	for i, cup := range unit.R.ContentUnitsPersons {
+		p := &Person{Person: *cup.R.Person}
+		p.I18n = make(map[string]*models.PersonI18n, len(cup.R.Person.R.PersonI18ns))
+		for _, i18n := range cup.R.Person.R.PersonI18ns {
+			p.I18n[i18n.Language] = i18n
+		}
+		data[i] = &ContentUnitPerson{Person: p, RoleID: cup.RoleID}
 	}
 
 	return data, nil

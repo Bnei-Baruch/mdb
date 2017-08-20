@@ -285,6 +285,7 @@ type (
 		Collection  *Collection  `json:"collection,omitempty"`
 		ContentUnit *ContentUnit `json:"content_unit,omitempty"`
 		Name        string       `json:"name"`
+		Position    int          `json:"position"`
 	}
 
 	// Marshalable File
@@ -307,6 +308,17 @@ type (
 	Tag struct {
 		models.Tag
 		I18n map[string]*models.TagI18n `json:"i18n"`
+	}
+
+	Person struct {
+		models.Person
+		I18n map[string]*models.PersonI18n `json:"i18n"`
+	}
+
+	ContentUnitPerson struct {
+		ContentUnit *ContentUnit `json:"content_unit,omitempty"`
+		Person      *Person      `json:"person,omitempty"`
+		RoleID      int64        `json:"role_id,omitempty"`
 	}
 
 	SourceH struct {
@@ -379,6 +391,9 @@ func (drf *DateRangeFilter) Range() (time.Time, time.Time, error) {
 	}
 	if err == nil && drf.EndDate != "" {
 		e, err = time.Parse("2006-01-02", drf.EndDate)
+		if err == nil {
+			e = e.Add(24*time.Hour - 1) // make the hour 23:59:59.999999999
+		}
 	}
 
 	return s, e, err
