@@ -341,12 +341,14 @@ func (suite *DocsSuite) Test9InsertHandler() {
 		},
 		InsertType:     "akladot",
 		ContentUnitUID: cu.UID,
-		File: File{
-			FileName:  "heb_o_rav_2016-09-14_lesson_akladot.docx",
-			Sha1:      "0987654321fedcba0987654321fedcba09876555",
-			Size:      19837,
-			CreatedAt: &Timestamp{Time: time.Now()},
-			Language:  LANG_HEBREW,
+		AVFile: AVFile{
+			File: File{
+				FileName:  "heb_o_rav_2016-09-14_lesson_akladot.docx",
+				Sha1:      "0987654321fedcba0987654321fedcba09876555",
+				Size:      19837,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				Language:  LANG_HEBREW,
+			},
 		},
 		ParentSha1: "0987654321fedcba0987654321fedcba11111111",
 	}

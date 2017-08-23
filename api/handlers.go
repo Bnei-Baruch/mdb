@@ -512,11 +512,12 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 				r.File.Type = "text"
 			case "sirtutim":
 				r.File.Type = "image"
-			case "dgima":
+			case "dgima", "aricha":
 				r.File.Type = "video"
 			default:
 				r.File.Type = ""
 			}
+			props["duration"]= r.AVFile.Duration
 			file, err = CreateFile(exec, parent, r.File, props)
 			if err != nil {
 				return nil, err

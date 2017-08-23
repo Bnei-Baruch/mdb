@@ -717,13 +717,16 @@ func (suite *HandlersSuite) TestHandleInsert() {
 		},
 		InsertType:     "akladot",
 		ContentUnitUID: cu.UID,
-		File: File{
-			FileName:  "akladot.doc",
-			Sha1:      "012356789abcdef012356789abcdef1111111111",
-			Size:      98737,
-			CreatedAt: &Timestamp{Time: time.Now()},
-			MimeType:  "application/msword",
-			Language:  LANG_HEBREW,
+		AVFile: AVFile{
+			File: File{
+				FileName:  "akladot.doc",
+				Sha1:      "012356789abcdef012356789abcdef1111111111",
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				MimeType:  "application/msword",
+				Language:  LANG_HEBREW,
+			},
+			Duration: 123.4,
 		},
 	}
 
@@ -760,6 +763,7 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	err = f.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
 	suite.Equal(input.InsertType, props["insert_type"].(string), "File insert_type")
+	suite.Equal(input.AVFile.Duration, props["duration"], "File duration")
 
 	// check content unit association
 	suite.True(f.ContentUnitID.Valid, "File ContentUnitID.Valid")
