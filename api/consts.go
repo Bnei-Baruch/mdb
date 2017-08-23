@@ -40,6 +40,7 @@ const (
 	OP_UPLOAD        = "upload"
 	OP_IMPORT_KMEDIA = "import_kmedia"
 	OP_SIRTUTIM      = "sirtutim"
+	OP_INSERT        = "insert"
 
 	// Source Types
 	SRC_COLLECTION = "COLLECTION"

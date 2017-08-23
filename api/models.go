@@ -129,6 +129,14 @@ type (
 		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
 	}
 
+	InsertRequest struct {
+		Operation
+		File
+		InsertType     string `json:"insert_type" binding:"required"`
+		ContentUnitUID string `json:"content_unit_uid" binding:"required,len=8"`
+		ParentSha1     string `json:"parent_sha1" binding:"omitempty,len=40,hexadecimal"`
+	}
+
 	// REST
 
 	ListRequest struct {

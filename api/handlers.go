@@ -15,6 +15,7 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/vattle/sqlboiler/queries/qm"
 )
 
 // Start capture of AV file, i.e. morning lesson, tv program, etc...
@@ -87,6 +88,15 @@ func SirtutimHandler(c *gin.Context) {
 	var i SirtutimRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleSirtutim)
+	}
+}
+
+// Insert new file to archive
+func InsertHandler(c *gin.Context) {
+	log.Info(OP_INSERT)
+	var i InsertRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleInsert)
 	}
 }
 
@@ -447,6 +457,66 @@ func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, e
 	log.Info("Associating files to operation")
 	return operation, operation.AddFiles(exec, false, original, file)
 }
+
+func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, error) {
+	r := input.(InsertRequest)
+
+	log.Infof("Lookup content unit by uid %s", r.ContentUnitUID)
+	cu, err := models.ContentUnits(exec, qm.Where("uid = ?", r.ContentUnitUID)).One()
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Found content unit %d", cu.ID)
+
+	var parent *models.File
+	if r.ParentSha1 != "" {
+		log.Info("Looking up parent file by sha1")
+		parent, _, err = FindFileBySHA1(exec, r.ParentSha1)
+		if err != nil {
+			if _, ok := err.(FileNotFound); ok {
+				log.Warnf("Parent file not found [%s]", r.ParentSha1)
+			} else {
+				return nil, err
+			}
+		}
+	}
+
+	log.Info("Creating operation")
+	props := map[string]interface{}{
+		"insert_type": r.InsertType,
+	}
+	operation, err := CreateOperation(exec, OP_INSERT, r.Operation, props)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("Creating file")
+	switch r.InsertType {
+	case "akladot", "kitei-makor":
+		r.File.Type = "text"
+	case "sirtutim":
+		r.File.Type = "image"
+	case "dgima":
+		r.File.Type = "video"
+	default:
+		r.File.Type = ""
+	}
+	file, err := CreateFile(exec, parent, r.File, props)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("Associating to file [%d] to content_unit [%d]", file.ID, cu.ID)
+	file.ContentUnitID = null.Int64From(cu.ID)
+	err = file.Update(exec, "content_unit_id")
+	if err != nil {
+		return nil, errors.Wrap(err, "Save file.content_unit_id to DB")
+	}
+
+	log.Info("Associating files to operation")
+	return operation, operation.AddFiles(exec, false, parent, file)
+}
+
 
 // Helpers
 

@@ -647,3 +647,19 @@ SET properties = properties || jsonb_build_object('original_language', tmp.lang)
    GROUP BY f.content_unit_id, o.id
    ORDER BY f.content_unit_id, o.id DESC) AS tmp
 WHERE cu.id = tmp.cuid;
+
+-- cu missing name from historical send operations
+SELECT
+  cu.id,
+  tmp.name
+FROM content_units cu
+  LEFT JOIN content_unit_i18n cui ON cu.id = cui.content_unit_id
+  INNER JOIN
+  (SELECT DISTINCT ON (f.content_unit_id)
+     f.content_unit_id             AS cuid,
+     o.properties ->> 'final_name' AS name
+   FROM operations o INNER JOIN files_operations fo ON o.id = fo.operation_id AND o.type_id = 4
+     INNER JOIN files f ON fo.file_id = f.id AND f.content_unit_id IS NOT NULL
+   GROUP BY f.content_unit_id, o.id
+   ORDER BY f.content_unit_id, o.id DESC) AS tmp ON cu.id = tmp.cuid
+WHERE cui.content_unit_id IS NULL;
