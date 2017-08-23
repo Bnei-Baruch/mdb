@@ -316,7 +316,7 @@ func (suite *DocsSuite) Test8SirtutimHandler() {
 			Sha1:      "0987654321fedcba0987654321fedcba09876544",
 			Size:      19837,
 			CreatedAt: &Timestamp{Time: time.Now()},
-			Language: LANG_HEBREW,
+			Language:  LANG_HEBREW,
 		},
 		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
 	}
@@ -327,17 +327,26 @@ func (suite *DocsSuite) Test8SirtutimHandler() {
 }
 
 func (suite *DocsSuite) Test9InsertHandler() {
+	tx, err := boil.Begin()
+	suite.Require().Nil(err)
+	cu, err := CreateContentUnit(tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+	err = tx.Commit()
+	suite.Require().Nil(err)
+
 	input := InsertRequest{
 		Operation: Operation{
 			Station: "Insert station",
 			User:    "111operator@dev.com",
 		},
+		InsertType:     "akladot",
+		ContentUnitUID: cu.UID,
 		File: File{
 			FileName:  "heb_o_rav_2016-09-14_lesson_akladot.docx",
 			Sha1:      "0987654321fedcba0987654321fedcba09876555",
 			Size:      19837,
 			CreatedAt: &Timestamp{Time: time.Now()},
-			Language: LANG_HEBREW,
+			Language:  LANG_HEBREW,
 		},
 		ParentSha1: "0987654321fedcba0987654321fedcba11111111",
 	}

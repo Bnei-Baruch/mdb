@@ -455,7 +455,11 @@ func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, e
 	}
 
 	log.Info("Associating files to operation")
-	return operation, operation.AddFiles(exec, false, original, file)
+	if original == nil {
+		return operation, operation.AddFiles(exec, false, file)
+	} else {
+		return operation, operation.AddFiles(exec, false, original, file)
+	}
 }
 
 func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, error) {
@@ -464,7 +468,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 	log.Infof("Lookup content unit by uid %s", r.ContentUnitUID)
 	cu, err := models.ContentUnits(exec, qm.Where("uid = ?", r.ContentUnitUID)).One()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Fetch unit from mdb")
 	}
 	log.Infof("Found content unit %d", cu.ID)
 
@@ -490,23 +494,39 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 		return nil, err
 	}
 
-	log.Info("Creating file")
-	switch r.InsertType {
-	case "akladot", "kitei-makor":
-		r.File.Type = "text"
-	case "sirtutim":
-		r.File.Type = "image"
-	case "dgima":
-		r.File.Type = "video"
-	default:
-		r.File.Type = ""
-	}
-	file, err := CreateFile(exec, parent, r.File, props)
-	if err != nil {
-		return nil, err
+	// Create new file or it doesn't existing
+	file, _, err := FindFileBySHA1(exec, r.File.Sha1)
+	if err == nil {
+		log.Info("File already exists [%d], updating. ", file.ID)
+		if parent != nil {
+			err = file.SetParent(exec, false, parent)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Set parent file [%d]", parent.ID)
+			}
+		}
+	} else {
+		if _, ok := err.(FileNotFound); ok {
+			log.Info("Creating new file")
+			switch r.InsertType {
+			case "akladot", "kitei-makor":
+				r.File.Type = "text"
+			case "sirtutim":
+				r.File.Type = "image"
+			case "dgima":
+				r.File.Type = "video"
+			default:
+				r.File.Type = ""
+			}
+			file, err = CreateFile(exec, parent, r.File, props)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
-	log.Infof("Associating to file [%d] to content_unit [%d]", file.ID, cu.ID)
+	log.Infof("Associating file [%d] to content_unit [%d]", file.ID, cu.ID)
 	file.ContentUnitID = null.Int64From(cu.ID)
 	err = file.Update(exec, "content_unit_id")
 	if err != nil {
@@ -514,9 +534,12 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 	}
 
 	log.Info("Associating files to operation")
-	return operation, operation.AddFiles(exec, false, parent, file)
+	if parent == nil {
+		return operation, operation.AddFiles(exec, false, file)
+	} else {
+		return operation, operation.AddFiles(exec, false, parent, file)
+	}
 }
-
 
 // Helpers
 

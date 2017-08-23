@@ -104,7 +104,7 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 		if err == sql.ErrNoRows {
 			log.Debugf("Unknown User [%s]. Skipping.", o.User)
 		} else {
-			return nil, err
+			return nil, errors.Wrap(err, "Check user exists")
 		}
 	}
 
@@ -118,7 +118,7 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 	if properties != nil {
 		props, err := json.Marshal(properties)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "json.Marshal")
 		}
 		operation.Properties = null.JSONFrom(props)
 	}
