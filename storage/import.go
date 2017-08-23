@@ -414,12 +414,13 @@ func processDataFile(path string, db *sql.DB, fileMap map[string]int64, fileStor
 		delete(fileMap, sha1)
 
 		// dedup names since the API doesn't do that for us at the moment
+
 		names := strings.Split(strings.Replace(line[42:len(line)-1], "\"", "", -1), ",")
 		locations := make(map[int64]bool)
 		for j := range names {
 			if s, ok := sMap[names[j]]; ok {
 				locations[s.ID] = true
-			} else {
+			} else if names[j] != "" {
 				log.Warnf("Unknown storage device %s line [%d]", names[j], i)
 			}
 		}
