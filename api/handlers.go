@@ -498,7 +498,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 	file, _, err := FindFileBySHA1(exec, r.File.Sha1)
 	if err == nil {
 		log.Info("File already exists [%d], updating. ", file.ID)
-		if parent != nil {
+		if parent != nil && file.ID != parent.ID {
 			err = file.SetParent(exec, false, parent)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Set parent file [%d]", parent.ID)
