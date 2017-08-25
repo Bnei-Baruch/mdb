@@ -271,6 +271,8 @@ func syncStorages(db *sql.DB) error {
 		tx, err = db.Begin()
 		utils.Must(err)
 
+		// TODO: this is buggy, seems like a bug in sqlboiler...
+		// need to dig in and fix asap
 		err = models.Storages(tx, qm.WhereIn("id in ?", ids)).DeleteAll()
 		if err != nil {
 			utils.Must(tx.Rollback())
@@ -515,7 +517,8 @@ func doFile(db *sql.DB, fID int64, current []int64, next map[int64]bool) error {
 			values = append(values, strconv.Itoa(sID))
 		}
 		res, err := queries.Raw(tx,
-			fmt.Sprintf("DELETE FROM files_storages WHERE file_id=%d AND storage_id IN (%s)", fID, values)).
+			fmt.Sprintf("DELETE FROM files_storages WHERE file_id=%d AND storage_id IN (%s)",
+				fID, strings.Join(values, ","))).
 			Exec()
 		if err != nil {
 			utils.Must(tx.Rollback())
