@@ -45,6 +45,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.GET("/files/", FilesListHandler)
 	rest.GET("/files/:id/", FileHandler)
 	rest.PUT("/files/:id/", FileHandler)
+	rest.GET("/files/:id/storages/", FileStoragesHandler)
 	rest.GET("/operations/", OperationsListHandler)
 	rest.GET("/operations/:id/", OperationItemHandler)
 	rest.GET("/operations/:id/files/", OperationFilesHandler)
@@ -59,6 +60,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.GET("/tags/:id/", TagHandler)
 	rest.PUT("/tags/:id/", TagHandler)
 	rest.PUT("/tags/:id/i18n/", TagI18nHandler)
+	rest.GET("/storages/", StoragesHandler)
 
 	hierarchy := router.Group("hierarchy")
 	hierarchy.GET("/sources/", SourcesHierarchyHandler)

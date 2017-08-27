@@ -414,6 +414,17 @@ func FileHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func FileStoragesHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := handleFileStorages(boil.GetDB(), id)
+	concludeRequest(c, resp, err)
+}
+
 func OperationsListHandler(c *gin.Context) {
 	var r OperationsRequest
 	if c.Bind(&r) != nil {
@@ -656,6 +667,16 @@ func TagI18nHandler(c *gin.Context) {
 	tx := mustBeginTx()
 	resp, err := handleUpdateTagI18n(tx, id, i18ns)
 	mustConcludeTx(tx, err)
+	concludeRequest(c, resp, err)
+}
+
+func StoragesHandler(c *gin.Context) {
+	var r StoragesRequest
+	if c.Bind(&r) != nil {
+		return
+	}
+
+	resp, err := handleStoragesList(boil.GetDB(), r)
 	concludeRequest(c, resp, err)
 }
 
@@ -1554,6 +1575,30 @@ func handleUpdateFile(exec boil.Executor, f *MFile) (*MFile, *HttpError) {
 	return handleGetFile(exec, f.ID)
 }
 
+func handleFileStorages(exec boil.Executor, id int64) ([]*Storage, *HttpError) {
+	ok, err := models.FileExists(exec, id)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if !ok {
+		return nil, NewNotFoundError()
+	}
+
+	storages, err := models.Storages(exec,
+		qm.InnerJoin("files_storages fs on fs.storage_id=id and fs.file_id = ?", id)).
+		All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	data := make([]*Storage, len(storages))
+	for i := range storages {
+		data[i] = &Storage{Storage: *storages[i]}
+	}
+
+	return data, nil
+}
+
 func handleOperationsList(exec boil.Executor, r OperationsRequest) (*OperationsResponse, *HttpError) {
 
 	mods := make([]qm.QueryMod, 0)
@@ -1969,6 +2014,35 @@ func handleUpdateTagI18n(exec boil.Executor, id int64, i18ns []*models.TagI18n) 
 	}
 
 	return handleGetTag(exec, id)
+}
+
+func handleStoragesList(exec boil.Executor, r StoragesRequest) (*StoragesResponse, *HttpError) {
+	mods := make([]qm.QueryMod, 0)
+
+	// count query
+	total, err := models.Storages(exec, mods...).Count()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if total == 0 {
+		return NewStoragessResponse(), nil
+	}
+
+	// order, limit, offset
+	if err = appendListMods(&mods, r.ListRequest); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+
+	// data query
+	data, err := models.Storages(exec, mods...).All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return &StoragesResponse{
+		ListResponse: ListResponse{Total: total},
+		Storages:     data,
+	}, nil
 }
 
 // Query Helpers

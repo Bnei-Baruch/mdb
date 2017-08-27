@@ -265,6 +265,15 @@ type (
 		Tags []*Tag `json:"data"`
 	}
 
+	StoragesRequest struct {
+		ListRequest
+	}
+
+	StoragesResponse struct {
+		ListResponse
+		Storages []*models.Storage `json:"data"`
+	}
+
 	HierarchyRequest struct {
 		Language string `json:"language" form:"language" binding:"omitempty,len=2"`
 		RootUID  string `json:"root" form:"root" binding:"omitempty,len=8"`
@@ -329,6 +338,10 @@ type (
 		RoleID      int64        `json:"role_id,omitempty"`
 	}
 
+	Storage struct {
+		models.Storage
+	}
+
 	SourceH struct {
 		ID          int64       `json:"id"`
 		UID         string      `json:"uid"`
@@ -388,6 +401,10 @@ func NewSourcesResponse() *SourcesResponse {
 
 func NewTagsResponse() *TagsResponse {
 	return &TagsResponse{Tags: make([]*Tag, 0)}
+}
+
+func NewStoragessResponse() *StoragesResponse {
+	return &StoragesResponse{Storages: make([]*models.Storage, 0)}
 }
 
 func (drf *DateRangeFilter) Range() (time.Time, time.Time, error) {
