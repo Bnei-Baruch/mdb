@@ -56,7 +56,6 @@ func ImportStorageStatus() {
 				err = errors.Errorf("panic: %s", rval)
 			}
 
-			// TODO proper handling of panic
 			log.WithError(err).Error("Panic")
 		}
 	}()
@@ -86,8 +85,6 @@ func doStuff() {
 	defer mdb.Close()
 	boil.SetDB(mdb)
 	//boil.DebugMode = true
-
-	// TODO: proper error handling
 
 	err = syncStorages(mdb)
 	if err != nil {
@@ -559,7 +556,7 @@ func clearStatusForMissing(db *sql.DB, missingFiles map[string]int64, fileStorag
 	i := 0
 	for pageSize*i < len(ids) {
 		start := pageSize * i
-		end := utils.Min(start+pageSize, len(ids)-1)
+		end := utils.Min(start+pageSize, len(ids))
 
 		tx, err := db.Begin()
 		utils.Must(err)
