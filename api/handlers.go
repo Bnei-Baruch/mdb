@@ -508,7 +508,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 		if _, ok := err.(FileNotFound); ok {
 			log.Info("Creating new file")
 			switch r.InsertType {
-			case "akladot", "kitei-makor":
+			case "akladot", "tamlil", "kitei-makor":
 				r.File.Type = "text"
 			case "sirtutim":
 				r.File.Type = "image"
