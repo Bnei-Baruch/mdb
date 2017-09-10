@@ -485,10 +485,10 @@ WITH RECURSIVE rc AS (
   UNION
   SELECT c.*
   FROM catalogs c INNER JOIN rc ON c.parent_id = rc.id
-) SELECT
-    count(cn.*)
-  FROM rc inner join catalogs_containers cc on rc.id = cc.catalog_id
-inner join containers cn on cc.container_id = cn.id;
+) SELECT count(cn.*)
+  FROM rc
+    INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id
+    INNER JOIN containers cn ON cc.container_id = cn.id;
 
 
 -- all sources for translation (Dima Perkin)
@@ -663,3 +663,20 @@ FROM content_units cu
    GROUP BY f.content_unit_id, o.id
    ORDER BY f.content_unit_id, o.id DESC) AS tmp ON cu.id = tmp.cuid
 WHERE cui.content_unit_id IS NULL;
+
+
+SELECT "content_units".* FROM "content_units" INNER JOIN content_units_sources cus ON id = cus.content_unit_id WHERE (secure=0 AND published IS TRUE) AND "type_id" IN (11) AND "cus"."source_id" IN (1754,1755,1756,1757,1758,1759,1760,1761,1762,1763,1764,1765,1766,1767,1768,1769,1770,1771,1772,1773,1774,1775,1776,1777,1778,1779,1780,1781,1782,1783,1784,1785,1786,1787,1788,1789,1790,1791,1792,1793,1794,1795,1796,1797,1798,1799,1800,1801,1802,1803,1804,1805,1806,1807,1808,1809,1810,1811,1812,1813) ORDER BY (properties->>'film_date')::date desc, created_at desc LIMIT 10;
+
+SELECT "content_units".* FROM "content_units" INNER JOIN content_units_sources cus ON id = cus.content_unit_id WHERE (secure=0 AND published IS TRUE) AND "type_id" IN (11) AND "cus"."source_id" IN (1754,1755,1756,1757,1758,1759,1760,1761,1762,1763,1764,1765,1766,1767,1768,1769,1770,1771,1772,1773,1774,1775,1776,1777,1778,1779,1780,1781,1782,1783,1784,1785,1786,1787,1788,1789,1790,1791,1792,1793,1794,1795,1796,1797,1798,1799,1800,1801,1802,1803,1804,1805,1806,1807,1808,1809,1810,1811,1812,1813) group by content_units.id ORDER BY (properties->>'film_date')::date desc, created_at desc LIMIT 10;
+
+SELECT DISTINCT ON (id) *
+FROM
+  (
+    SELECT "content_units".*
+    FROM "content_units"
+      INNER JOIN content_units_sources cus ON id = cus.content_unit_id
+    WHERE (secure = 0 AND published IS TRUE) AND "type_id" IN (11) AND "cus"."source_id" IN
+                                                                       (1754, 1755, 1756, 1757, 1758, 1759, 1760, 1761, 1762, 1763, 1764, 1765, 1766, 1767, 1768, 1769, 1770, 1771, 1772, 1773, 1774, 1775, 1776, 1777, 1778, 1779, 1780, 1781, 1782, 1783, 1784, 1785, 1786, 1787, 1788, 1789, 1790, 1791, 1792, 1793, 1794, 1795, 1796, 1797, 1798, 1799, 1800, 1801, 1802, 1803, 1804, 1805, 1806, 1807, 1808, 1809, 1810, 1811, 1812, 1813)
+    ORDER BY (properties ->> 'film_date') :: DATE DESC, created_at DESC
+  ) AS t
+LIMIT 10;
