@@ -293,6 +293,55 @@ func UpdateContentUnitProperties(exec boil.Executor, unit *models.ContentUnit, p
 }
 
 func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[string]interface{}) (*models.File, error) {
+	file, err := makeFile(parent, f, properties)
+	if err != nil {
+		return nil, errors.Wrap(err, "Make file")
+	}
+
+	uid, err := GetFreeUID(exec, new(FileUIDChecker))
+	if err != nil {
+		return nil, err
+	}
+	file.UID = uid
+
+	err = file.Insert(exec)
+	if err != nil {
+		return nil, errors.Wrap(err, "Save to DB")
+	}
+
+	return file, nil
+}
+
+func UpdateFile(exec boil.Executor, obj *models.File, parent *models.File, f File, properties map[string]interface{}) error {
+	tmp, err := makeFile(parent, f, properties)
+	if err != nil {
+		return errors.Wrap(err, "Make file")
+	}
+
+	obj.Name = tmp.Name
+	obj.Type = tmp.Type
+	obj.SubType = tmp.SubType
+	obj.MimeType = tmp.MimeType
+	obj.ContentUnitID = tmp.ContentUnitID
+	obj.Language = tmp.Language
+	obj.ParentID = tmp.ParentID
+	obj.FileCreatedAt = tmp.FileCreatedAt
+
+	err = obj.Update(exec, "name", "type", "sub_type", "mime_type", "content_unit_id", "language", "parent_id",
+		"file_created_at")
+	if err != nil {
+		return errors.Wrap(err, "update file")
+	}
+
+	err = UpdateFileProperties(exec, obj, properties)
+	if err != nil {
+		return errors.Wrap(err, "update properties")
+	}
+
+	return nil
+}
+
+func makeFile(parent *models.File, f File, properties map[string]interface{}) (*models.File, error) {
 	sha1, err := hex.DecodeString(f.Sha1)
 	if err != nil {
 		return nil, errors.Wrap(err, "hex Decode")
@@ -307,13 +356,7 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 		}
 	}
 
-	uid, err := GetFreeUID(exec, new(FileUIDChecker))
-	if err != nil {
-		return nil, err
-	}
-
 	file := &models.File{
-		UID:           uid,
 		Name:          f.FileName,
 		Sha1:          null.BytesFrom(sha1),
 		Size:          f.Size,
@@ -347,11 +390,6 @@ func CreateFile(exec boil.Executor, parent *models.File, f File, properties map[
 			return nil, errors.Wrap(err, "json Marshal")
 		}
 		file.Properties = null.JSONFrom(props)
-	}
-
-	err = file.Insert(exec)
-	if err != nil {
-		return nil, errors.Wrap(err, "Save to DB")
 	}
 
 	return file, nil

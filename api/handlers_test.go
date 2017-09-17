@@ -532,9 +532,58 @@ func (suite *HandlersSuite) TestHandleConvert() {
 		suite.Equal(x.Duration, props["duration"], "Output[%d] props: duration", i)
 	}
 
-	// test "reconvert" doesn't crash
+	// test "reconvert" update existing files
+	efi := File{
+		FileName:  "dummy input file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef9999999999",
+		Size:      math.MaxInt64,
+	}
+	_, err = CreateFile(suite.tx, nil, efi, nil)
+	suite.Require().Nil(err)
+
+	input.Output = []AVFile{
+		{
+			File: File{
+				FileName:  "heb_file.mp4",
+				Sha1:      "012356789abcdef012356789abcdef9999999999",
+				Size:      math.MaxInt64,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				Type:      "type1",
+				SubType:   "subtype1",
+				MimeType:  "mime_type1",
+				Language:  LANG_HEBREW,
+			},
+			Duration: 871,
+		},
+	}
 	op, err = handleConvert(suite.tx, input)
 	suite.Require().Nil(err)
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 2, "Number of files")
+	fm = make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	// Check output
+	for i, x := range input.Output {
+		f := fm[x.FileName]
+		suite.Equal(x.FileName, f.Name, "Output[%d]: Name", i)
+		suite.Equal(x.Sha1, hex.EncodeToString(f.Sha1.Bytes), "Output[%d]: SHA1", i)
+		suite.Equal(x.Size, f.Size, "Output[%d]: Size", i)
+		suite.Equal(x.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "Output[%d]: FileCreatedAt", i)
+		suite.Equal(x.Type, f.Type, "Output[%d]: Type", i)
+		suite.Equal(x.SubType, f.SubType, "Output[%d]: SubType", i)
+		suite.Equal(x.MimeType, f.MimeType.String, "Output[%d]: MimeType", i)
+		suite.Equal(x.Language, f.Language.String, "Output[%d]: Language", i)
+		suite.Equal(in.ID, f.ParentID.Int64, "Output[%d] Parent.ID", i)
+		err = f.Properties.Unmarshal(&props)
+		suite.Require().Nil(err)
+		suite.Equal(x.Duration, props["duration"], "Output[%d] props: duration", i)
+	}
 }
 
 func (suite *HandlersSuite) TestHandleUpload() {

@@ -175,7 +175,7 @@ func (suite *RepoSuite) TestCreateFile() {
 	for _, x := range []string{"a", "aa", "aaa", "aaaa"} {
 		f4.Language = x
 		_, err = CreateFile(suite.tx, nil, f4, nil)
-		suite.Require().EqualError(err, "Unknown language "+f4.Language, "Invalid language "+f4.Language)
+		suite.Require().EqualError(err, "Make file: Unknown language "+f4.Language, "Invalid language "+f4.Language)
 	}
 
 	// test mime type complements type & subtype
