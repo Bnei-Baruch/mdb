@@ -11,7 +11,7 @@ func init() {
 		Use:   "batch",
 		Short: "run some batch command",
 		Run: func(cmd *cobra.Command, args []string) {
-			batch.RenameUnits()
+			batch.ReadRequestsLog()
 		},
 	}
 	RootCmd.AddCommand(command)
