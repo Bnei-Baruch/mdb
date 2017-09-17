@@ -474,6 +474,19 @@ func (suite *HandlersSuite) TestHandleConvert() {
 				},
 				Duration: 871,
 			},
+			{
+				File: File{
+					FileName:  "duplicate_rus_file.mp4",
+					Sha1:      "0987654321fedcba0987654321fedcba55555555",
+					Size:      694,
+					CreatedAt: &Timestamp{Time: time.Now()},
+					Type:      "type3",
+					SubType:   "subtype3",
+					MimeType:  "mime_type3",
+					Language:  LANG_RUSSIAN,
+				},
+				Duration: 871,
+			},
 		},
 	}
 
@@ -503,7 +516,7 @@ func (suite *HandlersSuite) TestHandleConvert() {
 
 	// Check output
 	var props map[string]interface{}
-	for i, x := range input.Output {
+	for i, x := range input.Output[:len(input.Output)-2] {
 		f := fm[x.FileName]
 		suite.Equal(x.FileName, f.Name, "Output[%d]: Name", i)
 		suite.Equal(x.Sha1, hex.EncodeToString(f.Sha1.Bytes), "Output[%d]: SHA1", i)

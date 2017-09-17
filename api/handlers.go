@@ -339,11 +339,23 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, er
 		return nil, err
 	}
 
+	// We dedup duplicate files here.
+	// These are usually files without sound translation.
+	// So they are identical, i.e. same SHA1
+	log.Info("Deduping output files by SHA1")
+	uniq := make(map[string]int)
+	for i := range r.Output {
+		uniq[r.Output[i].Sha1] = i
+	}
+	log.Infof("%d uniq files", len(uniq))
+
 	log.Info("Creating output files")
-	files := make([]*models.File, len(r.Output)+1)
+	files := make([]*models.File, len(uniq)+1)
 	files[0] = in
 	props := make(map[string]interface{})
-	for i, x := range r.Output {
+	i := 0
+	for _, v := range uniq {
+		x := r.Output[v]
 
 		// lookup by sha1 as it might be a "reconvert"
 		f, _, err := FindFileBySHA1(exec, x.Sha1)
@@ -362,7 +374,8 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, er
 			}
 		}
 
-		files[i+1] = f
+		i++
+		files[i] = f
 	}
 
 	log.Info("Associating files to operation")
@@ -517,7 +530,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 			default:
 				r.File.Type = ""
 			}
-			props["duration"]= r.AVFile.Duration
+			props["duration"] = r.AVFile.Duration
 			file, err = CreateFile(exec, parent, r.File, props)
 			if err != nil {
 				return nil, err
