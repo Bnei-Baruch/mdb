@@ -330,7 +330,12 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, er
 
 	in, _, err := FindFileBySHA1(exec, r.Sha1)
 	if err != nil {
-		return nil, err
+		if _, ok := err.(FileNotFound); ok {
+			log.Infof("Parent file not found, noop.")
+			return nil, nil
+		} else {
+			return nil, errors.Wrapf(err, "lookup parent")
+		}
 	}
 
 	log.Info("Creating operation")
@@ -347,7 +352,7 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, er
 	for i := range r.Output {
 		uniq[r.Output[i].Sha1] = i
 	}
-	log.Infof("%d uniq files", len(uniq))
+	log.Infof("%d unique files out of %d", len(uniq), len(r.Output))
 
 	log.Info("Creating output files")
 	files := make([]*models.File, len(uniq)+1)
