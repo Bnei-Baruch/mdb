@@ -12,9 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
+
+// A utility file to scan requests.log, filter relevant requests and re-run them
 
 type Meta struct {
 	Type      int
@@ -29,10 +33,46 @@ type Request struct {
 	req      bool
 }
 
+func (r *Request) dump() {
+	fmt.Printf("Request %s %s\n", r.Meta.ID, r.Meta.Timestamp.Format(time.RFC3339))
+	fmt.Println("Payload")
+	for i := range r.Payload {
+		fmt.Println(r.Payload[i])
+	}
+	fmt.Println("Response")
+	for i := range r.Response {
+		fmt.Println(r.Response[i])
+	}
+}
+
 func ReadRequestsLog() {
-	path := "requests.log"
-	file, err := os.Open(path)
+	rMap, err := readLog("requests.log")
 	utils.Must(err)
+	utils.Must(printFailed(rMap))
+	//utils.Must(replayConvertWErr(rMap))
+}
+
+func parseMeta(line string) Meta {
+	meta := strings.Split(line, " ")
+	id, _ := strconv.Atoi(meta[0])
+	ts, _ := strconv.ParseInt(meta[2], 10, 64)
+	return Meta{
+		Type:      id,
+		ID:        meta[1],
+		Timestamp: time.Unix(0, ts),
+	}
+}
+
+// scanning here is rather dumb:
+// blank lines are ignored
+// lines starting with "1" marks a beginning of a new request
+// lines starting with "2" are marks a beginning of a response
+// other lines are content of either a request or response
+func readLog(path string) (map[string]*Request, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "os.Open")
+	}
 	defer file.Close()
 
 	rMap := make(map[string]*Request)
@@ -71,20 +111,31 @@ func ReadRequestsLog() {
 			}
 		}
 	}
-	fmt.Printf("rMap %d\n", len(rMap))
 
-	convertWErr := make([]*Request, 0)
+	return rMap, nil
+}
+
+func filterRequests(rMap map[string]*Request, filter func(*Request) bool) []*Request {
+	requests := make([]*Request, 0)
 	for _, v := range rMap {
-		if strings.HasPrefix(v.Payload[0], "POST /operations/convert") &&
-			strings.HasSuffix(v.Response[0], "Internal Server Error") {
-			convertWErr = append(convertWErr, v)
+		if filter(v) {
+			requests = append(requests, v)
 		}
 	}
 
-	fmt.Printf("convertWErr %d\n", len(convertWErr))
-	sort.Slice(convertWErr, func(i, j int) bool {
-		return convertWErr[i].Meta.Timestamp.Before(convertWErr[j].Meta.Timestamp)
+	sort.Slice(requests, func(i, j int) bool {
+		return requests[i].Meta.Timestamp.Before(requests[j].Meta.Timestamp)
 	})
+
+	return requests
+}
+
+func replayConvertWErr(rMap map[string]*Request) error {
+	convertWErr := filterRequests(rMap, func(r *Request) bool {
+		return strings.HasPrefix(r.Payload[0], "POST /operations/convert") &&
+			strings.HasSuffix(r.Response[0], "Internal Server Error")
+	})
+	fmt.Printf("convertWErr %d\n", len(convertWErr))
 
 	client := &http.Client{}
 	for i := range convertWErr {
@@ -93,17 +144,17 @@ func ReadRequestsLog() {
 		var body api.ConvertRequest
 		err := json.Unmarshal([]byte(strPayload), &body)
 		if err != nil {
-			fmt.Printf("error parsing request body: %s\n", strPayload)
+			return errors.Wrapf(err, "json.Unmarshal %s", r.Meta.ID)
 		}
 
 		req, err := http.NewRequest("POST",
-			"http://localhost:8080/operations/convert",
+			"http://app.mdb.bbdomain.org/operations/convert",
 			strings.NewReader(strPayload))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := client.Do(req)
 		if err != nil {
-			panic(err)
+			return errors.Wrapf(err, "http client.Do %s", r.Meta.ID)
 		}
 
 		if resp.StatusCode != http.StatusOK {
@@ -115,15 +166,21 @@ func ReadRequestsLog() {
 		}
 	}
 
+	return nil
 }
 
-func parseMeta(line string) Meta {
-	meta := strings.Split(line, " ")
-	id, _ := strconv.Atoi(meta[0])
-	ts, _ := strconv.ParseInt(meta[2], 10, 64)
-	return Meta{
-		Type:      id,
-		ID:        meta[1],
-		Timestamp: time.Unix(ts, 0),
+func printFailed(rMap map[string]*Request) error {
+	day := time.Date(2017, 9, 12, 0, 0, 0, 0, time.UTC)
+	failed := filterRequests(rMap, func(r *Request) bool {
+		return r.Meta.Timestamp.Year() == day.Year() &&
+			r.Meta.Timestamp.YearDay() == day.YearDay() &&
+			!strings.HasSuffix(r.Response[0], "200 OK")
+	})
+	fmt.Printf("failed %d\n", len(failed))
+
+	for i := range failed {
+		failed[i].dump()
 	}
+
+	return nil
 }
