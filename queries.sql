@@ -717,3 +717,63 @@ update files set language='cs' where content_unit_id=33698 and name like 'cze_%'
 
 update files set type='video', mime_type='video/mp4' where content_unit_id=33698 and name like '%mp4';
 update files set type='audio', mime_type='audio/mpeg' where content_unit_id=33698 and name like '%mp3';
+
+
+WITH RECURSIVE rec_sources AS (
+  SELECT
+    s.id,
+    s.uid,
+    s.position,
+    ARRAY [a.code, s.uid] "path"
+  FROM sources s INNER JOIN authors_sources aas ON s.id = aas.source_id
+    INNER JOIN authors a ON a.id = aas.author_id
+  UNION
+  SELECT
+    s.id,
+    s.uid,
+    s.position,
+    rs.path || s.uid
+  FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
+)
+SELECT
+  cus.content_unit_id,
+  array_agg(DISTINCT item)
+FROM content_units_sources cus INNER JOIN rec_sources AS rs ON cus.source_id = rs.id
+  , unnest(rs.path) item
+GROUP BY cus.content_unit_id;
+
+
+WITH RECURSIVE rec_tags AS (
+  SELECT
+    t.id,
+    t.uid,
+    ARRAY [t.uid] :: CHAR(8) [] "path"
+  FROM tags t
+  WHERE parent_id IS NULL
+  UNION
+  SELECT
+    t.id,
+    t.uid,
+    (rt.path || t.uid) :: CHAR(8) []
+  FROM tags t INNER JOIN rec_tags rt ON t.parent_id = rt.id
+)
+SELECT
+  cut.content_unit_id,
+  array_agg(DISTINCT item)
+FROM content_units_tags cut INNER JOIN rec_tags AS rt ON cut.tag_id = rt.id
+  , unnest(rt.path) item
+GROUP BY cut.content_unit_id;
+
+
+SELECT
+  cup.content_unit_id,
+  array_agg(p.uid)
+FROM content_units_persons cup INNER JOIN persons p ON cup.person_id = p.id
+GROUP BY cup.content_unit_id;
+
+SELECT
+  content_unit_id,
+  array_agg(DISTINCT language)
+FROM files
+WHERE language NOT IN ('zz', 'xx') AND content_unit_id IS NOT NULL
+GROUP BY content_unit_id;
