@@ -224,7 +224,17 @@ func (suite *DocsSuite) Test5SendHandler() {
 
 	resp, err := suite.testOperation(OP_SEND, input)
 	suite.Require().Nil(err)
-	suite.assertJsonOK(resp)
+
+	suite.Equal(http.StatusOK, resp.StatusCode, "HTTP status")
+	suite.Equal("application/json; charset=utf-8", resp.Header.Get("Content-Type"), "HTTP Content-Type")
+
+	var body map[string]interface{}
+	defer resp.Body.Close()
+	err = json.NewDecoder(resp.Body).Decode(&body)
+	suite.Require().Nil(err)
+	suite.NotNil(body["id"])
+	suite.NotNil(body["uid"])
+	suite.Nil(body["errors"], "HTTP body.errors")
 }
 
 func (suite *DocsSuite) Test6ConvertHandler() {

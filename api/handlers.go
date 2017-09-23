@@ -60,7 +60,32 @@ func SendHandler(c *gin.Context) {
 	log.Info(OP_SEND)
 	var i SendRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleSend)
+		// we skip using the generic handleOperation to return some data to caller
+		tx, err := boil.Begin()
+		utils.Must(err)
+
+		_, err = handleSend(tx, i)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			err = errors.Wrapf(err, "Handle operation")
+			NewInternalError(err).Abort(c)
+			return
+		}
+
+		utils.Must(tx.Commit())
+
+		// fetch newly created content unit
+		original, _, _ := FindFileBySHA1(boil.GetDB(), i.Original.Sha1)
+		cu, err := models.FindContentUnit(boil.GetDB(), original.ContentUnitID.Int64)
+		if err != nil {
+			err = errors.Wrapf(err, "Lookup content unit")
+		}
+
+		if err == nil {
+			c.JSON(http.StatusOK, cu)
+		} else {
+			NewInternalError(err).Abort(c)
+		}
 	}
 }
 
