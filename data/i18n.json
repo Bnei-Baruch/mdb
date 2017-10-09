@@ -133,5 +133,10 @@
     "he": "הכנה לשיעור",
     "en": "Preparation to the Lesson",
     "ru": "Подготовка к Уроку"
+  },
+  "autoname.record": {
+    "he": "רשומה",
+    "en": "Record",
+    "ru": "Записка"
   }
 }

@@ -245,7 +245,7 @@ func makeCUI18ns(id int64, names map[string]string) []*models.ContentUnitI18n {
 }
 
 type sourceNamer interface {
-	GetName(*models.Author, []*models.Source) map[string]string
+	GetName(*models.Author, []*models.Source) (map[string]string, error)
 }
 
 func nameBySourceUID(exec boil.Executor, uid string) (map[string]string, error) {
@@ -287,13 +287,13 @@ func nameBySourceUID(exec boil.Executor, uid string) (map[string]string, error) 
 		path[left], path[right] = path[right], path[left]
 	}
 
-	return namer.GetName(author, path), nil
+	return namer.GetName(author, path)
 }
 
 type PlainNamer struct{}
 
 // <author>, <path...>
-func (n PlainNamer) GetName(author *models.Author, path []*models.Source) map[string]string {
+func (n PlainNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
 	names := make(map[string]string)
 	for _, language := range ALL_LANGS {
 		vals := make([]string, 0)
@@ -319,16 +319,104 @@ func (n PlainNamer) GetName(author *models.Author, path []*models.Source) map[st
 			continue
 		}
 
-		names[language] = strings.Join(vals, ", ")
+		names[language] = strings.Join(vals, ". ")
 	}
 
-	return names
+	return names, nil
+}
+
+type PrefaceNamer struct{}
+
+// <author>. <leaf node in path>
+func (n PrefaceNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
+	names := make(map[string]string)
+	for _, language := range ALL_LANGS {
+		vals := make([]string, 0)
+
+		// author name
+		ai18n := getAuthorI18n(author, language)
+		if ai18n == nil || !ai18n.Name.Valid {
+			continue
+		}
+		vals = append(vals, ai18n.Name.String)
+
+		// leaf node name
+		i18n := getSourceI18n(path[len(path)-1], language)
+		if i18n == nil || !i18n.Name.Valid {
+			continue
+		}
+		vals = append(vals, i18n.Name.String)
+
+		names[language] = strings.Join(vals, ". ")
+	}
+
+	return names, nil
+}
+
+type LettersNamer struct {
+	PrefaceNamer
+}
+
+// <author>. <leaf node in path - cleaned of (...) suffixes>
+func (n LettersNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
+	names := make(map[string]string)
+
+	baseNames, err := n.PrefaceNamer.GetName(author, path)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range baseNames {
+		a := strings.Split(v, "(")
+		names[k] = strings.TrimSpace(a[0])
+	}
+
+	return names, nil
+}
+
+type RBRecordsNamer struct{}
+
+// <author>. Record <position>. <leaf node in path>
+func (n RBRecordsNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
+	recordI18ns, err := GetI18ns("autoname.record")
+	if err != nil {
+		return nil, errors.Wrap(err, "Get I18ns")
+	}
+
+	names := make(map[string]string)
+	for language, recordI18n := range recordI18ns {
+		vals := make([]string, 0)
+
+		// author name
+		ai18n := getAuthorI18n(author, language)
+		if ai18n == nil || !ai18n.Name.Valid {
+			continue
+		}
+		vals = append(vals, ai18n.Name.String)
+
+		// leaf node position & name
+		leaf := path[len(path)-1]
+		if !leaf.Position.Valid {
+			continue
+		}
+		vals = append(vals, fmt.Sprintf("%s %d", recordI18n, leaf.Position.Int))
+
+		i18n := getSourceI18n(leaf, language)
+		if i18n == nil || !i18n.Name.Valid {
+			continue
+		}
+		vals = append(vals, i18n.Name.String)
+
+		names[language] = strings.Join(vals, ". ")
+	}
+
+	return names, nil
 }
 
 type ZoharNamer struct{}
 
 // <path[0]>, <path[1].description>, <path[2:]>
-func (n ZoharNamer) GetName(author *models.Author, path []*models.Source) map[string]string {
+func (n ZoharNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
 	names := make(map[string]string)
 	for _, language := range ALL_LANGS {
 		vals := make([]string, 0)
@@ -359,14 +447,24 @@ func (n ZoharNamer) GetName(author *models.Author, path []*models.Source) map[st
 			continue
 		}
 
-		names[language] = strings.Join(vals, ", ")
+		names[language] = strings.Join(vals, ". ")
 	}
 
-	return names
+	return names, nil
 }
 
+// Specs:
+// https://docs.google.com/spreadsheets/d/1zY-MQlbZl9nIJA8MUaE0-LPWYU9qNRJk4svix0R5Gv0/edit?usp=sharing
 var sourceNamers = map[string]sourceNamer{
-	"AwGBQX2L": ZoharNamer{}, // Zohar La'am
+	"L2jMWyce": PrefaceNamer{}, // BaalHaSulam Prefaces
+	"SJDw9tHs": PrefaceNamer{}, // Rabash Prefaces
+	"qMeV5M3Y": PrefaceNamer{}, // BaalHaSulam Articles
+	"DVSS0xAR": LettersNamer{}, // BaalHaSulam Letters
+	"b8SHlrfH": LettersNamer{}, // Rabash Letters
+	//"xtKmrbb9": PlainNamer{}, // BaalHaSulam TES
+	"2GAdavz0": RBRecordsNamer{}, // Rabash Records
+	"QUBP2DYe": PrefaceNamer{}, // Michael Laitman Articles
+	"AwGBQX2L": ZoharNamer{},   // Zohar La'am
 }
 
 func nameByTagUID(exec boil.Executor, uid string) (map[string]string, error) {

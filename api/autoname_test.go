@@ -191,15 +191,41 @@ func (suite *AutonameSuite) TestSourceNamers() {
 
 	var namer sourceNamer
 	namer = new(PlainNamer)
-	names := namer.GetName(author, path)
+	names, err := namer.GetName(author, path)
+	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
 	name := names[LANG_HEBREW]
-	suite.Equal("author, source 1, source 2, source 3, source 4", name, "name")
+	suite.Equal("author. source 1. source 2. source 3. source 4", name, "name")
+
+	namer = new(PrefaceNamer)
+	names, err = namer.GetName(author, path)
+	suite.Require().Nil(err)
+	suite.Len(names, 1, "len(names)")
+	name = names[LANG_HEBREW]
+	suite.Equal("author. source 4", name, "name")
+
+	namer = new(LettersNamer)
+	path[len(path) -1].R.SourceI18ns[0].Name = null.StringFrom("source 4 (1920)")
+	names, err = namer.GetName(author, path)
+	suite.Require().Nil(err)
+	suite.Len(names, 1, "len(names)")
+	name = names[LANG_HEBREW]
+	suite.Equal("author. source 4", name, "name")
+	path[len(path) -1].R.SourceI18ns[0].Name = null.StringFrom("source 4")
+
+	namer = new(RBRecordsNamer)
+	path[len(path) -1].Position = null.IntFrom(137)
+	names, err = namer.GetName(author, path)
+	suite.Require().Nil(err)
+	suite.Len(names, 1, "len(names)")
+	name = names[LANG_HEBREW]
+	suite.Equal("author. רשומה 137. source 4", name, "name")
 
 	path[1].R.SourceI18ns[0].Description = null.StringFrom("source 2 description")
 	namer = new(ZoharNamer)
-	names = namer.GetName(author, path)
+	names, err = namer.GetName(author, path)
+	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
 	name = names[LANG_HEBREW]
-	suite.Equal("source 1, source 2 description, source 3, source 4", name, "name")
+	suite.Equal("source 1. source 2 description. source 3. source 4", name, "name")
 }
