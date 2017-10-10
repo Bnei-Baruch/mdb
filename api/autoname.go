@@ -14,6 +14,7 @@ import (
 	"github.com/Bnei-Baruch/mdb/bindata"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/vattle/sqlboiler/queries/qm"
 )
 
 var I18n map[string]map[string]string
@@ -44,7 +45,14 @@ func GetI18ns(key string) (map[string]string, error) {
 	if !ok {
 		return nil, errors.Errorf("Unknown i18n key: %s", key)
 	}
-	return i18ns, nil
+
+	// we create a clone so users won't change our own instance
+	var newMap = make(map[string]string,len(i18ns))
+	for k,v := range i18ns {
+		newMap[k] = v
+	}
+
+	return newMap, nil
 }
 
 func T(key, language string) (string, error) {
@@ -105,10 +113,22 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 	var err error
 	var names map[string]string
 
+	// Use collection number if applicable
+	var cNumber *int
+	if metadata.CollectionUID.Valid && metadata.Number.Valid {
+		cNumber = &metadata.Number.Int
+	}
+
 	if metadata.Part.Valid && metadata.Part.Int == 0 {
 		names, err = GetI18ns("autoname.lesson_preparation")
 		if err != nil {
 			return nil, errors.Wrap(err, "Get I18ns")
+		}
+
+		if cNumber != nil {
+			for k, v := range names {
+				names[k] = fmt.Sprintf("%s %d", v, *cNumber)
+			}
 		}
 	} else if metadata.Major != nil {
 		idx := metadata.Major.Idx
@@ -128,7 +148,7 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 				log.Warnf("metadata.major index out of bounds got %d but only %d elements in tags",
 					idx, len(metadata.Tags))
 			}
-			names, err = nameByTagUID(exec, metadata.Tags[idx])
+			names, err = nameByTagUID(exec, metadata.Tags[idx], cNumber)
 			if err != nil {
 				return nil, errors.Wrap(err, "Name by tag")
 			}
@@ -145,7 +165,7 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 			return nil, errors.Wrap(err, "Load tags from DB")
 		}
 		if len(cu.R.Tags) > 0 {
-			names, err = nameByTagUID(exec, cu.R.Tags[0].UID)
+			names, err = nameByTagUID(exec, cu.R.Tags[0].UID, nil)
 			if err != nil {
 				return nil, errors.Wrap(err, "Name by tag")
 			}
@@ -174,18 +194,140 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 	return makeCUI18ns(cu.ID, names), nil
 }
 
+type MealDescriber struct{}
+
+func (d MealDescriber) DescribeContentUnit(exec boil.Executor,
+	cu *models.ContentUnit,
+	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
+
+	names, err := GetI18ns("autoname.meal")
+	if err != nil {
+		return nil, errors.Wrap(err, "Get I18ns")
+	}
+
+	return makeCUI18ns(cu.ID, names), nil
+}
+
+type VideoProgramChapterDescriber struct{}
+
+func (d VideoProgramChapterDescriber) DescribeContentUnit(exec boil.Executor,
+	cu *models.ContentUnit,
+	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
+
+	if !metadata.CollectionUID.Valid {
+		return new(GenericDescriber).DescribeContentUnit(exec, cu, metadata)
+	}
+
+	collection, err := models.Collections(exec,
+		qm.Where("uid=?", metadata.CollectionUID.String),
+		qm.Load("CollectionI18ns")).One()
+	if err != nil {
+		return nil, errors.Wrap(err, "Lookup collection in DB")
+	}
+
+	var names map[string]string
+	for _, language := range ALL_LANGS {
+		i18n := getCollectionI18n(collection, language)
+		if i18n == nil {
+			continue
+		}
+		names[language] = fmt.Sprintf("%s %d", i18n.Name.String, metadata.Number.Int)
+	}
+
+	return makeCUI18ns(cu.ID, names), nil
+}
+
 var CUDescribers = map[string]ContentUnitDescriber{
-	CT_LESSON_PART: LessonPartDescriber{},
+	CT_LESSON_PART:           new(LessonPartDescriber),
+	CT_VIDEO_PROGRAM_CHAPTER: new(VideoProgramChapterDescriber),
+	CT_MEAL:                  new(MealDescriber),
 }
 
 var CDescribers = map[string]CollectionDescriber{}
 
-func DescribeContentUnit(exec boil.Executor, cu *models.ContentUnit, metadata CITMetadata) error {
-	describer, ok := CUDescribers[CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name]
-	if !ok {
-		describer = GenericDescriber{}
+type EventPartDescriber struct{}
+
+func (d EventPartDescriber) DescribeContentUnit(exec boil.Executor,
+	cu *models.ContentUnit,
+	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
+
+	collection, err := models.Collections(exec,
+		qm.Where("uid=?", metadata.CollectionUID.String),
+		qm.Load("CollectionI18ns")).One()
+	if err != nil {
+		return nil, errors.Wrap(err, "Lookup collection in DB")
 	}
 
+	var names map[string]string
+	ct := CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
+	switch ct {
+	case CT_LESSON_PART, CT_FULL_LESSON:
+		cuI18ns, err := new(LessonPartDescriber).DescribeContentUnit(exec, cu, metadata)
+		if err != nil {
+			return nil, err
+		}
+
+		names = make(map[string]string)
+		for i := range cuI18ns {
+			i18n := cuI18ns[i]
+			names[i18n.Language] = i18n.Name.String
+		}
+
+	default:
+		names, err := GetI18ns(fmt.Sprintf("content_type.%s", ct))
+		if err != nil {
+			return nil, errors.Wrap(err, "Get I18ns")
+		}
+
+		// add event part number as suffix
+		if !metadata.Number.Valid {
+			for k, v := range names {
+				names[k] = fmt.Sprintf("%s %d", v, metadata.Number.Int)
+			}
+		}
+	}
+
+	// prefix names with event name
+	var finalNames = make(map[string]string)
+	for k, v := range names {
+		i18n := getCollectionI18n(collection, k)
+		if i18n == nil || !i18n.Name.Valid {
+			continue
+		}
+		finalNames[k] = fmt.Sprintf("%s. %s", i18n.Name.String, v)
+	}
+
+	return makeCUI18ns(cu.ID, finalNames), nil
+}
+
+func DescribeContentUnit(exec boil.Executor, cu *models.ContentUnit, metadata CITMetadata) error {
+	var describer ContentUnitDescriber
+
+	// do we need a special describer based on collection type ?
+	if metadata.CollectionUID.Valid {
+		collection, err := models.Collections(exec,
+			qm.Where("uid=?", metadata.CollectionUID.String)).One()
+		if err != nil {
+			return errors.Wrap(err, "Lookup collection in DB")
+		}
+
+		ct := CONTENT_TYPE_REGISTRY.ByID[collection.TypeID].Name
+		if ct == CT_CONGRESS || ct == CT_HOLIDAY || ct == CT_UNITY_DAY || ct == CT_PICNIC {
+			describer = new(EventPartDescriber)
+		}
+	}
+
+	// no special describer based on collection type,
+	// use describer based on CU type
+	if describer == nil {
+		var ok bool
+		describer, ok = CUDescribers[CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name]
+		if !ok {
+			describer = GenericDescriber{}
+		}
+	}
+
+	// describe
 	i18ns, err := describer.DescribeContentUnit(exec, cu, metadata)
 	if err != nil {
 		return errors.Wrap(err, "Auto naming content unit")
@@ -552,20 +694,31 @@ func (n ZoharNamer) GetName(author *models.Author, path []*models.Source) (map[s
 // Specs:
 // https://docs.google.com/spreadsheets/d/1zY-MQlbZl9nIJA8MUaE0-LPWYU9qNRJk4svix0R5Gv0/edit?usp=sharing
 var sourceNamers = map[string]sourceNamer{
-	"L2jMWyce": PrefaceNamer{}, // BaalHaSulam Prefaces
-	"SJDw9tHs": PrefaceNamer{}, // Rabash Prefaces
-	"qMeV5M3Y": PrefaceNamer{}, // BaalHaSulam Articles
-	"DVSS0xAR": LettersNamer{}, // BaalHaSulam Letters
-	"b8SHlrfH": LettersNamer{}, // Rabash Letters
-	//"xtKmrbb9": PlainNamer{}, // BaalHaSulam TES
-	"qMUUn22b": ShamatiNamer{},    // BaalHaSulam Shamati
-	"rQ6sIUZK": RBArticlesNamer{}, // Rabash Articles
-	"2GAdavz0": RBRecordsNamer{},  // Rabash Records
-	"QUBP2DYe": PrefaceNamer{},    // Michael Laitman Articles
-	"AwGBQX2L": ZoharNamer{},      // Zohar La'am
+	"L2jMWyce": new(PrefaceNamer), // BaalHaSulam Prefaces
+	"SJDw9tHs": new(PrefaceNamer), // Rabash Prefaces
+	"qMeV5M3Y": new(PrefaceNamer), // BaalHaSulam Articles
+	"DVSS0xAR": new(LettersNamer), // BaalHaSulam Letters
+	"b8SHlrfH": new(LettersNamer), // Rabash Letters
+	//"xtKmrbb9": new(PlainNamer), // BaalHaSulam TES
+	"qMUUn22b": new(ShamatiNamer),    // BaalHaSulam Shamati
+	"rQ6sIUZK": new(RBArticlesNamer), // Rabash Articles
+	"2GAdavz0": new(RBRecordsNamer),  // Rabash Records
+	"QUBP2DYe": new(PrefaceNamer),    // Michael Laitman Articles
+	"AwGBQX2L": new(ZoharNamer),      // Zohar La'am
 }
 
-func nameByTagUID(exec boil.Executor, uid string) (map[string]string, error) {
+var TAGS_WITH_CONST_NAMES = [...]string{"lfq8P1du", "iWPWpSNy"}
+
+func nameByTagUID(exec boil.Executor, uid string, cNumber *int) (map[string]string, error) {
+
+	// check constant names first
+	for i := range TAGS_WITH_CONST_NAMES {
+		if uid == TAGS_WITH_CONST_NAMES[i] {
+			return GetI18ns(fmt.Sprintf("autoname.%s", uid))
+		}
+	}
+
+	// Load tag details from DB
 	t, err := FindTagByUID(exec, uid)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Find tag in DB")
@@ -582,18 +735,28 @@ func nameByTagUID(exec boil.Executor, uid string) (map[string]string, error) {
 	}
 	t = path[0]
 
+	// create names
 	names := make(map[string]string)
-	// lesson topic has a different format
-	if root := path[len(path)-1]; root.UID == "mS7hrYXK" {
+
+	// lesson topic || holiday has a different format
+	if root := path[len(path)-1]; root.UID == "mS7hrYXK" || root.UID == "1nyptSIo" {
 		prefixes, err := GetI18ns("autoname.lesson_by_topic_tag")
 		if err != nil {
 			return nil, errors.Wrap(err, "Get I18ns")
 		}
 
 		for k, v := range prefixes {
+			// insert collection number if we have it
+			var vv string
+			if cNumber == nil {
+				vv = fmt.Sprintf(v, "")
+			} else {
+				vv = fmt.Sprintf(v, strconv.Itoa(*cNumber))
+			}
+
 			i18n := getTagI18n(t, k)
 			if i18n != nil && i18n.Label.Valid {
-				names[k] = fmt.Sprintf("%s \"%s\"", v, i18n.Label.String)
+				names[k] = fmt.Sprintf("%s \"%s\"", vv, i18n.Label.String)
 			}
 		}
 	} else {
@@ -628,6 +791,15 @@ func getSourceI18n(source *models.Source, language string) *models.SourceI18n {
 
 func getTagI18n(tag *models.Tag, language string) *models.TagI18n {
 	for _, i18n := range tag.R.TagI18ns {
+		if i18n.Language == language {
+			return i18n
+		}
+	}
+	return nil
+}
+
+func getCollectionI18n(collection *models.Collection, language string) *models.CollectionI18n {
+	for _, i18n := range collection.R.CollectionI18ns {
 		if i18n.Language == language {
 			return i18n
 		}

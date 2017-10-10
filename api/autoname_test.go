@@ -113,6 +113,65 @@ func (suite *AutonameSuite) TestLessonPartDescriber() {
 			break
 		}
 	}
+
+	// test in event
+	metadata.Number = null.IntFrom(2)
+	metadata.CollectionUID = null.StringFrom("12345678")
+	i18ns, err = describer.DescribeContentUnit(suite.tx, cu, metadata)
+	suite.Require().Nil(err)
+	suite.NotEmpty(i18ns, "i18ns.empty")
+	for _, i18n := range i18ns {
+		switch i18n.Language {
+		case LANG_HEBREW:
+			suite.Equal("הכנה לשיעור 2", i18n.Name.String, "Hebrew name")
+		case LANG_ENGLISH:
+			suite.Equal("Preparation to the Lesson 2", i18n.Name.String, "English name")
+		}
+	}
+}
+
+func (suite *AutonameSuite) TestEventPartDescriber() {
+	c, err := CreateCollection(suite.tx, CT_CONGRESS, nil)
+	suite.Require().Nil(err)
+	err = c.AddCollectionI18ns(suite.tx, true,
+		&models.CollectionI18n{
+			Language: LANG_HEBREW,
+			Name:     null.StringFrom("כנס"),
+		},
+		&models.CollectionI18n{
+			Language: LANG_ENGLISH,
+			Name:     null.StringFrom("Convention"),
+		})
+	suite.Require().Nil(err)
+
+	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+
+	metadata := CITMetadata{
+		CollectionUID:  null.StringFrom(c.UID),
+		ContentType:    CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		Number:         null.IntFrom(3),
+		Part:           null.IntFrom(0),
+	}
+
+	describer := new(EventPartDescriber)
+	i18ns, err := describer.DescribeContentUnit(suite.tx, cu, metadata)
+	suite.Require().Nil(err)
+	suite.NotEmpty(i18ns, "i18ns.empty")
+	for _, i18n := range i18ns {
+		switch i18n.Language {
+		case LANG_HEBREW:
+			suite.Equal("כנס. הכנה לשיעור 3", i18n.Name.String, "Hebrew name")
+		case LANG_ENGLISH:
+			suite.Equal("Convention. Preparation to the Lesson 3", i18n.Name.String, "English name")
+		}
+	}
 }
 
 func (suite *AutonameSuite) TestDescribeContentUnit() {
@@ -205,16 +264,16 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	suite.Equal("author. source 4", name, "name")
 
 	namer = new(LettersNamer)
-	path[len(path) -1].R.SourceI18ns[0].Name = null.StringFrom("source 4 (1920)")
+	path[len(path)-1].R.SourceI18ns[0].Name = null.StringFrom("source 4 (1920)")
 	names, err = namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
 	name = names[LANG_HEBREW]
 	suite.Equal("author. source 4", name, "name")
-	path[len(path) -1].R.SourceI18ns[0].Name = null.StringFrom("source 4")
+	path[len(path)-1].R.SourceI18ns[0].Name = null.StringFrom("source 4")
 
 	namer = new(RBRecordsNamer)
-	path[len(path) -1].Position = null.IntFrom(137)
+	path[len(path)-1].Position = null.IntFrom(137)
 	names, err = namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
@@ -222,7 +281,7 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	suite.Equal("author. רשומה 137. source 4", name, "name")
 
 	namer = new(RBArticlesNamer)
-	path[len(path) -1].Name = "(1984-01-2) Matarat Hevra 2"
+	path[len(path)-1].Name = "(1984-01-2) Matarat Hevra 2"
 	names, err = namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
@@ -230,7 +289,7 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	suite.Equal("author. source 4. 1-2 (1984)", name, "name")
 
 	namer = new(ShamatiNamer)
-	path[len(path) -1].Name = "015 some name"
+	path[len(path)-1].Name = "015 some name"
 	names, err = namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
