@@ -47,8 +47,8 @@ func GetI18ns(key string) (map[string]string, error) {
 	}
 
 	// we create a clone so users won't change our own instance
-	var newMap = make(map[string]string,len(i18ns))
-	for k,v := range i18ns {
+	var newMap = make(map[string]string, len(i18ns))
+	for k, v := range i18ns {
 		newMap[k] = v
 	}
 
@@ -225,7 +225,7 @@ func (d VideoProgramChapterDescriber) DescribeContentUnit(exec boil.Executor,
 		return nil, errors.Wrap(err, "Lookup collection in DB")
 	}
 
-	var names map[string]string
+	var names = make(map[string]string)
 	for _, language := range ALL_LANGS {
 		i18n := getCollectionI18n(collection, language)
 		if i18n == nil {
@@ -300,7 +300,7 @@ func (d EventPartDescriber) DescribeContentUnit(exec boil.Executor,
 	return makeCUI18ns(cu.ID, finalNames), nil
 }
 
-func DescribeContentUnit(exec boil.Executor, cu *models.ContentUnit, metadata CITMetadata) error {
+func GetCUDescriber(exec boil.Executor, cu *models.ContentUnit, metadata CITMetadata) (ContentUnitDescriber, error) {
 	var describer ContentUnitDescriber
 
 	// do we need a special describer based on collection type ?
@@ -308,7 +308,7 @@ func DescribeContentUnit(exec boil.Executor, cu *models.ContentUnit, metadata CI
 		collection, err := models.Collections(exec,
 			qm.Where("uid=?", metadata.CollectionUID.String)).One()
 		if err != nil {
-			return errors.Wrap(err, "Lookup collection in DB")
+			return nil, errors.Wrap(err, "Lookup collection in DB")
 		}
 
 		ct := CONTENT_TYPE_REGISTRY.ByID[collection.TypeID].Name
@@ -325,6 +325,15 @@ func DescribeContentUnit(exec boil.Executor, cu *models.ContentUnit, metadata CI
 		if !ok {
 			describer = GenericDescriber{}
 		}
+	}
+
+	return describer, nil
+}
+
+func DescribeContentUnit(exec boil.Executor, cu *models.ContentUnit, metadata CITMetadata) error {
+	describer, err := GetCUDescriber(exec, cu, metadata)
+	if err != nil {
+		return err
 	}
 
 	// describe

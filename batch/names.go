@@ -14,9 +14,12 @@ import (
 	"github.com/spf13/viper"
 	"github.com/vattle/sqlboiler/boil"
 
+	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/vattle/sqlboiler/queries/qm"
+	"gopkg.in/nullbio/null.v6"
 )
 
 var mdb *sql.DB
@@ -47,7 +50,9 @@ func RenameUnits() {
 	utils.Must(api.InitTypeRegistries(mdb))
 
 	log.Info("Loading all units")
-	units, err := models.ContentUnits(mdb).All()
+	units, err := models.ContentUnits(mdb,
+		qm.Load("CollectionsContentUnits", "CollectionsContentUnits.Collection")).
+		All()
 	utils.Must(err)
 	log.Infof("Got %d units", len(units))
 
@@ -88,14 +93,44 @@ func namesUnitWorker(jobs <-chan *models.ContentUnit, results chan UnitNames, wg
 	for cu := range jobs {
 		metadata := api.CITMetadata{}
 
-		describer, ok := api.CUDescribers[api.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name]
-		if !ok {
-			describer = api.GenericDescriber{}
+		for i := range cu.R.CollectionsContentUnits {
+			ccu := cu.R.CollectionsContentUnits[i]
+			c := ccu.R.Collection
+			ct := api.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name
+			if ct == api.CT_CONGRESS ||
+				ct == api.CT_HOLIDAY ||
+				ct == api.CT_UNITY_DAY ||
+				ct == api.CT_PICNIC ||
+				ct == api.CT_VIDEO_PROGRAM ||
+				ct == api.CT_VIRTUAL_LESSON {
+				metadata.CollectionUID = null.StringFrom(c.UID)
+
+				if c.Properties.Valid {
+					var props map[string]interface{}
+					err := json.Unmarshal(c.Properties.JSON, &props)
+					if err != nil {
+						log.Errorf("json.Unmarshal collection properties [%d]: %s", c.ID, err.Error())
+						debug.PrintStack()
+						continue
+					}
+
+					if number, ok := props["number"]; ok {
+						metadata.Number = null.IntFrom(int(number.(float64)))
+					}
+				}
+			}
+		}
+
+		describer, err := api.GetCUDescriber(mdb, cu, metadata)
+		if err != nil {
+			log.Errorf("Error getting describer for unit [%d]: %s", cu.ID, err.Error())
+			debug.PrintStack()
+			continue
 		}
 
 		i18ns, err := describer.DescribeContentUnit(mdb, cu, metadata)
 		if err != nil {
-			log.Errorf("Error naming unit [%d]", cu.ID)
+			log.Errorf("Error naming unit [%d]: %s", cu.ID, err.Error())
 			debug.PrintStack()
 			continue
 		}
