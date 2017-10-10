@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/bindata"
 	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 var I18n map[string]map[string]string
@@ -413,6 +415,100 @@ func (n RBRecordsNamer) GetName(author *models.Author, path []*models.Source) (m
 	return names, nil
 }
 
+type RBArticlesNamer struct{}
+
+// <author>. <leaf.name>. <number (year)>
+func (n RBArticlesNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
+	names := make(map[string]string)
+
+	// source.name is expected to be "<year-number> <non-i18n title>"
+	// we strip the year-number part and transform it a little
+	leaf := path[len(path)-1]
+	yearNum := strings.Split(leaf.Name, " ")[0]
+	yearNum = yearNum[1 : len(yearNum)-1]
+	x := strings.Split(yearNum, "-")
+	year, num := x[0], strings.TrimLeft(x[1], "0")
+	if len(x) > 2 {
+		num = num + "-" + x[2]
+	}
+	suffix := fmt.Sprintf("%s (%s)", num, year)
+
+	for _, language := range ALL_LANGS {
+		vals := make([]string, 0)
+
+		// author name
+		ai18n := getAuthorI18n(author, language)
+		if ai18n == nil || !ai18n.Name.Valid {
+			continue
+		}
+		vals = append(vals, ai18n.Name.String)
+
+		// article name
+		i18n := getSourceI18n(leaf, language)
+		if i18n == nil || !i18n.Name.Valid {
+			continue
+		}
+		vals = append(vals, i18n.Name.String)
+
+		// num (year) suffix
+		vals = append(vals, suffix)
+
+		names[language] = strings.Join(vals, ". ")
+	}
+
+	return names, nil
+}
+
+type ShamatiNamer struct{}
+
+// <author>. path[0].name, <path[1]'s number (heb gimatria)>. path[1].name
+func (n ShamatiNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
+	names := make(map[string]string)
+
+	// source.name is expected to be "<number> <non-i18n title>"
+	// we strip the number part and transform it a little
+	pLast := path[len(path)-1]
+	num, err := strconv.Atoi(strings.Split(pLast.Name, " ")[0])
+	if err != nil {
+		return nil, errors.Wrapf(err, "Bad source.name %s", pLast.Name)
+	}
+
+	for _, language := range ALL_LANGS {
+		vals := make([]string, 0)
+
+		// author name
+		ai18n := getAuthorI18n(author, language)
+		if ai18n == nil || !ai18n.Name.Valid {
+			continue
+		}
+		vals = append(vals, ai18n.Name.String)
+
+		// collection name (Shamati)
+		p0 := getSourceI18n(path[0], language)
+		if p0 == nil || !p0.Name.Valid {
+			continue
+		}
+
+		// article number cleaned and maybe hebrew letters numbering
+		if language == LANG_HEBREW {
+			vals = append(vals, fmt.Sprintf("%s, %s", p0.Name.String, utils.NumToHebrew(uint16(num))))
+		} else {
+			vals = append(vals, fmt.Sprintf("%s, %d", p0.Name.String, num))
+		}
+
+		// article name
+		i18n := getSourceI18n(pLast, language)
+		if i18n == nil || !i18n.Name.Valid {
+			continue
+		}
+		vals = append(vals, i18n.Name.String)
+
+		names[language] = strings.Join(vals, ". ")
+	}
+
+	return names, nil
+}
+
 type ZoharNamer struct{}
 
 // <path[0]>, <path[1].description>, <path[2:]>
@@ -462,9 +558,11 @@ var sourceNamers = map[string]sourceNamer{
 	"DVSS0xAR": LettersNamer{}, // BaalHaSulam Letters
 	"b8SHlrfH": LettersNamer{}, // Rabash Letters
 	//"xtKmrbb9": PlainNamer{}, // BaalHaSulam TES
-	"2GAdavz0": RBRecordsNamer{}, // Rabash Records
-	"QUBP2DYe": PrefaceNamer{}, // Michael Laitman Articles
-	"AwGBQX2L": ZoharNamer{},   // Zohar La'am
+	"qMUUn22b": ShamatiNamer{},    // BaalHaSulam Shamati
+	"rQ6sIUZK": RBArticlesNamer{}, // Rabash Articles
+	"2GAdavz0": RBRecordsNamer{},  // Rabash Records
+	"QUBP2DYe": PrefaceNamer{},    // Michael Laitman Articles
+	"AwGBQX2L": ZoharNamer{},      // Zohar La'am
 }
 
 func nameByTagUID(exec boil.Executor, uid string) (map[string]string, error) {

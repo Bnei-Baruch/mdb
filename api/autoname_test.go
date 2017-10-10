@@ -221,6 +221,22 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	name = names[LANG_HEBREW]
 	suite.Equal("author. רשומה 137. source 4", name, "name")
 
+	namer = new(RBArticlesNamer)
+	path[len(path) -1].Name = "(1984-01-2) Matarat Hevra 2"
+	names, err = namer.GetName(author, path)
+	suite.Require().Nil(err)
+	suite.Len(names, 1, "len(names)")
+	name = names[LANG_HEBREW]
+	suite.Equal("author. source 4. 1-2 (1984)", name, "name")
+
+	namer = new(ShamatiNamer)
+	path[len(path) -1].Name = "015 some name"
+	names, err = namer.GetName(author, path)
+	suite.Require().Nil(err)
+	suite.Len(names, 1, "len(names)")
+	name = names[LANG_HEBREW]
+	suite.Equal("author. source 1, טו. source 4", name, "name")
+
 	path[1].R.SourceI18ns[0].Description = null.StringFrom("source 2 description")
 	namer = new(ZoharNamer)
 	names, err = namer.GetName(author, path)
