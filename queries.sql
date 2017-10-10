@@ -777,3 +777,19 @@ SELECT
 FROM files
 WHERE language NOT IN ('zz', 'xx') AND content_unit_id IS NOT NULL
 GROUP BY content_unit_id;
+
+
+SELECT array_agg(DISTINCT id)
+FROM collections
+WHERE type_id = 5 AND properties -> 'genres' ?| ARRAY ['educational'];
+
+SELECT
+  c.id,
+  max(cu.properties ->> 'film_date') max_film_date,
+  count(cu.id)
+FROM collections c INNER JOIN collections_content_units ccu
+    ON c.id = ccu.collection_id AND c.type_id = 5 AND c.secure = 0 AND c.published IS TRUE
+  INNER JOIN content_units cu
+    ON ccu.content_unit_id = cu.id AND cu.secure = 0 AND cu.published IS TRUE AND cu.properties ? 'film_date'
+GROUP BY c.id
+ORDER BY max_film_date DESC;
