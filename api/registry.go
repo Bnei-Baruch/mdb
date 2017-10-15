@@ -77,7 +77,7 @@ var (
 
 	ALL_OPERATION_TYPES = []string{
 		OP_CAPTURE_START, OP_CAPTURE_STOP, OP_DEMUX, OP_TRIM, OP_SEND, OP_CONVERT, OP_UPLOAD, OP_IMPORT_KMEDIA,
-		OP_SIRTUTIM, OP_INSERT,
+		OP_SIRTUTIM, OP_INSERT, OP_TRANSCODE,
 	}
 
 	// Types of various, secondary, content slots in big events like congress, unity day, etc...

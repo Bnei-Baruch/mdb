@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/vattle/sqlboiler/boil"
 
+	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 	"gopkg.in/nullbio/null.v6"
@@ -869,4 +870,134 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	}
 	suite.True(f.ParentID.Valid, "File ParentID.Valid")
 	suite.Equal(parent.ID, f.ParentID.Int64, "File ParentID.Int64")
+}
+
+func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
+	// Create dummy original file
+	ofi := File{
+		FileName:  "dummy_original_file.wmv",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+		Type:      "video",
+		MimeType:  MEDIA_TYPE_REGISTRY.ByExtension["wmv"].MimeType,
+		Language:  LANG_HEBREW,
+	}
+	oProps := map[string]interface{}{
+		"duration": 1234,
+	}
+	original, err := CreateFile(suite.tx, nil, ofi, oProps)
+	suite.Require().Nil(err)
+
+	// Create dummy content unit
+	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+
+	// associate original and content unit
+	original.ContentUnitID = null.Int64From(cu.ID)
+	err = original.Update(suite.tx, "content_unit_id")
+	suite.Require().Nil(err)
+
+	// Do transcode operation
+	input := TranscodeRequestSuccess{
+		Operation: Operation{
+			Station: "Some station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: ofi.Sha1,
+		File: File{
+			FileName:  "dummy_original_file.mp4",
+			Sha1:      "012356789abcdef012356789abcdef1111111111",
+			Size:      98737,
+			CreatedAt: &Timestamp{Time: time.Now()},
+		},
+	}
+
+	op, err := handleTranscode(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_TRANSCODE].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	suite.False(op.Properties.Valid, "properties.Valid")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 2, "Number of files")
+	fm := make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	originalParent := fm[ofi.FileName]
+	suite.Equal(original.ID, originalParent.ID, "original <-> operation")
+
+	// Check transcoded file
+	mp4 := fm[input.FileName]
+	suite.Equal(input.FileName, mp4.Name, "mp4: Name")
+	suite.Equal(input.Sha1, hex.EncodeToString(mp4.Sha1.Bytes), "mp4: SHA1")
+	suite.Equal(input.Size, mp4.Size, "mp4: Size")
+	suite.Equal(input.CreatedAt.Time.Unix(), mp4.FileCreatedAt.Time.Unix(), "mp4: FileCreatedAt")
+	suite.Equal(MEDIA_TYPE_REGISTRY.ByExtension["mp4"].Type, mp4.Type, "mp4: Type")
+	suite.True(mp4.MimeType.Valid, "mp4: MimeType.Valid")
+	suite.Equal(MEDIA_TYPE_REGISTRY.ByExtension["mp4"].MimeType, mp4.MimeType.String, "mp4: Type")
+	suite.True(mp4.ParentID.Valid, "mp4: ParentID.Valid")
+	suite.Equal(original.ID, mp4.ParentID.Int64, "mp4: ParentID")
+	suite.True(mp4.Properties.Valid, "mp4: Properties.Valid")
+	var props map[string]interface{}
+	err = json.Unmarshal(mp4.Properties.JSON, &props)
+	suite.Require().Nil(err, "json.Unmarshal mp4.Properties")
+	suite.EqualValues(oProps["duration"], props["duration"], "mp4.Properties duration")
+
+	// check content unit association
+	suite.True(mp4.ContentUnitID.Valid, "mp4: ContentUnitID.Valid")
+	suite.Equal(cu.ID, mp4.ContentUnitID.Int64, "mp4: ContentUnitID.Int64")
+}
+
+func (suite *HandlersSuite) TestHandleTranscodeError() {
+	// Create dummy original file
+	ofi := File{
+		FileName:  "dummy_original_file.wmv",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+	}
+	original, err := CreateFile(suite.tx, nil, ofi, nil)
+	suite.Require().Nil(err)
+
+	// Do transcode operation
+	input := TranscodeRequestError{
+		Operation: Operation{
+			Station: "Some station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: ofi.Sha1,
+		Message:      "Some error description goes here",
+	}
+
+	op, err := handleTranscode(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_TRANSCODE].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	suite.True(op.Properties.Valid, "properties.Valid")
+	var props map[string]interface{}
+	err = json.Unmarshal(op.Properties.JSON, &props)
+	suite.Require().Nil(err, "json.Unmarshal properties")
+	suite.Equal(input.Message, props["message"], "op properties message")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 1, "Number of files")
+	originalParent := op.R.Files[0]
+	suite.Equal(original.ID, originalParent.ID, "original <-> operation")
 }

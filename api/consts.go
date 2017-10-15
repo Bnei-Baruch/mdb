@@ -41,6 +41,7 @@ const (
 	OP_IMPORT_KMEDIA = "import_kmedia"
 	OP_SIRTUTIM      = "sirtutim"
 	OP_INSERT        = "insert"
+	OP_TRANSCODE     = "transcode"
 
 	// Source Types
 	SRC_COLLECTION = "COLLECTION"

@@ -137,6 +137,24 @@ type (
 		ParentSha1     string `json:"parent_sha1" binding:"omitempty,len=40,hexadecimal"`
 	}
 
+	BaseTranscodeRequest struct {
+		Operation
+		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
+	}
+
+	TranscodeRequestSuccess struct {
+		Operation
+		File
+		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
+		Message      string `json:"message" binding:"omitempty"`
+	}
+
+	TranscodeRequestError struct {
+		Operation
+		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
+		Message      string `json:"message" binding:"omitempty"`
+	}
+
 	// REST
 
 	ListRequest struct {

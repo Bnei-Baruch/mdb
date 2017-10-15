@@ -368,6 +368,26 @@ func (suite *DocsSuite) Test9InsertHandler() {
 	suite.assertJsonOK(resp)
 }
 
+func (suite *DocsSuite) Test91TranscodeHandler() {
+	input := TranscodeRequestSuccess{
+		Operation: Operation{
+			Station: "Insert station",
+			User:    "111operator@dev.com",
+		},
+		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
+		File: File{
+			FileName:  "heb_o_rav_2016-09-14_lesson_akladot.mp4",
+			Sha1:      "0987654321fedcba0987654321fedcba09876666",
+			Size:      19837,
+			CreatedAt: &Timestamp{Time: time.Now()},
+		},
+	}
+
+	resp, err := suite.testOperation(OP_TRANSCODE, input)
+	suite.Require().Nil(err)
+	suite.assertJsonOK(resp)
+}
+
 func (suite *DocsSuite) testOperation(name string, input interface{}) (*http.Response, error) {
 	b := new(bytes.Buffer)
 	err := json.NewEncoder(b).Encode(input)

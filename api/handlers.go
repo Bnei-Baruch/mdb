@@ -125,6 +125,20 @@ func InsertHandler(c *gin.Context) {
 	}
 }
 
+// A file in archive has been transcoded
+func TranscodeHandler(c *gin.Context) {
+	log.Info(OP_TRANSCODE)
+	var i TranscodeRequestSuccess
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleTranscode)
+	} else {
+		var i TranscodeRequestError
+		if c.BindJSON(&i) == nil {
+			handleOperation(c, i, handleTranscode)
+		}
+	}
+}
+
 // Handler logic
 
 func handleCaptureStart(exec boil.Executor, input interface{}) (*models.Operation, error) {
@@ -587,6 +601,84 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 	} else {
 		return operation, operation.AddFiles(exec, false, parent, file)
 	}
+}
+
+func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, error) {
+
+	if r, ok := input.(TranscodeRequestError); ok {
+		log.Infof("Transcode Error: %s", r.Message)
+
+		log.Info("Creating operation")
+		opProps := map[string]interface{}{
+			"message": r.Message,
+		}
+
+		operation, err := CreateOperation(exec, OP_TRANSCODE, r.Operation, opProps)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Info("Looking up original file")
+		original, _, err := FindFileBySHA1(exec, r.OriginalSha1)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Lookup original file %s", r.OriginalSha1)
+		}
+
+		return operation, operation.AddFiles(exec, false, original)
+	}
+
+	r := input.(TranscodeRequestSuccess)
+
+	log.Info("Creating operation")
+	operation, err := CreateOperation(exec, OP_TRANSCODE, r.Operation, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("Looking up original file")
+	original, _, err := FindFileBySHA1(exec, r.OriginalSha1)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Lookup original file %s", r.OriginalSha1)
+	}
+
+	log.Info("Creating file")
+	mt := MEDIA_TYPE_REGISTRY.ByExtension["mp4"]
+	r.File.Type = mt.Type
+	r.File.MimeType = mt.MimeType
+
+	if original.Language.Valid {
+		r.File.Language = original.Language.String
+	}
+
+	var props map[string]interface{}
+	if original.Properties.Valid {
+		var oProps map[string]interface{}
+		err := json.Unmarshal(original.Properties.JSON, &oProps)
+		if err != nil {
+			return nil, errors.Wrapf(err, "json.Unmarshal original properties [%d]", original.ID)
+		}
+		if duration, ok := oProps["duration"]; ok {
+			props = make(map[string]interface{})
+			props["duration"] = duration
+		}
+	}
+	file, err := CreateFile(exec, original, r.File, props)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("Updating file secure published information")
+	file.Published = true
+	if original != nil {
+		file.Secure = original.Secure
+	}
+	err = file.Update(exec, "secure", "published")
+	if err != nil {
+		return nil, errors.Wrapf(err, "Update secure published [%d]", file.ID)
+	}
+
+	log.Info("Associating files to operation")
+	return operation, operation.AddFiles(exec, false, original, file)
 }
 
 // Helpers
