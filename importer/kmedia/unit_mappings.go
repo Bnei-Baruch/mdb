@@ -3,22 +3,25 @@ package kmedia
 import (
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"runtime/debug"
 	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/vattle/sqlboiler/boil"
+	"github.com/vattle/sqlboiler/queries"
 	"github.com/vattle/sqlboiler/queries/qm"
+	"gopkg.in/nullbio/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/pkg/errors"
-	"io/ioutil"
 )
 
 type FileMappings struct {
@@ -28,6 +31,7 @@ type FileMappings struct {
 	MdbExists         bool
 	MdbID             int64
 	MdbUnitID         int64
+	MdbKMediaID       int
 }
 
 func MapUnits() {
@@ -99,7 +103,17 @@ func MapUnits() {
 	// wait for aggregation results
 	mappings := <-done
 	log.Infof("Got %d file mappings", len(mappings))
-	err = analyzeFileMappings(mappings)
+
+	log.Info("Dumping file mappings")
+	err = dumpFileMappings(mappings)
+	utils.Must(err)
+
+	log.Info("Fixing unit mappings")
+	err = fixUnitMappings(mappings)
+	utils.Must(err)
+
+	log.Info("Fixing file mappings")
+	err = fixFileMappings(mappings)
 	utils.Must(err)
 
 	stats.dump()
@@ -170,6 +184,18 @@ func fileMappingsWorker(jobs <-chan *kmodels.Container, results chan []*FileMapp
 				if file.ContentUnitID.Valid {
 					fm.MdbUnitID = file.ContentUnitID.Int64
 				}
+				if file.Properties.Valid {
+					var props map[string]interface{}
+					err = json.Unmarshal(file.Properties.JSON, &props)
+					if err != nil {
+						log.Error(err)
+						debug.PrintStack()
+						continue
+					}
+					if kmid, ok := props["kmedia_id"]; ok {
+						fm.MdbKMediaID = int(kmid.(float64))
+					}
+				}
 			}
 		}
 
@@ -186,7 +212,7 @@ func mappingsAggregator(results <-chan []*FileMappings, done chan []*FileMapping
 	done <- mappings
 }
 
-func analyzeFileMappings(mappings []*FileMappings) error {
+func dumpFileMappings(mappings []*FileMappings) error {
 	f, err := ioutil.TempFile("/tmp", "mdb_kmedia_mappings_report")
 	if err != nil {
 		return errors.Wrap(err, "Create temp file")
@@ -199,7 +225,10 @@ func analyzeFileMappings(mappings []*FileMappings) error {
 		fmt.Fprintf(f, "%s,%d,%d,%d,%d,%t\n",
 			fm.Sha1, fm.KMediaID, fm.KMediaContainerID, fm.MdbID, fm.MdbUnitID, fm.MdbExists)
 	}
+	return nil
+}
 
+func fixUnitMappings(mappings []*FileMappings) error {
 	unitMap := make(map[int]map[int64]bool, stats.ContainersProcessed.Get())
 	for _, fm := range mappings {
 		cm, ok := unitMap[fm.KMediaContainerID]
@@ -207,8 +236,8 @@ func analyzeFileMappings(mappings []*FileMappings) error {
 			cm = make(map[int64]bool)
 		}
 		if fm.MdbUnitID > 25316 {
-		//if fm.MdbUnitID > 0 {
-		cm[fm.MdbUnitID] = true
+			//if fm.MdbUnitID > 0 {
+			cm[fm.MdbUnitID] = true
 		}
 		unitMap[fm.KMediaContainerID] = cm
 	}
@@ -264,6 +293,72 @@ func analyzeFileMappings(mappings []*FileMappings) error {
 		}
 	}
 	utils.Must(tx.Commit())
+
+	return nil
+}
+
+func fixFileMappings(mappings []*FileMappings) error {
+
+	// load CU to container mappings
+	rows, err := queries.Raw(mdb,
+		"select id, (properties->>'kmedia_id')::int from content_units where properties ? 'kmedia_id';").
+		Query()
+	if err != nil {
+		return errors.Wrap(err, "Load CU to container map")
+	}
+	defer rows.Close()
+
+	cuMap := make(map[int]int64)
+	for rows.Next() {
+		var cuid int64
+		var kmid int
+		err = rows.Scan(&cuid, &kmid)
+		if err != nil {
+			return errors.Wrap(err, "rows.Scan")
+		}
+		cuMap[kmid] = cuid
+	}
+	if err = rows.Err(); err != nil {
+		return errors.Wrap(err, "rows.Err")
+	}
+
+	// fix file mappings:
+	// 1. "kmedia_id" property
+	// 2. CU association based on kmedia containers mappings
+	for _, fm := range mappings {
+		if !fm.MdbExists {
+			continue
+		}
+
+		if fm.KMediaID == fm.MdbKMediaID && fm.MdbUnitID != 0 {
+			continue
+		}
+
+		f, err := models.FindFile(mdb, fm.MdbID)
+		if err != nil {
+			return errors.Wrapf(err, "Load file %d", fm.MdbID)
+		}
+
+		if fm.KMediaID != fm.MdbKMediaID {
+			log.Infof("Updating kmedia_id property for %d to %d", f.ID, fm.KMediaID)
+			err = api.UpdateFileProperties(mdb, f, map[string]interface{}{"kmedia_id": fm.KMediaID})
+			if err != nil {
+				return errors.Wrapf(err, "Update file properties %d", f.ID)
+			}
+		}
+
+		if !f.ContentUnitID.Valid {
+			if cuid, ok := cuMap[fm.KMediaContainerID]; ok {
+				log.Infof("Associating file %d to CU %d [container %d]", f.ID, cuid, fm.KMediaContainerID)
+				f.ContentUnitID = null.Int64From(cuid)
+				err = f.Update(mdb, "content_unit_id")
+				if err != nil {
+					return errors.Wrapf(err, "Associate CU [file %d]", f.ID)
+				}
+			}
+		}
+		stats.FilesUpdated.Inc(1)
+	}
 
 	return nil
 }
