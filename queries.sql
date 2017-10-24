@@ -793,3 +793,38 @@ FROM collections c INNER JOIN collections_content_units ccu
     ON ccu.content_unit_id = cu.id AND cu.secure = 0 AND cu.published IS TRUE AND cu.properties ? 'film_date'
 GROUP BY c.id
 ORDER BY max_film_date DESC;
+
+
+-- fix missing properties for doc files
+update files set language='he', type='text' where name ~ '^heb.*\.docx?$';
+update files set language='en', type='text' where name ~ '^eng.*\.docx?$';
+update files set language='ru', type='text' where name ~ '^rus.*\.docx?$';
+update files set language='es', type='text' where name ~ '^spa.*\.docx?$';
+update files set language='it', type='text' where name ~ '^ita.*\.docx?$';
+update files set language='de', type='text' where name ~ '^ger.*\.docx?$';
+update files set language='nl', type='text' where name ~ '^dut.*\.docx?$';
+update files set language='fr', type='text' where name ~ '^fre.*\.docx?$';
+update files set language='pt', type='text' where name ~ '^por.*\.docx?$';
+update files set language='tr', type='text' where name ~ '^trk.*\.docx?$';
+update files set language='pl', type='text' where name ~ '^pol.*\.docx?$';
+update files set language='ar', type='text' where name ~ '^arb.*\.docx?$';
+update files set language='hu', type='text' where name ~ '^hun.*\.docx?$';
+update files set language='fi', type='text' where name ~ '^fin.*\.docx?$';
+update files set language='lt', type='text' where name ~ '^lit.*\.docx?$';
+update files set language='ja', type='text' where name ~ '^jpn.*\.docx?$';
+update files set language='bg', type='text' where name ~ '^bul.*\.docx?$';
+update files set language='ka', type='text' where name ~ '^geo.*\.docx?$';
+update files set language='no', type='text' where name ~ '^nor.*\.docx?$';
+update files set language='sv', type='text' where name ~ '^swe.*\.docx?$';
+update files set language='hr', type='text' where name ~ '^hrv.*\.docx?$';
+update files set language='zh', type='text' where name ~ '^chn.*\.docx?$';
+update files set language='fa', type='text' where name ~ '^far.*\.docx?$';
+update files set language='ro', type='text' where name ~ '^ron.*\.docx?$';
+update files set language='hi', type='text' where name ~ '^hin.*\.docx?$';
+update files set language='ua', type='text' where name ~ '^ukr.*\.docx?$';
+update files set language='mk', type='text' where name ~ '^mkd.*\.docx?$';
+update files set language='sl', type='text' where name ~ '^slv.*\.docx?$';
+update files set language='lv', type='text' where name ~ '^lav.*\.docx?$';
+update files set language='sk', type='text' where name ~ '^slk.*\.docx?$';
+update files set language='cs', type='text' where name ~ '^cze.*\.docx?$';
+

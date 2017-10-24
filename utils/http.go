@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -36,4 +37,29 @@ func DownloadUrl(url string, path string) error {
 	}
 
 	return nil
+}
+
+// Send http POST request.
+// Note that json encoding errors are ignored. We expect a valid payload
+// based on https://www.zupzup.org/io-pipe-go/
+func HttpPostJson(url string, payload interface{}) (*http.Response, error) {
+	pr, pw := io.Pipe()
+
+	go func() {
+		// close the writer, so the reader knows there's no more data
+		defer pw.Close()
+
+		// write json data to the PipeReader through the PipeWriter
+		json.NewEncoder(pw).Encode(&payload)
+	}()
+
+	// JSON from the PipeWriter lands in the PipeReader
+	// ...and we send it off...
+	var resp *http.Response
+	resp, err := http.Post(url, "application/json", pr)
+	if err != nil {
+		return nil, errors.Wrap(err, "http.Post")
+	}
+
+	return resp, nil
 }

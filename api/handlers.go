@@ -10,12 +10,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/boil"
 	"github.com/vattle/sqlboiler/queries"
+	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/nullbio/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/vattle/sqlboiler/queries/qm"
 )
 
 // Start capture of AV file, i.e. morning lesson, tv program, etc...
@@ -624,6 +624,12 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 			return nil, errors.Wrapf(err, "Lookup original file %s", r.OriginalSha1)
 		}
 
+		log.Info("Updating queue table")
+		_, err = queries.Raw(exec, "update batch_convert set operation_id=$1 where file_id=$2", operation.ID, original.ID).Exec()
+		if err != nil {
+			return nil, errors.Wrap(err, "Update queue table")
+		}
+
 		return operation, operation.AddFiles(exec, false, original)
 	}
 
@@ -675,6 +681,12 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 	err = file.Update(exec, "secure", "published")
 	if err != nil {
 		return nil, errors.Wrapf(err, "Update secure published [%d]", file.ID)
+	}
+
+	log.Info("Updating queue table")
+	_, err = queries.Raw(exec, "update batch_convert set operation_id=$1 where file_id=$2", operation.ID, original.ID).Exec()
+	if err != nil {
+		return nil, errors.Wrap(err, "Update queue table")
 	}
 
 	log.Info("Associating files to operation")

@@ -1,19 +1,19 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
+	"fmt"
 
-	"github.com/Bnei-Baruch/mdb/batch"
+	"github.com/spf13/cobra"
 )
 
+var batchCmd = &cobra.Command{
+	Use:   "batch",
+	Short: "run some batch command",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Use one of the subcommands")
+	},
+}
+
 func init() {
-	command := &cobra.Command{
-		Use:   "batch",
-		Short: "run some batch command",
-		Run: func(cmd *cobra.Command, args []string) {
-			batch.RenameUnits()
-			//batch.ReadRequestsLog()
-		},
-	}
-	RootCmd.AddCommand(command)
+	RootCmd.AddCommand(batchCmd)
 }
