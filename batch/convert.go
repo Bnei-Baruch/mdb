@@ -250,6 +250,15 @@ func QueueWork() {
 }
 
 func doQueueWork() error {
+	// clear previously rejected files
+	_, err := queries.Raw(mdb,
+		"update batch_convert set request_at = null, request_error = null where request_error=$1",
+		"Cannot start transcoding").Exec()
+	if err != nil {
+		return errors.Wrap(err, "clear previously rejected")
+	}
+
+	// fetch next set of candidates and queue them up
 	pageSize := 100
 	query := `select f.id, encode(f.sha1,'hex') from batch_convert bc inner join files f on bc.file_id = f.id and bc.request_at is null and request_error is null limit $1`
 	rows, err := queries.Raw(mdb, query, pageSize).Query()
