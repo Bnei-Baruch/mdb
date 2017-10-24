@@ -87,6 +87,10 @@ func populateDBQueue(files []*models.File) error {
 			continue
 		}
 
+		if !f.Sha1.Valid {
+			continue
+		}
+
 		if f.ParentID.Valid {
 			withChilds[f.ParentID.Int64] = true
 		}
