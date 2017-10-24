@@ -294,12 +294,12 @@ func queueFile(id int64, sha1 string) error {
 		}
 		log.Warnf("HTTP Error [%d]: %s", resp.StatusCode, string(b))
 
-		_, err = queries.Raw(mdb, "update batch_convert set request_at=utc_now(), request_error=$1 where file_id=$2", string(b), id).Exec()
+		_, err = queries.Raw(mdb, "update batch_convert set request_at=now_utc(), request_error=$1 where file_id=$2", string(b), id).Exec()
 		if err != nil {
 			return errors.Wrapf(err, "Update db queue request_error [%d]: %s", id, string(b))
 		}
 	} else {
-		_, err := queries.Raw(mdb, "update batch_convert set request_at=utc_now() where file_id=$1", id).Exec()
+		_, err := queries.Raw(mdb, "update batch_convert set request_at=now_utc() where file_id=$1", id).Exec()
 		if err != nil {
 			return errors.Wrapf(err, "Update db queue [%d]", id)
 		}
