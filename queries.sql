@@ -827,4 +827,3 @@ update files set language='sl', type='text' where name ~ '^slv.*\.docx?$';
 update files set language='lv', type='text' where name ~ '^lav.*\.docx?$';
 update files set language='sk', type='text' where name ~ '^slk.*\.docx?$';
 update files set language='cs', type='text' where name ~ '^cze.*\.docx?$';
-
