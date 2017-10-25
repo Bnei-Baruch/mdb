@@ -102,7 +102,7 @@ func namesUnitWorker(jobs <-chan *models.ContentUnit, results chan UnitNames, wg
 				ct == api.CT_UNITY_DAY ||
 				ct == api.CT_PICNIC ||
 				ct == api.CT_VIDEO_PROGRAM ||
-				ct == api.CT_VIRTUAL_LESSON {
+				ct == api.CT_VIRTUAL_LESSONS {
 				metadata.CollectionUID = null.StringFrom(c.UID)
 
 				if c.Properties.Valid {

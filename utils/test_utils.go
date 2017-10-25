@@ -64,7 +64,7 @@ func (m *TestDBManager) InitTestDB() error {
 
 	// Setup SQLBoiler
 	boil.SetDB(db)
-	boil.DebugMode = viper.GetBool("test.debug-sql")
+	//boil.DebugMode = viper.GetBool("test.debug-sql")
 
 	return nil
 }

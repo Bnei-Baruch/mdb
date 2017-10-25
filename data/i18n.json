@@ -29,6 +29,21 @@
     "en": "Lecture Series",
     "ru": "Серия Лекций"
   },
+  "content_type.CHILDREN_LESSONS": {
+    "he": "שיעורי ילדים",
+    "en": "Children Lessons",
+    "ru": "Дети Уроки"
+  },
+  "content_type.WOMEN_LESSONS": {
+    "he": "שיעורי נשים",
+    "en": "Women Lessons",
+    "ru": "Женщины Уроки"
+  },
+  "content_type.VIRTUAL_LESSONS": {
+    "he": "שיעורים וירטואלים",
+    "en": "Virtual Lessons",
+    "ru": "Виртуальный Уроки"
+  },
   "content_type.MEALS": {
     "he": "סעודות",
     "en": "Meals",
@@ -59,12 +74,12 @@
     "en": "Lecture",
     "ru": "Лекция"
   },
-  "content_type.CHILDREN_LESSON_PART": {
+  "content_type.CHILDREN_LESSON": {
     "he": "שיעור ילדים",
     "en": "Children Lesson",
     "ru": "Дети Урок"
   },
-  "content_type.WOMEN_LESSON_PART": {
+  "content_type.WOMEN_LESSON": {
     "he": "שיעור נשים",
     "en": "Women Lesson",
     "ru": "Женщины Урок"
