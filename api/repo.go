@@ -221,6 +221,20 @@ func FindCollectionByCaptureID(exec boil.Executor, cid interface{}) (*models.Col
 	return &c, nil
 }
 
+func UpdateCollectionPublished(exec boil.Executor, id int64) error {
+	query := `UPDATE collections
+SET published = (SELECT count(*) > 0
+                 FROM collections_content_units ccu INNER JOIN content_units cu
+                     ON ccu.content_unit_id = cu.id AND ccu.collection_id = $1 AND cu.published IS TRUE)
+WHERE id = $1`
+	_, err := queries.Raw(exec, query, id).Exec()
+	if err != nil {
+		return errors.Wrap(err, "Update DB")
+	}
+
+	return nil
+}
+
 func CreateContentUnit(exec boil.Executor, contentType string, properties map[string]interface{}) (*models.ContentUnit, error) {
 	ct, ok := CONTENT_TYPE_REGISTRY.ByName[contentType]
 	if !ok {

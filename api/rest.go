@@ -1006,6 +1006,11 @@ func handleCollectionAddCCU(exec boil.Executor, id int64, ccu models.Collections
 		return NewInternalError(err)
 	}
 
+	err = UpdateCollectionPublished(exec, id)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
 	return nil
 }
 
@@ -1056,6 +1061,11 @@ func handleCollectionRemoveCCU(exec boil.Executor, id int64, cuID int64) *HttpEr
 	}
 
 	err = ccu.Delete(exec)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	err = UpdateCollectionPublished(exec, id)
 	if err != nil {
 		return NewInternalError(err)
 	}
