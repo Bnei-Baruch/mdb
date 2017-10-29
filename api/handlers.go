@@ -527,7 +527,10 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 	r := input.(InsertRequest)
 
 	log.Infof("Lookup content unit by uid %s", r.ContentUnitUID)
-	cu, err := models.ContentUnits(exec, qm.Where("uid = ?", r.ContentUnitUID)).One()
+	cu, err := models.ContentUnits(exec,
+		qm.Where("uid = ?", r.ContentUnitUID),
+		qm.Load("SourceContentUnitDerivations", "SourceContentUnitDerivations.Derived"),
+	).One()
 	if err != nil {
 		return nil, errors.Wrap(err, "Fetch unit from mdb")
 	}
@@ -555,7 +558,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 		return nil, err
 	}
 
-	// Create new file or it doesn't existing
+	// Create new file if it doesn't existing
 	file, _, err := FindFileBySHA1(exec, r.File.Sha1)
 	if err == nil {
 		log.Info("File already exists [%d], updating. ", file.ID)
@@ -568,6 +571,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 	} else {
 		if _, ok := err.(FileNotFound); ok {
 			log.Info("Creating new file")
+
 			switch r.InsertType {
 			case "akladot", "tamlil", "kitei-makor":
 				r.File.Type = "text"
@@ -578,7 +582,11 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 			default:
 				r.File.Type = ""
 			}
-			props["duration"] = r.AVFile.Duration
+
+			if r.AVFile.Duration > 0 {
+				props["duration"] = r.AVFile.Duration
+			}
+
 			file, err = CreateFile(exec, parent, r.File, props)
 			if err != nil {
 				return nil, err
@@ -588,8 +596,45 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 		}
 	}
 
-	log.Infof("Associating file [%d] to content_unit [%d]", file.ID, cu.ID)
-	file.ContentUnitID = null.Int64From(cu.ID)
+	cuID := cu.ID
+	if r.InsertType == "kitei-makor" {
+		log.Infof("Kitei makor, associating to derived unit")
+
+		var ktCUID int64
+		if len(cu.R.SourceContentUnitDerivations) > 0 {
+			for _, cud := range cu.R.SourceContentUnitDerivations {
+				if CONTENT_TYPE_REGISTRY.ByID[cud.R.Derived.TypeID].Name == CT_KITEI_MAKOR {
+					ktCUID = cud.DerivedID
+					break
+				}
+			}
+		}
+
+		if ktCUID > 0 {
+			cuID = ktCUID
+			log.Infof("KITEI_MAKOR derived unit exists: %d", cuID)
+		} else {
+			log.Infof("KITEI_MAKOR derived unit doesn't exist. Creating...")
+			ktCU, err := CreateContentUnit(exec, CT_KITEI_MAKOR, nil)
+			if err != nil {
+				return nil, errors.Wrap(err, "Create KITEI_MAKOR derived unit")
+			}
+
+			cud := &models.ContentUnitDerivation{
+				SourceID: cu.ID,
+				Name:     CT_KITEI_MAKOR,
+			}
+			err = ktCU.AddDerivedContentUnitDerivations(exec, true, cud)
+			if err != nil {
+				return nil, errors.Wrap(err, "Save CUD in DB")
+			}
+
+			cuID = ktCU.ID
+		}
+	}
+
+	log.Infof("Associating file [%d] to content_unit [%d]", file.ID, cuID)
+	file.ContentUnitID = null.Int64From(cuID)
 	err = file.Update(exec, "content_unit_id")
 	if err != nil {
 		return nil, errors.Wrap(err, "Save file.content_unit_id to DB")
