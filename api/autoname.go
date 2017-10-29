@@ -231,7 +231,7 @@ func (d VideoProgramChapterDescriber) DescribeContentUnit(exec boil.Executor,
 		if i18n == nil {
 			continue
 		}
-		names[language] = fmt.Sprintf("%s %d", i18n.Name.String, metadata.Number.Int)
+		names[language] = fmt.Sprintf("%s %s", i18n.Name.String, metadata.Episode.String)
 	}
 
 	return makeCUI18ns(cu.ID, names), nil
