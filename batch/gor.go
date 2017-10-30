@@ -48,7 +48,8 @@ func (r *Request) dump() {
 func ReadRequestsLog() {
 	rMap, err := readLog("requests.log")
 	utils.Must(err)
-	utils.Must(printFailed(rMap))
+	//utils.Must(printFailed(rMap))
+	utils.Must(replayTranscodeWErr(rMap))
 	//utils.Must(replayConvertWErr(rMap))
 }
 
@@ -130,6 +131,54 @@ func filterRequests(rMap map[string]*Request, filter func(*Request) bool) []*Req
 	return requests
 }
 
+type FilterFunc func(r *Request) bool
+
+func andFilters(filters ...FilterFunc) FilterFunc {
+	return func(r *Request) bool {
+		for i := range filters {
+			if !filters[i](r) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+func orFilters(filters ...FilterFunc) FilterFunc {
+	return func(r *Request) bool {
+		for i := range filters {
+			if filters[i](r) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func afterFilter(day time.Time) FilterFunc {
+	return func(r *Request) bool {
+		return r.Meta.Timestamp.After(day)
+	}
+}
+
+func payloadHasPrefixFilter(s string) FilterFunc {
+	return func(r *Request) bool {
+		return strings.HasPrefix(r.Payload[0], s)
+	}
+}
+
+func responseHasSuffixFilter(s string) FilterFunc {
+	return func(r *Request) bool {
+		return strings.HasSuffix(r.Response[0], s)
+	}
+}
+
+func responseExcludeSuffixFilter(s string) FilterFunc {
+	return func(r *Request) bool {
+		return !strings.HasSuffix(r.Response[0], s)
+	}
+}
+
 func replayConvertWErr(rMap map[string]*Request) error {
 	convertWErr := filterRequests(rMap, func(r *Request) bool {
 		return strings.HasPrefix(r.Payload[0], "POST /operations/convert") &&
@@ -169,13 +218,54 @@ func replayConvertWErr(rMap map[string]*Request) error {
 	return nil
 }
 
+func replayTranscodeWErr(rMap map[string]*Request) error {
+	filter := andFilters(
+		payloadHasPrefixFilter("POST /operations/transcode"),
+		responseHasSuffixFilter("500 Internal Server Error"),
+	)
+	wErr := filterRequests(rMap, filter)
+	fmt.Printf("wErr %d\n", len(wErr))
+
+	client := &http.Client{}
+	for i := range wErr {
+		r := wErr[i]
+		strPayload := r.Payload[len(r.Payload)-1]
+		var body api.TranscodeRequestSuccess
+		err := json.Unmarshal([]byte(strPayload), &body)
+		if err != nil {
+			return errors.Wrapf(err, "json.Unmarshal %s", r.Meta.ID)
+		}
+
+		req, err := http.NewRequest("POST",
+			"http://app.mdb.bbdomain.org/operations/transcode",
+			strings.NewReader(strPayload))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return errors.Wrapf(err, "http client.Do %s", r.Meta.ID)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Println("response Status:", resp.Status)
+			fmt.Println("response Headers:", resp.Header)
+			body, _ := ioutil.ReadAll(resp.Body)
+			fmt.Println("response Body:", string(body))
+			resp.Body.Close()
+		}
+	}
+
+	return nil
+}
+
 func printFailed(rMap map[string]*Request) error {
-	day := time.Date(2017, 9, 12, 0, 0, 0, 0, time.UTC)
-	failed := filterRequests(rMap, func(r *Request) bool {
-		return r.Meta.Timestamp.Year() == day.Year() &&
-			r.Meta.Timestamp.YearDay() == day.YearDay() &&
-			!strings.HasSuffix(r.Response[0], "200 OK")
-	})
+	filter := andFilters(
+		afterFilter(time.Date(2017, 9, 12, 0, 0, 0, 0, time.UTC)),
+		payloadHasPrefixFilter("POST /operations/transcode"),
+		responseHasSuffixFilter("500 Internal Server Error"),
+	)
+
+	failed := filterRequests(rMap, filter)
 	fmt.Printf("failed %d\n", len(failed))
 
 	for i := range failed {
