@@ -826,3 +826,35 @@ update files set language='sl', type='text' where name ~ '^slv.*\.docx?$';
 update files set language='lv', type='text' where name ~ '^lav.*\.docx?$';
 update files set language='sk', type='text' where name ~ '^slk.*\.docx?$';
 update files set language='cs', type='text' where name ~ '^cze.*\.docx?$';
+
+-- kmedia congresses sorted by catalog hierarchy
+WITH RECURSIVE rc AS (
+  SELECT
+    c.*,
+    c.id :: TEXT AS path
+  FROM catalogs c
+  WHERE c.id = 40
+  UNION
+  SELECT
+    c.*,
+    concat(rc.path, '/', c.id) AS path
+  FROM catalogs c INNER JOIN rc ON c.parent_id = rc.id
+) SELECT
+    rc.id,
+    rc.parent_id,
+    rc.path,
+    rc.name
+  FROM rc
+  ORDER BY rc.path;
+
+8128 |      4564 | 40/4564/8128      | congress_virtual_unityday_2010-08
+8129 |      4564 | 40/4564/8129      | congress_virtual_unityday_2010-09
+8130 |      4564 | 40/4564/8130      | congress_virtual_unityday_2010-10
+8131 |      4564 | 40/4564/8131      | congress_virtual_unityday_2010-11
+8132 |      4564 | 40/4564/8132      | congress_virtual_unityday_2010-12
+8133 |      4564 | 40/4564/8133      | congress_virtual_unityday_2011-02
+8134 |      4564 | 40/4564/8134      | congress_virtual_unityday_2011-03
+8135 |      4564 | 40/4564/8135      | congress_virtual_unityday_2011-06
+8136 |      4564 | 40/4564/8136      | congress_virtual_unityday_2011-08
+8137 |      4564 | 40/4564/8137      | congress_virtual_unityday_2012-04
+8166 |      4564 | 40/4564/8166      | congress_virtual_unityday_2011-07
