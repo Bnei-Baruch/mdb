@@ -56,6 +56,15 @@ func init() {
 	RootCmd.AddCommand(command)
 
 	command = &cobra.Command{
+		Use:   "kmedia-compare",
+		Short: "Compare collections and content units to their equivalent counterparts in kmedia",
+		Run: func(cmd *cobra.Command, args []string) {
+			kmedia.Compare()
+		},
+	}
+	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
 		Use:   "kmedia-fkeys",
 		Short: "Add foreign keys to kmedia",
 		Long:  "Add foreign keys to kmedia, then run:\n\tsqlboiler -o gmodels_old -p gmodels --no-hooks postgres",

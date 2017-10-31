@@ -21,8 +21,8 @@ import (
 )
 
 const CONGRESSES_FILE = "importer/kmedia/data/Conventions - congresses.csv"
-const NEW_UNITS_FILE = "importer/kmedia/data/congress_units_new.csv"
-const EXISTING_UNITS_FILE = "importer/kmedia/data/congress_units_exists.csv"
+const NEW_UNITS_FILE = "importer/kmedia/data/congress_units_new_2.csv"
+const EXISTING_UNITS_FILE = "importer/kmedia/data/congress_units_exists_2.csv"
 
 type EventPart struct {
 	KMediaID  int
@@ -86,9 +86,9 @@ func ImportCongresses() {
 	stats = NewImportStatistics()
 
 	//utils.Must(dumpCongresses())
+	utils.Must(importNewCongresses(congresses))
 	//utils.Must(loadEventParts(congresses))
 	//utils.Must(analyzeExisting(congresses))
-	utils.Must(importNewCongresses(congresses))
 	utils.Must(importNewUnits())
 	utils.Must(importExistingUnits())
 
@@ -520,7 +520,7 @@ func doNewUnit(exec boil.Executor, h map[string]int, x []string) error {
 			debug.PrintStack()
 			break
 		}
-		if file !=nil && file.Published {
+		if file != nil && file.Published {
 			unit.Published = true
 		}
 	}
@@ -619,7 +619,7 @@ func doExistingUnit(exec boil.Executor, h map[string]int, x []string) error {
 	log.Infof("Associating unit %d [kmid %d] with collection %d [kmid %s] ccuName: %s",
 		unit.ID, container.ID, collection.ID, catalogID, ccuName)
 
-	ccu, err := models.CollectionsContentUnits(exec,
+	_, err = models.CollectionsContentUnits(exec,
 		qm.Where("collection_id = ? and content_unit_id = ?", collection.ID, unit.ID)).One()
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -640,11 +640,11 @@ func doExistingUnit(exec boil.Executor, h map[string]int, x []string) error {
 	}
 
 	// update existing association name
-	ccu.Name = ccuName
-	err = ccu.Update(exec, "name")
-	if err != nil {
-		return errors.Wrapf(err, "Update ccu name")
-	}
+	//ccu.Name = ccuName
+	//err = ccu.Update(exec, "name")
+	//if err != nil {
+	//	return errors.Wrapf(err, "Update ccu name")
+	//}
 
 	return nil
 }
