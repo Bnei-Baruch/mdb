@@ -46,10 +46,11 @@ func (r *Request) dump() {
 }
 
 func ReadRequestsLog() {
-	rMap, err := readLog("requests.log")
+	rMap, err := readLog("requests.log.1")
 	utils.Must(err)
-	//utils.Must(printFailed(rMap))
-	utils.Must(replayTranscodeWErr(rMap))
+	fmt.Printf("len(rMap) %d\n", len(rMap))
+	utils.Must(printFiltered(rMap))
+	//utils.Must(replayTranscodeWErr(rMap))
 	//utils.Must(replayConvertWErr(rMap))
 }
 
@@ -152,6 +153,12 @@ func orFilters(filters ...FilterFunc) FilterFunc {
 			}
 		}
 		return false
+	}
+}
+
+func beforeFilter(day time.Time) FilterFunc {
+	return func(r *Request) bool {
+		return r.Meta.Timestamp.Before(day)
 	}
 }
 
@@ -258,15 +265,20 @@ func replayTranscodeWErr(rMap map[string]*Request) error {
 	return nil
 }
 
-func printFailed(rMap map[string]*Request) error {
+func printFiltered(rMap map[string]*Request) error {
 	filter := andFilters(
-		afterFilter(time.Date(2017, 9, 12, 0, 0, 0, 0, time.UTC)),
-		payloadHasPrefixFilter("POST /operations/transcode"),
-		responseHasSuffixFilter("500 Internal Server Error"),
+		afterFilter(time.Date(2017, 5, 31, 0, 0, 0, 0, time.UTC)),
+		beforeFilter(time.Date(2017, 6, 2, 0, 0, 0, 0, time.UTC)),
+		responseExcludeSuffixFilter("200 OK"),
 	)
+	//filter := andFilters(
+	//	afterFilter(time.Date(2017, 9, 12, 0, 0, 0, 0, time.UTC)),
+	//	payloadHasPrefixFilter("POST /operations/transcode"),
+	//	responseHasSuffixFilter("500 Internal Server Error"),
+	//)
 
 	failed := filterRequests(rMap, filter)
-	fmt.Printf("failed %d\n", len(failed))
+	fmt.Printf("filtered %d\n", len(failed))
 
 	for i := range failed {
 		failed[i].dump()
