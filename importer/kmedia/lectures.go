@@ -17,12 +17,14 @@ import (
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
-func ImportFlatCatalogs() {
+func ImportLectures() {
 	clock := Init()
 
 	stats = NewImportStatistics()
-	utils.Must(importFlatCatalog(120, api.CT_FRIENDS_GATHERING))
-	utils.Must(importFlatCatalog(4791, api.CT_MEAL))
+	utils.Must(importLectures(709))
+	utils.Must(importLectures(4574))
+	utils.Must(importLectures(4508))
+	utils.Must(importLectures(2186))
 	stats.dump()
 
 	Shutdown()
@@ -30,12 +32,19 @@ func ImportFlatCatalogs() {
 	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
 }
 
-func importFlatCatalog(catalogID int, cuType string) error {
+func importLectures(catalogID int) error {
 	catalog, err := kmodels.Catalogs(kmdb,
 		qm.Where("id=?", catalogID),
 		qm.Load("Containers")).One()
 	if err != nil {
 		return errors.Wrapf(err, "Load catalog %d", catalogID)
+	}
+
+	collection, err := models.Collections(mdb,
+		qm.Where("(properties->>'kmedia_id')::int = ?", catalogID)).
+		One()
+	if err != nil {
+		return errors.Wrapf(err, "Lookup collection in mdb [kmid %s]", catalogID)
 	}
 
 	stats.CatalogsProcessed.Inc(1)
@@ -44,7 +53,7 @@ func importFlatCatalog(catalogID int, cuType string) error {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		if err = importContainerWOCollection(tx, catalog.R.Containers[i], cuType); err != nil {
+		if err = importContainerWCollection(tx, catalog.R.Containers[i], collection, api.CT_LECTURE); err != nil {
 			utils.Must(tx.Rollback())
 			stats.TxRolledBack.Inc(1)
 			log.Error(err)
@@ -59,20 +68,21 @@ func importFlatCatalog(catalogID int, cuType string) error {
 	return nil
 }
 
-func importContainerWOCollection(exec boil.Executor, container *kmodels.Container, cuType string) error {
+func importContainerWCollection(exec boil.Executor, container *kmodels.Container, collection *models.Collection, cuType string) error {
 	stats.ContainersProcessed.Inc(1)
 
 	unit, err := models.ContentUnits(mdb, qm.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One()
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Infof("New CU %d %s", container.ID, container.Name.String)
-			return importContainerWOCollectionNewCU(exec, container, cuType)
+			return importContainerWCollectionNewCU(exec, container, collection, cuType)
 		}
 		return errors.Wrapf(err, "Lookup content unit kmid %s", container.ID)
 	}
 
 	log.Infof("CU exists [%d] container: %s %d", unit.ID, container.Name.String, container.ID)
-	_, err = importContainer(exec, container, nil, cuType, "", 0)
+	_, err = importContainer(exec, container, collection, cuType,
+		strconv.Itoa(container.Position.Int), container.Position.Int)
 	if err != nil {
 		return errors.Wrapf(err, "Import container %d", container.ID)
 	}
@@ -89,7 +99,7 @@ func importContainerWOCollection(exec boil.Executor, container *kmodels.Containe
 	return nil
 }
 
-func importContainerWOCollectionNewCU(exec boil.Executor, container *kmodels.Container, cuType string) error {
+func importContainerWCollectionNewCU(exec boil.Executor, container *kmodels.Container, collection *models.Collection, cuType string) error {
 	err := container.L.LoadFileAssets(kmdb, true, container)
 	if err != nil {
 		return errors.Wrapf(err, "Load kmedia file assets %d", container.ID)
@@ -104,7 +114,8 @@ func importContainerWOCollectionNewCU(exec boil.Executor, container *kmodels.Con
 	stats.OperationsCreated.Inc(1)
 
 	// import container
-	unit, err := importContainer(exec, container, nil, cuType, "", 0)
+	unit, err := importContainer(exec, container, collection, cuType,
+		strconv.Itoa(container.Position.Int), container.Position.Int)
 	if err != nil {
 		return errors.Wrapf(err, "Import container %d", container.ID)
 	}
