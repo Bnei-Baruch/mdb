@@ -187,12 +187,42 @@ func CollectionActivateHandler(c *gin.Context) {
 }
 
 func ContentUnitsListHandler(c *gin.Context) {
-	var r ContentUnitsRequest
-	if c.Bind(&r) != nil {
-		return
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		var r ContentUnitsRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+
+		resp, err = handleContentUnitsList(boil.GetDB(), r)
+	case http.MethodPost:
+		var unit ContentUnit
+		if c.BindJSON(&unit) != nil {
+			return
+		}
+
+		if _, ok := CONTENT_TYPE_REGISTRY.ByID[unit.TypeID]; !ok {
+			err := errors.Errorf("Unknown content type %d", unit.TypeID)
+			NewBadRequestError(err).Abort(c)
+			return
+		}
+
+		for _, x := range unit.I18n {
+			if StdLang(x.Language) == LANG_UNKNOWN {
+				err := errors.Errorf("Unknown language %s", x.Language)
+				NewBadRequestError(err).Abort(c)
+				return
+			}
+		}
+
+		tx := mustBeginTx()
+		resp, err = handleCreateContentUnit(tx, unit)
+		mustConcludeTx(tx, err)
 	}
 
-	resp, err := handleContentUnitsList(boil.GetDB(), r)
 	concludeRequest(c, resp, err)
 }
 
@@ -1162,6 +1192,34 @@ func handleGetContentUnit(exec boil.Executor, id int64) (*ContentUnit, *HttpErro
 	return x, nil
 }
 
+func handleCreateContentUnit(exec boil.Executor, cu ContentUnit) (*ContentUnit, *HttpError) {
+	// unmarshal properties
+	props := make(map[string]interface{})
+	if cu.Properties.Valid {
+		err := json.Unmarshal(cu.Properties.JSON, &props)
+		if err != nil {
+			return nil, NewBadRequestError(errors.Wrap(err, "json.Unmarshal properties"))
+		}
+	}
+
+	// create content_unit in DB
+	ct := CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
+	unit, err := CreateContentUnit(exec, ct, props)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// save i18n
+	for _, v := range cu.I18n {
+		err := unit.AddContentUnitI18ns(exec, true, v)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	return handleGetContentUnit(exec, unit.ID)
+}
+
 func handleUpdateContentUnit(exec boil.Executor, cu *ContentUnit) (*ContentUnit, *HttpError) {
 	unit, err := models.FindContentUnit(exec, cu.ID)
 	if err != nil {
@@ -1176,6 +1234,20 @@ func handleUpdateContentUnit(exec boil.Executor, cu *ContentUnit) (*ContentUnit,
 	err = unit.Update(exec, "secure")
 	if err != nil {
 		return nil, NewInternalError(err)
+	}
+
+	// update properties bag
+	if cu.Properties.Valid {
+		var props map[string]interface{}
+		err = cu.Properties.Unmarshal(&props)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+
+		err = UpdateContentUnitProperties(exec, unit, props)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
 	}
 
 	return handleGetContentUnit(exec, cu.ID)
