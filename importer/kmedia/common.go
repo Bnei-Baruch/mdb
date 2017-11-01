@@ -99,6 +99,9 @@ func importContainer(exec boil.Executor,
 	unit, err := models.ContentUnits(exec, qm.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One()
 	if err == nil {
 		stats.ContentUnitsUpdated.Inc(1)
+		if contentType != "" && contentType != api.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
+			log.Warnf("Different CU type %d %s != %s", unit.ID, api.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name, contentType)
+		}
 	} else {
 		if err == sql.ErrNoRows {
 			// Create new content unit
@@ -165,44 +168,46 @@ func importContainer(exec boil.Executor,
 		}
 	}
 
-	// Associate content_unit with collection , name = position
-	err = unit.L.LoadCollectionsContentUnits(exec, true, unit)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Fetch unit collections, unit [%d]", unit.ID)
-	}
+	if collection != nil {
+		// Associate content_unit with collection , name = position
+		err = unit.L.LoadCollectionsContentUnits(exec, true, unit)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Fetch unit collections, unit [%d]", unit.ID)
+		}
 
-	// lookup existing association
-	var ccu *models.CollectionsContentUnit
-	if unit.R.CollectionsContentUnits != nil {
-		for _, x := range unit.R.CollectionsContentUnits {
-			if x.CollectionID == collection.ID {
-				ccu = x
-				break
+		// lookup existing association
+		var ccu *models.CollectionsContentUnit
+		if unit.R.CollectionsContentUnits != nil {
+			for _, x := range unit.R.CollectionsContentUnits {
+				if x.CollectionID == collection.ID {
+					ccu = x
+					break
+				}
 			}
 		}
-	}
 
-	if ccu == nil {
-		// Create
-		err = unit.AddCollectionsContentUnits(exec, true, &models.CollectionsContentUnit{
-			CollectionID:  collection.ID,
-			ContentUnitID: unit.ID,
-			Name:          ccuName,
-			Position:      ccuPosition,
-		})
-		if err != nil {
-			return nil, errors.Wrapf(err, "Add unit collections, unit [%d]", unit.ID)
-		}
-	} else {
-		// update if name changed
-		if ccu.Name != ccuName || ccu.Position != ccuPosition {
-			ccu.Name = ccuName
-			ccu.Position = ccuPosition
-			err = ccu.Update(exec, "name", "position")
+		if ccu == nil {
+			// Create
+			err = unit.AddCollectionsContentUnits(exec, true, &models.CollectionsContentUnit{
+				CollectionID:  collection.ID,
+				ContentUnitID: unit.ID,
+				Name:          ccuName,
+				Position:      ccuPosition,
+			})
 			if err != nil {
-				return nil, errors.Wrapf(err,
-					"Update unit collection association, unit [%d], collection [%d]",
-					unit.ID, collection.ID)
+				return nil, errors.Wrapf(err, "Add unit collections, unit [%d]", unit.ID)
+			}
+		} else {
+			// update if name changed
+			if ccu.Name != ccuName || ccu.Position != ccuPosition {
+				ccu.Name = ccuName
+				ccu.Position = ccuPosition
+				err = ccu.Update(exec, "name", "position")
+				if err != nil {
+					return nil, errors.Wrapf(err,
+						"Update unit collection association, unit [%d], collection [%d]",
+						unit.ID, collection.ID)
+				}
 			}
 		}
 	}
