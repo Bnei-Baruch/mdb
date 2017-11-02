@@ -169,6 +169,18 @@ type (
 		Total int64 `json:"total"`
 	}
 
+	IDsFilter struct {
+		IDs []int64 `json:"ids" form:"id" binding:"omitempty"`
+	}
+
+	UIDsFilter struct {
+		UIDs []string `json:"uids" form:"uid" binding:"omitempty"`
+	}
+
+	SHA1sFilter struct {
+		SHA1s []string `json:"sha1s" form:"sha1" binding:"omitempty"`
+	}
+
 	ContentTypesFilter struct {
 		ContentTypes []string `json:"content_types" form:"content_type" binding:"omitempty"`
 	}
@@ -205,6 +217,8 @@ type (
 
 	CollectionsRequest struct {
 		ListRequest
+		IDsFilter
+		UIDsFilter
 		ContentTypesFilter
 		DateRangeFilter
 		SecureFilter
@@ -218,6 +232,8 @@ type (
 
 	ContentUnitsRequest struct {
 		ListRequest
+		IDsFilter
+		UIDsFilter
 		ContentTypesFilter
 		DateRangeFilter
 		SecureFilter
@@ -233,6 +249,9 @@ type (
 
 	FilesRequest struct {
 		ListRequest
+		IDsFilter
+		UIDsFilter
+		SHA1sFilter
 		DateRangeFilter
 		SecureFilter
 		PublishedFilter

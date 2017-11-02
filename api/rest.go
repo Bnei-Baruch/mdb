@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -716,6 +717,12 @@ func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*Collectio
 	mods := make([]qm.QueryMod, 0)
 
 	// filters
+	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendUIDsFilterMods(&mods, r.UIDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
 	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
 		return nil, NewBadRequestError(err)
 	}
@@ -1107,6 +1114,12 @@ func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*Content
 	mods := make([]qm.QueryMod, 0)
 
 	// filters
+	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendUIDsFilterMods(&mods, r.UIDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
 	if err := appendContentTypesFilterMods(&mods, r.ContentTypesFilter); err != nil {
 		return nil, NewBadRequestError(err)
 	}
@@ -1577,10 +1590,18 @@ func handleContentUnitRemoveTag(exec boil.Executor, id int64, tagID int64) *Http
 }
 
 func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpError) {
-
 	mods := make([]qm.QueryMod, 0)
 
 	// filters
+	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendUIDsFilterMods(&mods, r.UIDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendSHA1sFilterMods(&mods, r.SHA1sFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
 	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "file_created_at"); err != nil {
 		return nil, NewBadRequestError(err)
 	}
@@ -2164,6 +2185,45 @@ func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
 	if offset != 0 {
 		*mods = append(*mods, qm.Offset(offset))
 	}
+
+	return nil
+}
+
+func appendIDsFilterMods(mods *[]qm.QueryMod, f IDsFilter) error {
+	if len(f.IDs) == 0 {
+		return nil
+	}
+
+	*mods = append(*mods, qm.WhereIn("id IN ?", utils.ConvertArgsInt64(f.IDs)...))
+
+	return nil
+}
+
+func appendUIDsFilterMods(mods *[]qm.QueryMod, f UIDsFilter) error {
+	if utils.IsEmpty(f.UIDs) {
+		return nil
+	}
+
+	*mods = append(*mods, qm.WhereIn("uid IN ?", utils.ConvertArgsString(f.UIDs)...))
+
+	return nil
+}
+
+func appendSHA1sFilterMods(mods *[]qm.QueryMod, f SHA1sFilter) error {
+	if utils.IsEmpty(f.SHA1s) {
+		return nil
+	}
+
+	hexSHA1s := make([][]byte, 0)
+	for i := range f.SHA1s {
+		s, err := hex.DecodeString(f.SHA1s[i])
+		if err != nil {
+			return errors.Wrapf(err, "hex.DecodeString [%d]: %s", i, f.SHA1s[i])
+		}
+		hexSHA1s = append(hexSHA1s, s)
+	}
+
+	*mods = append(*mods, qm.WhereIn("sha1 IN ?", utils.ConvertArgsBytes(hexSHA1s)...))
 
 	return nil
 }

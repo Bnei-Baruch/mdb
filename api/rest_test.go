@@ -74,6 +74,39 @@ func (suite *RestSuite) TestCollectionsList() {
 	for i, x := range resp.Collections {
 		suite.assertEqualDummyCollection(collections[i+5], x, i+5)
 	}
+
+	// test IDsFilter, UIDsFilter
+	ids := make([]int64, len(collections))
+	uids := make([]string, len(collections))
+	for i := range collections {
+		c := collections[i]
+		ids[i] = c.ID
+		uids[i] = c.UID
+	}
+
+	req = CollectionsRequest{
+		IDsFilter: IDsFilter{
+			IDs: ids,
+		},
+	}
+	resp, err = handleCollectionsList(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.EqualValues(10, resp.Total, "total")
+	for i, x := range resp.Collections {
+		suite.assertEqualDummyCollection(collections[i], x, i)
+	}
+
+	req = CollectionsRequest{
+		UIDsFilter: UIDsFilter{
+			UIDs: uids,
+		},
+	}
+	resp, err = handleCollectionsList(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.EqualValues(10, resp.Total, "total")
+	for i, x := range resp.Collections {
+		suite.assertEqualDummyCollection(collections[i], x, i)
+	}
 }
 
 func (suite *RestSuite) TestCollectionItem() {
@@ -117,6 +150,39 @@ func (suite *RestSuite) TestContentUnitsList() {
 	for i, x := range resp.ContentUnits {
 		suite.assertEqualDummyContentUnit(units[i+5], x, i+5)
 	}
+
+	// test IDsFilter, UIDsFilter
+	ids := make([]int64, len(units))
+	uids := make([]string, len(units))
+	for i := range units {
+		cu := units[i]
+		ids[i] = cu.ID
+		uids[i] = cu.UID
+	}
+
+	req = ContentUnitsRequest{
+		IDsFilter: IDsFilter{
+			IDs: ids,
+		},
+	}
+	resp, err = handleContentUnitsList(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.EqualValues(10, resp.Total, "total")
+	for i, x := range resp.ContentUnits {
+		suite.assertEqualDummyContentUnit(units[i], x, i)
+	}
+
+	req = ContentUnitsRequest{
+		UIDsFilter: UIDsFilter{
+			UIDs: uids,
+		},
+	}
+	resp, err = handleContentUnitsList(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.EqualValues(10, resp.Total, "total")
+	for i, x := range resp.ContentUnits {
+		suite.assertEqualDummyContentUnit(units[i], x, i)
+	}
 }
 
 func (suite *RestSuite) TestContentUnitItem() {
@@ -159,6 +225,53 @@ func (suite *RestSuite) TestFilesList() {
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.Files {
 		suite.assertEqualDummyFile(files[i+5], x, i+5)
+	}
+
+	// test IDsFilter, UIDsFilter, SHA1sFilter
+	ids := make([]int64, len(files))
+	uids := make([]string, len(files))
+	sha1s := make([]string, len(files))
+	for i := range files {
+		f := files[i]
+		ids[i] = f.ID
+		uids[i] = f.UID
+		sha1s[i] = hex.EncodeToString(f.Sha1.Bytes)
+	}
+
+	req = FilesRequest{
+		IDsFilter: IDsFilter{
+			IDs: ids,
+		},
+	}
+	resp, err = handleFilesList(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.EqualValues(10, resp.Total, "total")
+	for i, x := range resp.Files {
+		suite.assertEqualDummyFile(files[i], x, i)
+	}
+
+	req = FilesRequest{
+		UIDsFilter: UIDsFilter{
+			UIDs: uids,
+		},
+	}
+	resp, err = handleFilesList(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.EqualValues(10, resp.Total, "total")
+	for i, x := range resp.Files {
+		suite.assertEqualDummyFile(files[i], x, i)
+	}
+
+	req = FilesRequest{
+		SHA1sFilter: SHA1sFilter{
+			SHA1s: sha1s,
+		},
+	}
+	resp, err = handleFilesList(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.EqualValues(10, resp.Total, "total")
+	for i, x := range resp.Files {
+		suite.assertEqualDummyFile(files[i], x, i)
 	}
 }
 
@@ -270,7 +383,7 @@ func (suite *RestSuite) assertEqualDummyOperation(o *models.Operation, x *models
 func createDummyCollections(exec boil.Executor, n int) []*models.Collection {
 	collections := make([]*models.Collection, n)
 	for i := range collections {
-		j := n-i-1
+		j := n - i - 1
 		collections[j] = &models.Collection{
 			UID:    utils.GenerateUID(8),
 			TypeID: CONTENT_TYPE_REGISTRY.ByName[ALL_CONTENT_TYPES[rand.Intn(len(ALL_CONTENT_TYPES))]].ID,
@@ -291,7 +404,7 @@ func createDummyCollections(exec boil.Executor, n int) []*models.Collection {
 func createDummyContentUnits(exec boil.Executor, n int) []*models.ContentUnit {
 	units := make([]*models.ContentUnit, n)
 	for i := range units {
-		j := n-i-1
+		j := n - i - 1
 		units[j] = &models.ContentUnit{
 			UID:    utils.GenerateUID(8),
 			TypeID: CONTENT_TYPE_REGISTRY.ByName[ALL_CONTENT_TYPES[rand.Intn(len(ALL_CONTENT_TYPES))]].ID,
@@ -312,7 +425,7 @@ func createDummyContentUnits(exec boil.Executor, n int) []*models.ContentUnit {
 func createDummyFiles(exec boil.Executor, n int) []*models.File {
 	files := make([]*models.File, n)
 	for i := range files {
-		j := n-i-1
+		j := n - i - 1
 		sha1 := make([]byte, 20)
 		rand.Read(sha1)
 		files[j] = &models.File{
@@ -330,7 +443,7 @@ func createDummyFiles(exec boil.Executor, n int) []*models.File {
 func createDummyOperations(exec boil.Executor, n int) []*models.Operation {
 	operations := make([]*models.Operation, n)
 	for i := range operations {
-		j := n-i-1
+		j := n - i - 1
 		//sha1 := make([]byte, 20)
 		//rand.Read(sha1)
 		operations[j] = &models.Operation{
