@@ -342,6 +342,12 @@ type (
 		Position    int          `json:"position"`
 	}
 
+	ContentUnitDerivation struct {
+		Source  *ContentUnit `json:"source,omitempty"`
+		Derived *ContentUnit `json:"derived,omitempty"`
+		Name    string       `json:"name"`
+	}
+
 	// Marshalable File
 	MFile struct {
 		models.File

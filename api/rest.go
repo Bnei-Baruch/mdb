@@ -302,6 +302,70 @@ func ContentUnitCollectionsHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func ContentUnitDerivativesHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		resp, err = handleContentUnitCUD(boil.GetDB(), id)
+	case http.MethodPost:
+		var cud models.ContentUnitDerivation
+		if c.BindJSON(&cud) != nil {
+			return
+		}
+
+		tx := mustBeginTx()
+		err = handleContentUnitAddCUD(tx, id, cud)
+		mustConcludeTx(tx, err)
+	case http.MethodPut:
+		var cud models.ContentUnitDerivation
+		if c.BindJSON(&cud) != nil {
+			return
+		}
+
+		duID, e := strconv.ParseInt(c.Param("duID"), 10, 0)
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "duID expects int64"))
+			break
+		}
+		cud.DerivedID = duID
+
+		tx := mustBeginTx()
+		err = handleContentUnitUpdateCUD(tx, id, cud)
+		mustConcludeTx(tx, err)
+	case http.MethodDelete:
+		duID, e := strconv.ParseInt(c.Param("duID"), 10, 0)
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "duID expects int64"))
+			break
+		}
+
+		tx := mustBeginTx()
+		err = handleContentUnitRemoveCUD(tx, id, duID)
+		mustConcludeTx(tx, err)
+	}
+
+	concludeRequest(c, resp, err)
+}
+
+func ContentUnitOriginsHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := handleContentUnitOrigins(boil.GetDB(), id)
+	concludeRequest(c, resp, err)
+}
+
 func ContentUnitSourcesHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
@@ -1366,6 +1430,199 @@ func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUni
 			Name:       ccu.Name,
 			Position:   ccu.Position,
 			Collection: csById[ccu.CollectionID],
+		}
+	}
+
+	return data, nil
+}
+
+func handleContentUnitCUD(exec boil.Executor, id int64) ([]*ContentUnitDerivation, *HttpError) {
+	ok, err := models.ContentUnitExists(exec, id)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if !ok {
+		return nil, NewNotFoundError()
+	}
+
+	cuds, err := models.ContentUnitDerivations(exec,
+		qm.Where("source_id = ?", id)).
+		All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	} else if len(cuds) == 0 {
+		return make([]*ContentUnitDerivation, 0), nil
+	}
+
+	ids := make([]int64, len(cuds))
+	for i := range cuds {
+		ids[i] = cuds[i].DerivedID
+	}
+	cus, err := models.ContentUnits(exec,
+		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
+		qm.Load("ContentUnitI18ns")).
+		All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	cusById := make(map[int64]*ContentUnit, len(cus))
+	for _, cu := range cus {
+		x := ContentUnit{ContentUnit: *cu}
+		x.I18n = make(map[string]*models.ContentUnitI18n, len(cu.R.ContentUnitI18ns))
+		for _, i18n := range cu.R.ContentUnitI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+		cusById[x.ID] = &x
+	}
+
+	data := make([]*ContentUnitDerivation, len(cuds))
+	for i, cud := range cuds {
+		data[i] = &ContentUnitDerivation{
+			Derived: cusById[cud.DerivedID],
+			Name:    cud.Name,
+		}
+	}
+
+	return data, nil
+}
+
+func handleContentUnitAddCUD(exec boil.Executor, id int64, cud models.ContentUnitDerivation) *HttpError {
+	cu, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	exists, err := models.ContentUnits(exec,
+		qm.Where("id = ?", cud.DerivedID)).
+		Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if !exists {
+		return NewBadRequestError(errors.Errorf("Unknown content unit id %d", cud.DerivedID))
+	}
+
+	exists, err = models.ContentUnitDerivations(exec,
+		qm.Where("source_id = ? AND derived_id = ?", id, cud.DerivedID)).
+		Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if exists {
+		return NewBadRequestError(errors.New("Derivation already exists"))
+	}
+
+	err = cu.AddSourceContentUnitDerivations(exec, true, &cud)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
+}
+
+func handleContentUnitUpdateCUD(exec boil.Executor, id int64, cud models.ContentUnitDerivation) *HttpError {
+	exists, err := models.ContentUnits(exec, qm.Where("id = ?", id)).Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if !exists {
+		return NewNotFoundError()
+	}
+
+	mCUD, err := models.FindContentUnitDerivation(exec, id, cud.DerivedID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	mCUD.Name = cud.Name
+	err = mCUD.Update(exec, "name")
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
+}
+
+func handleContentUnitRemoveCUD(exec boil.Executor, id int64, duID int64) *HttpError {
+	exists, err := models.ContentUnits(exec, qm.Where("id = ?", id)).Exists()
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if !exists {
+		return NewNotFoundError()
+	}
+
+	cud, err := models.FindContentUnitDerivation(exec, id, duID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	err = cud.Delete(exec)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	return nil
+}
+
+func handleContentUnitOrigins(exec boil.Executor, id int64) ([]*ContentUnitDerivation, *HttpError) {
+	ok, err := models.ContentUnitExists(exec, id)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if !ok {
+		return nil, NewNotFoundError()
+	}
+
+	cuds, err := models.ContentUnitDerivations(exec,
+		qm.Where("derived_id = ?", id)).
+		All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	} else if len(cuds) == 0 {
+		return make([]*ContentUnitDerivation, 0), nil
+	}
+
+	ids := make([]int64, len(cuds))
+	for i := range cuds {
+		ids[i] = cuds[i].SourceID
+	}
+	cus, err := models.ContentUnits(exec,
+		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
+		qm.Load("ContentUnitI18ns")).
+		All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	cusById := make(map[int64]*ContentUnit, len(cus))
+	for _, cu := range cus {
+		x := ContentUnit{ContentUnit: *cu}
+		x.I18n = make(map[string]*models.ContentUnitI18n, len(cu.R.ContentUnitI18ns))
+		for _, i18n := range cu.R.ContentUnitI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+		cusById[x.ID] = &x
+	}
+
+	data := make([]*ContentUnitDerivation, len(cuds))
+	for i, cud := range cuds {
+		data[i] = &ContentUnitDerivation{
+			Name:   cud.Name,
+			Source: cusById[cud.SourceID],
 		}
 	}
 
