@@ -858,3 +858,13 @@ WITH RECURSIVE rc AS (
 8136 |      4564 | 40/4564/8136      | congress_virtual_unityday_2011-08
 8137 |      4564 | 40/4564/8137      | congress_virtual_unityday_2012-04
 8166 |      4564 | 40/4564/8166      | congress_virtual_unityday_2011-07
+
+
+SELECT
+  ccu.collection_id,
+  array_agg(DISTINCT cu.type_id)
+FROM collections_content_units ccu
+  INNER JOIN content_units cu ON ccu.content_unit_id = cu.id
+  INNER JOIN collections c ON ccu.collection_id = c.id and c.type_id in (1,2)
+GROUP BY ccu.collection_id
+HAVING not (11 = any(array_agg(DISTINCT cu.type_id))) and not (21 = any(array_agg(DISTINCT cu.type_id)));
