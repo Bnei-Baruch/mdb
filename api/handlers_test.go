@@ -1011,13 +1011,13 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 	suite.Require().Nil(err)
 
 	// Do transcode operation
-	input := TranscodeRequestSuccess{
+	input := TranscodeRequest{
 		Operation: Operation{
 			Station: "Some station",
 			User:    "operator@dev.com",
 		},
 		OriginalSha1: ofi.Sha1,
-		File: File{
+		MaybeFile: MaybeFile{
 			FileName:  "dummy_original_file.mp4",
 			Sha1:      "012356789abcdef012356789abcdef1111111111",
 			Size:      98737,
@@ -1082,7 +1082,7 @@ func (suite *HandlersSuite) TestHandleTranscodeError() {
 	suite.Require().Nil(err)
 
 	// Do transcode operation
-	input := TranscodeRequestError{
+	input := TranscodeRequest{
 		Operation: Operation{
 			Station: "Some station",
 			User:    "operator@dev.com",

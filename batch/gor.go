@@ -49,8 +49,8 @@ func ReadRequestsLog() {
 	rMap, err := readLog("requests.log.1")
 	utils.Must(err)
 	fmt.Printf("len(rMap) %d\n", len(rMap))
-	utils.Must(printFiltered(rMap))
-	//utils.Must(replayTranscodeWErr(rMap))
+	//utils.Must(printFiltered(rMap))
+	utils.Must(replayTranscodeWErr(rMap))
 	//utils.Must(replayConvertWErr(rMap))
 }
 
@@ -228,7 +228,7 @@ func replayConvertWErr(rMap map[string]*Request) error {
 func replayTranscodeWErr(rMap map[string]*Request) error {
 	filter := andFilters(
 		payloadHasPrefixFilter("POST /operations/transcode"),
-		responseHasSuffixFilter("500 Internal Server Error"),
+		responseHasSuffixFilter("400 Bad Request"),
 	)
 	wErr := filterRequests(rMap, filter)
 	fmt.Printf("wErr %d\n", len(wErr))
@@ -237,10 +237,16 @@ func replayTranscodeWErr(rMap map[string]*Request) error {
 	for i := range wErr {
 		r := wErr[i]
 		strPayload := r.Payload[len(r.Payload)-1]
-		var body api.TranscodeRequestSuccess
+		var body api.TranscodeRequest
 		err := json.Unmarshal([]byte(strPayload), &body)
 		if err != nil {
 			return errors.Wrapf(err, "json.Unmarshal %s", r.Meta.ID)
+		}
+		if body.User == "" {
+			body.User = "operator@dev.com"
+		}
+		if body.Station == "" {
+			body.Station = "files.kabbalahmedia.info"
 		}
 
 		req, err := http.NewRequest("POST",
