@@ -14,6 +14,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"bytes"
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -46,7 +47,7 @@ func (r *Request) dump() {
 }
 
 func ReadRequestsLog() {
-	rMap, err := readLog("requests.log.1")
+	rMap, err := readLog("requests.log")
 	utils.Must(err)
 	fmt.Printf("len(rMap) %d\n", len(rMap))
 	//utils.Must(printFiltered(rMap))
@@ -240,7 +241,7 @@ func replayTranscodeWErr(rMap map[string]*Request) error {
 		var body api.TranscodeRequest
 		err := json.Unmarshal([]byte(strPayload), &body)
 		if err != nil {
-			return errors.Wrapf(err, "json.Unmarshal %s", r.Meta.ID)
+			fmt.Errorf("json.Unmarshal %s : %s", r.Meta.ID, err.Error())
 		}
 		if body.User == "" {
 			body.User = "operator@dev.com"
@@ -249,9 +250,14 @@ func replayTranscodeWErr(rMap map[string]*Request) error {
 			body.Station = "files.kabbalahmedia.info"
 		}
 
+		bodyPayload, err := json.Marshal(body)
+		if err != nil {
+			return errors.Wrapf(err, "json.Marshal %s", r.Meta.ID)
+		}
+
 		req, err := http.NewRequest("POST",
 			"http://app.mdb.bbdomain.org/operations/transcode",
-			strings.NewReader(strPayload))
+			bytes.NewReader(bodyPayload))
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := client.Do(req)
