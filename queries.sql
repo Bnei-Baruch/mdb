@@ -914,3 +914,17 @@ SELECT
   DISTINCT cc.container_id
 FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id;
 
+
+WITH RECURSIVE rec_catalogs AS (
+  SELECT c.id
+  FROM catalogs c
+  WHERE id IN (8154)
+  UNION
+  SELECT c.id
+  FROM catalogs c INNER JOIN rec_catalogs rc ON c.parent_id = rc.id
+)
+SELECT
+  count(DISTINCT cc.container_id)
+FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id;
+
+8154, 4654, 27, 2054, 277, 276, 1171, 281, 278, 284, 292, 279, 291, 285, 283, 286, 280, 288, 282, 1376, 275, 287, 2053, 3559, 3892, 4164, 8017, 8018, 8019, 725, 213, 3589, 3920, 4760, 4351, 4036, 8068, 8067,
