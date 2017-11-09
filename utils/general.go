@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"time"
 	"regexp"
+	"unicode/utf8"
 )
 
 const uidBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -50,6 +51,13 @@ func Min(x, y int) int {
 	return y
 }
 
+func ConvertArgsInt(args ...int) []interface{} {
+	c := make([]interface{}, len(args))
+	for i, a := range args {
+		c[i] = a
+	}
+	return c
+}
 
 func ConvertArgsInt64(args []int64) []interface{} {
 	c := make([]interface{}, len(args))
@@ -73,4 +81,18 @@ func ConvertArgsBytes(args [][]byte) []interface{} {
 		c[i] = a
 	}
 	return c
+}
+
+// Taken AS IS from
+// https://stackoverflow.com/a/34521190
+// Note that this implementation DOES NOT handle combining marks correctly
+func Reverse(s string) string {
+	size := len(s)
+	buf := make([]byte, size)
+	for start := 0; start < size; {
+		r, n := utf8.DecodeRuneInString(s[start:])
+		start += n
+		utf8.EncodeRune(buf[size-start:], r)
+	}
+	return string(buf)
 }

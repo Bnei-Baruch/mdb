@@ -868,3 +868,49 @@ FROM collections_content_units ccu
   INNER JOIN collections c ON ccu.collection_id = c.id and c.type_id in (1,2)
 GROUP BY ccu.collection_id
 HAVING not (11 = any(array_agg(DISTINCT cu.type_id))) and not (21 = any(array_agg(DISTINCT cu.type_id)));
+
+
+-- kmedia catalogs with container count
+COPY
+(WITH RECURSIVE rec_catalogs AS (
+  SELECT
+    c.id,
+    c.name :: TEXT               path,
+    (SELECT count(DISTINCT container_id)
+     FROM catalogs_containers
+     WHERE catalog_id = c.id) AS containers,
+    1                            depth
+  FROM catalogs c
+  WHERE parent_id IS NULL
+  UNION
+  SELECT
+    c.id,
+    concat(rc.path, '/', c.name),
+    (SELECT count(DISTINCT container_id)
+     FROM catalogs_containers
+     WHERE catalog_id = c.id) AS containers,
+    rc.depth + 1
+  FROM catalogs c INNER JOIN rec_catalogs rc ON c.parent_id = rc.id
+)
+SELECT
+  id,
+  path,
+  containers
+FROM rec_catalogs
+ORDER BY path)
+TO '/var/lib/postgres/data/catalog_tree.csv' (
+FORMAT CSV );
+
+-- containers under any lesson's catalogs
+WITH RECURSIVE rec_catalogs AS (
+  SELECT c.id
+  FROM catalogs c
+  WHERE id IN (11, 6932, 6933, 4772, 4541, 3629, 4020, 4700, 3630, 3631, 4841, 4862, 4728, 4016, 4761, 3632)
+  UNION
+  SELECT c.id
+  FROM catalogs c INNER JOIN rec_catalogs rc ON c.parent_id = rc.id
+)
+SELECT
+  DISTINCT cc.container_id
+FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id;
+
