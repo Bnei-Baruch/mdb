@@ -465,6 +465,37 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 	switch c.Request.Method {
 	case http.MethodGet, "":
 		resp, err = handleGetContentUnitPersons(boil.GetDB(), id)
+	case http.MethodPost:
+		var body map[string]int64
+		if c.BindJSON(&body) != nil {
+			return
+		}
+
+		personID, ok := body["personID"]
+		if !ok {
+			err = NewBadRequestError(errors.Wrap(e, "No personID given"))
+			break
+		}
+
+		roleID, ok := body["roleID"]
+		if !ok {
+			err = NewBadRequestError(errors.Wrap(e, "No roleID given"))
+			break
+		}
+
+		tx := mustBeginTx()
+		err = handleContentUnitAddPerson(tx, id, personID, roleID)
+		mustConcludeTx(tx, err)
+	case http.MethodDelete:
+		personID, e := strconv.ParseInt(c.Param("personID"), 10, 0)
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "personID expects int64"))
+			break
+		}
+
+		tx := mustBeginTx()
+		err = handleContentUnitRemovePerson(tx, id, personID)
+		mustConcludeTx(tx, err)
 	}
 
 	concludeRequest(c, resp, err)
@@ -1777,6 +1808,87 @@ func handleGetContentUnitPersons(exec boil.Executor, id int64) ([]*ContentUnitPe
 	}
 
 	return data, nil
+}
+
+func handleContentUnitRemovePerson(exec boil.Executor, id int64, personID int64) *HttpError {
+	cup, err := models.FindContentUnitsPerson(exec, id, personID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	cup.Delete(exec)
+	return nil
+}
+
+func handleContentUnitAddPerson(exec boil.Executor, id int64, personID int64, roleID int64) *HttpError {
+
+	//get content unit
+	unit, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewNotFoundError()
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	//get person
+	person, err := models.FindPerson(exec, personID, "id")
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewBadRequestError(errors.Errorf("Unknown person id %d", personID))
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	// get role
+	role, err := models.FindContentRoleType(exec, roleID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewBadRequestError(errors.Errorf("Unknown role id %d", roleID))
+		} else {
+			return NewInternalError(err)
+		}
+	}
+
+	exist, err := models.ContentUnitsPersonExists(exec, id, person.ID)
+	if err != nil {
+		return NewInternalError(err)
+	}
+
+	if exist {
+
+		cup, err := models.FindContentUnitsPerson(exec, id, person.ID)
+		if err != nil {
+			return NewInternalError(err)
+		}
+
+		err = cup.SetRole(exec, false, role)
+		if err != nil {
+			return NewInternalError(err)
+		}
+
+	} else {
+
+		//create new relation
+
+		newCup := models.ContentUnitsPerson{
+			ContentUnitID: unit.ID,
+			PersonID:      person.ID,
+			RoleID:        role.ID,
+		}
+		err = newCup.Insert(exec)
+		if err != nil {
+			return NewInternalError(err)
+		}
+	}
+
+	return nil
 }
 
 func handleContentUnitAddTag(exec boil.Executor, id int64, tagID int64) *HttpError {
