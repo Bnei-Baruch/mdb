@@ -369,18 +369,33 @@ func (suite *DocsSuite) Test9InsertHandler() {
 }
 
 func (suite *DocsSuite) Test91TranscodeHandler() {
-	input := TranscodeRequestSuccess{
+	input := TranscodeRequest{
 		Operation: Operation{
 			Station: "Insert station",
 			User:    "111operator@dev.com",
 		},
 		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
-		File: File{
+		MaybeFile: MaybeFile{
 			FileName:  "heb_o_rav_2016-09-14_lesson_akladot.mp4",
 			Sha1:      "0987654321fedcba0987654321fedcba09876666",
 			Size:      19837,
 			CreatedAt: &Timestamp{Time: time.Now()},
 		},
+	}
+
+	resp, err := suite.testOperation(OP_TRANSCODE, input)
+	suite.Require().Nil(err)
+	suite.assertJsonOK(resp)
+}
+
+func (suite *DocsSuite) Test911TranscodeHandlerError() {
+	input := TranscodeRequest{
+		Operation: Operation{
+			Station: "Insert station",
+			User:    "111operator@dev.com",
+		},
+		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
+		Message: "Some transcoding error message",
 	}
 
 	resp, err := suite.testOperation(OP_TRANSCODE, input)

@@ -48,8 +48,14 @@ func Compare() {
 	log.Info("Loading kmedia catalogs hierarchy")
 	utils.Must(loadCatalogHierarchy())
 
-	log.Info("Compare collections")
-	utils.Must(compareCollections())
+	//log.Info("Compare collections")
+	//utils.Must(compareCollections())
+
+	//log.Info("Compare units")
+	//utils.Must(compareUnits())
+
+	log.Info("Missing containers")
+	utils.Must(missingContainers())
 
 	log.Info("Success")
 	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
@@ -71,6 +77,80 @@ func compareCollections() error {
 	for i := range collections {
 		if err := compareCollection(collections[i]); err != nil {
 			return errors.Wrapf(err, "Compare collection %d [%d]", i, collections[i].ID)
+		}
+	}
+
+	return nil
+}
+
+func compareUnits() error {
+	log.Info("Loading all content units with kmedia_id")
+	units, err := models.ContentUnits(mdb,
+		qm.Where("properties -> 'kmedia_id' is not null")).
+		All()
+	if err != nil {
+		return errors.Wrap(err, "Load content_units from mdb")
+	}
+
+	log.Infof("Got %d units", len(units))
+
+	for i := range units {
+		cu := units[i]
+		var props map[string]interface{}
+		err := json.Unmarshal(cu.Properties.JSON, &props)
+		if err != nil {
+			return errors.Wrapf(err, "json.Unmarshal unit properties %d", cu.ID)
+		}
+
+		cn, err := kmodels.FindContainer(kmdb, int(props["kmedia_id"].(float64)))
+		if err != nil {
+			if err == sql.ErrNoRows {
+				log.Warnf("Container doesn't exists %d [cu %d]", props["kmedia_id"], cu.ID)
+				continue
+			} else {
+				return errors.Wrapf(err, "Load container %d", props["kmedia_id"])
+			}
+		}
+
+		if err := compareUnit(cu, cn); err != nil {
+			return errors.Wrapf(err, "Compare unit %d [%d]", i, units[i].ID)
+		}
+	}
+
+	return nil
+}
+
+func missingContainers() error {
+	cuMap := make(map[int]bool)
+
+	log.Info("Loading all content units with kmedia_id")
+	units, err := models.ContentUnits(mdb,
+		qm.Where("properties -> 'kmedia_id' is not null")).
+		All()
+	if err != nil {
+		return errors.Wrap(err, "Load content_units from mdb")
+	}
+	log.Infof("Got %d units", len(units))
+
+	for i := range units {
+		cu := units[i]
+		var props map[string]interface{}
+		err := json.Unmarshal(cu.Properties.JSON, &props)
+		if err != nil {
+			return errors.Wrapf(err, "json.Unmarshal unit properties %d", cu.ID)
+		}
+		cuMap[int(props["kmedia_id"].(float64))] = true
+
+	}
+
+	containers, err := kmodels.Containers(kmdb).All()
+	if err != nil {
+		return errors.Wrap(err, "Load containers")
+	}
+	for i := range containers {
+		cn := containers[i]
+		if _, ok := cuMap[cn.ID]; !ok {
+			log.Infof("Missing container %d\t%d\t%s\t%s", cn.ID, cn.ContentTypeID.Int, cn.Filmdate.Time.Format("2006-01-02"), cn.Name.String)
 		}
 	}
 
@@ -219,7 +299,7 @@ func compareCollection(c *models.Collection) error {
 	if len(matching) > 0 {
 		log.Infof("%d matching", len(matching))
 		for k, v := range matching {
-			if err := compareUnits(k, v); err != nil {
+			if err := compareUnit(k, v); err != nil {
 				return errors.Wrapf(err, "compare cu %d to cn %d", k.ID, v.ID)
 			}
 		}
@@ -228,7 +308,7 @@ func compareCollection(c *models.Collection) error {
 	return nil
 }
 
-func compareUnits(cu *models.ContentUnit, cn *kmodels.Container) error {
+func compareUnit(cu *models.ContentUnit, cn *kmodels.Container) error {
 	if err := cu.L.LoadFiles(mdb, true, cu); err != nil {
 		return errors.Wrapf(err, "Load CU files %d", cu.ID)
 	}
@@ -278,16 +358,28 @@ func compareUnits(cu *models.ContentUnit, cn *kmodels.Container) error {
 				continue
 			}
 
+			isMissingSHA1 := false
+			for i := range cn.R.FileAssets {
+				f := cn.R.FileAssets[i]
+				if f.ID == fKMID && !f.Sha1.Valid {
+					isMissingSHA1 = true
+				}
+			}
+
+			if isMissingSHA1 {
+				continue
+			}
+
 			// File is not in kmedia container, is it in kmedia at all ?
 			exists, err := kmodels.FileAssets(kmdb, qm.Where("id=?", fKMID)).Exists()
 			if err != nil {
-				return errors.Wrapf(err, "Check file_asset exists %s", checksum)
+				return errors.Wrapf(err, "Check file_asset exists %d", fKMID)
 			}
 
 			if exists {
 				log.Warnf("file_asset %d exists but not in container %d. [cu,f] = [%d,%d] %s", fKMID, cn.ID, cu.ID, f.ID, f.Name)
 			} else {
-				log.Warnf("file_asset %d doesn't exists. container %d. [cu,f] = [%d,%d] %s", fKMID, cn.ID, cu.ID, f.ID, f.Name)
+				log.Warnf("file_asset doesn't exists %d. container %d. [cu,f] = [%d,%d] %s", fKMID, cn.ID, cu.ID, f.ID, f.Name)
 			}
 		}
 	}

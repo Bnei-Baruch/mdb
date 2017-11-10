@@ -32,6 +32,18 @@ type (
 		Language  string     `json:"language" binding:"omitempty,min=2,max=3"`
 	}
 
+	// same as File but all fields are optional
+	MaybeFile struct {
+		FileName  string     `json:"file_name" binding:"omitempty,max=255"`
+		Sha1      string     `json:"sha1" binding:"omitempty,len=40,hexadecimal"`
+		Size      int64      `json:"size" binding:"omitempty"`
+		CreatedAt *Timestamp `json:"created_at" binding:"omitempty"`
+		Type      string     `json:"type" binding:"max=16"`
+		SubType   string     `json:"sub_type" binding:"max=16"`
+		MimeType  string     `json:"mime_type" binding:"max=255"`
+		Language  string     `json:"language" binding:"omitempty,min=2,max=3"`
+	}
+
 	AVFile struct {
 		File
 		Duration float64 `json:"duration"`
@@ -137,22 +149,11 @@ type (
 		ParentSha1     string `json:"parent_sha1" binding:"omitempty,len=40,hexadecimal"`
 	}
 
-	BaseTranscodeRequest struct {
+	TranscodeRequest struct {
 		Operation
+		MaybeFile
 		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
-	}
-
-	TranscodeRequestSuccess struct {
-		Operation
-		File
-		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
-		Message      string `json:"message" binding:"omitempty"`
-	}
-
-	TranscodeRequestError struct {
-		Operation
-		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
-		Message      string `json:"message" binding:"omitempty"`
+		Message string `json:"message" binding:"omitempty"`
 	}
 
 	// REST
@@ -448,6 +449,19 @@ func NewTagsResponse() *TagsResponse {
 
 func NewStoragessResponse() *StoragesResponse {
 	return &StoragesResponse{Storages: make([]*models.Storage, 0)}
+}
+
+func (mf MaybeFile) AsFile() File {
+	return File{
+		FileName: mf.FileName,
+		Sha1: mf.Sha1,
+		Size: mf.Size,
+		CreatedAt: mf.CreatedAt,
+		Type: mf.Type,
+		SubType: mf.SubType,
+		MimeType: mf.MimeType,
+		Language: mf.Language,
+	}
 }
 
 func (drf *DateRangeFilter) Range() (time.Time, time.Time, error) {

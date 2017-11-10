@@ -87,6 +87,55 @@ func Shutdown() {
 	utils.Must(kmdb.Close())
 }
 
+func importContainerWOCollectionNewCU(exec boil.Executor, container *kmodels.Container, cuType string) (*models.ContentUnit, error) {
+	err := container.L.LoadFileAssets(kmdb, true, container)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Load kmedia file assets %d", container.ID)
+	}
+
+	// Create import operation
+	operation, err := api.CreateOperation(exec, api.OP_IMPORT_KMEDIA,
+		api.Operation{WorkflowID: strconv.Itoa(container.ID)}, nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Create operation %d", container.ID)
+	}
+	stats.OperationsCreated.Inc(1)
+
+	// import container
+	unit, err := importContainer(exec, container, nil, cuType, "", 0)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Import container %d", container.ID)
+	}
+
+	// import container files
+	var file *models.File
+	for _, fileAsset := range container.R.FileAssets {
+		log.Infof("Processing file_asset %d", fileAsset.ID)
+		stats.FileAssetsProcessed.Inc(1)
+
+		// Create or update MDB file
+		file, err = importFileAsset(exec, fileAsset, unit, operation)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Import file_asset %d", fileAsset.ID)
+		}
+		if file != nil && file.Published {
+			unit.Published = true
+		}
+	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "Import container files %d", container.ID)
+	}
+
+	if unit.Published {
+		err = unit.Update(exec, "published")
+		if err != nil {
+			return nil, errors.Wrapf(err, "Update unit published column %d", container.ID)
+		}
+	}
+
+	return unit, nil
+}
+
 func importContainer(exec boil.Executor,
 	container *kmodels.Container,
 	collection *models.Collection,
@@ -169,73 +218,57 @@ func importContainer(exec boil.Executor,
 	}
 
 	if collection != nil {
-		// Associate content_unit with collection , name = position
-		err = unit.L.LoadCollectionsContentUnits(exec, true, unit)
+		err := createOrUpdateCCU(exec, unit, models.CollectionsContentUnit{
+			CollectionID:  collection.ID,
+			ContentUnitID: unit.ID,
+			Name:          ccuName,
+			Position:      ccuPosition,
+		})
 		if err != nil {
-			return nil, errors.Wrapf(err, "Fetch unit collections, unit [%d]", unit.ID)
-		}
-
-		// lookup existing association
-		var ccu *models.CollectionsContentUnit
-		if unit.R.CollectionsContentUnits != nil {
-			for _, x := range unit.R.CollectionsContentUnits {
-				if x.CollectionID == collection.ID {
-					ccu = x
-					break
-				}
-			}
-		}
-
-		if ccu == nil {
-			// Create
-			err = unit.AddCollectionsContentUnits(exec, true, &models.CollectionsContentUnit{
-				CollectionID:  collection.ID,
-				ContentUnitID: unit.ID,
-				Name:          ccuName,
-				Position:      ccuPosition,
-			})
-			if err != nil {
-				return nil, errors.Wrapf(err, "Add unit collections, unit [%d]", unit.ID)
-			}
-		} else {
-			// update if name changed
-			if ccu.Name != ccuName || ccu.Position != ccuPosition {
-				ccu.Name = ccuName
-				ccu.Position = ccuPosition
-				err = ccu.Update(exec, "name", "position")
-				if err != nil {
-					return nil, errors.Wrapf(err,
-						"Update unit collection association, unit [%d], collection [%d]",
-						unit.ID, collection.ID)
-				}
-			}
+			return nil, err
 		}
 	}
 
 	// Associate sources & tags
+	// we combine existing mappings with catalogs mappings
 	err = container.L.LoadCatalogs(kmdb, true, container)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load catalogs, container [%d]", container.ID)
 	}
 
-	// Dedup list of matches
-	unqSrc := make(map[*models.Source]bool, 0)
-	unqTags := make(map[*models.Tag]bool, 0)
+	err = unit.L.LoadSources(exec,true,unit)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Load CU sources %d", unit.ID)
+	}
+
+	err = unit.L.LoadTags(exec,true,unit)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Load CU tags %d", unit.ID)
+	}
+
+	srcMap := make(map[int64]*models.Source)
+	tagMap := make(map[int64]*models.Tag)
 	for _, x := range container.R.Catalogs {
 		if s, ok := catalogsSourcesMappings[x.ID]; ok {
-			unqSrc[s] = true
+			srcMap[s.ID] = s
 		} else if t, ok := catalogsTagsMappings[x.ID]; ok {
-			unqTags[t] = true
+			tagMap[t.ID] = t
 		} else {
 			stats.UnkownCatalogs.Inc(fmt.Sprintf("%s [%d]", x.Name, x.ID), 1)
 		}
 	}
+	for _, s := range unit.R.Sources {
+		srcMap[s.ID] = s
+	}
+	for _, t := range unit.R.Tags {
+		tagMap[t.ID] = t
+	}
 
 	// Set sources
-	src := make([]*models.Source, len(unqSrc))
+	src := make([]*models.Source, len(srcMap))
 	i := 0
-	for k := range unqSrc {
-		src[i] = k
+	for _, v := range srcMap {
+		src[i] = v
 		i++
 	}
 	err = unit.SetSources(exec, false, src...)
@@ -244,10 +277,10 @@ func importContainer(exec boil.Executor,
 	}
 
 	// Set tags
-	tags := make([]*models.Tag, len(unqTags))
+	tags := make([]*models.Tag, len(tagMap))
 	i = 0
-	for k := range unqTags {
-		tags[i] = k
+	for _, v := range tagMap {
+		tags[i] = v
 		i++
 	}
 	err = unit.SetTags(exec, false, tags...)
@@ -256,6 +289,38 @@ func importContainer(exec boil.Executor,
 	}
 
 	return unit, nil
+}
+
+func createOrUpdateCCU(exec boil.Executor, unit *models.ContentUnit, ccu models.CollectionsContentUnit) error {
+	x, err := models.FindCollectionsContentUnit(exec, ccu.CollectionID, ccu.ContentUnitID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// create
+			err = unit.AddCollectionsContentUnits(exec, true, &models.CollectionsContentUnit{
+				CollectionID:  ccu.CollectionID,
+				ContentUnitID: ccu.ContentUnitID,
+				Name:          ccu.Name,
+				Position:      ccu.Position,
+			})
+			if err != nil {
+				return errors.Wrapf(err, "Create CCU [c,cu]=[%d,%d]", ccu.CollectionID, ccu.ContentUnitID)
+			}
+		} else {
+			return errors.Wrapf(err, "Find CCU [c,cu]=[%d,%d]", ccu.CollectionID, ccu.ContentUnitID)
+		}
+	} else {
+		// update if name or position changed
+		if ccu.Name != x.Name || ccu.Position != x.Position {
+			x.Name = ccu.Name
+			x.Position = ccu.Position
+			err = x.Update(exec, "name", "position")
+			if err != nil {
+				return errors.Wrapf(err, "Update CCU [c,cu]=[%d,%d]", ccu.CollectionID, ccu.ContentUnitID)
+			}
+		}
+	}
+
+	return nil
 }
 
 func importFileAsset(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *models.ContentUnit,
@@ -507,4 +572,87 @@ func mapSecure(kmVal int) int16 {
 		return api.SEC_SENSITIVE
 	}
 	return api.SEC_PRIVATE
+}
+
+func loadContainersInCatalogsAndCUs(catalogIDs ...int) (map[int]*kmodels.Container, map[int]*models.ContentUnit, error) {
+	q := `WITH RECURSIVE rec_catalogs AS (
+  SELECT c.id
+  FROM catalogs c
+  WHERE id IN (%s)
+  UNION
+  SELECT c.id
+  FROM catalogs c INNER JOIN rec_catalogs rc ON c.parent_id = rc.id
+)
+SELECT
+  DISTINCT cc.container_id
+FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id`
+
+	catIDs := make([]string, len(catalogIDs))
+	for i := range catalogIDs {
+		catIDs[i] = strconv.Itoa(catalogIDs[i])
+	}
+
+	rows, err := queries.Raw(kmdb, fmt.Sprintf(q, strings.Join(catIDs, ","))).Query()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Load containers")
+	}
+	defer rows.Close()
+
+	cnIDs := make([]int, 0)
+	for rows.Next() {
+		var x int
+		if err := rows.Scan(&x); err != nil {
+			return nil, nil, errors.Wrap(err, "rows.Scan")
+		} else {
+			cnIDs = append(cnIDs, x)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, errors.Wrap(err, "rows.Err")
+	}
+	log.Infof("len(cnIDS) = %d", len(cnIDs))
+
+	pageSize := 2500
+	page := 0
+	cnMap := make(map[int]*kmodels.Container, len(cnIDs))
+	cuMap := make(map[int]*models.ContentUnit, len(cnIDs))
+	for page*pageSize < len(cnIDs) {
+		s := page * pageSize
+		e := utils.Min(len(cnIDs), s+pageSize)
+		ids := utils.ConvertArgsInt(cnIDs[s:e]...)
+		log.Infof("Load page %d [%d:%d]", page, s, e)
+
+		cns, err := kmodels.Containers(kmdb,
+			qm.WhereIn("id in ?", ids...),
+			qm.Load("Catalogs")).
+			All()
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "Load containers page %d", page)
+		}
+		for i := range cns {
+			cn := cns[i]
+			cnMap[cn.ID] = cn
+		}
+
+		cus, err := models.ContentUnits(mdb,
+			qm.WhereIn("(properties->>'kmedia_id')::int in ?", ids...)).
+			All()
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "Load content units page %d", page)
+		}
+		for i := range cus {
+			cu := cus[i]
+			var props map[string]interface{}
+			if err := json.Unmarshal(cu.Properties.JSON, &props); err != nil {
+				return nil, nil, errors.Wrapf(err, "json.Unmarshal CU properties %d", cu.ID)
+			}
+			cuMap[int(props["kmedia_id"].(float64))] = cu
+		}
+
+		page++
+	}
+	log.Infof("len(cnMap) = %d", len(cnMap))
+	log.Infof("len(cuMap) = %d", len(cuMap))
+
+	return cnMap, cuMap, nil
 }

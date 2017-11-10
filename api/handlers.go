@@ -12,6 +12,7 @@ import (
 	"github.com/vattle/sqlboiler/queries"
 	"github.com/vattle/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/nullbio/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
@@ -128,15 +129,27 @@ func InsertHandler(c *gin.Context) {
 // A file in archive has been transcoded
 func TranscodeHandler(c *gin.Context) {
 	log.Info(OP_TRANSCODE)
-	var i TranscodeRequestSuccess
+
+	var i TranscodeRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleTranscode)
-	} else {
-		var i TranscodeRequestError
-		if c.BindJSON(&i) == nil {
+		if i.Message != "" {
 			handleOperation(c, i, handleTranscode)
+		} else {
+			if err := binding.Validator.ValidateStruct(i.AsFile()); err != nil {
+				c.AbortWithError(400, err).SetType(gin.ErrorTypeBind)
+			} else {
+				handleOperation(c, i, handleTranscode)
+			}
 		}
 	}
+	//if err := c.ShouldBindWith(&i, binding.JSON); err == nil {
+	//	handleOperation(c, i, handleTranscode)
+	//} else {
+	//	var i TranscodeRequestError
+	//	if err := c.BindJSON(&i); err == nil {
+	//		handleOperation(c, i, handleTranscode)
+	//	}
+	//}
 }
 
 // Handler logic
@@ -649,8 +662,9 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 }
 
 func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, error) {
+	r := input.(TranscodeRequest)
 
-	if r, ok := input.(TranscodeRequestError); ok {
+	if r.Message != "" {
 		log.Infof("Transcode Error: %s", r.Message)
 
 		log.Info("Creating operation")
@@ -678,7 +692,6 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 		return operation, operation.AddFiles(exec, false, original)
 	}
 
-	r := input.(TranscodeRequestSuccess)
 
 	log.Info("Creating operation")
 	operation, err := CreateOperation(exec, OP_TRANSCODE, r.Operation, nil)
@@ -694,11 +707,11 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 
 	log.Info("Creating file")
 	mt := MEDIA_TYPE_REGISTRY.ByExtension["mp4"]
-	r.File.Type = mt.Type
-	r.File.MimeType = mt.MimeType
+	r.MaybeFile.Type = mt.Type
+	r.MaybeFile.MimeType = mt.MimeType
 
 	if original.Language.Valid {
-		r.File.Language = original.Language.String
+		r.MaybeFile.Language = original.Language.String
 	}
 
 	var props map[string]interface{}
@@ -713,7 +726,7 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 			props["duration"] = duration
 		}
 	}
-	file, err := CreateFile(exec, original, r.File, props)
+	file, err := CreateFile(exec, original, r.AsFile(), props)
 	if err != nil {
 		return nil, err
 	}
