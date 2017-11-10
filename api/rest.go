@@ -1820,7 +1820,10 @@ func handleContentUnitRemovePerson(exec boil.Executor, id int64, personID int64)
 		}
 	}
 
-	cup.Delete(exec)
+	err = cup.Delete(exec)
+	if err != nil {
+		return NewInternalError(err)
+	}
 	return nil
 }
 
