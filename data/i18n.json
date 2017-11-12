@@ -64,6 +64,11 @@
     "en": "Unity Day",
     "ru": "День Народного Единства"
   },
+  "content_type.CLIPS": {
+    "he": "קליפים",
+    "en": "Clips",
+    "ru": "Клипсы"
+  },
   "content_type.LESSON_PART": {
     "he": "חלק שיעור",
     "en": "Lesson Part",
