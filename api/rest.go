@@ -466,25 +466,13 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 	case http.MethodGet, "":
 		resp, err = handleGetContentUnitPersons(boil.GetDB(), id)
 	case http.MethodPost:
-		var body map[string]int64
-		if c.BindJSON(&body) != nil {
+		var cup models.ContentUnitsPerson
+		if c.BindJSON(&cup) != nil {
 			return
 		}
 
-		personID, ok := body["personID"]
-		if !ok {
-			err = NewBadRequestError(errors.Wrap(e, "No personID given"))
-			break
-		}
-
-		roleID, ok := body["roleID"]
-		if !ok {
-			err = NewBadRequestError(errors.Wrap(e, "No roleID given"))
-			break
-		}
-
 		tx := mustBeginTx()
-		err = handleContentUnitAddPerson(tx, id, personID, roleID)
+		err = handleContentUnitAddPerson(tx, id, cup)
 		mustConcludeTx(tx, err)
 	case http.MethodDelete:
 		personID, e := strconv.ParseInt(c.Param("personID"), 10, 0)
@@ -1824,13 +1812,12 @@ func handleContentUnitRemovePerson(exec boil.Executor, id int64, personID int64)
 	if err != nil {
 		return NewInternalError(err)
 	}
+
 	return nil
 }
 
-func handleContentUnitAddPerson(exec boil.Executor, id int64, personID int64, roleID int64) *HttpError {
-
-	//get content unit
-	unit, err := models.FindContentUnit(exec, id)
+func handleContentUnitAddPerson(exec boil.Executor, id int64, cup models.ContentUnitsPerson) *HttpError {
+	_, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return NewNotFoundError()
@@ -1839,56 +1826,42 @@ func handleContentUnitAddPerson(exec boil.Executor, id int64, personID int64, ro
 		}
 	}
 
-	//get person
-	person, err := models.FindPerson(exec, personID, "id")
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return NewBadRequestError(errors.Errorf("Unknown person id %d", personID))
-		} else {
-			return NewInternalError(err)
-		}
-	}
-
-	// get role
-	role, err := models.FindContentRoleType(exec, roleID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return NewBadRequestError(errors.Errorf("Unknown role id %d", roleID))
-		} else {
-			return NewInternalError(err)
-		}
-	}
-
-	exist, err := models.ContentUnitsPersonExists(exec, id, person.ID)
+	exists, err := models.PersonExists(exec, cup.PersonID)
 	if err != nil {
 		return NewInternalError(err)
 	}
+	if !exists {
+		return NewBadRequestError(errors.Errorf("Unknown person id %d", cup.PersonID))
+	}
 
-	if exist {
+	exists, err = models.ContentRoleTypeExists(exec, cup.RoleID)
+	if err != nil {
+		return NewInternalError(err)
+	}
+	if !exists {
+		return NewBadRequestError(errors.Errorf("Unknown role id %d", cup.RoleID))
+	}
 
-		cup, err := models.FindContentUnitsPerson(exec, id, person.ID)
-		if err != nil {
+	existingCUP, err := models.FindContentUnitsPerson(exec, id, cup.PersonID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// create new
+			err = cup.Insert(exec)
+			if err != nil {
+				return NewInternalError(err)
+			} else {
+				return nil
+			}
+		} else {
 			return NewInternalError(err)
 		}
+	}
 
-		err = cup.SetRole(exec, false, role)
-		if err != nil {
-			return NewInternalError(err)
-		}
-
-	} else {
-
-		//create new relation
-
-		newCup := models.ContentUnitsPerson{
-			ContentUnitID: unit.ID,
-			PersonID:      person.ID,
-			RoleID:        role.ID,
-		}
-		err = newCup.Insert(exec)
-		if err != nil {
-			return NewInternalError(err)
-		}
+	// update role
+	existingCUP.RoleID = cup.RoleID
+	err = existingCUP.Update(exec, "role_id")
+	if err != nil {
+		return NewInternalError(err)
 	}
 
 	return nil
