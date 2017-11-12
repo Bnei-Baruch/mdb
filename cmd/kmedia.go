@@ -65,6 +65,15 @@ func init() {
 	RootCmd.AddCommand(command)
 
 	command = &cobra.Command{
+		Use:   "kmedia-clips",
+		Short: "Import KMedia Clips to MDB",
+		Run: func(cmd *cobra.Command, args []string) {
+			kmedia.ImportClips()
+		},
+	}
+	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
 		Use:   "kmedia-flat",
 		Short: "Import KMedia flat catalogs to MDB",
 		Run: func(cmd *cobra.Command, args []string) {
