@@ -806,6 +806,35 @@ func StoragesHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func PersonHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var err *HttpError
+	var resp interface{}
+
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		resp, err = handleGetPerson(boil.GetDB(), id)
+	} else {
+		if c.Request.Method == http.MethodPut {
+			var p Person
+			if c.Bind(&p) != nil {
+				return
+			}
+
+			p.ID = id
+			tx := mustBeginTx()
+			resp, err = handleUpdatePerson(tx, &p)
+			mustConcludeTx(tx, err)
+		}
+
+		concludeRequest(c, resp, err)
+	}
+}
+
 // Handlers Logic
 
 func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*CollectionsResponse, *HttpError) {
@@ -2489,6 +2518,48 @@ func handleUpdateTagI18n(exec boil.Executor, id int64, i18ns []*models.TagI18n) 
 	}
 
 	return handleGetTag(exec, id)
+}
+
+func handleUpdatePerson(exec boil.Executor, p *Person) (*Person, *HttpError) {
+	person, err := models.FindPerson(exec, p.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	person.Pattern = p.Pattern
+	err = p.Update(exec, "pattern")
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return handleGetPerson(exec, p.ID)
+}
+
+func handleGetPerson(exec boil.Executor, id int64) (*Person, *HttpError) {
+	person, err := models.Persons(exec,
+		qm.Where("id = ?", id),
+		qm.Load("PersonI18ns")).
+		One()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// i18n
+	x := &Person{Person: *person}
+	x.I18n = make(map[string]*models.PersonI18n, len(person.R.PersonI18ns))
+	for _, i18n := range person.R.PersonI18ns {
+		x.I18n[i18n.Language] = i18n
+	}
+
+	return x, nil
 }
 
 func handleStoragesList(exec boil.Executor, r StoragesRequest) (*StoragesResponse, *HttpError) {
