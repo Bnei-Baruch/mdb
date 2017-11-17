@@ -928,4 +928,9 @@ SELECT
   count(DISTINCT cc.container_id)
 FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id;
 
-8154, 4654, 27, 2054, 277, 276, 1171, 281, 278, 284, 292, 279, 291, 285, 283, 286, 280, 288, 282, 1376, 275, 287, 2053, 3559, 3892, 4164, 8017, 8018, 8019, 725, 213, 3589, 3920, 4760, 4351, 4036, 8068, 8067,
+SELECT
+  fa.id,
+  fa.sha1,
+  array_agg(DISTINCT cfa.container_id)
+FROM file_assets fa INNER JOIN containers_file_assets cfa ON fa.id = cfa.file_asset_id AND fa.sha1 IS NOT NULL
+GROUP BY fa.id;
