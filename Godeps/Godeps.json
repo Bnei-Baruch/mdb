@@ -30,6 +30,36 @@
 			"Rev": "a8b933e3527b526484b3b4de754ce7c179e8bfd0"
 		},
 		{
+			"ImportPath": "github.com/emirpasic/gods/containers",
+			"Comment": "v1.9.0-9-g8a038b0",
+			"Rev": "8a038b010338d247eee30f8b569dbba08bfb1ffa"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/maps",
+			"Comment": "v1.9.0-9-g8a038b0",
+			"Rev": "8a038b010338d247eee30f8b569dbba08bfb1ffa"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/maps/treemap",
+			"Comment": "v1.9.0-9-g8a038b0",
+			"Rev": "8a038b010338d247eee30f8b569dbba08bfb1ffa"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/trees",
+			"Comment": "v1.9.0-9-g8a038b0",
+			"Rev": "8a038b010338d247eee30f8b569dbba08bfb1ffa"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/trees/redblacktree",
+			"Comment": "v1.9.0-9-g8a038b0",
+			"Rev": "8a038b010338d247eee30f8b569dbba08bfb1ffa"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/utils",
+			"Comment": "v1.9.0-9-g8a038b0",
+			"Rev": "8a038b010338d247eee30f8b569dbba08bfb1ffa"
+		},
+		{
 			"ImportPath": "github.com/fsnotify/fsnotify",
 			"Comment": "v1.4.2-6-g4da3e2c",
 			"Rev": "4da3e2cfbabc9f751898f250b49f2439785783a1"
@@ -294,6 +324,11 @@
 		},
 		{
 			"ImportPath": "gopkg.in/gin-gonic/gin.v1",
+			"Comment": "v1.2",
+			"Rev": "d459835d2b077e44f7c9b453505ee29881d5d12d"
+		},
+		{
+			"ImportPath": "gopkg.in/gin-gonic/gin.v1/binding",
 			"Comment": "v1.2",
 			"Rev": "d459835d2b077e44f7c9b453505ee29881d5d12d"
 		},
