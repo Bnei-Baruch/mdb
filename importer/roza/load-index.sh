@@ -3,10 +3,14 @@
 set +x
 set -e
 
-FILENAME="20171103-archive"
+FILENAME="20171116-archive"
 DATADIR="$(dirname $(readlink -f "$0"))/data"
 
 cd ${DATADIR}
+
+if [ ! -f "${DATADIR}/${FILENAME}.xz" ]; then
+    scp "root@app.mdb.bbdomain.org:/root/roza/${FILENAME}.xz" .
+fi
 
 if [ ! -f "${DATADIR}/${FILENAME}" ]; then
     xz -dk "${FILENAME}.xz"

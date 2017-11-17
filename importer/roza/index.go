@@ -21,13 +21,15 @@ type IdxFile struct {
 
 type IdxDirectory struct {
 	Name     string
+	Parent   *IdxDirectory
 	Children *treemap.Map
 	Files    []*IdxFile
 }
 
-func NewIdxDirectory(name string) *IdxDirectory {
+func NewIdxDirectory(name string, parent *IdxDirectory) *IdxDirectory {
 	return &IdxDirectory{
 		Name:     name,
+		Parent:   parent,
 		Children: treemap.NewWithStringComparator(),
 		Files:    make([]*IdxFile, 0),
 	}
@@ -42,14 +44,24 @@ func (d *IdxDirectory) printRec(prefix string) {
 	})
 }
 
+func (d *IdxDirectory) path() string {
+	path := d.Name
+	x := d
+	for x.Parent != nil {
+		path = fmt.Sprintf("%s/%s", x.Parent.Name, path)
+		x = x.Parent
+	}
+	return fmt.Sprintf("/%s", path)
+}
+
 type RozaIndex struct {
 	Roots     map[string]*IdxDirectory
 	FileCount int
-	DirCount  int
 }
 
 func (idx *RozaIndex) Load(db *sql.DB) error {
 	idx.Roots = make(map[string]*IdxDirectory)
+	idx.FileCount = 0
 
 	rows, err := queries.Raw(db, "select path, sha1, size, last_modified from roza_index").Query()
 	if err != nil {
@@ -57,7 +69,6 @@ func (idx *RozaIndex) Load(db *sql.DB) error {
 	}
 	defer rows.Close()
 
-	idx.FileCount = 0
 	for rows.Next() {
 		var path string
 		var sha1b []byte
@@ -119,7 +130,7 @@ func (idx *RozaIndex) mkDirAll(path string) *IdxDirectory {
 
 	d, ok := idx.Roots[s[0]]
 	if !ok {
-		d = NewIdxDirectory(s[0])
+		d = NewIdxDirectory(s[0], nil)
 		idx.Roots[d.Name] = d
 	}
 
@@ -130,7 +141,7 @@ func (idx *RozaIndex) mkDirAll(path string) *IdxDirectory {
 	var x interface{}
 	for i := 1; i < len(s); i++ {
 		if x, ok = d.Children.Get(s[i]); !ok {
-			x = NewIdxDirectory(s[i])
+			x = NewIdxDirectory(s[i], d)
 			d.Children.Put(x.(*IdxDirectory).Name, x)
 		}
 		d = x.(*IdxDirectory)
