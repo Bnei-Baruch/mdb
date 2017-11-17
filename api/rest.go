@@ -784,13 +784,37 @@ func TagI18nHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
-func StoragesHandler(c *gin.Context) {
-	var r StoragesRequest
-	if c.Bind(&r) != nil {
-		return
+func PersonsListHandler(c *gin.Context) {
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		var r PersonsRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+
+		resp, err = handlePersonsList(boil.GetDB(), r)
+	case http.MethodPost:
+		var person Person
+		if c.BindJSON(&person) != nil {
+			return
+		}
+
+		for _, x := range person.I18n {
+			if StdLang(x.Language) == LANG_UNKNOWN {
+				err := errors.Errorf("Unknown language %s", x.Language)
+				NewBadRequestError(err).Abort(c)
+				return
+			}
+		}
+
+		tx := mustBeginTx()
+		resp, err = handleCreatePerson(tx, &person)
+		mustConcludeTx(tx, err)
 	}
 
-	resp, err := handleStoragesList(boil.GetDB(), r)
 	concludeRequest(c, resp, err)
 }
 
@@ -818,9 +842,43 @@ func PersonHandler(c *gin.Context) {
 			resp, err = handleUpdatePerson(tx, &p)
 			mustConcludeTx(tx, err)
 		}
-
-		concludeRequest(c, resp, err)
 	}
+
+	concludeRequest(c, resp, err)
+}
+
+func PersonI18nHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var i18ns []*models.PersonI18n
+	if c.Bind(&i18ns) != nil {
+		return
+	}
+	for _, x := range i18ns {
+		if StdLang(x.Language) == LANG_UNKNOWN {
+			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+			return
+		}
+	}
+
+	tx := mustBeginTx()
+	resp, err := handleUpdatePersonI18n(tx, id, i18ns)
+	mustConcludeTx(tx, err)
+	concludeRequest(c, resp, err)
+}
+
+func StoragesHandler(c *gin.Context) {
+	var r StoragesRequest
+	if c.Bind(&r) != nil {
+		return
+	}
+
+	resp, err := handleStoragesList(boil.GetDB(), r)
+	concludeRequest(c, resp, err)
 }
 
 // Handlers Logic
@@ -2547,6 +2605,31 @@ func handlePersonsList(exec boil.Executor, r PersonsRequest) (*PersonsResponse, 
 	}, nil
 }
 
+func handleCreatePerson(exec boil.Executor, p *Person) (*Person, *HttpError) {
+
+	// save person to DB
+	uid, err := GetFreeUID(exec, new(PersonUIDChecker))
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	p.UID = uid
+
+	err = p.Person.Insert(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// save i18n
+	for _, v := range p.I18n {
+		err := p.AddPersonI18ns(exec, true, v)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	return handleGetPerson(exec, p.ID)
+}
+
 func handleUpdatePerson(exec boil.Executor, p *Person) (*Person, *HttpError) {
 	person, err := models.FindPerson(exec, p.ID)
 	if err != nil {
@@ -2589,63 +2672,36 @@ func handleGetPerson(exec boil.Executor, id int64) (*Person, *HttpError) {
 	return x, nil
 }
 
-func PersonsListHandler(c *gin.Context) {
-	var err *HttpError
-	var resp interface{}
-
-	switch c.Request.Method {
-	case http.MethodGet, "":
-		var r PersonsRequest
-		if c.Bind(&r) != nil {
-			return
-		}
-
-		resp, err = handlePersonsList(boil.GetDB(), r)
-	case http.MethodPost:
-		var person Person
-		if c.BindJSON(&person) != nil {
-			return
-		}
-
-		for _, x := range person.I18n {
-			if StdLang(x.Language) == LANG_UNKNOWN {
-				err := errors.Errorf("Unknown language %s", x.Language)
-				NewBadRequestError(err).Abort(c)
-				return
-			}
-		}
-
-		tx := mustBeginTx()
-		resp, err = handleCreatePerson(tx, &person)
-		mustConcludeTx(tx, err)
-	}
-
-	concludeRequest(c, resp, err)
-}
-
-func handleCreatePerson(exec boil.Executor, p *Person) (*Person, *HttpError) {
-
-	// save person to DB
-	uid, err := GetFreeUID(exec, new(PersonUIDChecker))
+func handleUpdatePersonI18n(exec boil.Executor, id int64, i18ns []*models.PersonI18n) (*Person, *HttpError) {
+	person, err := handleGetPerson(exec, id)
 	if err != nil {
-		return nil, NewInternalError(err)
-	}
-	p.UID = uid
-
-	err = p.Person.Insert(exec)
-	if err != nil {
-		return nil, NewInternalError(err)
+		return nil, err
 	}
 
-	// save i18n
-	for _, v := range p.I18n {
-		err := p.AddPersonI18ns(exec, true, v)
+	// Upsert all new i18ns
+	nI18n := make(map[string]*models.PersonI18n, len(i18ns))
+	for _, i18n := range i18ns {
+		i18n.PersonID = id
+		nI18n[i18n.Language] = i18n
+		err := i18n.Upsert(exec, true,
+			[]string{"person_id", "language"},
+			[]string{"name", "description"})
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
 	}
 
-	return handleGetPerson(exec, p.ID)
+	// Delete old i18ns not in new i18ns
+	for k, v := range person.I18n {
+		if _, ok := nI18n[k]; !ok {
+			err := v.Delete(exec)
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+		}
+	}
+
+	return handleGetPerson(exec, id)
 }
 
 func handleStoragesList(exec boil.Executor, r StoragesRequest) (*StoragesResponse, *HttpError) {
