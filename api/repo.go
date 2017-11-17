@@ -595,6 +595,12 @@ func (c *TagUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err 
 	return models.Tags(exec, qm.Where("uid = ?", uid)).Exists()
 }
 
+type PersonUIDChecker struct{}
+
+func (c *PersonUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Persons(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
 func GetFreeUID(exec boil.Executor, checker UIDChecker) (uid string, err error) {
 	for {
 		uid = utils.GenerateUID(8)

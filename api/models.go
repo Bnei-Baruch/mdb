@@ -153,7 +153,7 @@ type (
 		Operation
 		MaybeFile
 		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
-		Message string `json:"message" binding:"omitempty"`
+		Message      string `json:"message" binding:"omitempty"`
 	}
 
 	// REST
@@ -180,6 +180,10 @@ type (
 
 	SHA1sFilter struct {
 		SHA1s []string `json:"sha1s" form:"sha1" binding:"omitempty"`
+	}
+
+	PatternsFilter struct {
+		Patterns []string `json:"patterns" form:"pattern" binding:"omitempty"`
 	}
 
 	ContentTypesFilter struct {
@@ -246,6 +250,18 @@ type (
 	ContentUnitsResponse struct {
 		ListResponse
 		ContentUnits []*ContentUnit `json:"data"`
+	}
+
+	PersonsRequest struct {
+		ListRequest
+		IDsFilter
+		UIDsFilter
+		PatternsFilter
+	}
+
+	PersonsResponse struct {
+		ListResponse
+		Persons []*Person `json:"data"`
 	}
 
 	FilesRequest struct {
@@ -451,16 +467,20 @@ func NewStoragessResponse() *StoragesResponse {
 	return &StoragesResponse{Storages: make([]*models.Storage, 0)}
 }
 
+func NewPersonsResponse() *PersonsResponse {
+	return &PersonsResponse{Persons: make([]*Person, 0)}
+}
+
 func (mf MaybeFile) AsFile() File {
 	return File{
-		FileName: mf.FileName,
-		Sha1: mf.Sha1,
-		Size: mf.Size,
+		FileName:  mf.FileName,
+		Sha1:      mf.Sha1,
+		Size:      mf.Size,
 		CreatedAt: mf.CreatedAt,
-		Type: mf.Type,
-		SubType: mf.SubType,
-		MimeType: mf.MimeType,
-		Language: mf.Language,
+		Type:      mf.Type,
+		SubType:   mf.SubType,
+		MimeType:  mf.MimeType,
+		Language:  mf.Language,
 	}
 }
 

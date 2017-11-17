@@ -2520,6 +2520,60 @@ func handleUpdateTagI18n(exec boil.Executor, id int64, i18ns []*models.TagI18n) 
 	return handleGetTag(exec, id)
 }
 
+func handlePersonsList(exec boil.Executor, r PersonsRequest) (*PersonsResponse, *HttpError) {
+	mods := make([]qm.QueryMod, 0)
+
+	// filters
+	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendUIDsFilterMods(&mods, r.UIDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendPatternsFilterMods(&mods, r.PatternsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+
+	// count query
+	total, err := models.Persons(exec, mods...).Count()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if total == 0 {
+		return NewPersonsResponse(), nil
+	}
+
+	// order, limit, offset
+	if err = appendListMods(&mods, r.ListRequest); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+
+	// Eager loading
+	mods = append(mods, qm.Load("PersonI18ns"))
+
+	// data query
+	persons, err := models.Persons(exec, mods...).All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// i18n
+	data := make([]*Person, len(persons))
+	for i, pr := range persons {
+		x := &Person{Person: *pr}
+		data[i] = x
+		x.I18n = make(map[string]*models.PersonI18n, len(pr.R.PersonI18ns))
+		for _, i18n := range pr.R.PersonI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+	}
+
+	return &PersonsResponse{
+		ListResponse: ListResponse{Total: total},
+		Persons:      data,
+	}, nil
+}
+
 func handleUpdatePerson(exec boil.Executor, p *Person) (*Person, *HttpError) {
 	person, err := models.FindPerson(exec, p.ID)
 	if err != nil {
@@ -2560,6 +2614,65 @@ func handleGetPerson(exec boil.Executor, id int64) (*Person, *HttpError) {
 	}
 
 	return x, nil
+}
+
+func PersonsListHandler(c *gin.Context) {
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		var r PersonsRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+
+		resp, err = handlePersonsList(boil.GetDB(), r)
+	case http.MethodPost:
+		var person Person
+		if c.BindJSON(&person) != nil {
+			return
+		}
+
+		for _, x := range person.I18n {
+			if StdLang(x.Language) == LANG_UNKNOWN {
+				err := errors.Errorf("Unknown language %s", x.Language)
+				NewBadRequestError(err).Abort(c)
+				return
+			}
+		}
+
+		tx := mustBeginTx()
+		resp, err = handleCreatePerson(tx, &person)
+		mustConcludeTx(tx, err)
+	}
+
+	concludeRequest(c, resp, err)
+}
+
+func handleCreatePerson(exec boil.Executor, p *Person) (*Person, *HttpError) {
+
+	// save person to DB
+	uid, err := GetFreeUID(exec, new(PersonUIDChecker))
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	p.UID = uid
+
+	err = p.Person.Insert(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// save i18n
+	for _, v := range p.I18n {
+		err := p.AddPersonI18ns(exec, true, v)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	return handleGetPerson(exec, p.ID)
 }
 
 func handleStoragesList(exec boil.Executor, r StoragesRequest) (*StoragesResponse, *HttpError) {
@@ -2638,6 +2751,16 @@ func appendIDsFilterMods(mods *[]qm.QueryMod, f IDsFilter) error {
 	}
 
 	*mods = append(*mods, qm.WhereIn("id IN ?", utils.ConvertArgsInt64(f.IDs)...))
+
+	return nil
+}
+
+func appendPatternsFilterMods(mods *[]qm.QueryMod, f PatternsFilter) error {
+	if utils.IsEmpty(f.Patterns) {
+		return nil
+	}
+
+	*mods = append(*mods, qm.WhereIn("pattern IN ?", utils.ConvertArgsString(f.Patterns)...))
 
 	return nil
 }
