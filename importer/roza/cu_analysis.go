@@ -17,26 +17,31 @@ import (
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
-var skipRE = regexp.MustCompile("\\.(eps|gif|tif|tiff|png|jpg|pdf|xls|htm|html|xml|zip|mso|db|wmz)$")
+var skipRE = regexp.MustCompile("(?i)\\.(eps|gif|tif|tiff|png|jpg|pdf|xls|htm|html|xml|zip|mso|db|wmz)$")
+var avRE = regexp.MustCompile("(?i)\\.(mp4|mpg|wmv|flv|swf|mov|avi|mp3|wma|wav|rm)$")
 
 const (
-	EMPTY                 = "empty"
-	ROZA_ONLY             = "rozaOnly"
-	ROZA_KM_ONLY          = "rozaKmOnly"
-	ROZA_MDB_ONLY         = "rozaMdbOnly"
-	PERFECT_STRIKE        = "perfectStrike"
-	ALL_IN_NO_UNIT        = "allInNoUnit"
-	ALL_IN_MISSING_UNIT   = "allInMissingUnit"
-	ALL_IN_TOO_MANY_UNITS = "allInTooManyUnits"
-	MIXED                 = "mixed"
+	EMPTY                       = "empty"
+	ROZA_ONLY                   = "rozaOnly"
+	ROZA_KM_ONLY                = "rozaKmOnly"
+	ROZA_MDB_ONLY               = "rozaMdbOnly"
+	PERFECT_STRIKE              = "perfectStrike"
+	PERFECT_STRIKE_MDB_HAS_MORE = "perfectStrikeMdbHasMore"
+	ALL_IN_NO_UNIT              = "allInNoUnit"
+	ALL_IN_MISSING_UNIT         = "allInMissingUnit"
+	ALL_IN_TOO_MANY_UNITS       = "allInTooManyUnits"
+	MIXED                       = "mixed"
+	MDB_ONLY                    = "mdbOnly"
+	ALL_IN_TOO_MANY_FOLDERS     = "allInTooManyFolders"
 )
 
 type MatchAnalysis map[string][]*IdxDirDiff
 
 type IdxDirDiff struct {
-	status string
-	Path   string         `json:"path"`
-	Files  []*IdxFileDiff `json:"files,omitempty"`
+	status     string
+	Path       string         `json:"path"`
+	Files      []*IdxFileDiff `json:"files,omitempty"`
+	ExtraFiles []*IdxFileDiff `json:"extraFiles,omitempty"`
 }
 
 type IdxFileDiff struct {
@@ -75,7 +80,9 @@ func MatchUnits() {
 		log.Infof("MA[%s] = %d", k, len(v))
 	}
 
-	f, err := os.OpenFile("importer/roza/analysis/all.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	//metaAnalysis(ma)
+
+	f, err := os.OpenFile("importer/roza/analysis/roza.json", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	utils.Must(err)
 	defer f.Close()
 	utils.Must(json.NewEncoder(f).Encode(ma))
@@ -86,7 +93,8 @@ func MatchUnits() {
 }
 
 func loadMDBFiles() (map[string]*models.File, error) {
-	files, err := models.Files(mdb, qm.InnerJoin("roza_index r on files.sha1=r.sha1")).All()
+	//files, err := models.Files(mdb, qm.InnerJoin("roza_index r on files.sha1=r.sha1")).All()
+	files, err := models.Files(mdb, qm.Where("sha1 is not null")).All()
 	if err != nil {
 		return nil, errors.Wrap(err, "Load MDB files")
 	}
@@ -104,7 +112,8 @@ func loadKMFiles() (map[string]*MiniKMFile, error) {
 	rows, err := queries.Raw(kmdb, `SELECT
   fa.id,
   fa.sha1,
-  array_agg(DISTINCT cfa.container_id)
+  array_agg(DISTINCT cfa.container_id),
+  fa.name
 FROM file_assets fa INNER JOIN containers_file_assets cfa ON fa.id = cfa.file_asset_id AND fa.sha1 IS NOT NULL
 GROUP BY fa.id`).Query()
 	if err != nil {
@@ -161,6 +170,21 @@ func compareRozaToUnits(
 		return nil, errors.New("____beavoda not found")
 	}
 
+	filesByCU := make(map[int64]map[string]*models.File, 50000)
+	for fSha1, f := range mdbFiles {
+		if !f.ContentUnitID.Valid {
+			continue
+		}
+
+		k := f.ContentUnitID.Int64
+		v, ok := filesByCU[k]
+		if !ok {
+			v = make(map[string]*models.File)
+		}
+		v[fSha1] = f
+		filesByCU[k] = v
+	}
+
 	ma := make(MatchAnalysis)
 
 	s := []*IdxDirectory{beavoda}
@@ -168,7 +192,8 @@ func compareRozaToUnits(
 	for len(s) > 0 {
 		x, s = s[0], s[1:]
 		if len(x.Files) > 0 {
-			diff := compareIdxDir(x, mdbFiles, kmFiles, cudMap)
+			//if hasAV(x) {
+			diff := compareIdxDir(x, mdbFiles, kmFiles, cudMap, filesByCU)
 			k := diff.status
 			v, ok := ma[k]
 			if !ok {
@@ -192,11 +217,26 @@ func compareRozaToUnits(
 	return ma, nil
 }
 
+func hasAV(dir *IdxDirectory) bool {
+	if len(dir.Files) == 0 {
+		return false
+	}
+
+	for i := range dir.Files {
+		if avRE.MatchString(dir.Files[i].Name) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func compareIdxDir(
 	d *IdxDirectory,
 	mdbFiles map[string]*models.File,
 	kmFiles map[string]*MiniKMFile,
-	cudMap map[int64]int64) *IdxDirDiff {
+	cudMap map[int64]int64,
+	filesByCU map[int64]map[string]*models.File) *IdxDirDiff {
 
 	diff := &IdxDirDiff{Path: d.path(), Files: make([]*IdxFileDiff, 0)}
 
@@ -269,7 +309,43 @@ func compareIdxDir(
 				inCU = v
 			}
 			if inCU == len(diff.Files) {
-				diff.status = PERFECT_STRIKE
+
+				// split excessive files in mdb
+				diff.ExtraFiles = make([]*IdxFileDiff, 0)
+				cuFiles, _ := filesByCU[diff.Files[0].MdbCUID]
+				for fSha1, f := range cuFiles {
+					if !f.Published {
+						continue
+					}
+					if kmF, ok := kmFiles[fSha1]; !ok {
+						continue
+					} else {
+						exists := false
+						for i := range diff.Files {
+							if fSha1 == diff.Files[i].SHA1 {
+								exists = true
+								break
+							}
+						}
+						if !exists {
+							extFileDIff := &IdxFileDiff{
+								Name:    f.Name,
+								SHA1:    fSha1,
+								MdbID:   f.ID,
+								MdbCUID: f.ContentUnitID.Int64,
+								KmID:    kmF.ID,
+								KmCnIDs: kmF.CnIDs,
+							}
+							diff.ExtraFiles = append(diff.ExtraFiles, extFileDIff)
+						}
+					}
+				}
+
+				if len(diff.ExtraFiles) == 0 {
+					diff.status = PERFECT_STRIKE
+				} else {
+					diff.status = PERFECT_STRIKE_MDB_HAS_MORE
+				}
 			} else {
 				diff.status = ALL_IN_MISSING_UNIT
 			}
@@ -281,4 +357,36 @@ func compareIdxDir(
 	}
 
 	return diff
+}
+
+func metaAnalysis(ma MatchAnalysis) {
+	dirByCU := make(map[int64][]string)
+	perfect := ma[PERFECT_STRIKE]
+	for i := range perfect {
+		dir := perfect[i]
+		f := dir.Files[0]
+		k := f.MdbCUID
+		v, ok := dirByCU[k]
+		if !ok {
+			v = make([]string, 0)
+		}
+		dirByCU[k] = append(v, dir.Path)
+	}
+
+	dups := make([]int64, 0)
+	for k, v := range dirByCU {
+		if len(v) > 1 {
+			dups = append(dups, k)
+		}
+	}
+
+	log.Infof("Here comes %d dups", len(dups))
+	for i := range dups {
+		k := dups[i]
+		v := dirByCU[k]
+		log.Infof("CU %d has %d folders", k, len(v))
+		for j := range v {
+			log.Infof("\t%s", v[j])
+		}
+	}
 }

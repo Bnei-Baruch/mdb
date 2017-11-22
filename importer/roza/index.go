@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
 	"github.com/emirpasic/gods/maps/treemap"
 	"github.com/pkg/errors"
 	"github.com/vattle/sqlboiler/queries"
@@ -17,6 +18,17 @@ type IdxFile struct {
 	SHA1         string
 	Size         int64
 	LastModified time.Time
+	Directory    *IdxDirectory
+}
+
+func (f *IdxFile) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}{
+		Name: f.Name,
+		Path: f.Directory.path()[len("/vfs/archive/Archive"):],
+	})
 }
 
 type IdxDirectory struct {
@@ -121,6 +133,7 @@ func (idx *RozaIndex) insertFile(path string, sha1b []byte, size int64, lm time.
 		SHA1:         hex.EncodeToString(sha1b),
 		Size:         size,
 		LastModified: lm,
+		Directory:    d,
 	}
 	d.Files = append(d.Files, f)
 }
@@ -148,4 +161,47 @@ func (idx *RozaIndex) mkDirAll(path string) *IdxDirectory {
 	}
 
 	return d
+}
+
+func (idx *RozaIndex) Sha1Map() map[string][]*IdxFile {
+
+	// all roots
+	//s := make([]*IdxDirectory, len(idx.Roots))
+	//i := 0
+	//for k := range idx.Roots {
+	//	s[i] = idx.Roots[k]
+	//	i++
+	//}
+
+	// root is ____beavoda
+	s := []*IdxDirectory{idx.GetDir("/vfs/archive/Archive/____beavoda")}
+
+	sMap := make(map[string][]*IdxFile, 600000)
+	var x *IdxDirectory
+	for len(s) > 0 {
+		x, s = s[0], s[1:]
+
+		for i := range x.Files {
+			f := x.Files[i]
+			k := f.SHA1
+			v, ok := sMap[k]
+			if !ok {
+				v = make([]*IdxFile, 0)
+			}
+			sMap[k] = append(v, f)
+		}
+
+		if x.Children.Empty() {
+			continue
+		}
+
+		values := make([]*IdxDirectory, x.Children.Size())
+		it := x.Children.Iterator()
+		for i := 0; it.Next(); i++ {
+			values[i] = it.Value().(*IdxDirectory)
+		}
+		s = append(values, s...)
+	}
+
+	return sMap
 }
