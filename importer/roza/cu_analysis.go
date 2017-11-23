@@ -112,8 +112,7 @@ func loadKMFiles() (map[string]*MiniKMFile, error) {
 	rows, err := queries.Raw(kmdb, `SELECT
   fa.id,
   fa.sha1,
-  array_agg(DISTINCT cfa.container_id),
-  fa.name
+  array_agg(DISTINCT cfa.container_id)
 FROM file_assets fa INNER JOIN containers_file_assets cfa ON fa.id = cfa.file_asset_id AND fa.sha1 IS NOT NULL
 GROUP BY fa.id`).Query()
 	if err != nil {
