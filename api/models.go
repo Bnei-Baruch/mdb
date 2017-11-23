@@ -147,6 +147,8 @@ type (
 		InsertType     string `json:"insert_type" binding:"required"`
 		ContentUnitUID string `json:"content_unit_uid" binding:"required,len=8"`
 		ParentSha1     string `json:"parent_sha1" binding:"omitempty,len=40,hexadecimal"`
+		Mode           string `json:"mode" binding:"required"`
+		OldSha1        string `json:"old_sha1" binding:"omitempty,len=40,hexadecimal"`
 	}
 
 	TranscodeRequest struct {

@@ -539,6 +539,32 @@ func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, e
 func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, error) {
 	r := input.(InsertRequest)
 
+	log.Infof("Lookup file by SHA1")
+	file, _, err := FindFileBySHA1(exec, r.File.Sha1)
+	if err != nil {
+		if _, ok := err.(FileNotFound); !ok {
+			return nil, err
+		}
+	}
+
+	// validate user input for based on r.Mode and file existence
+	if r.Mode == "new" && file != nil {
+		return nil, errors.Wrap(err, "File already exist")
+	}
+
+	var oldFile *models.File
+	if r.Mode == "update" {
+		log.Infof("Lookup old file by SHA1")
+		oldFile, _, err = FindFileBySHA1(exec, r.OldSha1)
+		if err != nil {
+			if _, ok := err.(FileNotFound); ok {
+				return nil, errors.Wrap(err, "Old file not found")
+			} else {
+				return nil, err
+			}
+		}
+	}
+
 	log.Infof("Lookup content unit by uid %s", r.ContentUnitUID)
 	cu, err := models.ContentUnits(exec,
 		qm.Where("uid = ?", r.ContentUnitUID),
@@ -565,16 +591,17 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 	log.Info("Creating operation")
 	props := map[string]interface{}{
 		"insert_type": r.InsertType,
+		"mode": r.Mode,
 	}
 	operation, err := CreateOperation(exec, OP_INSERT, r.Operation, props)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create new file if it doesn't existing
+	// Create new file if it doesn't exist
 	file, _, err := FindFileBySHA1(exec, r.File.Sha1)
 	if err == nil {
-		log.Info("File already exists [%d], updating. ", file.ID)
+		log.Info("File already exist [%d], updating. ", file.ID)
 		if parent != nil && file.ID != parent.ID {
 			err = file.SetParent(exec, false, parent)
 			if err != nil {
@@ -625,9 +652,9 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 
 		if ktCUID > 0 {
 			cuID = ktCUID
-			log.Infof("KITEI_MAKOR derived unit exists: %d", cuID)
+			log.Infof("KITEI_MAKOR derived unit exist: %d", cuID)
 		} else {
-			log.Infof("KITEI_MAKOR derived unit doesn't exist. Creating...")
+			log.Infof("KITEI_MAKOR derived unit doesn't exists. Creating...")
 			ktCU, err := CreateContentUnit(exec, CT_KITEI_MAKOR, nil)
 			if err != nil {
 				return nil, errors.Wrap(err, "Create KITEI_MAKOR derived unit")
