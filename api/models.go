@@ -347,9 +347,19 @@ type (
 		I18n map[string]*models.CollectionI18n `json:"i18n"`
 	}
 
+	PartialCollection struct {
+		models.Collection
+		Secure null.Int16 `json:"secure"`
+	}
+
 	ContentUnit struct {
 		models.ContentUnit
 		I18n map[string]*models.ContentUnitI18n `json:"i18n"`
+	}
+
+	PartialContentUnit struct {
+		models.ContentUnit
+		Secure null.Int16 `json:"secure"`
 	}
 
 	CollectionContentUnit struct {

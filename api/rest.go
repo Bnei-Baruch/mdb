@@ -80,7 +80,7 @@ func CollectionHandler(c *gin.Context) {
 	case http.MethodGet, "":
 		resp, err = handleGetCollection(boil.GetDB(), id)
 	case http.MethodPut:
-		var cl Collection
+		var cl PartialCollection
 		if c.Bind(&cl) != nil {
 			return
 		}
@@ -241,7 +241,7 @@ func ContentUnitHandler(c *gin.Context) {
 		resp, err = handleGetContentUnit(boil.GetDB(), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
-			var cu ContentUnit
+			var cu PartialContentUnit
 			if c.Bind(&cu) != nil {
 				return
 			}
@@ -996,7 +996,7 @@ func handleGetCollection(exec boil.Executor, id int64) (*Collection, *HttpError)
 	return x, nil
 }
 
-func handleUpdateCollection(exec boil.Executor, c *Collection) (*Collection, *HttpError) {
+func handleUpdateCollection(exec boil.Executor, c *PartialCollection) (*Collection, *HttpError) {
 	collection, err := models.FindCollection(exec, c.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1007,10 +1007,12 @@ func handleUpdateCollection(exec boil.Executor, c *Collection) (*Collection, *Ht
 	}
 
 	// update entity attributes
-	collection.Secure = c.Secure
-	err = collection.Update(exec, "secure")
-	if err != nil {
-		return nil, NewInternalError(err)
+	if c.Secure.Valid {
+		collection.Secure = c.Secure.Int16
+		err = collection.Update(exec, "secure")
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
 	}
 
 	// update properties bag
@@ -1403,7 +1405,7 @@ func handleCreateContentUnit(exec boil.Executor, cu ContentUnit) (*ContentUnit, 
 	return handleGetContentUnit(exec, unit.ID)
 }
 
-func handleUpdateContentUnit(exec boil.Executor, cu *ContentUnit) (*ContentUnit, *HttpError) {
+func handleUpdateContentUnit(exec boil.Executor, cu *PartialContentUnit) (*ContentUnit, *HttpError) {
 	unit, err := models.FindContentUnit(exec, cu.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1413,10 +1415,12 @@ func handleUpdateContentUnit(exec boil.Executor, cu *ContentUnit) (*ContentUnit,
 		}
 	}
 
-	unit.Secure = cu.Secure
-	err = unit.Update(exec, "secure")
-	if err != nil {
-		return nil, NewInternalError(err)
+	if cu.Secure.Valid {
+		unit.Secure = cu.Secure.Int16
+		err = unit.Update(exec, "secure")
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
 	}
 
 	// update properties bag
