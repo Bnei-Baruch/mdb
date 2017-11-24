@@ -368,7 +368,8 @@ type (
 	// Marshalable File
 	MFile struct {
 		models.File
-		Sha1Str string `json:"sha1"`
+		Sha1Str      string `json:"sha1"`
+		OperationIds string `boil:"operationids" json:"operationids" toml:"operationids" yaml:"operationids"`
 	}
 
 	Author struct {

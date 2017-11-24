@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -83,6 +84,41 @@ WITH RECURSIVE
                 FROM rf
                 WHERE o_type = $2);
 `
+
+const FILES_TREE_WITH_OPERATIONS = `
+-- find all ancestors of a file
+with ids as ((WITH RECURSIVE rfa AS (
+  SELECT f.*
+  FROM files f
+  WHERE f.id = %d
+  UNION
+  SELECT f.*
+  FROM files f INNER JOIN rfa ON f.id = rfa.parent_id
+) 
+SELECT id
+  FROM rfa
+  WHERE id != %d)
+
+  UNION
+
+-- find all descendants of a file
+(WITH RECURSIVE rfd AS (
+  SELECT f.*
+  FROM files f
+  WHERE f.id = %d
+  UNION
+  SELECT f.*
+  FROM files f INNER JOIN rfd ON f.parent_id = rfd.id
+) SELECT id
+  FROM rfd))
+  
+ select f.id, f.name, f.size, f.type, f.sub_type, f.mime_type, f.created_at, f.language, f.file_created_at, f.parent_id, f.published,
+ string_agg(op.type_id::text,',') as OperationIds from ids
+ join files f on f.id=ids.id
+ join files_operations fop on fop.file_id = ids.id
+ join operations op on fop.operation_id = op.id
+ group by f.id
+ `
 
 func CreateOperation(exec boil.Executor, name string, o Operation, properties map[string]interface{}) (*models.Operation, error) {
 	uid, err := GetFreeUID(exec, new(OperationUIDChecker))
@@ -534,6 +570,33 @@ func FindTagPath(exec boil.Executor, id int64) ([]*models.Tag, error) {
 	}
 
 	return ancestors, nil
+}
+
+func FindFileTreeWithOperations(exec boil.Executor, fileID int64) ([]*MFile, error) {
+
+	files := make([]*MFile, 0)
+
+	rsql := fmt.Sprintf(FILES_TREE_WITH_OPERATIONS, fileID, fileID, fileID)
+	rows, err := queries.Raw(exec, rsql).Query()
+	if err != nil {
+		return nil, NewInternalError(err)
+		defer rows.Close()
+	}
+
+	for rows.Next() {
+		f := new(MFile)
+		err := rows.Scan(&f.ID, &f.Name, &f.Size, &f.Type, &f.SubType, &f.MimeType, &f.CreatedAt, &f.Language, &f.FileCreatedAt, &f.ParentID, &f.Published, &f.OperationIds)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		files = append(files, f)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return files, nil
 }
 
 // Return standard language or LANG_UNKNOWN

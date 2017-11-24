@@ -551,6 +551,22 @@ func FileStoragesHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func FilesWithOperationsTreeHandler(c *gin.Context) {
+
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	resp, err := FindFileTreeWithOperations(boil.GetDB(), id)
+	if err != nil {
+		NewInternalError(err).Abort(c)
+		return
+	}
+	concludeRequest(c, resp, nil)
+}
+
 func OperationsListHandler(c *gin.Context) {
 	var r OperationsRequest
 	if c.Bind(&r) != nil {
@@ -569,6 +585,7 @@ func OperationItemHandler(c *gin.Context) {
 	}
 
 	resp, err := handleOperationItem(boil.GetDB(), id)
+
 	concludeRequest(c, resp, err)
 }
 

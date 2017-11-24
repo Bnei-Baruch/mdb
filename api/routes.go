@@ -59,6 +59,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.GET("/files/:id/", FileHandler)
 	rest.PUT("/files/:id/", FileHandler)
 	rest.GET("/files/:id/storages/", FileStoragesHandler)
+	rest.GET("/files/:id/tree/", FilesWithOperationsTreeHandler)
 	rest.GET("/operations/", OperationsListHandler)
 	rest.GET("/operations/:id/", OperationItemHandler)
 	rest.GET("/operations/:id/files/", OperationFilesHandler)
