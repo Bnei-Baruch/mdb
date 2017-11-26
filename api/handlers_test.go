@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/vattle/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/boil"
 
 	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"gopkg.in/nullbio/null.v6"
+	"gopkg.in/volatiletech/null.v6"
 )
 
 type HandlersSuite struct {

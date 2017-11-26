@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/queries/qm"
-	"gopkg.in/nullbio/null.v6"
+	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"

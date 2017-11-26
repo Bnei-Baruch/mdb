@@ -13,7 +13,7 @@ import (
 	"github.com/emirpasic/gods/maps/treemap"
 	godsutil "github.com/emirpasic/gods/utils"
 	"github.com/pkg/errors"
-	"github.com/vattle/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"

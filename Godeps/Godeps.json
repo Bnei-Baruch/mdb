@@ -27,7 +27,7 @@
 		},
 		{
 			"ImportPath": "github.com/denisenkom/go-mssqldb",
-			"Rev": "a8b933e3527b526484b3b4de754ce7c179e8bfd0"
+			"Rev": "88555645b640cc621e32f8693d7586a1aa1575f4"
 		},
 		{
 			"ImportPath": "github.com/emirpasic/gods/containers",
@@ -41,6 +41,16 @@
 		},
 		{
 			"ImportPath": "github.com/emirpasic/gods/maps/treemap",
+			"Comment": "v1.9.0-9-g8a038b0",
+			"Rev": "8a038b010338d247eee30f8b569dbba08bfb1ffa"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/sets",
+			"Comment": "v1.9.0-9-g8a038b0",
+			"Rev": "8a038b010338d247eee30f8b569dbba08bfb1ffa"
+		},
+		{
+			"ImportPath": "github.com/emirpasic/gods/sets/hashset",
 			"Comment": "v1.9.0-9-g8a038b0",
 			"Rev": "8a038b010338d247eee30f8b569dbba08bfb1ffa"
 		},
@@ -85,8 +95,8 @@
 		},
 		{
 			"ImportPath": "github.com/go-sql-driver/mysql",
-			"Comment": "v1.3-26-g8fefef0",
-			"Rev": "8fefef06da7707b5a3cda42195a6b409c9c9ab5c"
+			"Comment": "v1.3-49-gcd4cb90",
+			"Rev": "cd4cb909ce1a31435164be29bf3682031f61539a"
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",
@@ -165,10 +175,6 @@
 		{
 			"ImportPath": "github.com/mitchellh/mapstructure",
 			"Rev": "d0303fe809921458f417bcf828397a65db30a7e4"
-		},
-		{
-			"ImportPath": "github.com/nullbio/inflect",
-			"Rev": "0563860d9a8cd788af0f5243761d841239d23ab2"
 		},
 		{
 			"ImportPath": "github.com/pelletier/go-buffruneio",
@@ -258,52 +264,56 @@
 			"Rev": "50189f05eaf5a0c17e5084eb8f7fb91e23699840"
 		},
 		{
-			"ImportPath": "github.com/vattle/sqlboiler/bdb",
-			"Comment": "v2.4.1",
-			"Rev": "c00ebe19110044f1c0ba0965bbca9555cf5f0e46"
+			"ImportPath": "github.com/volatiletech/inflect",
+			"Rev": "e7201282ae8da26cd97aed2e516f75c0bd91bb93"
 		},
 		{
-			"ImportPath": "github.com/vattle/sqlboiler/bdb/drivers",
-			"Comment": "v2.4.1",
-			"Rev": "c00ebe19110044f1c0ba0965bbca9555cf5f0e46"
+			"ImportPath": "github.com/volatiletech/sqlboiler/bdb",
+			"Comment": "v2.6.0",
+			"Rev": "6b95e5d3d7840a737841e2eb446e1c82641f8393"
 		},
 		{
-			"ImportPath": "github.com/vattle/sqlboiler/boil",
-			"Comment": "v2.4.1",
-			"Rev": "c00ebe19110044f1c0ba0965bbca9555cf5f0e46"
+			"ImportPath": "github.com/volatiletech/sqlboiler/bdb/drivers",
+			"Comment": "v2.6.0",
+			"Rev": "6b95e5d3d7840a737841e2eb446e1c82641f8393"
 		},
 		{
-			"ImportPath": "github.com/vattle/sqlboiler/queries",
-			"Comment": "v2.4.1",
-			"Rev": "c00ebe19110044f1c0ba0965bbca9555cf5f0e46"
+			"ImportPath": "github.com/volatiletech/sqlboiler/boil",
+			"Comment": "v2.6.0",
+			"Rev": "6b95e5d3d7840a737841e2eb446e1c82641f8393"
 		},
 		{
-			"ImportPath": "github.com/vattle/sqlboiler/queries/qm",
-			"Comment": "v2.4.1",
-			"Rev": "c00ebe19110044f1c0ba0965bbca9555cf5f0e46"
+			"ImportPath": "github.com/volatiletech/sqlboiler/queries",
+			"Comment": "v2.6.0",
+			"Rev": "6b95e5d3d7840a737841e2eb446e1c82641f8393"
 		},
 		{
-			"ImportPath": "github.com/vattle/sqlboiler/randomize",
-			"Comment": "v2.4.1",
-			"Rev": "c00ebe19110044f1c0ba0965bbca9555cf5f0e46"
+			"ImportPath": "github.com/volatiletech/sqlboiler/queries/qm",
+			"Comment": "v2.6.0",
+			"Rev": "6b95e5d3d7840a737841e2eb446e1c82641f8393"
 		},
 		{
-			"ImportPath": "github.com/vattle/sqlboiler/strmangle",
-			"Comment": "v2.4.1",
-			"Rev": "c00ebe19110044f1c0ba0965bbca9555cf5f0e46"
+			"ImportPath": "github.com/volatiletech/sqlboiler/randomize",
+			"Comment": "v2.6.0",
+			"Rev": "6b95e5d3d7840a737841e2eb446e1c82641f8393"
 		},
 		{
-			"ImportPath": "github.com/vattle/sqlboiler/types",
-			"Comment": "v2.4.1",
-			"Rev": "c00ebe19110044f1c0ba0965bbca9555cf5f0e46"
+			"ImportPath": "github.com/volatiletech/sqlboiler/strmangle",
+			"Comment": "v2.6.0",
+			"Rev": "6b95e5d3d7840a737841e2eb446e1c82641f8393"
+		},
+		{
+			"ImportPath": "github.com/volatiletech/sqlboiler/types",
+			"Comment": "v2.6.0",
+			"Rev": "6b95e5d3d7840a737841e2eb446e1c82641f8393"
 		},
 		{
 			"ImportPath": "golang.org/x/crypto/md4",
-			"Rev": "adbae1b6b6fb4b02448a0fc0dbbc9ba2b95b294d"
+			"Rev": "b080dc9a8c480b08e698fb1219160d598526310f"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
-			"Rev": "fe686d45ea04bc1bd4eff6a52865ce8757320325"
+			"Rev": "c7086645de248775cbf2373cf5ca4d2fa664b8c1"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
@@ -338,14 +348,14 @@
 			"Rev": "5f1438d3fca68893a817e4a66806cea46a9e4ebf"
 		},
 		{
-			"ImportPath": "gopkg.in/nullbio/null.v6",
-			"Comment": "v6.3",
-			"Rev": "40264a2e6b7972d183906cf17663983c23231c82"
+			"ImportPath": "gopkg.in/volatiletech/null.v6",
+			"Comment": "v6.4",
+			"Rev": "0bef4e07ae1b27a2a4efa23bbb3006c8c3d2e01d"
 		},
 		{
-			"ImportPath": "gopkg.in/nullbio/null.v6/convert",
-			"Comment": "v6.3",
-			"Rev": "40264a2e6b7972d183906cf17663983c23231c82"
+			"ImportPath": "gopkg.in/volatiletech/null.v6/convert",
+			"Comment": "v6.4",
+			"Rev": "0bef4e07ae1b27a2a4efa23bbb3006c8c3d2e01d"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",

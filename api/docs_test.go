@@ -12,10 +12,10 @@ import (
 	"github.com/adams-sarah/test2doc/test"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/nullbio/null.v6"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/vattle/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/boil"
 )
 
 type DocsSuite struct {

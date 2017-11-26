@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/vattle/sqlboiler/boil"
-	"gopkg.in/nullbio/null.v6"
+	"github.com/volatiletech/sqlboiler/boil"
+	"gopkg.in/volatiletech/null.v6"
 
 	"fmt"
 	"github.com/Bnei-Baruch/mdb/models"
