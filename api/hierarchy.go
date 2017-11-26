@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/lib/pq"
-	"github.com/vattle/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/queries"
 	"gopkg.in/gin-gonic/gin.v1"
 )
 

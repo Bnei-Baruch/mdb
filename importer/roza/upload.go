@@ -9,7 +9,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/pkg/errors"
-	"github.com/vattle/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/queries"
 
 	"github.com/Bnei-Baruch/mdb/utils"
 )

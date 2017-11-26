@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/vattle/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/boil"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/nullbio/null.v6"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"

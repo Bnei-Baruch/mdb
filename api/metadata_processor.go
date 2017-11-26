@@ -6,14 +6,14 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/queries/qm"
-	"gopkg.in/nullbio/null.v6"
+	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/volatiletech/null.v6"
 
 	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/vattle/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/queries"
 	"strings"
 )
 

@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"github.com/emirpasic/gods/maps/treemap"
 	"github.com/pkg/errors"
-	"github.com/vattle/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/queries"
 )
 
 type IdxFile struct {

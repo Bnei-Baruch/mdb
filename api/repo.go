@@ -7,15 +7,15 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	_ "github.com/lib/pq"
+	//_ "github.com/lib/pq"
 	"github.com/pkg/errors"
-	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/queries/qm"
-	"gopkg.in/nullbio/null.v6"
+	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/vattle/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/queries"
 )
 
 const FILE_ANCESTORS_SQL = `
