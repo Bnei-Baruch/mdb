@@ -361,6 +361,7 @@ func (suite *DocsSuite) Test9InsertHandler() {
 			},
 		},
 		ParentSha1: "0987654321fedcba0987654321fedcba11111111",
+		Mode:       "new",
 	}
 
 	resp, err := suite.testOperation(OP_INSERT, input)
@@ -395,7 +396,7 @@ func (suite *DocsSuite) Test911TranscodeHandlerError() {
 			User:    "111operator@dev.com",
 		},
 		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
-		Message: "Some transcoding error message",
+		Message:      "Some transcoding error message",
 	}
 
 	resp, err := suite.testOperation(OP_TRANSCODE, input)
