@@ -120,6 +120,7 @@ func (suite *RepoSuite) TestCreateFile() {
 	suite.False(file.ParentID.Valid, "ParentID.Valid")
 	suite.False(file.Published, "Published")
 	suite.Equal(SEC_PUBLIC, file.Secure, "Secure")
+	suite.False(file.RemovedAt.Valid, "RemovedAt")
 
 	// test with optional attributes
 	f2 := File{
@@ -224,6 +225,43 @@ func (suite *RepoSuite) TestPublishFile() {
 	err = c.Reload(suite.tx)
 	suite.Require().Nil(err)
 	suite.True(c.Published)
+}
+
+func (suite *RepoSuite) TestRemoveFile() {
+	f := File{
+		FileName:  "file_name",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef0123456789",
+		Size:      math.MaxInt64,
+	}
+	file, err := CreateFile(suite.tx, nil, f, nil)
+	suite.Require().Nil(err)
+	file.Published = true
+	suite.Require().Nil(file.Update(suite.tx, "published"))
+	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+	cu.Published = true
+	suite.Require().Nil(cu.Update(suite.tx, "published"))
+	err = file.SetContentUnit(suite.tx, false, cu)
+	suite.Require().Nil(err)
+	c, err := CreateCollection(suite.tx, CT_DAILY_LESSON, nil)
+	suite.Require().Nil(err)
+	c.Published = true
+	suite.Require().Nil(c.Update(suite.tx, "published"))
+	err = c.AddCollectionsContentUnits(suite.tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID})
+	suite.Require().Nil(err)
+
+	err = RemoveFile(suite.tx, file)
+	suite.Require().Nil(err)
+	err = file.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(file.RemovedAt.Valid)
+	err = cu.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.False(cu.Published)
+	err = c.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.False(c.Published)
 }
 
 func (suite *RepoSuite) TestFindFileBySHA1() {

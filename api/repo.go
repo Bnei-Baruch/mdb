@@ -16,6 +16,7 @@ import (
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/volatiletech/sqlboiler/queries"
+	"time"
 )
 
 const FILE_ANCESTORS_SQL = `
@@ -464,6 +465,88 @@ func PublishFile(exec boil.Executor, file *models.File) error {
 			Exec()
 		if err != nil {
 			return errors.Wrap(err, "Update collections in DB")
+		}
+	}
+
+	return nil
+}
+
+func RemoveFile(exec boil.Executor, file *models.File) error {
+	log.Infof("Removing file [%d]", file.ID)
+	file.RemovedAt = null.TimeFrom(time.Now().UTC())
+	err := file.Update(exec, "removed_at")
+	if err != nil {
+		return errors.Wrap(err, "Save file to DB")
+	}
+
+	// Unpublish CU and collections
+	if file.ContentUnitID.Valid {
+		cuid := file.ContentUnitID.Int64
+
+		// Load CU
+		cu, err := models.ContentUnits(exec,
+			qm.Where("id=?", cuid),
+			qm.Load("Files", "CollectionsContentUnits"),
+		).One()
+		if err != nil {
+			return errors.Wrapf(err, "Load content_unit %d", cuid)
+		}
+
+		// Check if any other file in CU is published
+		unpublishCU := true
+		for i := range cu.R.Files {
+			f := cu.R.Files[i]
+			if f.Published && !f.RemovedAt.Valid {
+				unpublishCU = false
+				break
+			}
+		}
+
+		if !unpublishCU {
+			return nil
+		}
+
+		cu.Published = false
+		if err := cu.Update(exec, "published"); err != nil {
+			return errors.Wrapf(err, "Update [published=false] content_unit %d", cuid)
+		}
+
+		// Load all collections associated with this CU and do the same for them
+		if len(cu.R.CollectionsContentUnits) > 0 {
+
+			// Load collections
+			cIDs := make([]int64, len(cu.R.CollectionsContentUnits))
+			for i := range cu.R.CollectionsContentUnits {
+				cIDs[i] = cu.R.CollectionsContentUnits[i].CollectionID
+			}
+			cs, err := models.Collections(exec,
+				qm.WhereIn("id in ?", utils.ConvertArgsInt64(cIDs)...),
+				qm.Load("CollectionsContentUnits",
+					"CollectionsContentUnits.ContentUnit")).
+				All()
+			if err != nil {
+				return errors.Wrapf(err, "Load collections CCU's %v", cIDs)
+			}
+
+			// Check if each collection has any other published CU and unpublish if not
+			for i := range cs {
+				c := cs[i]
+				unpublishC := true
+				for i := range c.R.CollectionsContentUnits {
+					cu := c.R.CollectionsContentUnits[i].R.ContentUnit
+					if cu.Published {
+						unpublishC = false
+						break
+					}
+				}
+
+				if unpublishC {
+					c.Published = false
+					if err := c.Update(exec, "published"); err != nil {
+						return errors.Wrapf(err, "Update [published=false] collection %d", cuid)
+					}
+				}
+			}
 		}
 	}
 

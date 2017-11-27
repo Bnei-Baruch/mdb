@@ -549,9 +549,10 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 
 	// validate user input for based on r.Mode and file existence
 	if r.Mode == "new" && file != nil {
-		return nil, errors.Wrap(err, "File already exist")
+		return nil, errors.Errorf("File already exist")
 	}
 
+	opFiles := make([]*models.File, 0)
 	var oldFile *models.File
 	if r.Mode == "update" {
 		log.Infof("Lookup old file by SHA1")
@@ -563,6 +564,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 				return nil, err
 			}
 		}
+		opFiles = append(opFiles, oldFile)
 	}
 
 	log.Infof("Lookup content unit by uid %s", r.ContentUnitUID)
@@ -585,6 +587,8 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 			} else {
 				return nil, err
 			}
+		} else {
+			opFiles = append(opFiles, parent)
 		}
 	}
 
@@ -598,43 +602,28 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 		return nil, err
 	}
 
-	// Create new file if it doesn't exist
-	file, _, err := FindFileBySHA1(exec, r.File.Sha1)
-	if err == nil {
-		log.Info("File already exist [%d], updating. ", file.ID)
-		if parent != nil && file.ID != parent.ID {
-			err = file.SetParent(exec, false, parent)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Set parent file [%d]", parent.ID)
-			}
-		}
-	} else {
-		if _, ok := err.(FileNotFound); ok {
-			log.Info("Creating new file")
-
-			switch r.InsertType {
-			case "akladot", "tamlil", "kitei-makor":
-				r.File.Type = "text"
-			case "sirtutim":
-				r.File.Type = "image"
-			case "dgima", "aricha":
-				r.File.Type = "video"
-			default:
-				r.File.Type = ""
-			}
-
-			if r.AVFile.Duration > 0 {
-				props["duration"] = r.AVFile.Duration
-			}
-
-			file, err = CreateFile(exec, parent, r.File, props)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
+	// Create new file
+	log.Info("Creating new file")
+	switch r.InsertType {
+	case "akladot", "tamlil", "kitei-makor":
+		r.File.Type = "text"
+	case "sirtutim":
+		r.File.Type = "image"
+	case "dgima", "aricha":
+		r.File.Type = "video"
+	default:
+		r.File.Type = ""
 	}
+
+	if r.AVFile.Duration > 0 {
+		props["duration"] = r.AVFile.Duration
+	}
+
+	file, err = CreateFile(exec, parent, r.File, props)
+	if err != nil {
+		return nil, err
+	}
+	opFiles = append(opFiles, file)
 
 	cuID := cu.ID
 	if r.InsertType == "kitei-makor" {
@@ -680,12 +669,15 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 		return nil, errors.Wrap(err, "Save file.content_unit_id to DB")
 	}
 
-	log.Info("Associating files to operation")
-	if parent == nil {
-		return operation, operation.AddFiles(exec, false, file)
-	} else {
-		return operation, operation.AddFiles(exec, false, parent, file)
+	// remove oldFile in update mode
+	if r.Mode == "update" {
+		if err := RemoveFile(exec, oldFile); err != nil {
+			return nil, errors.Wrapf(err, "Remove old file %d", oldFile.ID)
+		}
 	}
+
+	log.Info("Associating files to operation")
+	return operation, operation.AddFiles(exec, false, opFiles...)
 }
 
 func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, error) {

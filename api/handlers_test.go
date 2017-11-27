@@ -791,6 +791,7 @@ func (suite *HandlersSuite) TestHandleInsert() {
 			},
 			Duration: 123.4,
 		},
+		Mode: "new",
 	}
 
 	op, err := handleInsert(suite.tx, input)
@@ -804,6 +805,7 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	suite.Require().Nil(err)
 	suite.Equal(input.Operation.WorkflowID, props["workflow_id"].(string), "Operation workflow_id")
 	suite.Equal(input.InsertType, props["insert_type"].(string), "Operation insert_type")
+	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 	// Check user
 	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
@@ -832,21 +834,6 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	suite.True(f.ContentUnitID.Valid, "File ContentUnitID.Valid")
 	suite.Equal(cu.ID, f.ContentUnitID.Int64, "File ContentUnitID.Int64")
 
-	// test when file already exists
-	cu2, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
-	suite.Require().Nil(err)
-	input.ContentUnitUID = cu2.UID
-
-	op, err = handleInsert(suite.tx, input)
-	suite.Require().Nil(err)
-
-	// check file's CU has changed
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
-	suite.Len(op.R.Files, 1, "Number of files")
-	f = op.R.Files[0]
-	suite.True(f.ContentUnitID.Valid, "File ContentUnitID.Valid")
-	suite.Equal(cu2.ID, f.ContentUnitID.Int64, "File ContentUnitID.Int64")
-
 	// test with parent file
 	pfi := File{
 		FileName:  "dummy parent file",
@@ -858,6 +845,7 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	suite.Require().Nil(err)
 	input.ParentSha1 = pfi.Sha1
 
+	input.Sha1 = "012356789abcdef012356789abcdef1111111112"
 	op, err = handleInsert(suite.tx, input)
 	suite.Require().Nil(err)
 
@@ -870,6 +858,14 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	}
 	suite.True(f.ParentID.Valid, "File ParentID.Valid")
 	suite.Equal(parent.ID, f.ParentID.Int64, "File ParentID.Int64")
+
+	// test when file already exists
+	cu2, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+	input.ContentUnitUID = cu2.UID
+
+	op, err = handleInsert(suite.tx, input)
+	suite.Require().NotNil(err)
 }
 
 func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
@@ -896,6 +892,7 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 				Language:  LANG_HEBREW,
 			},
 		},
+		Mode: "new",
 	}
 
 	op, err := handleInsert(suite.tx, input)
@@ -909,6 +906,7 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 	suite.Require().Nil(err)
 	suite.Equal(input.Operation.WorkflowID, props["workflow_id"].(string), "Operation workflow_id")
 	suite.Equal(input.InsertType, props["insert_type"].(string), "Operation insert_type")
+	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 	// Check user
 	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
@@ -954,6 +952,7 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 	suite.Require().Nil(err)
 	suite.Equal(input.Operation.WorkflowID, props["workflow_id"].(string), "Operation workflow_id")
 	suite.Equal(input.InsertType, props["insert_type"].(string), "Operation insert_type")
+	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 	// Check user
 	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
@@ -981,7 +980,94 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 	// check content unit association
 	suite.True(f2.ContentUnitID.Valid, "f2.ContentUnitID.Valid")
 	suite.Equal(f.ContentUnitID.Int64, f2.ContentUnitID.Int64, "f2.ContentUnitID.Int64")
+}
 
+func (suite *HandlersSuite) TestHandleInsertUpdateMode() {
+	// Create dummy content unit
+	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+
+	// Create dummy old file
+	ofi := File{
+		FileName:  "dummy old file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+	}
+	oldFile, err := CreateFile(suite.tx, nil, ofi, nil)
+	suite.Require().Nil(err)
+	err = cu.AddFiles(suite.tx, false, oldFile)
+	suite.Require().Nil(err)
+
+	// Do insert operation
+	input := InsertRequest{
+		Operation: Operation{
+			Station:    "Some station",
+			User:       "operator@dev.com",
+			WorkflowID: "workflow_id",
+		},
+		InsertType:     "akladot",
+		ContentUnitUID: cu.UID,
+		AVFile: AVFile{
+			File: File{
+				FileName:  "akladot.doc",
+				Sha1:      "012356789abcdef012356789abcdef1111111111",
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				MimeType:  "application/msword",
+				Language:  LANG_HEBREW,
+			},
+			Duration: 123.4,
+		},
+		Mode:    "update",
+		OldSha1: ofi.Sha1,
+	}
+
+	op, err := handleInsert(suite.tx, input)
+	suite.Require().Nil(err)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	var props map[string]interface{}
+	err = op.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Operation.WorkflowID, props["workflow_id"].(string), "Operation workflow_id")
+	suite.Equal(input.InsertType, props["insert_type"].(string), "Operation insert_type")
+	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 2, "Number of files")
+	f, of := op.R.Files[0], op.R.Files[1]
+	if f.Name != "akladot.doc" {
+		f, of = of, f
+	}
+
+	// check inserted file
+	suite.Equal(input.FileName, f.Name, "File Name")
+	suite.Equal(input.Sha1, hex.EncodeToString(f.Sha1.Bytes), "File SHA1")
+	suite.Equal(input.Size, f.Size, "File Size")
+	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File FileCreatedAt")
+	suite.Equal("text", f.Type, "File Type")
+	suite.Equal(input.MimeType, f.MimeType.String, "File MimeType")
+	suite.Equal(input.Language, f.Language.String, "File Language")
+	suite.False(f.ParentID.Valid, "File ParentID")
+	err = f.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.InsertType, props["insert_type"].(string), "File insert_type")
+	suite.Equal(input.AVFile.Duration, props["duration"], "File duration")
+
+	// check content unit association
+	suite.True(f.ContentUnitID.Valid, "File ContentUnitID.Valid")
+	suite.Equal(cu.ID, f.ContentUnitID.Int64, "File ContentUnitID.Int64")
+
+	// check old file removed
+	suite.True(of.RemovedAt.Valid, "Old File RemovedAt.Valid")
 }
 
 func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
