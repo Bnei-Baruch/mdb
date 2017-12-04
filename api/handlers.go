@@ -15,6 +15,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -62,10 +63,12 @@ func SendHandler(c *gin.Context) {
 	var i SendRequest
 	if c.BindJSON(&i) == nil {
 		// we skip using the generic handleOperation to return some data to caller
-		tx, err := boil.Begin()
+
+		mdb := c.MustGet("MDB").(*sql.DB)
+		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		_, err = handleSend(tx, i)
+		_, evnts, err := handleSend(tx, i)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			err = errors.Wrapf(err, "Handle operation")
@@ -76,13 +79,14 @@ func SendHandler(c *gin.Context) {
 		utils.Must(tx.Commit())
 
 		// fetch newly created content unit
-		original, _, _ := FindFileBySHA1(boil.GetDB(), i.Original.Sha1)
-		cu, err := models.FindContentUnit(boil.GetDB(), original.ContentUnitID.Int64)
+		original, _, _ := FindFileBySHA1(mdb, i.Original.Sha1)
+		cu, err := models.FindContentUnit(mdb, original.ContentUnitID.Int64)
 		if err != nil {
 			err = errors.Wrapf(err, "Lookup content unit")
 		}
 
 		if err == nil {
+			emitEvents(c, evnts...)
 			c.JSON(http.StatusOK, cu)
 		} else {
 			NewInternalError(err).Abort(c)
@@ -142,19 +146,11 @@ func TranscodeHandler(c *gin.Context) {
 			}
 		}
 	}
-	//if err := c.ShouldBindWith(&i, binding.JSON); err == nil {
-	//	handleOperation(c, i, handleTranscode)
-	//} else {
-	//	var i TranscodeRequestError
-	//	if err := c.BindJSON(&i); err == nil {
-	//		handleOperation(c, i, handleTranscode)
-	//	}
-	//}
 }
 
 // Handler logic
 
-func handleCaptureStart(exec boil.Executor, input interface{}) (*models.Operation, error) {
+func handleCaptureStart(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(CaptureStartRequest)
 
 	log.Info("Creating operation")
@@ -164,22 +160,22 @@ func handleCaptureStart(exec boil.Executor, input interface{}) (*models.Operatio
 	}
 	operation, err := CreateOperation(exec, OP_CAPTURE_START, r.Operation, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Creating file and associating to operation")
 	uid, err := GetFreeUID(exec, new(FileUIDChecker))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	file := models.File{
 		UID:  uid,
 		Name: r.FileName,
 	}
-	return operation, operation.AddFiles(exec, true, &file)
+	return operation, nil, operation.AddFiles(exec, true, &file)
 }
 
-func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation, error) {
+func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(CaptureStopRequest)
 
 	log.Info("Creating operation")
@@ -190,7 +186,7 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 	}
 	operation, err := CreateOperation(exec, OP_CAPTURE_STOP, r.Operation, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Looking up parent file, workflow_id=", r.Operation.WorkflowID)
@@ -211,26 +207,26 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 			log.Warnf("capture_start operation not found for workflow_id [%s]. Skipping.",
 				r.Operation.WorkflowID)
 		} else {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	log.Info("Creating file")
 	file, err := CreateFile(exec, parent, r.File, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Associating file to operation")
-	return operation, operation.AddFiles(exec, false, file)
+	return operation, nil, operation.AddFiles(exec, false, file)
 }
 
-func handleDemux(exec boil.Executor, input interface{}) (*models.Operation, error) {
+func handleDemux(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(DemuxRequest)
 
 	parent, _, err := FindFileBySHA1(exec, r.Sha1)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Creating operation")
@@ -239,7 +235,7 @@ func handleDemux(exec boil.Executor, input interface{}) (*models.Operation, erro
 	}
 	operation, err := CreateOperation(exec, OP_DEMUX, r.Operation, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Creating original")
@@ -248,7 +244,7 @@ func handleDemux(exec boil.Executor, input interface{}) (*models.Operation, erro
 	}
 	original, err := CreateFile(exec, parent, r.Original.File, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Creating proxy")
@@ -257,24 +253,24 @@ func handleDemux(exec boil.Executor, input interface{}) (*models.Operation, erro
 	}
 	proxy, err := CreateFile(exec, parent, r.Proxy.File, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Associating files to operation")
-	return operation, operation.AddFiles(exec, false, parent, original, proxy)
+	return operation, nil, operation.AddFiles(exec, false, parent, original, proxy)
 }
 
-func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, error) {
+func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(TrimRequest)
 
 	// Fetch parent files
 	original, _, err := FindFileBySHA1(exec, r.OriginalSha1)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	proxy, _, err := FindFileBySHA1(exec, r.ProxySha1)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// TODO: in case of re-trim with the exact same parameters we already have the files in DB.
@@ -288,7 +284,7 @@ func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, error
 	}
 	operation, err := CreateOperation(exec, OP_TRIM, r.Operation, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Creating trimmed original")
@@ -297,7 +293,7 @@ func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, error
 	}
 	originalTrim, err := CreateFile(exec, original, r.Original.File, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Creating trimmed proxy")
@@ -306,20 +302,20 @@ func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, error
 	}
 	proxyTrim, err := CreateFile(exec, proxy, r.Proxy.File, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Associating files to operation")
-	return operation, operation.AddFiles(exec, false, original, originalTrim, proxy, proxyTrim)
+	return operation, nil, operation.AddFiles(exec, false, original, originalTrim, proxy, proxyTrim)
 }
 
-func handleSend(exec boil.Executor, input interface{}) (*models.Operation, error) {
+func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(SendRequest)
 
 	// Original
 	original, _, err := FindFileBySHA1(exec, r.Original.Sha1)
 	if err != nil {
-		return nil, errors.Wrap(err, "Lookup original file")
+		return nil, nil, errors.Wrap(err, "Lookup original file")
 	}
 	if original.Name == r.Original.FileName {
 		log.Info("Original's name hasn't change")
@@ -328,14 +324,14 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, error
 		original.Name = r.Original.FileName
 		err = original.Update(exec, "name")
 		if err != nil {
-			return nil, errors.Wrap(err, "Rename original file")
+			return nil, nil, errors.Wrap(err, "Rename original file")
 		}
 	}
 
 	// Proxy
 	proxy, _, err := FindFileBySHA1(exec, r.Proxy.Sha1)
 	if err != nil {
-		return nil, errors.Wrap(err, "Lookup proxy file")
+		return nil, nil, errors.Wrap(err, "Lookup proxy file")
 	}
 	if proxy.Name == r.Proxy.FileName {
 		log.Info("Proxy's name hasn't change")
@@ -344,56 +340,56 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, error
 		proxy.Name = r.Proxy.FileName
 		err = proxy.Update(exec, "name")
 		if err != nil {
-			return nil, errors.Wrap(err, "Rename proxy file")
+			return nil, nil, errors.Wrap(err, "Rename proxy file")
 		}
 	}
 
 	log.Info("Processing CIT Metadata")
-	err = ProcessCITMetadata(exec, r.Metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(exec, r.Metadata, original, proxy)
 	if err != nil {
-		return nil, errors.Wrap(err, "Process CIT Metadata")
+		return nil, nil, errors.Wrap(err, "Process CIT Metadata")
 	}
 
 	log.Info("Creating operation")
 	props := make(map[string]interface{})
 	b, err := json.Marshal(r.Metadata)
 	if err != nil {
-		return nil, errors.Wrap(err, "json Marshal")
+		return nil, nil, errors.Wrap(err, "json Marshal")
 	}
 	if err = json.Unmarshal(b, &props); err != nil {
-		return nil, errors.Wrap(err, "json Unmarshal")
+		return nil, nil, errors.Wrap(err, "json Unmarshal")
 	}
 	operation, err := CreateOperation(exec, OP_SEND, r.Operation, props)
 	if err != nil {
-		return nil, errors.Wrap(err, "Create operation")
+		return nil, nil, errors.Wrap(err, "Create operation")
 	}
 
 	log.Info("Associating files to operation")
 	err = operation.AddFiles(exec, false, original, proxy)
 	if err != nil {
-		return nil, errors.Wrap(err, "Associate files")
+		return nil, nil, errors.Wrap(err, "Associate files")
 	}
 
-	return operation, nil
+	return operation, evnts, nil
 }
 
-func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, error) {
+func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(ConvertRequest)
 
 	in, _, err := FindFileBySHA1(exec, r.Sha1)
 	if err != nil {
 		if _, ok := err.(FileNotFound); ok {
 			log.Infof("Parent file not found, noop.")
-			return nil, nil
+			return nil, nil, nil
 		} else {
-			return nil, errors.Wrapf(err, "lookup parent")
+			return nil, nil, errors.Wrapf(err, "lookup parent")
 		}
 	}
 
 	log.Info("Creating operation")
 	operation, err := CreateOperation(exec, OP_CONVERT, r.Operation, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// We dedup duplicate files here.
@@ -407,6 +403,7 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, er
 	log.Infof("%d unique files out of %d", len(uniq), len(r.Output))
 
 	log.Info("Creating output files")
+	evnts := make([]events.Event,0)
 	files := make([]*models.File, len(uniq)+1)
 	files[0] = in
 	props := make(map[string]interface{})
@@ -421,17 +418,18 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, er
 			log.Infof("File already exists, updating: %s", x.Sha1)
 			err = UpdateFile(exec, f, in, x.File, props)
 			if err != nil {
-				return nil, errors.Wrap(err, "Update file")
+				return nil, nil, errors.Wrap(err, "Update file")
 			}
+			evnts = append(evnts, events.FileUpdateEvent(f))
 		} else {
 			if _, ok := err.(FileNotFound); ok {
 				// new file
 				f, err = CreateFile(exec, in, x.File, props)
 				if err != nil {
-					return nil, errors.Wrap(err, "Create file")
+					return nil, nil, errors.Wrap(err, "Create file")
 				}
 			} else {
-				return nil, errors.Wrap(err, "Lookup file in DB")
+				return nil, nil, errors.Wrap(err, "Lookup file in DB")
 			}
 		}
 
@@ -440,16 +438,16 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, er
 	}
 
 	log.Info("Associating files to operation")
-	return operation, operation.AddFiles(exec, false, files...)
+	return operation, evnts, operation.AddFiles(exec, false, files...)
 }
 
-func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, error) {
+func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(UploadRequest)
 
 	log.Info("Creating operation")
 	operation, err := CreateOperation(exec, OP_UPLOAD, r.Operation, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	file, _, err := FindFileBySHA1(exec, r.Sha1)
@@ -458,7 +456,7 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, err
 			log.Info("File not found, creating new.")
 			file, err = CreateFile(exec, nil, r.File, nil)
 		} else {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -475,32 +473,43 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, err
 	log.Info("Saving changes to DB")
 	err = file.Update(exec, "properties")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	err = PublishFile(exec, file)
+	impact, err := PublishFile(exec, file)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	evnts := make([]events.Event, 0)
+	evnts = append(evnts, events.FilePublishedEvent(file))
+	if impact.ChangedContentUnit != nil {
+		evnts = append(evnts, events.ContentUnitPublishedChangeEvent(impact.ChangedContentUnit))
+	}
+	if impact.ChangedCollections != nil {
+		for i := range impact.ChangedCollections {
+			evnts = append(evnts, events.CollectionPublishedChangeEvent(impact.ChangedCollections[i]))
+		}
 	}
 
 	log.Info("Associating file to operation")
-	return operation, operation.AddFiles(exec, false, file)
+	return operation, evnts, operation.AddFiles(exec, false, file)
 }
 
-func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, error) {
+func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(SirtutimRequest)
 
 	log.Info("Creating operation")
 	operation, err := CreateOperation(exec, OP_SIRTUTIM, r.Operation, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Creating file")
 	r.File.Type = "image"
 	file, err := CreateFile(exec, nil, r.File, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// content_unit association
@@ -512,7 +521,7 @@ func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, e
 			if _, ok := err.(FileNotFound); ok {
 				log.Warnf("Original file not found [%s]", r.OriginalSha1)
 			} else {
-				return nil, err
+				return nil, nil, err
 			}
 		} else {
 			if original.ContentUnitID.Valid {
@@ -520,7 +529,7 @@ func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, e
 				file.ContentUnitID = original.ContentUnitID
 				err = file.Update(exec, "content_unit_id")
 				if err != nil {
-					return nil, errors.Wrap(err, "Save file.content_unit_id to DB")
+					return nil, nil, errors.Wrap(err, "Save file.content_unit_id to DB")
 				}
 			} else {
 				log.Warn("Original file is not associated to any content unit")
@@ -530,26 +539,26 @@ func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, e
 
 	log.Info("Associating files to operation")
 	if original == nil {
-		return operation, operation.AddFiles(exec, false, file)
+		return operation, nil, operation.AddFiles(exec, false, file)
 	} else {
-		return operation, operation.AddFiles(exec, false, original, file)
+		return operation, nil, operation.AddFiles(exec, false, original, file)
 	}
 }
 
-func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, error) {
+func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(InsertRequest)
 
 	log.Infof("Lookup file by SHA1")
 	file, _, err := FindFileBySHA1(exec, r.File.Sha1)
 	if err != nil {
 		if _, ok := err.(FileNotFound); !ok {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	// validate user input for based on r.Mode and file existence
 	if r.Mode == "new" && file != nil {
-		return nil, errors.Errorf("File already exist")
+		return nil, nil, errors.Errorf("File already exist")
 	}
 
 	opFiles := make([]*models.File, 0)
@@ -559,9 +568,9 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 		oldFile, _, err = FindFileBySHA1(exec, r.OldSha1)
 		if err != nil {
 			if _, ok := err.(FileNotFound); ok {
-				return nil, errors.Wrap(err, "Old file not found")
+				return nil, nil, errors.Wrap(err, "Old file not found")
 			} else {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 		opFiles = append(opFiles, oldFile)
@@ -573,7 +582,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 		qm.Load("SourceContentUnitDerivations", "SourceContentUnitDerivations.Derived"),
 	).One()
 	if err != nil {
-		return nil, errors.Wrap(err, "Fetch unit from mdb")
+		return nil, nil, errors.Wrap(err, "Fetch unit from mdb")
 	}
 	log.Infof("Found content unit %d", cu.ID)
 
@@ -585,7 +594,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 			if _, ok := err.(FileNotFound); ok {
 				log.Warnf("Parent file not found [%s]", r.ParentSha1)
 			} else {
-				return nil, err
+				return nil, nil, err
 			}
 		} else {
 			opFiles = append(opFiles, parent)
@@ -595,11 +604,11 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 	log.Info("Creating operation")
 	props := map[string]interface{}{
 		"insert_type": r.InsertType,
-		"mode": r.Mode,
+		"mode":        r.Mode,
 	}
 	operation, err := CreateOperation(exec, OP_INSERT, r.Operation, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Create new file
@@ -621,7 +630,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 
 	file, err = CreateFile(exec, parent, r.File, props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	opFiles = append(opFiles, file)
 
@@ -646,7 +655,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 			log.Infof("KITEI_MAKOR derived unit doesn't exists. Creating...")
 			ktCU, err := CreateContentUnit(exec, CT_KITEI_MAKOR, nil)
 			if err != nil {
-				return nil, errors.Wrap(err, "Create KITEI_MAKOR derived unit")
+				return nil, nil, errors.Wrap(err, "Create KITEI_MAKOR derived unit")
 			}
 
 			cud := &models.ContentUnitDerivation{
@@ -655,7 +664,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 			}
 			err = ktCU.AddDerivedContentUnitDerivations(exec, true, cud)
 			if err != nil {
-				return nil, errors.Wrap(err, "Save CUD in DB")
+				return nil, nil, errors.Wrap(err, "Save CUD in DB")
 			}
 
 			cuID = ktCU.ID
@@ -666,21 +675,37 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, err
 	file.ContentUnitID = null.Int64From(cuID)
 	err = file.Update(exec, "content_unit_id")
 	if err != nil {
-		return nil, errors.Wrap(err, "Save file.content_unit_id to DB")
+		return nil, nil, errors.Wrap(err, "Save file.content_unit_id to DB")
 	}
 
-	// remove oldFile in update mode
-	if r.Mode == "update" {
-		if err := RemoveFile(exec, oldFile); err != nil {
-			return nil, errors.Wrapf(err, "Remove old file %d", oldFile.ID)
+	evnts := make([]events.Event, 0)
+
+	// remove oldFile in update mode and collect events
+	if r.Mode == "new" {
+		evnts = append(evnts, events.FileInsertEvent(file, r.InsertType))
+	} else if r.Mode == "update" {
+		evnts = append(evnts, events.FileReplaceEvent(oldFile, file, r.InsertType))
+
+		if impact, err := RemoveFile(exec, oldFile); err != nil {
+			return nil, nil, errors.Wrapf(err, "Remove old file %d", oldFile.ID)
+		} else {
+			if impact.ChangedContentUnit != nil {
+				evnts = append(evnts, events.ContentUnitPublishedChangeEvent(impact.ChangedContentUnit))
+			}
+			if impact.ChangedCollections != nil {
+				for i := range impact.ChangedCollections {
+					evnts = append(evnts, events.CollectionPublishedChangeEvent(impact.ChangedCollections[i]))
+				}
+			}
 		}
+
 	}
 
 	log.Info("Associating files to operation")
-	return operation, operation.AddFiles(exec, false, opFiles...)
+	return operation, evnts, operation.AddFiles(exec, false, opFiles...)
 }
 
-func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, error) {
+func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(TranscodeRequest)
 
 	if r.Message != "" {
@@ -693,35 +718,34 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 
 		operation, err := CreateOperation(exec, OP_TRANSCODE, r.Operation, opProps)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		log.Info("Looking up original file")
 		original, _, err := FindFileBySHA1(exec, r.OriginalSha1)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Lookup original file %s", r.OriginalSha1)
+			return nil, nil, errors.Wrapf(err, "Lookup original file %s", r.OriginalSha1)
 		}
 
 		log.Info("Updating queue table")
 		_, err = queries.Raw(exec, "update batch_convert set operation_id=$1 where file_id=$2", operation.ID, original.ID).Exec()
 		if err != nil {
-			return nil, errors.Wrap(err, "Update queue table")
+			return nil, nil, errors.Wrap(err, "Update queue table")
 		}
 
-		return operation, operation.AddFiles(exec, false, original)
+		return operation, nil, operation.AddFiles(exec, false, original)
 	}
-
 
 	log.Info("Creating operation")
 	operation, err := CreateOperation(exec, OP_TRANSCODE, r.Operation, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Looking up original file")
 	original, _, err := FindFileBySHA1(exec, r.OriginalSha1)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Lookup original file %s", r.OriginalSha1)
+		return nil, nil, errors.Wrapf(err, "Lookup original file %s", r.OriginalSha1)
 	}
 
 	log.Info("Creating file")
@@ -738,7 +762,7 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 		var oProps map[string]interface{}
 		err := json.Unmarshal(original.Properties.JSON, &oProps)
 		if err != nil {
-			return nil, errors.Wrapf(err, "json.Unmarshal original properties [%d]", original.ID)
+			return nil, nil, errors.Wrapf(err, "json.Unmarshal original properties [%d]", original.ID)
 		}
 		if duration, ok := oProps["duration"]; ok {
 			props = make(map[string]interface{})
@@ -747,7 +771,7 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 	}
 	file, err := CreateFile(exec, original, r.AsFile(), props)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.Info("Updating file secure published information")
@@ -757,32 +781,34 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 	}
 	err = file.Update(exec, "secure", "published")
 	if err != nil {
-		return nil, errors.Wrapf(err, "Update secure published [%d]", file.ID)
+		return nil, nil, errors.Wrapf(err, "Update secure published [%d]", file.ID)
 	}
 
 	log.Info("Updating queue table")
 	_, err = queries.Raw(exec, "update batch_convert set operation_id=$1 where file_id=$2", operation.ID, original.ID).Exec()
 	if err != nil {
-		return nil, errors.Wrap(err, "Update queue table")
+		return nil, nil, errors.Wrap(err, "Update queue table")
 	}
 
 	log.Info("Associating files to operation")
-	return operation, operation.AddFiles(exec, false, original, file)
+	return operation, nil, operation.AddFiles(exec, false, original, file)
 }
 
 // Helpers
+
+type OperationHandler func(boil.Executor, interface{}) (*models.Operation, []events.Event, error)
 
 // Generic operation handler.
 // 	* Manage DB transactions
 // 	* Call operation logic handler
 // 	* Render JSON response
-func handleOperation(c *gin.Context, input interface{},
-	opHandler func(boil.Executor, interface{}) (*models.Operation, error)) {
-
-	tx, err := boil.Begin()
+func handleOperation(c *gin.Context, input interface{}, opHandler OperationHandler) {
+	mdb := c.MustGet("MDB").(*sql.DB)
+	tx, err := mdb.Begin()
+	//tx, err := boil.Begin()
 	utils.Must(err)
 
-	_, err = opHandler(tx, input)
+	_, evnts, err := opHandler(tx, input)
 	if err == nil {
 		utils.Must(tx.Commit())
 	} else {
@@ -791,6 +817,8 @@ func handleOperation(c *gin.Context, input interface{},
 	}
 
 	if err == nil {
+		emitter := c.MustGet("EVENTS_EMITTER").(events.EventEmitter)
+		emitter.Emit(evnts...)
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	} else {
 		switch err.(type) {

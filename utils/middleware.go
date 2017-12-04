@@ -6,12 +6,14 @@ import (
 	"net/http"
 	"runtime/debug"
 	"time"
+	"database/sql"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/stvp/rollbar"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/go-playground/validator.v8"
+	"github.com/Bnei-Baruch/mdb/events"
 )
 
 func MdbLoggerMiddleware() gin.HandlerFunc {
@@ -29,6 +31,14 @@ func MdbLoggerMiddleware() gin.HandlerFunc {
 			"ip":         c.ClientIP(),
 			"user-agent": c.Request.UserAgent(),
 		}).Info()
+	}
+}
+
+func EnvMiddleware(mdb *sql.DB, emitter events.EventEmitter) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set("MDB", mdb)
+		c.Set("EVENTS_EMITTER", emitter)
+		c.Next()
 	}
 }
 

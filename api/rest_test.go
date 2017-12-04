@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -19,12 +20,12 @@ import (
 type RestSuite struct {
 	suite.Suite
 	utils.TestDBManager
-	tx boil.Transactor
+	tx *sql.Tx
 }
 
 func (suite *RestSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
+	suite.Require().Nil(InitTypeRegistries(suite.DB))
 }
 
 func (suite *RestSuite) TearDownSuite() {
@@ -33,7 +34,7 @@ func (suite *RestSuite) TearDownSuite() {
 
 func (suite *RestSuite) SetupTest() {
 	var err error
-	suite.tx, err = boil.Begin()
+	suite.tx, err = suite.DB.Begin()
 	suite.Require().Nil(err)
 }
 

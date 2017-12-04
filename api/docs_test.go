@@ -14,8 +14,8 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/volatiletech/sqlboiler/boil"
 )
 
 type DocsSuite struct {
@@ -32,9 +32,16 @@ func Vars(req *http.Request) map[string]string {
 }
 
 func (suite *DocsSuite) SetupSuite() {
+	suite.Require().Nil(suite.InitTestDB())
+	suite.Require().Nil(InitTypeRegistries(suite.DB))
+	//suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
+
 	gin.SetMode(gin.TestMode)
 	suite.router = gin.New()
-	suite.router.Use(utils.ErrorHandlingMiddleware(), gin.Recovery())
+	suite.router.Use(
+		utils.EnvMiddleware(suite.DB, new(events.NoopEmitter)),
+		utils.ErrorHandlingMiddleware(),
+		gin.Recovery())
 	SetupRoutes(suite.router)
 
 	test.RegisterURLVarExtractor(Vars)
@@ -43,9 +50,6 @@ func (suite *DocsSuite) SetupSuite() {
 	if err != nil {
 		panic(err.Error())
 	}
-
-	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
 }
 
 func (suite *DocsSuite) TearDownSuite() {
@@ -337,7 +341,7 @@ func (suite *DocsSuite) Test8SirtutimHandler() {
 }
 
 func (suite *DocsSuite) Test9InsertHandler() {
-	tx, err := boil.Begin()
+	tx, err := suite.DB.Begin()
 	suite.Require().Nil(err)
 	cu, err := CreateContentUnit(tx, CT_LESSON_PART, nil)
 	suite.Require().Nil(err)

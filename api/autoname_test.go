@@ -1,14 +1,14 @@
 package api
 
 import (
+	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/volatiletech/sqlboiler/boil"
 	"gopkg.in/volatiletech/null.v6"
 
-	"fmt"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -16,12 +16,12 @@ import (
 type AutonameSuite struct {
 	suite.Suite
 	utils.TestDBManager
-	tx boil.Transactor
+	tx *sql.Tx
 }
 
 func (suite *AutonameSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
+	suite.Require().Nil(InitTypeRegistries(suite.DB))
 }
 
 func (suite *AutonameSuite) TearDownSuite() {
@@ -30,7 +30,7 @@ func (suite *AutonameSuite) TearDownSuite() {
 
 func (suite *AutonameSuite) SetupTest() {
 	var err error
-	suite.tx, err = boil.Begin()
+	suite.tx, err = suite.DB.Begin()
 	suite.Require().Nil(err)
 }
 

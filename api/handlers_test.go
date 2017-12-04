@@ -1,29 +1,29 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/volatiletech/sqlboiler/boil"
+	"gopkg.in/volatiletech/null.v6"
 
-	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"gopkg.in/volatiletech/null.v6"
 )
 
 type HandlersSuite struct {
 	suite.Suite
 	utils.TestDBManager
-	tx boil.Transactor
+	tx *sql.Tx
 }
 
 func (suite *HandlersSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
+	suite.Require().Nil(InitTypeRegistries(suite.DB))
 }
 
 func (suite *HandlersSuite) TearDownSuite() {
@@ -32,7 +32,7 @@ func (suite *HandlersSuite) TearDownSuite() {
 
 func (suite *HandlersSuite) SetupTest() {
 	var err error
-	suite.tx, err = boil.Begin()
+	suite.tx, err = suite.DB.Begin()
 	suite.Require().Nil(err)
 }
 
@@ -59,8 +59,9 @@ func (suite *HandlersSuite) TestHandleCaptureStart() {
 		CollectionUID: "abcdefgh",
 	}
 
-	op, err := handleCaptureStart(suite.tx, input)
+	op, evnts, err := handleCaptureStart(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_START].ID, op.TypeID, "Operation TypeID")
@@ -86,7 +87,7 @@ func (suite *HandlersSuite) TestHandleCaptureStart() {
 
 func (suite *HandlersSuite) TestHandleCaptureStop() {
 	// Prepare capture_start operation
-	opStart, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+	opStart, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
@@ -97,6 +98,7 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 		CollectionUID: "abcdefgh",
 	})
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 	suite.Require().Nil(opStart.L.LoadFiles(suite.tx, true, opStart))
 	parent := opStart.R.Files[0]
 
@@ -122,7 +124,7 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 		Part:          "part",
 	}
 
-	op, err := handleCaptureStop(suite.tx, input)
+	op, evnts, err := handleCaptureStop(suite.tx, input)
 	suite.Require().Nil(err)
 
 	// Check op
@@ -191,8 +193,9 @@ func (suite *HandlersSuite) TestHandleDemux() {
 		CaptureSource: "mltcap",
 	}
 
-	op, err := handleDemux(suite.tx, input)
+	op, evnts, err := handleDemux(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_DEMUX].ID, op.TypeID, "Operation TypeID")
@@ -290,8 +293,9 @@ func (suite *HandlersSuite) TestHandleTrim() {
 		Out:           []float64{240.51, 899.27},
 	}
 
-	op, err := handleTrim(suite.tx, input)
+	op, evnts, err := handleTrim(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_TRIM].ID, op.TypeID, "Operation TypeID")
@@ -384,8 +388,9 @@ func (suite *HandlersSuite) TestHandleSend() {
 		},
 	}
 
-	op, err := handleSend(suite.tx, input)
+	op, evnts, err := handleSend(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_SEND].ID, op.TypeID, "Operation TypeID")
@@ -491,8 +496,9 @@ func (suite *HandlersSuite) TestHandleConvert() {
 		},
 	}
 
-	op, err := handleConvert(suite.tx, input)
+	op, evnts, err := handleConvert(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().Empty(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_CONVERT].ID, op.TypeID, "Operation TypeID")
@@ -558,8 +564,9 @@ func (suite *HandlersSuite) TestHandleConvert() {
 			Duration: 871,
 		},
 	}
-	op, err = handleConvert(suite.tx, input)
+	op, evnts, err = handleConvert(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
 
 	// Check associated files
 	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
@@ -606,8 +613,9 @@ func (suite *HandlersSuite) TestHandleUpload() {
 		Url: "http://example.com/some/url/to/file.mp4",
 	}
 
-	op, err := handleUpload(suite.tx, input)
+	op, evnts, err := handleUpload(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_UPLOAD].ID, op.TypeID, "Operation TypeID")
@@ -662,8 +670,9 @@ func (suite *HandlersSuite) TestHandleUpload() {
 		Url: "http://example.com/some/url/to/file.mp4",
 	}
 
-	op, err = handleUpload(suite.tx, input)
+	op, evnts, err = handleUpload(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_UPLOAD].ID, op.TypeID, "Operation TypeID")
@@ -731,8 +740,9 @@ func (suite *HandlersSuite) TestHandleSirtutim() {
 		},
 	}
 
-	op, err := handleSirtutim(suite.tx, input)
+	op, evnts, err := handleSirtutim(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_SIRTUTIM].ID, op.TypeID, "Operation TypeID")
@@ -794,8 +804,9 @@ func (suite *HandlersSuite) TestHandleInsert() {
 		Mode: "new",
 	}
 
-	op, err := handleInsert(suite.tx, input)
+	op, evnts, err := handleInsert(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
@@ -846,8 +857,9 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	input.ParentSha1 = pfi.Sha1
 
 	input.Sha1 = "012356789abcdef012356789abcdef1111111112"
-	op, err = handleInsert(suite.tx, input)
+	op, evnts, err = handleInsert(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
 
 	// check file's ParentID has changed
 	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
@@ -864,7 +876,7 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	suite.Require().Nil(err)
 	input.ContentUnitUID = cu2.UID
 
-	op, err = handleInsert(suite.tx, input)
+	op, evnts, err = handleInsert(suite.tx, input)
 	suite.Require().NotNil(err)
 }
 
@@ -895,8 +907,9 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 		Mode: "new",
 	}
 
-	op, err := handleInsert(suite.tx, input)
+	op, evnts, err := handleInsert(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
@@ -942,8 +955,9 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 	input.FileName = "kitei-makor2.docx"
 	input.Sha1 = "012356789abcdef012356789abcdef1111111112"
 
-	op2, err := handleInsert(suite.tx, input)
+	op2, evnts, err := handleInsert(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
@@ -1023,8 +1037,9 @@ func (suite *HandlersSuite) TestHandleInsertUpdateMode() {
 		OldSha1: ofi.Sha1,
 	}
 
-	op, err := handleInsert(suite.tx, input)
+	op, evnts, err := handleInsert(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
@@ -1111,8 +1126,9 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 		},
 	}
 
-	op, err := handleTranscode(suite.tx, input)
+	op, evnts, err := handleTranscode(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_TRANSCODE].ID, op.TypeID, "Operation TypeID")
@@ -1177,8 +1193,9 @@ func (suite *HandlersSuite) TestHandleTranscodeError() {
 		Message:      "Some error description goes here",
 	}
 
-	op, err := handleTranscode(suite.tx, input)
+	op, evnts, err := handleTranscode(suite.tx, input)
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	// Check op
 	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_TRANSCODE].ID, op.TypeID, "Operation TypeID")

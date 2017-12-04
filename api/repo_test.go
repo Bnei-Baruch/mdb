@@ -1,13 +1,13 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/models"
@@ -17,12 +17,12 @@ import (
 type RepoSuite struct {
 	suite.Suite
 	utils.TestDBManager
-	tx boil.Transactor
+	tx *sql.Tx
 }
 
 func (suite *RepoSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
+	suite.Require().Nil(InitTypeRegistries(suite.DB))
 }
 
 func (suite *RepoSuite) TearDownSuite() {
@@ -31,7 +31,7 @@ func (suite *RepoSuite) TearDownSuite() {
 
 func (suite *RepoSuite) SetupTest() {
 	var err error
-	suite.tx, err = boil.Begin()
+	suite.tx, err = suite.DB.Begin()
 	suite.Require().Nil(err)
 }
 
@@ -214,7 +214,7 @@ func (suite *RepoSuite) TestPublishFile() {
 	err = c.AddCollectionsContentUnits(suite.tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID})
 	suite.Require().Nil(err)
 
-	err = PublishFile(suite.tx, file)
+	_, err = PublishFile(suite.tx, file)
 	suite.Require().Nil(err)
 	err = file.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -251,7 +251,7 @@ func (suite *RepoSuite) TestRemoveFile() {
 	err = c.AddCollectionsContentUnits(suite.tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID})
 	suite.Require().Nil(err)
 
-	err = RemoveFile(suite.tx, file)
+	_, err = RemoveFile(suite.tx, file)
 	suite.Require().Nil(err)
 	err = file.Reload(suite.tx)
 	suite.Require().Nil(err)

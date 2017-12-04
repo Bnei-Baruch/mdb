@@ -27,7 +27,7 @@ type MetadataProcessorSuite struct {
 
 func (suite *MetadataProcessorSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
+	suite.Require().Nil(InitTypeRegistries(suite.DB))
 }
 
 func (suite *MetadataProcessorSuite) TearDownSuite() {
@@ -36,7 +36,7 @@ func (suite *MetadataProcessorSuite) TearDownSuite() {
 
 func (suite *MetadataProcessorSuite) SetupTest() {
 	var err error
-	suite.tx, err = boil.Begin()
+	suite.tx, err = suite.DB.Begin()
 	suite.Require().Nil(err)
 }
 
@@ -74,8 +74,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	}
 	original, proxy := chain["part0"].Original, chain["part0"].Proxy
 
-	err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -118,8 +119,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 		tf := chain[fmt.Sprintf("part%d", i)]
 		original, proxy := tf.Original, tf.Proxy
 
-		err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 		suite.Require().Nil(err)
+		suite.Require().NotNil(evnts)
 
 		err = original.Reload(suite.tx)
 		suite.Require().Nil(err)
@@ -150,8 +152,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	tf := chain["full"]
 	original, proxy = tf.Original, tf.Proxy
 
-	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -175,8 +178,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 
 	// full with week_date different from capture_date
 	metadata.WeekDate = &Date{Time: time.Now().AddDate(1, 0, 0)}
-	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 	err = c.Reload(suite.tx)
 	suite.Require().Nil(err)
 	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID, c.TypeID, "c.TypeID")
@@ -195,8 +199,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	metadata.WeekDate = nil
 	tf = chain["part1_kitei-makor"]
 	original, proxy = tf.Original, tf.Proxy
-	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -262,8 +267,9 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	// process kitei makor for part 1
 	tf := chain["part1_kitei-makor"]
 	original, proxy := tf.Original, tf.Proxy
-	err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -293,8 +299,9 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	// process main part1
 	original, proxy = chain["part1"].Original, chain["part1"].Proxy
 	metadata.ArtifactType = null.NewString("", false)
-	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -366,8 +373,9 @@ func (suite *MetadataProcessorSuite) TestVideoProgram() {
 		RequireTest:    true,
 	}
 
-	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -425,8 +433,9 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 				metadata.Lecturer = "norav"
 			}
 
-			err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+			evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 			suite.Require().Nil(err)
+			suite.Require().NotNil(evnts)
 
 			err = original.Reload(suite.tx)
 			suite.Require().Nil(err)
@@ -471,7 +480,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 	TRM_P_SHA1 := utils.RandomSHA1()
 
 	// capture_start
-	_, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
@@ -482,9 +491,10 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 		CollectionUID: "c12356788",
 	})
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	// capture_stop
-	_, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+	_, evnts, err = handleCaptureStop(suite.tx, CaptureStopRequest{
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
@@ -504,7 +514,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 	suite.Require().Nil(err)
 
 	// demux
-	_, err = handleDemux(suite.tx, DemuxRequest{
+	_, evnts, err = handleDemux(suite.tx, DemuxRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
 			User:    "operator@dev.com",
@@ -533,7 +543,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 	suite.Require().Nil(err)
 
 	// trim
-	op, err := handleTrim(suite.tx, TrimRequest{
+	op, evnts, err := handleTrim(suite.tx, TrimRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
 			User:    "operator@dev.com",
@@ -588,7 +598,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 	TRM_P_SHA1[5] = utils.RandomSHA1()
 
 	// capture_start
-	_, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
@@ -599,10 +609,11 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 		CollectionUID: "c12356789",
 	})
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	for i := 0; i < 4; i++ {
 		part := strconv.Itoa(i)
-		_, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+		_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
 			Operation: Operation{
 				Station:    "Capture station",
 				User:       "operator@dev.com",
@@ -613,10 +624,11 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			CollectionUID: "c12356789",
 		})
 		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
 	}
 
 	// capture_stop
-	_, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+	_, evnts, err = handleCaptureStop(suite.tx, CaptureStopRequest{
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
@@ -637,7 +649,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 
 	for i := 0; i < 4; i++ {
 		part := strconv.Itoa(i)
-		_, err := handleCaptureStop(suite.tx, CaptureStopRequest{
+		_, evnts, err := handleCaptureStop(suite.tx, CaptureStopRequest{
 			Operation: Operation{
 				Station:    "Capture station",
 				User:       "operator@dev.com",
@@ -655,10 +667,11 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			Part:          part,
 		})
 		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
 	}
 
 	// demux
-	_, err = handleDemux(suite.tx, DemuxRequest{
+	_, evnts, err = handleDemux(suite.tx, DemuxRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
 			User:    "operator@dev.com",
@@ -685,10 +698,11 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 		CaptureSource: "mltbackup",
 	})
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	for i := 0; i < 4; i++ {
 		part := strconv.Itoa(i)
-		_, err := handleDemux(suite.tx, DemuxRequest{
+		_, evnts, err := handleDemux(suite.tx, DemuxRequest{
 			Operation: Operation{
 				Station: "Trimmer station",
 				User:    "operator@dev.com",
@@ -715,12 +729,13 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			CaptureSource: "mltcap",
 		})
 		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
 	}
 
 	trimFiles := make(map[string]TrimFiles)
 
 	// trim
-	op, err := handleTrim(suite.tx, TrimRequest{
+	op, evnts, err := handleTrim(suite.tx, TrimRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
 			User:    "operator@dev.com",
@@ -758,7 +773,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 
 	for i := 0; i < 4; i++ {
 		part := strconv.Itoa(i)
-		op, err := handleTrim(suite.tx, TrimRequest{
+		op, evnts, err := handleTrim(suite.tx, TrimRequest{
 			Operation: Operation{
 				Station: "Trimmer station",
 				User:    "operator@dev.com",
@@ -788,6 +803,8 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			Out:           []float64{240.51, 899.27},
 		})
 		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
+
 		files := suite.opFilesBySHA1(op)
 		trimFiles["part"+part] = TrimFiles{
 			Original: files[TRM_O_SHA1[i]],
@@ -796,7 +813,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 	}
 
 	// trim kitei makor from part1
-	op, err = handleTrim(suite.tx, TrimRequest{
+	op, evnts, err = handleTrim(suite.tx, TrimRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
 			User:    "operator@dev.com",

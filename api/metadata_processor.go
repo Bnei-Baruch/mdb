@@ -15,6 +15,7 @@ import (
 	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/volatiletech/sqlboiler/queries"
 	"strings"
+	"github.com/Bnei-Baruch/mdb/events"
 )
 
 // Do all stuff for processing metadata coming from Content Identification Tool.
@@ -30,7 +31,7 @@ import (
 // 	10. Associate collection and unit
 // 	11. Associate unit and derived units
 // 	12. Set default permissions ?!
-func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) error {
+func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) ([]events.Event, error) {
 	log.Info("Processing CITMetadata")
 
 	// Update properties for original and proxy (film_date, capture_date)
@@ -46,12 +47,16 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	log.Infof("Updating files properties: %v", props)
 	err := UpdateFileProperties(exec, original, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = UpdateFileProperties(exec, proxy, props)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	evnts := make([]events.Event, 2)
+	evnts[0] = events.FileUpdateEvent(original)
+	evnts[1] = events.FileUpdateEvent(proxy)
 
 	// Update language of original.
 	// TODO: What about proxy !?
@@ -67,7 +72,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	log.Infof("Updating original.Language to %s", original.Language.String)
 	err = original.Update(exec, "language")
 	if err != nil {
-		return errors.Wrap(err, "Save original to DB")
+		return nil, errors.Wrap(err, "Save original to DB")
 	}
 
 	// Create content_unit (content_type, dates)
@@ -81,7 +86,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	var originalProps map[string]interface{}
 	err = original.Properties.Unmarshal(&originalProps)
 	if err != nil {
-		return errors.Wrap(err, "json.Unmarshal original properties")
+		return nil, errors.Wrap(err, "json.Unmarshal original properties")
 	}
 	if duration, ok := originalProps["duration"]; ok {
 		props["duration"] = int(duration.(float64))
@@ -92,8 +97,9 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	log.Infof("Creating content unit of type %s", ct)
 	cu, err := CreateContentUnit(exec, ct, props)
 	if err != nil {
-		return errors.Wrap(err, "Create content unit")
+		return nil, errors.Wrap(err, "Create content unit")
 	}
+	evnts = append(evnts, events.ContentUnitCreateEvent(cu))
 
 	log.Infof("Describing content unit [%d]", cu.ID)
 	err = DescribeContentUnit(exec, cu, metadata)
@@ -105,7 +111,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	log.Info("Adding files to unit")
 	err = cu.AddFiles(exec, false, original, proxy)
 	if err != nil {
-		return errors.Wrap(err, "Add files to unit")
+		return nil, errors.Wrap(err, "Add files to unit")
 	}
 
 	// Add ancestor files to unit (not for derived units)
@@ -113,12 +119,12 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		log.Info("Main unit, adding ancestors...")
 		ancestors, err := FindFileAncestors(exec, original.ID)
 		if err != nil {
-			return errors.Wrap(err, "Find original's ancestors")
+			return nil, errors.Wrap(err, "Find original's ancestors")
 		}
 
 		err = proxy.L.LoadParent(exec, true, proxy)
 		if err != nil {
-			return errors.Wrap(err, "Load proxy's parent")
+			return nil, errors.Wrap(err, "Load proxy's parent")
 		}
 		if proxy.R.Parent != nil {
 			ancestors = append(ancestors, proxy.R.Parent)
@@ -126,10 +132,12 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 
 		err = cu.AddFiles(exec, false, ancestors...)
 		if err != nil {
-			return errors.Wrap(err, "Add ancestors to unit")
+			return nil, errors.Wrap(err, "Add ancestors to unit")
 		}
 		log.Infof("Added %d ancestors", len(ancestors))
-		for _, x := range ancestors {
+		for i := range ancestors {
+			x := ancestors[i]
+			evnts = append(evnts, events.FileUpdateEvent(x))
 			log.Infof("%s [%d]", x.Name, x.ID)
 		}
 	}
@@ -141,7 +149,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			qm.WhereIn("uid in ?", utils.ConvertArgsString(metadata.Sources)...)).
 			All()
 		if err != nil {
-			return errors.Wrap(err, "Lookup sources in DB")
+			return nil, errors.Wrap(err, "Lookup sources in DB")
 		}
 
 		// are we missing some source ?
@@ -164,7 +172,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 
 		err = cu.AddSources(exec, false, sources...)
 		if err != nil {
-			return errors.Wrap(err, "Associate sources")
+			return nil, errors.Wrap(err, "Associate sources")
 		}
 	}
 
@@ -174,7 +182,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			qm.WhereIn("uid in ?", utils.ConvertArgsString(metadata.Tags)...)).
 			All()
 		if err != nil {
-			return errors.Wrap(err, "Lookup tags  in DB")
+			return nil, errors.Wrap(err, "Lookup tags  in DB")
 		}
 
 		// are we missing some tag ?
@@ -196,7 +204,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		}
 		err = cu.AddTags(exec, false, tags...)
 		if err != nil {
-			return errors.Wrap(err, "Associate tags")
+			return nil, errors.Wrap(err, "Associate tags")
 		}
 	}
 
@@ -209,7 +217,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		}
 		err = cu.AddContentUnitsPersons(exec, true, cup)
 		if err != nil {
-			return errors.Wrap(err, "Associate persons")
+			return nil, errors.Wrap(err, "Associate persons")
 		}
 	} else {
 		log.Infof("Unknown lecturer %s, skipping person association.", metadata.Lecturer)
@@ -224,7 +232,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			if err == sql.ErrNoRows {
 				log.Warnf("No such collection %s", metadata.CollectionUID.String)
 			} else {
-				return errors.Wrap(err, "Lookup collection in DB")
+				return nil, errors.Wrap(err, "Lookup collection in DB")
 			}
 		}
 	} else if ct == CT_LESSON_PART || ct == CT_FULL_LESSON {
@@ -238,13 +246,13 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			if ex, ok := err.(UpChainOperationNotFound); ok {
 				log.Warnf(ex.Error())
 			} else {
-				return err
+				return nil, err
 			}
 		} else if captureStop.Properties.Valid {
 			var oProps map[string]interface{}
 			err = json.Unmarshal(captureStop.Properties.JSON, &oProps)
 			if err != nil {
-				return errors.Wrap(err, "json Unmarshal")
+				return nil, errors.Wrap(err, "json Unmarshal")
 			}
 			captureID, ok := oProps["collection_uid"]
 			if ok {
@@ -266,15 +274,16 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				c, err = FindCollectionByCaptureID(exec, captureID)
 				if err != nil {
 					if _, ok := err.(CollectionNotFound); !ok {
-						return err
+						return nil, err
 					}
 
 					// Create new collection
 					log.Info("Creating new collection")
 					c, err = CreateCollection(exec, cct, props)
 					if err != nil {
-						return err
+						return nil, err
 					}
+					evnts = append(evnts, events.CollectionCreateEvent(c))
 				} else if ct == CT_FULL_LESSON {
 					// Update collection properties to those of full lesson
 					log.Info("Full lesson, overriding collection properties")
@@ -283,14 +292,15 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 						c.TypeID = CONTENT_TYPE_REGISTRY.ByName[cct].ID
 						err = c.Update(exec, "type_id")
 						if err != nil {
-							return errors.Wrap(err, "Update collection type in DB")
+							return nil, errors.Wrap(err, "Update collection type in DB")
 						}
 					}
 
 					err = UpdateCollectionProperties(exec, c, props)
 					if err != nil {
-						return err
+						return nil, err
 					}
+					evnts = append(evnts, events.CollectionUpdateEvent(c))
 				}
 			} else {
 				log.Warnf("No collection_uid in capture_stop [%d] properties", captureStop.ID)
@@ -347,14 +357,15 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		// Make this new unit the last one in this collection
 		ccu.Position, err = GetNextPositionInCollection(exec, c.ID)
 		if err != nil {
-			return errors.Wrap(err, "Get last position in collection")
+			return nil, errors.Wrap(err, "Get last position in collection")
 		}
 
 		log.Infof("Association name: %s", ccu.Name)
 		err = c.AddCollectionsContentUnits(exec, true, ccu)
 		if err != nil {
-			return errors.Wrap(err, "Save collection and content unit association in DB")
+			return nil, errors.Wrap(err, "Save collection and content unit association in DB")
 		}
+		evnts = append(evnts, events.CollectionContentUnitsChangeEvent(c))
 	}
 
 	// Associate unit and derived units
@@ -362,7 +373,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	// Such cases are possible due to the studio operator actions sequence.
 	err = original.L.LoadParent(exec, true, original)
 	if err != nil {
-		return errors.Wrap(err, "Load original's parent")
+		return nil, errors.Wrap(err, "Load original's parent")
 	}
 
 	if original.R.Parent == nil {
@@ -390,7 +401,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				original.ContentUnitID.Int64, original.ParentID.Int64).
 				Query()
 			if err != nil {
-				return errors.Wrap(err, "Load derived content units")
+				return nil, errors.Wrap(err, "Load derived content units")
 			}
 
 			// put results in a map first since we can't process them while iterating.
@@ -401,17 +412,17 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				var artifactType string
 				err = rows.Scan(&cuid, &artifactType)
 				if err != nil {
-					return errors.Wrap(err, "Scan row")
+					return nil, errors.Wrap(err, "Scan row")
 				}
 				derivedCUs[cuid] = artifactType
 			}
 			err = rows.Err()
 			if err != nil {
-				return errors.Wrap(err, "Iter rows")
+				return nil, errors.Wrap(err, "Iter rows")
 			}
 			err = rows.Close()
 			if err != nil {
-				return errors.Wrap(err, "Close rows")
+				return nil, errors.Wrap(err, "Close rows")
 			}
 
 			log.Infof("%d derived units pending our association", len(derivedCUs))
@@ -423,15 +434,19 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				}
 				err = cu.AddSourceContentUnitDerivations(exec, true, cud)
 				if err != nil {
-					return errors.Wrap(err, "Save derived unit association in DB")
+					return nil, errors.Wrap(err, "Save derived unit association in DB")
 				}
 
 				_, err = queries.Raw(exec,
 					`UPDATE content_units SET properties = properties - 'artifact_type' WHERE id = $1`,
 					k).Exec()
 				if err != nil {
-					return errors.Wrap(err, "Delete derived unit artifact_type property from DB")
+					return nil, errors.Wrap(err, "Delete derived unit artifact_type property from DB")
 				}
+			}
+
+			if len(derivedCUs) >0 {
+				evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(cu))
 			}
 
 		} else {
@@ -447,8 +462,9 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				}
 				err = cu.AddDerivedContentUnitDerivations(exec, true, cud)
 				if err != nil {
-					return errors.Wrap(err, "Save source unit in DB")
+					return nil, errors.Wrap(err, "Save source unit in DB")
 				}
+				evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(cu))
 			} else {
 				// save artifact type for later use (when main unit appears)
 				log.Info("Main content unit not found, saving artifact_type property")
@@ -456,7 +472,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 					"artifact_type": metadata.ArtifactType.String,
 				})
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
@@ -464,5 +480,5 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 
 	// set default permissions ?!
 
-	return nil
+	return evnts, nil
 }

@@ -17,6 +17,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -37,7 +38,7 @@ func CollectionsListHandler(c *gin.Context) {
 			return
 		}
 
-		resp, err = handleCollectionsList(boil.GetDB(), r)
+		resp, err = handleCollectionsList(c.MustGet("MDB").(*sql.DB), r)
 	case http.MethodPost:
 		var collection Collection
 		if c.BindJSON(&collection) != nil {
@@ -58,9 +59,13 @@ func CollectionsListHandler(c *gin.Context) {
 			}
 		}
 
-		tx := mustBeginTx()
+		tx := mustBeginTx(c)
 		resp, err = handleCreateCollection(tx, collection)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.CollectionCreateEvent(&resp.(*Collection).Collection))
+		}
 	}
 
 	concludeRequest(c, resp, err)
@@ -78,7 +83,7 @@ func CollectionHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetCollection(boil.GetDB(), id)
+		resp, err = handleGetCollection(c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPut:
 		var cl PartialCollection
 		if c.Bind(&cl) != nil {
@@ -86,13 +91,22 @@ func CollectionHandler(c *gin.Context) {
 		}
 
 		cl.ID = id
-		tx := mustBeginTx()
+		tx := mustBeginTx(c)
 		resp, err = handleUpdateCollection(tx, &cl)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.CollectionUpdateEvent(&resp.(*Collection).Collection))
+		}
 	case http.MethodDelete:
-		tx := mustBeginTx()
-		err = handleDeleteCollection(tx, id)
+		tx := mustBeginTx(c)
+		var cl *models.Collection
+		cl, err = handleDeleteCollection(tx, id)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.CollectionDeleteEvent(cl))
+		}
 	}
 
 	concludeRequest(c, resp, err)
@@ -116,9 +130,14 @@ func CollectionI18nHandler(c *gin.Context) {
 		}
 	}
 
-	tx := mustBeginTx()
+	tx := mustBeginTx(c)
 	resp, err := handleUpdateCollectionI18n(tx, id, i18ns)
 	mustConcludeTx(tx, err)
+
+	if err == nil {
+		emitEvents(c, events.CollectionUpdateEvent(&resp.Collection))
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -134,16 +153,21 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleCollectionCCU(boil.GetDB(), id)
+		resp, err = handleCollectionCCU(c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var ccu models.CollectionsContentUnit
 		if c.BindJSON(&ccu) != nil {
 			return
 		}
 
-		tx := mustBeginTx()
-		err = handleCollectionAddCCU(tx, id, ccu)
+		var evnts []events.Event
+		tx := mustBeginTx(c)
+		evnts, err = handleCollectionAddCCU(tx, id, ccu)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, evnts...)
+		}
 	case http.MethodPut:
 		var ccu models.CollectionsContentUnit
 		if c.BindJSON(&ccu) != nil {
@@ -157,9 +181,14 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 		}
 		ccu.ContentUnitID = cuID
 
-		tx := mustBeginTx()
-		err = handleCollectionUpdateCCU(tx, id, ccu)
+		var event *events.Event
+		tx := mustBeginTx(c)
+		event, err = handleCollectionUpdateCCU(tx, id, ccu)
 		mustConcludeTx(tx, err)
+
+		if err == nil && event != nil {
+			emitEvents(c, *event)
+		}
 	case http.MethodDelete:
 		cuID, e := strconv.ParseInt(c.Param("cuID"), 10, 0)
 		if e != nil {
@@ -167,9 +196,14 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 			break
 		}
 
-		tx := mustBeginTx()
-		err = handleCollectionRemoveCCU(tx, id, cuID)
+		var evnts []events.Event
+		tx := mustBeginTx(c)
+		evnts, err = handleCollectionRemoveCCU(tx, id, cuID)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, evnts...)
+		}
 	}
 
 	concludeRequest(c, resp, err)
@@ -183,7 +217,7 @@ func CollectionActivateHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleCollectionActivate(boil.GetDB(), id)
+	resp, err := handleCollectionActivate(c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -198,7 +232,7 @@ func ContentUnitsListHandler(c *gin.Context) {
 			return
 		}
 
-		resp, err = handleContentUnitsList(boil.GetDB(), r)
+		resp, err = handleContentUnitsList(c.MustGet("MDB").(*sql.DB), r)
 	case http.MethodPost:
 		var unit ContentUnit
 		if c.BindJSON(&unit) != nil {
@@ -219,9 +253,13 @@ func ContentUnitsListHandler(c *gin.Context) {
 			}
 		}
 
-		tx := mustBeginTx()
+		tx := mustBeginTx(c)
 		resp, err = handleCreateContentUnit(tx, unit)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.ContentUnitCreateEvent(&resp.(*ContentUnit).ContentUnit))
+		}
 	}
 
 	concludeRequest(c, resp, err)
@@ -238,7 +276,7 @@ func ContentUnitHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		resp, err = handleGetContentUnit(boil.GetDB(), id)
+		resp, err = handleGetContentUnit(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
 			var cu PartialContentUnit
@@ -247,9 +285,13 @@ func ContentUnitHandler(c *gin.Context) {
 			}
 
 			cu.ID = id
-			tx := mustBeginTx()
+			tx := mustBeginTx(c)
 			resp, err = handleUpdateContentUnit(tx, &cu)
 			mustConcludeTx(tx, err)
+
+			if err == nil {
+				emitEvents(c, events.ContentUnitUpdateEvent(&resp.(*ContentUnit).ContentUnit))
+			}
 		}
 	}
 
@@ -274,9 +316,14 @@ func ContentUnitI18nHandler(c *gin.Context) {
 		}
 	}
 
-	tx := mustBeginTx()
+	tx := mustBeginTx(c)
 	resp, err := handleUpdateContentUnitI18n(tx, id, i18ns)
 	mustConcludeTx(tx, err)
+
+	if err == nil {
+		emitEvents(c, events.ContentUnitUpdateEvent(&resp.ContentUnit))
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -287,7 +334,7 @@ func ContentUnitFilesHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleContentUnitFiles(boil.GetDB(), id)
+	resp, err := handleContentUnitFiles(c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -298,7 +345,7 @@ func ContentUnitCollectionsHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleContentUnitCCU(boil.GetDB(), id)
+	resp, err := handleContentUnitCCU(c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -314,16 +361,20 @@ func ContentUnitDerivativesHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleContentUnitCUD(boil.GetDB(), id)
+		resp, err = handleContentUnitCUD(c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var cud models.ContentUnitDerivation
 		if c.BindJSON(&cud) != nil {
 			return
 		}
 
-		tx := mustBeginTx()
-		err = handleContentUnitAddCUD(tx, id, cud)
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitAddCUD(tx, id, cud)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.ContentUnitDerivativesChangeEvent(resp.(*models.ContentUnit)))
+		}
 	case http.MethodPut:
 		var cud models.ContentUnitDerivation
 		if c.BindJSON(&cud) != nil {
@@ -337,9 +388,13 @@ func ContentUnitDerivativesHandler(c *gin.Context) {
 		}
 		cud.DerivedID = duID
 
-		tx := mustBeginTx()
-		err = handleContentUnitUpdateCUD(tx, id, cud)
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitUpdateCUD(tx, id, cud)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.ContentUnitDerivativesChangeEvent(resp.(*models.ContentUnit)))
+		}
 	case http.MethodDelete:
 		duID, e := strconv.ParseInt(c.Param("duID"), 10, 0)
 		if e != nil {
@@ -347,9 +402,13 @@ func ContentUnitDerivativesHandler(c *gin.Context) {
 			break
 		}
 
-		tx := mustBeginTx()
-		err = handleContentUnitRemoveCUD(tx, id, duID)
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitRemoveCUD(tx, id, duID)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.ContentUnitDerivativesChangeEvent(resp.(*models.ContentUnit)))
+		}
 	}
 
 	concludeRequest(c, resp, err)
@@ -362,7 +421,7 @@ func ContentUnitOriginsHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleContentUnitOrigins(boil.GetDB(), id)
+	resp, err := handleContentUnitOrigins(c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -378,7 +437,7 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetContentUnitSources(boil.GetDB(), id)
+		resp, err = handleGetContentUnitSources(c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var body map[string]int64
 		if c.BindJSON(&body) != nil {
@@ -391,9 +450,13 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 			break
 		}
 
-		tx := mustBeginTx()
-		err = handleContentUnitAddSource(tx, id, sourceID)
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitAddSource(tx, id, sourceID)
 		mustConcludeTx(tx, err)
+
+		if err == nil && resp != nil {
+			emitEvents(c, events.ContentUnitSourcesChangeEvent(resp.(*models.ContentUnit)))
+		}
 	case http.MethodDelete:
 		sourceID, e := strconv.ParseInt(c.Param("sourceID"), 10, 0)
 		if e != nil {
@@ -401,9 +464,13 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 			break
 		}
 
-		tx := mustBeginTx()
-		err = handleContentUnitRemoveSource(tx, id, sourceID)
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitRemoveSource(tx, id, sourceID)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.ContentUnitSourcesChangeEvent(resp.(*models.ContentUnit)))
+		}
 	}
 
 	concludeRequest(c, resp, err)
@@ -421,7 +488,7 @@ func ContentUnitTagsHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetContentUnitTags(boil.GetDB(), id)
+		resp, err = handleGetContentUnitTags(c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var body map[string]int64
 		if c.BindJSON(&body) != nil {
@@ -434,9 +501,13 @@ func ContentUnitTagsHandler(c *gin.Context) {
 			break
 		}
 
-		tx := mustBeginTx()
-		err = handleContentUnitAddTag(tx, id, tagID)
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitAddTag(tx, id, tagID)
 		mustConcludeTx(tx, err)
+
+		if err == nil && resp != nil {
+			emitEvents(c, events.ContentUnitTagsChangeEvent(resp.(*models.ContentUnit)))
+		}
 	case http.MethodDelete:
 		tagID, e := strconv.ParseInt(c.Param("tagID"), 10, 0)
 		if e != nil {
@@ -444,9 +515,13 @@ func ContentUnitTagsHandler(c *gin.Context) {
 			break
 		}
 
-		tx := mustBeginTx()
-		err = handleContentUnitRemoveTag(tx, id, tagID)
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitRemoveTag(tx, id, tagID)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.ContentUnitTagsChangeEvent(resp.(*models.ContentUnit)))
+		}
 	}
 
 	concludeRequest(c, resp, err)
@@ -464,16 +539,20 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetContentUnitPersons(boil.GetDB(), id)
+		resp, err = handleGetContentUnitPersons(c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var cup models.ContentUnitsPerson
 		if c.BindJSON(&cup) != nil {
 			return
 		}
 
-		tx := mustBeginTx()
-		err = handleContentUnitAddPerson(tx, id, cup)
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitAddPerson(tx, id, cup)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.ContentUnitPersonsChangeEvent(resp.(*models.ContentUnit)))
+		}
 	case http.MethodDelete:
 		personID, e := strconv.ParseInt(c.Param("personID"), 10, 0)
 		if e != nil {
@@ -481,9 +560,13 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 			break
 		}
 
-		tx := mustBeginTx()
-		err = handleContentUnitRemovePerson(tx, id, personID)
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitRemovePerson(tx, id, personID)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.ContentUnitPersonsChangeEvent(resp.(*models.ContentUnit)))
+		}
 	}
 
 	concludeRequest(c, resp, err)
@@ -495,7 +578,7 @@ func FilesListHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleFilesList(boil.GetDB(), r)
+	resp, err := handleFilesList(c.MustGet("MDB").(*sql.DB), r)
 	concludeRequest(c, resp, err)
 }
 
@@ -510,7 +593,7 @@ func FileHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		resp, err = handleGetFile(boil.GetDB(), id)
+		resp, err = handleGetFile(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
 			var f MFile
@@ -519,9 +602,13 @@ func FileHandler(c *gin.Context) {
 			}
 
 			f.ID = id
-			tx := mustBeginTx()
+			tx := mustBeginTx(c)
 			resp, err = handleUpdateFile(tx, &f)
 			mustConcludeTx(tx, err)
+
+			if err == nil {
+				emitEvents(c, events.FileUpdateEvent(&resp.(*MFile).File))
+			}
 		}
 	}
 
@@ -535,7 +622,7 @@ func FileStoragesHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleFileStorages(boil.GetDB(), id)
+	resp, err := handleFileStorages(c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -545,7 +632,7 @@ func OperationsListHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleOperationsList(boil.GetDB(), r)
+	resp, err := handleOperationsList(c.MustGet("MDB").(*sql.DB), r)
 	concludeRequest(c, resp, err)
 }
 
@@ -556,7 +643,7 @@ func OperationItemHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleOperationItem(boil.GetDB(), id)
+	resp, err := handleOperationItem(c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -567,12 +654,12 @@ func OperationFilesHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleOperationFiles(boil.GetDB(), id)
+	resp, err := handleOperationFiles(c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
 func AuthorsHandler(c *gin.Context) {
-	authors, err := models.Authors(boil.GetDB(),
+	authors, err := models.Authors(c.MustGet("MDB").(*sql.DB),
 		qm.Load("AuthorI18ns", "Sources")).
 		All()
 	if err != nil {
@@ -614,7 +701,7 @@ func SourcesHandler(c *gin.Context) {
 		if c.Bind(&r) != nil {
 			return
 		}
-		resp, err = handleGetSources(boil.GetDB(), r)
+		resp, err = handleGetSources(c.MustGet("MDB").(*sql.DB), r)
 	} else {
 		if c.Request.Method == http.MethodPost {
 			var r CreateSourceRequest
@@ -636,9 +723,13 @@ func SourcesHandler(c *gin.Context) {
 				}
 			}
 
-			tx := mustBeginTx()
+			tx := mustBeginTx(c)
 			resp, err = handleCreateSource(tx, r)
 			mustConcludeTx(tx, err)
+
+			if err == nil {
+				emitEvents(c, events.SourceCreateEvent(&resp.(*Source).Source))
+			}
 		}
 	}
 
@@ -656,7 +747,7 @@ func SourceHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		resp, err = handleGetSource(boil.GetDB(), id)
+		resp, err = handleGetSource(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
 			var s Source
@@ -665,9 +756,13 @@ func SourceHandler(c *gin.Context) {
 			}
 
 			s.ID = id
-			tx := mustBeginTx()
+			tx := mustBeginTx(c)
 			resp, err = handleUpdateSource(tx, &s)
 			mustConcludeTx(tx, err)
+
+			if err == nil {
+				emitEvents(c, events.SourceUpdateEvent(&resp.(*Source).Source))
+			}
 		}
 	}
 
@@ -692,9 +787,14 @@ func SourceI18nHandler(c *gin.Context) {
 		}
 	}
 
-	tx := mustBeginTx()
+	tx := mustBeginTx(c)
 	resp, err := handleUpdateSourceI18n(tx, id, i18ns)
 	mustConcludeTx(tx, err)
+
+	if err == nil {
+		emitEvents(c, events.SourceUpdateEvent(&resp.Source))
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -707,7 +807,7 @@ func TagsHandler(c *gin.Context) {
 		if c.Bind(&r) != nil {
 			return
 		}
-		resp, err = handleGetTags(boil.GetDB(), r)
+		resp, err = handleGetTags(c.MustGet("MDB").(*sql.DB), r)
 	} else {
 		if c.Request.Method == http.MethodPost {
 			var t Tag
@@ -722,9 +822,13 @@ func TagsHandler(c *gin.Context) {
 				}
 			}
 
-			tx := mustBeginTx()
+			tx := mustBeginTx(c)
 			resp, err = handleCreateTag(tx, &t)
 			mustConcludeTx(tx, err)
+
+			if err == nil {
+				emitEvents(c, events.TagCreateEvent(&resp.(*Tag).Tag))
+			}
 		}
 	}
 
@@ -742,7 +846,7 @@ func TagHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		resp, err = handleGetTag(boil.GetDB(), id)
+		resp, err = handleGetTag(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
 			var t Tag
@@ -751,9 +855,13 @@ func TagHandler(c *gin.Context) {
 			}
 
 			t.ID = id
-			tx := mustBeginTx()
+			tx := mustBeginTx(c)
 			resp, err = handleUpdateTag(tx, &t)
 			mustConcludeTx(tx, err)
+
+			if err == nil {
+				emitEvents(c, events.TagUpdateEvent(&resp.(*Tag).Tag))
+			}
 		}
 	}
 
@@ -778,9 +886,14 @@ func TagI18nHandler(c *gin.Context) {
 		}
 	}
 
-	tx := mustBeginTx()
+	tx := mustBeginTx(c)
 	resp, err := handleUpdateTagI18n(tx, id, i18ns)
 	mustConcludeTx(tx, err)
+
+	if err == nil {
+		emitEvents(c, events.TagUpdateEvent(&resp.Tag))
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -795,7 +908,7 @@ func PersonsListHandler(c *gin.Context) {
 			return
 		}
 
-		resp, err = handlePersonsList(boil.GetDB(), r)
+		resp, err = handlePersonsList(c.MustGet("MDB").(*sql.DB), r)
 	case http.MethodPost:
 		var person Person
 		if c.BindJSON(&person) != nil {
@@ -810,9 +923,13 @@ func PersonsListHandler(c *gin.Context) {
 			}
 		}
 
-		tx := mustBeginTx()
+		tx := mustBeginTx(c)
 		resp, err = handleCreatePerson(tx, &person)
 		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.PersonCreateEvent(&resp.(*Person).Person))
+		}
 	}
 
 	concludeRequest(c, resp, err)
@@ -829,7 +946,7 @@ func PersonHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		resp, err = handleGetPerson(boil.GetDB(), id)
+		resp, err = handleGetPerson(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
 			var p Person
@@ -838,9 +955,13 @@ func PersonHandler(c *gin.Context) {
 			}
 
 			p.ID = id
-			tx := mustBeginTx()
+			tx := mustBeginTx(c)
 			resp, err = handleUpdatePerson(tx, &p)
 			mustConcludeTx(tx, err)
+
+			if err == nil {
+				emitEvents(c, events.PersonUpdateEvent(&resp.(*Person).Person))
+			}
 		}
 	}
 
@@ -865,9 +986,14 @@ func PersonI18nHandler(c *gin.Context) {
 		}
 	}
 
-	tx := mustBeginTx()
+	tx := mustBeginTx(c)
 	resp, err := handleUpdatePersonI18n(tx, id, i18ns)
 	mustConcludeTx(tx, err)
+
+	if err == nil {
+		emitEvents(c, events.PersonUpdateEvent(&resp.Person))
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -877,7 +1003,7 @@ func StoragesHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleStoragesList(boil.GetDB(), r)
+	resp, err := handleStoragesList(c.MustGet("MDB").(*sql.DB), r)
 	concludeRequest(c, resp, err)
 }
 
@@ -1032,32 +1158,32 @@ func handleUpdateCollection(exec boil.Executor, c *PartialCollection) (*Collecti
 	return handleGetCollection(exec, c.ID)
 }
 
-func handleDeleteCollection(exec boil.Executor, id int64) *HttpError {
+func handleDeleteCollection(exec boil.Executor, id int64) (*models.Collection, *HttpError) {
 	collection, err := models.FindCollection(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
 	err = models.CollectionsContentUnits(exec, qm.Where("collection_id = ?", id)).DeleteAll()
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
 	err = models.CollectionI18ns(exec, qm.Where("collection_id = ?", id)).DeleteAll()
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
 	err = collection.Delete(exec)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	return nil
+	return collection, nil
 }
 
 func handleUpdateCollectionI18n(exec boil.Executor, id int64, i18ns []*models.CollectionI18n) (*Collection, *HttpError) {
@@ -1180,64 +1306,70 @@ func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit
 	return data, nil
 }
 
-func handleCollectionAddCCU(exec boil.Executor, id int64, ccu models.CollectionsContentUnit) *HttpError {
+func handleCollectionAddCCU(exec boil.Executor, id int64, ccu models.CollectionsContentUnit) ([]events.Event, *HttpError) {
 	c, err := models.FindCollection(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
-	exists, err := models.ContentUnits(exec,
-		qm.Where("id = ?", ccu.ContentUnitID)).
-		Exists()
+	cu, err := models.FindContentUnit(exec, ccu.ContentUnitID)
 	if err != nil {
-		return NewInternalError(err)
-	}
-	if !exists {
-		return NewBadRequestError(errors.Errorf("Unknown content unit id %d", ccu.ContentUnitID))
+		if err == sql.ErrNoRows {
+			return nil, NewBadRequestError(errors.Errorf("Unknown content unit id %d", ccu.ContentUnitID))
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
 
-	exists, err = models.CollectionsContentUnits(exec,
+	exists, err := models.CollectionsContentUnits(exec,
 		qm.Where("collection_id = ? AND content_unit_id = ?", id, ccu.ContentUnitID)).
 		Exists()
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 	if exists {
-		return NewBadRequestError(errors.New("Association already exists"))
+		return nil, NewBadRequestError(errors.New("Association already exists"))
 	}
 
 	err = c.AddCollectionsContentUnits(exec, true, &ccu)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	err = UpdateCollectionPublished(exec, id)
-	if err != nil {
-		return NewInternalError(err)
+	evnts := make([]events.Event, 1)
+	evnts[0] = events.CollectionContentUnitsChangeEvent(c)
+
+	if cu.Published && !c.Published {
+		c.Published = true
+		if err := c.Update(exec, "published"); err != nil {
+			return nil, NewInternalError(err)
+		}
+		evnts = append(evnts, events.CollectionPublishedChangeEvent(c))
 	}
 
-	return nil
+	return evnts, nil
 }
 
-func handleCollectionUpdateCCU(exec boil.Executor, id int64, ccu models.CollectionsContentUnit) *HttpError {
-	exists, err := models.Collections(exec, qm.Where("id = ?", id)).Exists()
+func handleCollectionUpdateCCU(exec boil.Executor, id int64, ccu models.CollectionsContentUnit) (*events.Event, *HttpError) {
+	c, err := models.FindCollection(exec, id)
 	if err != nil {
-		return NewInternalError(err)
-	}
-	if !exists {
-		return NewNotFoundError()
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
 
 	mCCU, err := models.FindCollectionsContentUnit(exec, id, ccu.ContentUnitID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
@@ -1245,41 +1377,60 @@ func handleCollectionUpdateCCU(exec boil.Executor, id int64, ccu models.Collecti
 	mCCU.Position = ccu.Position
 	err = mCCU.Update(exec, "name", "position")
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	return nil
+	e := events.CollectionContentUnitsChangeEvent(c)
+
+	return &e, nil
 }
 
-func handleCollectionRemoveCCU(exec boil.Executor, id int64, cuID int64) *HttpError {
-	exists, err := models.Collections(exec, qm.Where("id = ?", id)).Exists()
+func handleCollectionRemoveCCU(exec boil.Executor, id int64, cuID int64) ([]events.Event, *HttpError) {
+	c, err := models.FindCollection(exec, id)
 	if err != nil {
-		return NewInternalError(err)
-	}
-	if !exists {
-		return NewNotFoundError()
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
 
 	ccu, err := models.FindCollectionsContentUnit(exec, id, cuID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
 	err = ccu.Delete(exec)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	err = UpdateCollectionPublished(exec, id)
-	if err != nil {
-		return NewInternalError(err)
+	var evnts = make([]events.Event, 1)
+	evnts[0] = events.CollectionContentUnitsChangeEvent(c)
+
+	if c.Published {
+		var publishedCUs int
+		query := `SELECT count(*) > 0
+                 FROM collections_content_units ccu INNER JOIN content_units cu
+                     ON ccu.content_unit_id = cu.id AND ccu.collection_id = $1 AND cu.published IS TRUE`
+		if err := queries.Raw(exec, query, id).QueryRow().Scan(&publishedCUs); err != nil {
+			return nil, NewInternalError(err)
+		}
+
+		if publishedCUs == 0 {
+			c.Published = false
+			if err := c.Update(exec, "published"); err != nil {
+				return nil, NewInternalError(err)
+			}
+			evnts = append(evnts, events.CollectionPublishedChangeEvent(c))
+		}
 	}
 
-	return nil
+	return evnts, nil
 }
 
 func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*ContentUnitsResponse, *HttpError) {
@@ -1597,13 +1748,13 @@ func handleContentUnitCUD(exec boil.Executor, id int64) ([]*ContentUnitDerivatio
 	return data, nil
 }
 
-func handleContentUnitAddCUD(exec boil.Executor, id int64, cud models.ContentUnitDerivation) *HttpError {
+func handleContentUnitAddCUD(exec boil.Executor, id int64, cud models.ContentUnitDerivation) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
@@ -1611,81 +1762,83 @@ func handleContentUnitAddCUD(exec boil.Executor, id int64, cud models.ContentUni
 		qm.Where("id = ?", cud.DerivedID)).
 		Exists()
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 	if !exists {
-		return NewBadRequestError(errors.Errorf("Unknown content unit id %d", cud.DerivedID))
+		return nil, NewBadRequestError(errors.Errorf("Unknown content unit id %d", cud.DerivedID))
 	}
 
 	exists, err = models.ContentUnitDerivations(exec,
 		qm.Where("source_id = ? AND derived_id = ?", id, cud.DerivedID)).
 		Exists()
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 	if exists {
-		return NewBadRequestError(errors.New("Derivation already exists"))
+		return nil, NewBadRequestError(errors.New("Derivation already exists"))
 	}
 
 	err = cu.AddSourceContentUnitDerivations(exec, true, &cud)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	return nil
+	return cu, nil
 }
 
-func handleContentUnitUpdateCUD(exec boil.Executor, id int64, cud models.ContentUnitDerivation) *HttpError {
-	exists, err := models.ContentUnits(exec, qm.Where("id = ?", id)).Exists()
+func handleContentUnitUpdateCUD(exec boil.Executor, id int64, cud models.ContentUnitDerivation) (*models.ContentUnit, *HttpError) {
+	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
-		return NewInternalError(err)
-	}
-	if !exists {
-		return NewNotFoundError()
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
 
 	mCUD, err := models.FindContentUnitDerivation(exec, id, cud.DerivedID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
 	mCUD.Name = cud.Name
 	err = mCUD.Update(exec, "name")
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	return nil
+	return cu, nil
 }
 
-func handleContentUnitRemoveCUD(exec boil.Executor, id int64, duID int64) *HttpError {
-	exists, err := models.ContentUnits(exec, qm.Where("id = ?", id)).Exists()
+func handleContentUnitRemoveCUD(exec boil.Executor, id int64, duID int64) (*models.ContentUnit, *HttpError) {
+	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
-		return NewInternalError(err)
-	}
-	if !exists {
-		return NewNotFoundError()
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
 
 	cud, err := models.FindContentUnitDerivation(exec, id, duID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
 	err = cud.Delete(exec)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	return nil
+	return cu, nil
 }
 
 func handleContentUnitOrigins(exec boil.Executor, id int64) ([]*ContentUnitDerivation, *HttpError) {
@@ -1766,71 +1919,71 @@ func handleGetContentUnitSources(exec boil.Executor, id int64) ([]*Source, *Http
 	return data, nil
 }
 
-func handleContentUnitAddSource(exec boil.Executor, id int64, sourceID int64) *HttpError {
-	unit, err := models.FindContentUnit(exec, id)
+func handleContentUnitAddSource(exec boil.Executor, id int64, sourceID int64) (*models.ContentUnit, *HttpError) {
+	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
 	source, err := models.FindSource(exec, sourceID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewBadRequestError(errors.Errorf("Unknown source id %d", sourceID))
+			return nil, NewBadRequestError(errors.Errorf("Unknown source id %d", sourceID))
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
 	var count int64
 	err = queries.Raw(exec,
 		`SELECT COUNT(1) FROM content_units_sources WHERE content_unit_id=$1 AND source_id=$2`,
-		unit.ID, source.ID).
+		cu.ID, source.ID).
 		QueryRow().
 		Scan(&count)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 	if count > 0 {
-		return nil // noop
+		return nil, nil // noop
 	}
 
-	err = unit.AddSources(exec, false, source)
+	err = cu.AddSources(exec, false, source)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	return nil
+	return cu, nil
 }
 
-func handleContentUnitRemoveSource(exec boil.Executor, id int64, sourceID int64) *HttpError {
-	unit, err := models.FindContentUnit(exec, id)
+func handleContentUnitRemoveSource(exec boil.Executor, id int64, sourceID int64) (*models.ContentUnit, *HttpError) {
+	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
 	source, err := models.FindSource(exec, sourceID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewBadRequestError(errors.Errorf("Unknown source id %d", sourceID))
+			return nil, NewBadRequestError(errors.Errorf("Unknown source id %d", sourceID))
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
-	err = unit.RemoveSources(exec, source)
+	err = cu.RemoveSources(exec, source)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	return nil
+	return cu, nil
 }
 
 func handleGetContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError) {
@@ -1858,6 +2011,73 @@ func handleGetContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError)
 	}
 
 	return data, nil
+}
+
+func handleContentUnitAddTag(exec boil.Executor, id int64, tagID int64) (*models.ContentUnit, *HttpError) {
+	cu, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	tag, err := models.FindTag(exec, tagID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewBadRequestError(errors.Errorf("Unknown tag id %d", tagID))
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	var count int64
+	err = queries.Raw(exec,
+		`SELECT COUNT(1) FROM content_units_tags WHERE content_unit_id=$1 AND tag_id=$2`,
+		cu.ID, tag.ID).
+		QueryRow().
+		Scan(&count)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if count > 0 {
+		return nil, nil // noop
+	}
+
+	err = cu.AddTags(exec, false, tag)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return cu, nil
+}
+
+func handleContentUnitRemoveTag(exec boil.Executor, id int64, tagID int64) (*models.ContentUnit, *HttpError) {
+	cu, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	tag, err := models.FindTag(exec, tagID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewBadRequestError(errors.Errorf("Unknown tag id %d", tagID))
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	err = cu.RemoveTags(exec, tag)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return cu, nil
 }
 
 func handleGetContentUnitPersons(exec boil.Executor, id int64) ([]*ContentUnitPerson, *HttpError) {
@@ -1889,48 +2109,30 @@ func handleGetContentUnitPersons(exec boil.Executor, id int64) ([]*ContentUnitPe
 	return data, nil
 }
 
-func handleContentUnitRemovePerson(exec boil.Executor, id int64, personID int64) *HttpError {
-	cup, err := models.FindContentUnitsPerson(exec, id, personID)
+func handleContentUnitAddPerson(exec boil.Executor, id int64, cup models.ContentUnitsPerson) (*models.ContentUnit, *HttpError) {
+	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
-		}
-	}
-
-	err = cup.Delete(exec)
-	if err != nil {
-		return NewInternalError(err)
-	}
-
-	return nil
-}
-
-func handleContentUnitAddPerson(exec boil.Executor, id int64, cup models.ContentUnitsPerson) *HttpError {
-	_, err := models.FindContentUnit(exec, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return NewNotFoundError()
-		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
 	exists, err := models.PersonExists(exec, cup.PersonID)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 	if !exists {
-		return NewBadRequestError(errors.Errorf("Unknown person id %d", cup.PersonID))
+		return nil, NewBadRequestError(errors.Errorf("Unknown person id %d", cup.PersonID))
 	}
 
 	exists, err = models.ContentRoleTypeExists(exec, cup.RoleID)
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 	if !exists {
-		return NewBadRequestError(errors.Errorf("Unknown role id %d", cup.RoleID))
+		return nil, NewBadRequestError(errors.Errorf("Unknown role id %d", cup.RoleID))
 	}
 
 	existingCUP, err := models.FindContentUnitsPerson(exec, id, cup.PersonID)
@@ -1939,12 +2141,10 @@ func handleContentUnitAddPerson(exec boil.Executor, id int64, cup models.Content
 			// create new
 			err = cup.Insert(exec)
 			if err != nil {
-				return NewInternalError(err)
-			} else {
-				return nil
+				return nil, NewInternalError(err)
 			}
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
@@ -1952,77 +2152,37 @@ func handleContentUnitAddPerson(exec boil.Executor, id int64, cup models.Content
 	existingCUP.RoleID = cup.RoleID
 	err = existingCUP.Update(exec, "role_id")
 	if err != nil {
-		return NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	return nil
+	return cu, nil
 }
 
-func handleContentUnitAddTag(exec boil.Executor, id int64, tagID int64) *HttpError {
-	unit, err := models.FindContentUnit(exec, id)
+func handleContentUnitRemovePerson(exec boil.Executor, id int64, personID int64) (*models.ContentUnit, *HttpError) {
+	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewNotFoundError()
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
-	tag, err := models.FindTag(exec, tagID)
+	cup, err := models.FindContentUnitsPerson(exec, id, personID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return NewBadRequestError(errors.Errorf("Unknown tag id %d", tagID))
+			return nil, NewNotFoundError()
 		} else {
-			return NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
-	var count int64
-	err = queries.Raw(exec,
-		`SELECT COUNT(1) FROM content_units_tags WHERE content_unit_id=$1 AND tag_id=$2`,
-		unit.ID, tag.ID).
-		QueryRow().
-		Scan(&count)
+	err = cup.Delete(exec)
 	if err != nil {
-		return NewInternalError(err)
-	}
-	if count > 0 {
-		return nil // noop
+		return nil, NewInternalError(err)
 	}
 
-	err = unit.AddTags(exec, false, tag)
-	if err != nil {
-		return NewInternalError(err)
-	}
-
-	return nil
-}
-
-func handleContentUnitRemoveTag(exec boil.Executor, id int64, tagID int64) *HttpError {
-	unit, err := models.FindContentUnit(exec, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return NewNotFoundError()
-		} else {
-			return NewInternalError(err)
-		}
-	}
-
-	tag, err := models.FindTag(exec, tagID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return NewBadRequestError(errors.Errorf("Unknown tag id %d", tagID))
-		} else {
-			return NewInternalError(err)
-		}
-	}
-
-	err = unit.RemoveTags(exec, tag)
-	if err != nil {
-		return NewInternalError(err)
-	}
-
-	return nil
+	return cu, nil
 }
 
 func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpError) {
@@ -3002,15 +3162,15 @@ func appendTagsFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f TagsFilter)
 }
 
 // mustBeginTx begins a transaction, panics on error.
-func mustBeginTx() boil.Transactor {
-	tx, ex := boil.Begin()
-	utils.Must(ex)
+func mustBeginTx(c *gin.Context) *sql.Tx {
+	tx, err := c.MustGet("MDB").(*sql.DB).Begin()
+	utils.Must(err)
 	return tx
 }
 
 // mustConcludeTx commits or rollback the given transaction according to given error.
 // Panics if Commit() or Rollback() fails.
-func mustConcludeTx(tx boil.Transactor, err *HttpError) {
+func mustConcludeTx(tx *sql.Tx, err *HttpError) {
 	if err == nil {
 		utils.Must(tx.Commit())
 	} else {
@@ -3025,4 +3185,8 @@ func concludeRequest(c *gin.Context, resp interface{}, err *HttpError) {
 	} else {
 		err.Abort(c)
 	}
+}
+
+func emitEvents(c *gin.Context, evnts ...events.Event) {
+	c.MustGet("EVENTS_EMITTER").(events.EventEmitter).Emit(evnts...)
 }

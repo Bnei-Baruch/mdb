@@ -1,10 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"database/sql"
+	"io"
 	"net/http"
+	"os"
+	"os/signal"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/nats-io/go-nats-streaming"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stvp/rollbar"
@@ -13,6 +19,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/Bnei-Baruch/mdb/version"
 )
@@ -35,11 +42,43 @@ func serverFn(cmd *cobra.Command, args []string) {
 	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	utils.Must(err)
 	defer db.Close()
-	boil.SetDB(db)
+	//boil.SetDB(db)
 	boil.DebugMode = viper.GetString("server.mode") == "debug"
 
 	log.Info("Initializing type registries")
 	utils.Must(api.InitTypeRegistries(db))
+
+	// Setup events handlers
+	eventHandlers := make([]events.EventHandler, 0)
+	hNames := viper.GetStringSlice("events.handlers")
+	if len(hNames) > 0 {
+		for i := range hNames {
+			var h events.EventHandler
+			var err error
+			switch hNames[i] {
+			case "logger":
+				h = new(events.LoggerEventHandler)
+			case "nats":
+				log.Info("Initializing nats streaming event handler")
+				h, err = events.NewNatsStreamingEventHandler(
+					viper.GetString("nats.subject"),
+					viper.GetString("nats.cluster-id"),
+					viper.GetString("nats.client-id"),
+					stan.NatsURL(viper.GetString("nats.url")),
+					stan.PubAckWait(viper.GetDuration("nats.pub-ack-wait")),
+				)
+				if err != nil {
+					log.Errorf("Error connecting to nats streaming server: %s", err)
+				}
+			default:
+				log.Warnf("Unknown event handler: %s", hNames[i])
+			}
+			eventHandlers = append(eventHandlers, h)
+		}
+	}
+
+	emitter, err := events.NewBufferedEmitter(viper.GetInt("events.emitter-size"), eventHandlers...)
+	utils.Must(err)
 
 	// Setup Rollbar
 	rollbar.Token = viper.GetString("server.rollbar-token")
@@ -56,19 +95,52 @@ func serverFn(cmd *cobra.Command, args []string) {
 	router := gin.New()
 	router.Use(
 		utils.MdbLoggerMiddleware(),
+		utils.EnvMiddleware(db, emitter),
 		utils.ErrorHandlingMiddleware(),
 		cors.New(corsConfig),
 		utils.RecoveryMiddleware())
 
 	api.SetupRoutes(router)
 
-	log.Infoln("Running application")
-	if cmd != nil {
-		router.Run(viper.GetString("server.bind-address"))
+	srv := &http.Server{
+		Addr:    viper.GetString("server.bind-address"),
+		Handler: router,
 	}
 
-	// This would be reasonable once we'll have graceful shutdown implemented
-	//if len(rollbar.Token) > 0 {
-	//	rollbar.Wait()
-	//}
+	go func() {
+		// service connections
+		log.Infoln("Running application")
+		if err := srv.ListenAndServe(); err != nil {
+			log.Infof("Server listen: %s", err)
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server with
+	// a timeout of 5 seconds.
+	quit := make(chan os.Signal)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	log.Infof("Shutdown Server ...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server Shutdown:", err)
+	}
+	log.Infof("Server exiting")
+
+	log.Infof("Closing event handlers")
+	for i := range eventHandlers {
+		if h, ok := eventHandlers[i].(io.Closer); ok {
+			if err := h.Close(); err != nil {
+				log.Fatal("Close event handler:", err)
+			}
+		}
+	}
+
+	if len(rollbar.Token) > 0 {
+		log.Infof("Wait for rollbar")
+		rollbar.Wait()
+	}
+
 }
