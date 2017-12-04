@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 
+	"database/sql"
 	"github.com/lib/pq"
 	"github.com/volatiletech/sqlboiler/queries"
 	"gopkg.in/gin-gonic/gin.v1"
@@ -105,8 +106,9 @@ func SourcesHierarchyHandler(c *gin.Context) {
 	}
 
 	// Execute query
+	mdb := c.MustGet("MDB").(*sql.DB)
 	rsql := fmt.Sprintf(SOURCE_HIERARCHY_SQL, l, l, rootClause, l, l, depth)
-	rows, err := queries.RawG(rsql).Query()
+	rows, err := queries.Raw(mdb, rsql).Query()
 	if err != nil {
 		NewInternalError(err).Abort(c)
 		return
@@ -151,7 +153,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 
 	if r.RootUID == "" {
 		rsql = fmt.Sprintf(AUTHORS_SOURCES_SQL, l, l)
-		rows, err := queries.RawG(rsql).Query()
+		rows, err := queries.Raw(mdb, rsql).Query()
 		if err != nil {
 			NewInternalError(err).Abort(c)
 			return
@@ -215,8 +217,9 @@ func TagsHierarchyHandler(c *gin.Context) {
 	}
 
 	// Execute query
+	mdb := c.MustGet("MDB").(*sql.DB)
 	rsql := fmt.Sprintf(TAG_HIERARCHY_SQL, l, rootClause, l, depth)
-	rows, err := queries.RawG(rsql).Query()
+	rows, err := queries.Raw(mdb, rsql).Query()
 	if err != nil {
 		NewInternalError(err).Abort(c)
 		return
