@@ -11,11 +11,11 @@ import (
 	"gopkg.in/volatiletech/null.v6"
 
 	"encoding/json"
+	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/volatiletech/sqlboiler/queries"
 	"strings"
-	"github.com/Bnei-Baruch/mdb/events"
 )
 
 // Do all stuff for processing metadata coming from Content Identification Tool.
@@ -224,10 +224,12 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	}
 
 	// Get or create collection
-	var c *models.Collection
+	//var c *models.Collection
 	if metadata.CollectionUID.Valid {
 		log.Infof("Specific collection %s", metadata.CollectionUID.String)
-		c, err = models.Collections(exec, qm.Where("uid = ?", metadata.CollectionUID.String)).One()
+
+		// find collection
+		c, err := models.Collections(exec, qm.Where("uid = ?", metadata.CollectionUID.String)).One()
 		if err != nil {
 			if err == sql.ErrNoRows {
 				log.Warnf("No such collection %s", metadata.CollectionUID.String)
@@ -235,7 +237,19 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				return nil, errors.Wrap(err, "Lookup collection in DB")
 			}
 		}
-	} else if ct == CT_LESSON_PART || ct == CT_FULL_LESSON {
+
+		// Associate unit to collection
+		if c != nil &&
+			(!metadata.ArtifactType.Valid || metadata.ArtifactType.String == "main") {
+			err := associateUnitToCollection(exec, cu, c, metadata)
+			if err != nil {
+				return nil, errors.Wrap(err, "associate content_unit to collection")
+			}
+			evnts = append(evnts, events.CollectionContentUnitsChangeEvent(c))
+		}
+	}
+
+	if ct == CT_LESSON_PART || ct == CT_FULL_LESSON {
 		log.Info("Lesson reconciliation")
 
 		// Reconcile or create new
@@ -244,7 +258,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		captureStop, err := FindUpChainOperation(exec, original.ID, OP_CAPTURE_STOP)
 		if err != nil {
 			if ex, ok := err.(UpChainOperationNotFound); ok {
-				log.Warnf(ex.Error())
+				log.Warnf("capture_stop operation not found for original: %s", ex.Error())
 			} else {
 				return nil, err
 			}
@@ -254,6 +268,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			if err != nil {
 				return nil, errors.Wrap(err, "json Unmarshal")
 			}
+
 			captureID, ok := oProps["collection_uid"]
 			if ok {
 				log.Infof("Reconcile by capture_id %s", captureID)
@@ -271,7 +286,8 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				}
 				delete(props, "duration")
 
-				c, err = FindCollectionByCaptureID(exec, captureID)
+				// get or create collection
+				c, err := FindCollectionByCaptureID(exec, captureID)
 				if err != nil {
 					if _, ok := err.(CollectionNotFound); !ok {
 						return nil, err
@@ -302,70 +318,22 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 					}
 					evnts = append(evnts, events.CollectionUpdateEvent(c))
 				}
+
+				// Associate unit to collection
+				if c != nil &&
+					(!metadata.ArtifactType.Valid || metadata.ArtifactType.String == "main") {
+					err := associateUnitToCollection(exec, cu, c, metadata)
+					if err != nil {
+						return nil, errors.Wrap(err, "associate content_unit to collection")
+					}
+					evnts = append(evnts, events.CollectionContentUnitsChangeEvent(c))
+				}
 			} else {
 				log.Warnf("No collection_uid in capture_stop [%d] properties", captureStop.ID)
 			}
 		} else {
 			log.Warnf("Invalid properties in capture_stop [%d]", captureStop.ID)
 		}
-	}
-
-	// Associate collection and unit
-	if c != nil &&
-		(!metadata.ArtifactType.Valid || metadata.ArtifactType.String == "main") {
-		log.Infof("Associating unit and collection [c-cu]=[%d-%d]", c.ID, cu.ID)
-		ccu := &models.CollectionsContentUnit{
-			CollectionID:  c.ID,
-			ContentUnitID: cu.ID,
-		}
-		switch ct {
-		case CT_FULL_LESSON:
-			if c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID ||
-				c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID {
-				ccu.Name = "full"
-			} else if metadata.Number.Valid {
-				ccu.Name = strconv.Itoa(metadata.Number.Int)
-			}
-			break
-		case CT_LESSON_PART:
-			if metadata.Part.Valid {
-				ccu.Name = strconv.Itoa(metadata.Part.Int)
-			}
-			break
-		case CT_VIDEO_PROGRAM_CHAPTER:
-			if metadata.Episode.Valid {
-				ccu.Name = metadata.Episode.String
-			}
-			break
-		default:
-			if metadata.Number.Valid {
-				ccu.Name = strconv.Itoa(metadata.Number.Int)
-			}
-
-			// first 3 event part types are lesson, YH and meal, we skip them.
-			if metadata.PartType.Valid && metadata.PartType.Int > 2 {
-				idx := metadata.PartType.Int - 3
-				if idx < len(MISC_EVENT_PART_TYPES) {
-					ccu.Name = MISC_EVENT_PART_TYPES[idx] + ccu.Name
-				} else {
-					log.Warn("Unknown event part type: %d", metadata.PartType.Int)
-				}
-			}
-			break
-		}
-
-		// Make this new unit the last one in this collection
-		ccu.Position, err = GetNextPositionInCollection(exec, c.ID)
-		if err != nil {
-			return nil, errors.Wrap(err, "Get last position in collection")
-		}
-
-		log.Infof("Association name: %s", ccu.Name)
-		err = c.AddCollectionsContentUnits(exec, true, ccu)
-		if err != nil {
-			return nil, errors.Wrap(err, "Save collection and content unit association in DB")
-		}
-		evnts = append(evnts, events.CollectionContentUnitsChangeEvent(c))
 	}
 
 	// Associate unit and derived units
@@ -445,7 +413,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				}
 			}
 
-			if len(derivedCUs) >0 {
+			if len(derivedCUs) > 0 {
 				evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(cu))
 			}
 
@@ -481,4 +449,64 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	// set default permissions ?!
 
 	return evnts, nil
+}
+
+func associateUnitToCollection(exec boil.Executor, cu *models.ContentUnit, c *models.Collection, metadata CITMetadata) error {
+	log.Infof("Associating unit and collection [c-cu]=[%d-%d]", c.ID, cu.ID)
+
+	ccu := &models.CollectionsContentUnit{
+		CollectionID:  c.ID,
+		ContentUnitID: cu.ID,
+	}
+
+	switch CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name {
+	case CT_FULL_LESSON:
+		if c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID ||
+			c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID {
+			ccu.Name = "full"
+		} else if metadata.Number.Valid {
+			ccu.Name = strconv.Itoa(metadata.Number.Int)
+		}
+		break
+	case CT_LESSON_PART:
+		if metadata.Part.Valid {
+			ccu.Name = strconv.Itoa(metadata.Part.Int)
+		}
+		break
+	case CT_VIDEO_PROGRAM_CHAPTER:
+		if metadata.Episode.Valid {
+			ccu.Name = metadata.Episode.String
+		}
+		break
+	default:
+		if metadata.Number.Valid {
+			ccu.Name = strconv.Itoa(metadata.Number.Int)
+		}
+
+		// first 3 event part types are lesson, YH and meal, we skip them.
+		if metadata.PartType.Valid && metadata.PartType.Int > 2 {
+			idx := metadata.PartType.Int - 3
+			if idx < len(MISC_EVENT_PART_TYPES) {
+				ccu.Name = MISC_EVENT_PART_TYPES[idx] + ccu.Name
+			} else {
+				log.Warnf("Unknown event part type: %d", metadata.PartType.Int)
+			}
+		}
+		break
+	}
+
+	// Make this new unit the last one in this collection
+	var err error
+	ccu.Position, err = GetNextPositionInCollection(exec, c.ID)
+	if err != nil {
+		return errors.Wrap(err, "Get last position in collection")
+	}
+
+	log.Infof("Association name: %s", ccu.Name)
+	err = c.AddCollectionsContentUnits(exec, true, ccu)
+	if err != nil {
+		return errors.Wrap(err, "Save collection and content unit association in DB")
+	}
+
+	return nil
 }

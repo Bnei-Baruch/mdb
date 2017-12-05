@@ -402,8 +402,8 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 	tf := suite.simulateSimpleChain()
 	original, proxy := tf.Original, tf.Proxy
 
-	EVENT_TYPES := [4]string{CT_CONGRESS, CT_HOLIDAY, CT_PICNIC, CT_UNITY_DAY}
-	EVENT_PART_TYPES := [11]string{CT_FULL_LESSON, CT_FRIENDS_GATHERING, CT_MEAL,
+	EVENT_TYPES := [...]string{CT_CONGRESS, CT_HOLIDAY, CT_PICNIC, CT_UNITY_DAY}
+	EVENT_PART_TYPES := [...]string{CT_FRIENDS_GATHERING, CT_MEAL,
 		CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART,
 		CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART}
 
@@ -423,15 +423,16 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 				Number:         null.IntFrom(i + 1),
 				RequireTest:    true,
 				PartType:       null.IntFrom(i),
+				Lecturer:       "norav",
 			}
 
-			if partType == CT_FULL_LESSON {
-				metadata.Lecturer = "rav"
-				metadata.Sources = suite.someSources()
-				metadata.Tags = suite.someTags()
-			} else {
-				metadata.Lecturer = "norav"
-			}
+			//if partType == CT_FULL_LESSON {
+			//	metadata.Lecturer = "rav"
+			//	metadata.Sources = suite.someSources()
+			//	metadata.Tags = suite.someTags()
+			//} else {
+			//	metadata.Lecturer = "norav"
+			//}
 
 			evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 			suite.Require().Nil(err)
@@ -463,6 +464,197 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 			suite.Equal(i, ccu.Position, "ccu.Position")
 		}
 	}
+}
+
+func (suite *MetadataProcessorSuite) TestEventPartLesson() {
+	chain := suite.simulateLessonChain()
+
+	eventType := CT_CONGRESS
+	eventCollection, err := CreateCollection(suite.tx, eventType, nil)
+	suite.Require().Nil(err)
+
+	// send parts
+	// send full
+
+	metadata := CITMetadata{
+		ContentType:    CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		CollectionUID:  null.StringFrom(eventCollection.UID),
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(0),
+		Sources:        suite.someSources(),
+		Tags:           suite.someTags(),
+		RequireTest:    false,
+	}
+	original, proxy := chain["part0"].Original, chain["part0"].Proxy
+
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy)
+
+	// collection association
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu := original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Equal(2, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+
+	// load ccu collections
+	var lccu, eccu *models.CollectionsContentUnit
+	for i := range cu.R.CollectionsContentUnits {
+		ccu := cu.R.CollectionsContentUnits[i]
+		err = ccu.L.LoadCollection(suite.tx, true, ccu)
+		suite.Require().Nil(err)
+		switch CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
+		case CT_DAILY_LESSON:
+			lccu = ccu
+		case eventType:
+			eccu = ccu
+		default:
+			suite.FailNow("ccu.collection type %s", CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
+		}
+	}
+
+	// lesson collection association
+	suite.Equal("0", lccu.Name, "lccu.Name")
+	suite.Equal(0, lccu.Position, "lccu.Position")
+	lessonCollection := lccu.R.Collection
+	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, lessonCollection.TypeID, "c.TypeID")
+	suite.True(lessonCollection.Properties.Valid, "c.Properties.Valid")
+	var props map[string]interface{}
+	err = json.Unmarshal(lessonCollection.Properties.JSON, &props)
+	suite.Require().Nil(err)
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["capture_date"], "c.Properties[\"capture_date\"]")
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
+	suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
+	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
+
+	// event collection association
+	suite.Equal("0", eccu.Name, "eccu.Name")
+	suite.Equal(eventCollection.ID, eccu.CollectionID, "eccu.CollectionID")
+
+	// process other parts
+	for i := 1; i < 4; i++ {
+		metadata.Part = null.IntFrom(i)
+		metadata.Sources = suite.someSources()
+		metadata.Tags = suite.someTags()
+		tf := chain[fmt.Sprintf("part%d", i)]
+		original, proxy := tf.Original, tf.Proxy
+
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		suite.Require().Nil(err)
+		suite.Require().NotNil(evnts)
+
+		err = original.Reload(suite.tx)
+		suite.Require().Nil(err)
+		err = proxy.Reload(suite.tx)
+		suite.Require().Nil(err)
+
+		suite.assertFiles(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy)
+
+		// collection association
+		err = original.L.LoadContentUnit(suite.tx, true, original)
+		suite.Require().Nil(err)
+		cu := original.R.ContentUnit
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		suite.Require().Nil(err)
+		suite.Equal(2, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+
+		// load ccu collections
+		var lccu, eccu *models.CollectionsContentUnit
+		for j := range cu.R.CollectionsContentUnits {
+			ccu := cu.R.CollectionsContentUnits[j]
+			err = ccu.L.LoadCollection(suite.tx, true, ccu)
+			suite.Require().Nil(err)
+			switch CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
+			case CT_DAILY_LESSON:
+				lccu = ccu
+			case eventType:
+				eccu = ccu
+			default:
+				suite.FailNow("ccu.collection type %s", CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
+			}
+		}
+
+		// lesson collection association
+		suite.Equal(strconv.Itoa(i), lccu.Name, "lccu.Name")
+		suite.NotZero(lccu.Position, "lccu.Position")
+		suite.Equal(lessonCollection.ID, lccu.CollectionID, "lccu.CollectionID")
+
+		// event collection association
+		suite.Equal(strconv.Itoa(i), eccu.Name, "eccu.Name")
+		suite.Equal(eventCollection.ID, eccu.CollectionID, "eccu.CollectionID")
+	}
+
+	// process full
+	metadata.ContentType = CT_FULL_LESSON
+	metadata.Part = null.NewInt(0, false)
+	metadata.Sources = nil
+	metadata.Tags = nil
+	tf := chain["full"]
+	original, proxy = tf.Original, tf.Proxy
+
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy)
+
+	// collection association
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu = original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Equal(2, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+
+	// load ccu collections
+	lccu = nil
+	eccu = nil
+	for j := range cu.R.CollectionsContentUnits {
+		ccu := cu.R.CollectionsContentUnits[j]
+		err = ccu.L.LoadCollection(suite.tx, true, ccu)
+		suite.Require().Nil(err)
+		switch CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
+		case CT_DAILY_LESSON:
+			lccu = ccu
+		case eventType:
+			eccu = ccu
+		default:
+			suite.FailNow("ccu.collection type %s", CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
+		}
+	}
+
+	// lesson collection association
+	suite.Equal("full", lccu.Name, "lccu.Name")
+	suite.Equal(4, lccu.Position, "lccu.Position")
+	suite.Equal(lessonCollection.ID, lccu.CollectionID, "lccu.CollectionID")
+
+	// event collection association
+	suite.Equal(strconv.Itoa(metadata.Number.Int), eccu.Name, "eccu.Name")
+	suite.Equal(eventCollection.ID, eccu.CollectionID, "eccu.CollectionID")
+
 }
 
 // Helpers
