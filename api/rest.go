@@ -1413,15 +1413,15 @@ func handleCollectionRemoveCCU(exec boil.Executor, id int64, cuID int64) ([]even
 	evnts[0] = events.CollectionContentUnitsChangeEvent(c)
 
 	if c.Published {
-		var publishedCUs int
+		var hasPublishedCUs bool
 		query := `SELECT count(*) > 0
                  FROM collections_content_units ccu INNER JOIN content_units cu
                      ON ccu.content_unit_id = cu.id AND ccu.collection_id = $1 AND cu.published IS TRUE`
-		if err := queries.Raw(exec, query, id).QueryRow().Scan(&publishedCUs); err != nil {
+		if err := queries.Raw(exec, query, id).QueryRow().Scan(&hasPublishedCUs); err != nil {
 			return nil, NewInternalError(err)
 		}
 
-		if publishedCUs == 0 {
+		if !hasPublishedCUs {
 			c.Published = false
 			if err := c.Update(exec, "published"); err != nil {
 				return nil, NewInternalError(err)
