@@ -559,11 +559,40 @@ func FilesWithOperationsTreeHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := FindFileTreeWithOperations(boil.GetDB(), id)
+	files, err := FindFileTreeWithOperations(boil.GetDB(), id)
 	if err != nil {
 		NewInternalError(err).Abort(c)
 		return
 	}
+
+	opIds := make([]int64, 0)
+	for _, file := range files {
+		for _, id := range file.OperationIds {
+			opIds = append(opIds, id)
+		}
+	}
+
+	ops, err := models.Operations(boil.GetDB(),
+		qm.WhereIn("id in ?", utils.ConvertArgsInt64(opIds)...)).
+		All()
+	if err != nil {
+		NewInternalError(err).Abort(c)
+		return
+	}
+
+	opsMap := make(map[int64]*models.Operation)
+	for _, op := range ops {
+		opsMap[op.ID] = op
+	}
+
+	resp := &struct {
+		Files         []*MFile
+		OperationsMap map[int64]*models.Operation
+	}{
+		files,
+		opsMap,
+	}
+
 	concludeRequest(c, resp, nil)
 }
 

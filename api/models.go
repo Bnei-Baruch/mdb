@@ -10,6 +10,7 @@ import (
 	"gopkg.in/nullbio/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/vattle/sqlboiler/types"
 )
 
 type (
@@ -368,8 +369,8 @@ type (
 	// Marshalable File
 	MFile struct {
 		models.File
-		Sha1Str      string `json:"sha1"`
-		OperationIds string `boil:"operationids" json:"operationids" toml:"operationids" yaml:"operationids"`
+		Sha1Str      string           `json:"sha1"`
+		OperationIds types.Int64Array `json:"operationids"`
 	}
 
 	Author struct {

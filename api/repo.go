@@ -112,11 +112,10 @@ SELECT id
 ) SELECT id
   FROM rfd))
   
- select f.id, f.name, f.size, f.type, f.sub_type, f.mime_type, f.created_at, f.language, f.file_created_at, f.parent_id, f.published,
- string_agg(op.type_id::text,',') as OperationIds from ids
+ select f.id, f.sha1, f.name, f.size, f.type, f.sub_type, f.mime_type, f.created_at, f.language, f.file_created_at, f.parent_id, f.published,
+ array_agg(fop.operation_id) as OperationIds from ids
  join files f on f.id=ids.id
  join files_operations fop on fop.file_id = ids.id
- join operations op on fop.operation_id = op.id
  group by f.id
  `
 
@@ -585,7 +584,7 @@ func FindFileTreeWithOperations(exec boil.Executor, fileID int64) ([]*MFile, err
 
 	for rows.Next() {
 		f := new(MFile)
-		err := rows.Scan(&f.ID, &f.Name, &f.Size, &f.Type, &f.SubType, &f.MimeType, &f.CreatedAt, &f.Language, &f.FileCreatedAt, &f.ParentID, &f.Published, &f.OperationIds)
+		err := rows.Scan(&f.ID, &f.Sha1, &f.Name, &f.Size, &f.Type, &f.SubType, &f.MimeType, &f.CreatedAt, &f.Language, &f.FileCreatedAt, &f.ParentID, &f.Published, &f.OperationIds)
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
