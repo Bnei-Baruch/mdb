@@ -73,6 +73,8 @@ type (
 		Episode        null.String       `json:"episode"`
 		PartType       null.Int          `json:"part_type"`
 		Major          *CITMetadataMajor `json:"major" binding:"omitempty"`
+		LabelID        null.String       `json:"label_id"`
+		FilmDate       *Date             `json:"film_date"`
 	}
 
 	Rename struct {

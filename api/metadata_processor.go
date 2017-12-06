@@ -39,6 +39,10 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	if metadata.WeekDate != nil {
 		filmDate = *metadata.WeekDate
 	}
+	if metadata.FilmDate != nil {
+		filmDate = *metadata.FilmDate
+	}
+
 	props := map[string]interface{}{
 		"capture_date":      metadata.CaptureDate,
 		"film_date":         filmDate,
@@ -92,6 +96,10 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		props["duration"] = int(duration.(float64))
 	} else {
 		log.Warnf("Original is missing duration property [%d]", original.ID)
+	}
+
+	if metadata.LabelID.Valid {
+		props["label_id"] = metadata.LabelID.String
 	}
 
 	log.Infof("Creating content unit of type %s", ct)
