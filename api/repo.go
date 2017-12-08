@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
@@ -90,14 +89,14 @@ const FILES_TREE_WITH_OPERATIONS = `
 with ids as ((WITH RECURSIVE rfa AS (
   SELECT f.*
   FROM files f
-  WHERE f.id = %d
+  WHERE f.id = $1
   UNION
   SELECT f.*
   FROM files f INNER JOIN rfa ON f.id = rfa.parent_id
 ) 
 SELECT id
   FROM rfa
-  WHERE id != %d)
+  WHERE id != $1)
 
   UNION
 
@@ -105,7 +104,7 @@ SELECT id
 (WITH RECURSIVE rfd AS (
   SELECT f.*
   FROM files f
-  WHERE f.id = %d
+  WHERE f.id = $1
   UNION
   SELECT f.*
   FROM files f INNER JOIN rfd ON f.parent_id = rfd.id
@@ -575,11 +574,10 @@ func FindFileTreeWithOperations(exec boil.Executor, fileID int64) ([]*MFile, err
 
 	files := make([]*MFile, 0)
 
-	rsql := fmt.Sprintf(FILES_TREE_WITH_OPERATIONS, fileID, fileID, fileID)
-	rows, err := queries.Raw(exec, rsql).Query()
+	//rsql := fmt.Sprintf(FILES_TREE_WITH_OPERATIONS, fileID, fileID, fileID)
+	rows, err := queries.Raw(exec, FILES_TREE_WITH_OPERATIONS, fileID).Query()
 	if err != nil {
 		return nil, NewInternalError(err)
-		defer rows.Close()
 	}
 
 	for rows.Next() {
@@ -595,6 +593,7 @@ func FindFileTreeWithOperations(exec boil.Executor, fileID int64) ([]*MFile, err
 		return nil, NewInternalError(err)
 	}
 
+	defer rows.Close()
 	return files, nil
 }
 
