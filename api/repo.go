@@ -574,7 +574,6 @@ func FindFileTreeWithOperations(exec boil.Executor, fileID int64) ([]*MFile, err
 
 	files := make([]*MFile, 0)
 
-	//rsql := fmt.Sprintf(FILES_TREE_WITH_OPERATIONS, fileID, fileID, fileID)
 	rows, err := queries.Raw(exec, FILES_TREE_WITH_OPERATIONS, fileID).Query()
 	if err != nil {
 		return nil, NewInternalError(err)
