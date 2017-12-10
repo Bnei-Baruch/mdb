@@ -4,14 +4,16 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
@@ -140,17 +142,28 @@ func missingContainers() error {
 			return errors.Wrapf(err, "json.Unmarshal unit properties %d", cu.ID)
 		}
 		cuMap[int(props["kmedia_id"].(float64))] = true
-
 	}
 
 	containers, err := kmodels.Containers(kmdb).All()
 	if err != nil {
 		return errors.Wrap(err, "Load containers")
 	}
+
+	f, err := ioutil.TempFile("/tmp", "kmedia_compare")
+	if err != nil {
+		return errors.Wrap(err, "Create temp file")
+	}
+	defer f.Close()
+
+	log.Infof("Report file: %s", f.Name())
+
 	for i := range containers {
 		cn := containers[i]
 		if _, ok := cuMap[cn.ID]; !ok {
-			log.Infof("Missing container %d\t%d\t%s\t%s", cn.ID, cn.ContentTypeID.Int, cn.Filmdate.Time.Format("2006-01-02"), cn.Name.String)
+			_, err := fmt.Fprintf(f, "%d\t%d\t%s\t%s\t%d\n", cn.ID, cn.ContentTypeID.Int, cn.Filmdate.Time.Format("2006-01-02"), cn.Name.String, cn.VirtualLessonID.Int)
+			if err != nil {
+				return errors.Wrapf(err, "Write tsv row %d", cn.ID)
+			}
 		}
 	}
 

@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/models"
 )
@@ -70,7 +70,7 @@ var (
 	ALL_CONTENT_TYPES = []string{
 		CT_DAILY_LESSON, CT_SPECIAL_LESSON, CT_FRIENDS_GATHERINGS, CT_CONGRESS, CT_VIDEO_PROGRAM,
 		CT_LECTURE_SERIES, CT_VIRTUAL_LESSONS, CT_CHILDREN_LESSONS, CT_WOMEN_LESSONS, CT_MEALS, CT_HOLIDAY, CT_PICNIC,
-		CT_UNITY_DAY, CT_LESSON_PART, CT_LECTURE, CT_CHILDREN_LESSON, CT_WOMEN_LESSON, CT_VIRTUAL_LESSON,
+		CT_UNITY_DAY, CT_CLIPS, CT_LESSON_PART, CT_LECTURE, CT_CHILDREN_LESSON, CT_WOMEN_LESSON, CT_VIRTUAL_LESSON,
 		CT_FRIENDS_GATHERING, CT_MEAL, CT_VIDEO_PROGRAM_CHAPTER, CT_FULL_LESSON, CT_TEXT, CT_EVENT_PART, CT_UNKNOWN,
 		CT_CLIP, CT_TRAINING, CT_KITEI_MAKOR,
 	}

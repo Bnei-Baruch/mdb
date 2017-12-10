@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/queries/qm"
-	"gopkg.in/nullbio/null.v6"
+	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -27,7 +27,7 @@ type MetadataProcessorSuite struct {
 
 func (suite *MetadataProcessorSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
+	suite.Require().Nil(InitTypeRegistries(suite.DB))
 }
 
 func (suite *MetadataProcessorSuite) TearDownSuite() {
@@ -36,7 +36,7 @@ func (suite *MetadataProcessorSuite) TearDownSuite() {
 
 func (suite *MetadataProcessorSuite) SetupTest() {
 	var err error
-	suite.tx, err = boil.Begin()
+	suite.tx, err = suite.DB.Begin()
 	suite.Require().Nil(err)
 }
 
@@ -74,8 +74,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	}
 	original, proxy := chain["part0"].Original, chain["part0"].Proxy
 
-	err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -118,8 +119,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 		tf := chain[fmt.Sprintf("part%d", i)]
 		original, proxy := tf.Original, tf.Proxy
 
-		err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 		suite.Require().Nil(err)
+		suite.Require().NotNil(evnts)
 
 		err = original.Reload(suite.tx)
 		suite.Require().Nil(err)
@@ -150,8 +152,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	tf := chain["full"]
 	original, proxy = tf.Original, tf.Proxy
 
-	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -175,8 +178,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 
 	// full with week_date different from capture_date
 	metadata.WeekDate = &Date{Time: time.Now().AddDate(1, 0, 0)}
-	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 	err = c.Reload(suite.tx)
 	suite.Require().Nil(err)
 	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID, c.TypeID, "c.TypeID")
@@ -195,8 +199,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	metadata.WeekDate = nil
 	tf = chain["part1_kitei-makor"]
 	original, proxy = tf.Original, tf.Proxy
-	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -262,8 +267,9 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	// process kitei makor for part 1
 	tf := chain["part1_kitei-makor"]
 	original, proxy := tf.Original, tf.Proxy
-	err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -293,8 +299,9 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	// process main part1
 	original, proxy = chain["part1"].Original, chain["part1"].Proxy
 	metadata.ArtifactType = null.NewString("", false)
-	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -366,8 +373,9 @@ func (suite *MetadataProcessorSuite) TestVideoProgram() {
 		RequireTest:    true,
 	}
 
-	err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
@@ -394,8 +402,8 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 	tf := suite.simulateSimpleChain()
 	original, proxy := tf.Original, tf.Proxy
 
-	EVENT_TYPES := [4]string{CT_CONGRESS, CT_HOLIDAY, CT_PICNIC, CT_UNITY_DAY}
-	EVENT_PART_TYPES := [11]string{CT_FULL_LESSON, CT_FRIENDS_GATHERING, CT_MEAL,
+	EVENT_TYPES := [...]string{CT_CONGRESS, CT_HOLIDAY, CT_PICNIC, CT_UNITY_DAY}
+	EVENT_PART_TYPES := [...]string{CT_FRIENDS_GATHERING, CT_MEAL,
 		CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART,
 		CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART}
 
@@ -415,18 +423,20 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 				Number:         null.IntFrom(i + 1),
 				RequireTest:    true,
 				PartType:       null.IntFrom(i),
+				Lecturer:       "norav",
 			}
 
-			if partType == CT_FULL_LESSON {
-				metadata.Lecturer = "rav"
-				metadata.Sources = suite.someSources()
-				metadata.Tags = suite.someTags()
-			} else {
-				metadata.Lecturer = "norav"
-			}
+			//if partType == CT_FULL_LESSON {
+			//	metadata.Lecturer = "rav"
+			//	metadata.Sources = suite.someSources()
+			//	metadata.Tags = suite.someTags()
+			//} else {
+			//	metadata.Lecturer = "norav"
+			//}
 
-			err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+			evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
 			suite.Require().Nil(err)
+			suite.Require().NotNil(evnts)
 
 			err = original.Reload(suite.tx)
 			suite.Require().Nil(err)
@@ -456,6 +466,197 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 	}
 }
 
+func (suite *MetadataProcessorSuite) TestEventPartLesson() {
+	chain := suite.simulateLessonChain()
+
+	eventType := CT_CONGRESS
+	eventCollection, err := CreateCollection(suite.tx, eventType, nil)
+	suite.Require().Nil(err)
+
+	// send parts
+	// send full
+
+	metadata := CITMetadata{
+		ContentType:    CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		CollectionUID:  null.StringFrom(eventCollection.UID),
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(0),
+		Sources:        suite.someSources(),
+		Tags:           suite.someTags(),
+		RequireTest:    false,
+	}
+	original, proxy := chain["part0"].Original, chain["part0"].Proxy
+
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy)
+
+	// collection association
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu := original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Equal(2, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+
+	// load ccu collections
+	var lccu, eccu *models.CollectionsContentUnit
+	for i := range cu.R.CollectionsContentUnits {
+		ccu := cu.R.CollectionsContentUnits[i]
+		err = ccu.L.LoadCollection(suite.tx, true, ccu)
+		suite.Require().Nil(err)
+		switch CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
+		case CT_DAILY_LESSON:
+			lccu = ccu
+		case eventType:
+			eccu = ccu
+		default:
+			suite.FailNow("ccu.collection type %s", CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
+		}
+	}
+
+	// lesson collection association
+	suite.Equal("0", lccu.Name, "lccu.Name")
+	suite.Equal(0, lccu.Position, "lccu.Position")
+	lessonCollection := lccu.R.Collection
+	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, lessonCollection.TypeID, "c.TypeID")
+	suite.True(lessonCollection.Properties.Valid, "c.Properties.Valid")
+	var props map[string]interface{}
+	err = json.Unmarshal(lessonCollection.Properties.JSON, &props)
+	suite.Require().Nil(err)
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["capture_date"], "c.Properties[\"capture_date\"]")
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
+	suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
+	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
+
+	// event collection association
+	suite.Equal("0", eccu.Name, "eccu.Name")
+	suite.Equal(eventCollection.ID, eccu.CollectionID, "eccu.CollectionID")
+
+	// process other parts
+	for i := 1; i < 4; i++ {
+		metadata.Part = null.IntFrom(i)
+		metadata.Sources = suite.someSources()
+		metadata.Tags = suite.someTags()
+		tf := chain[fmt.Sprintf("part%d", i)]
+		original, proxy := tf.Original, tf.Proxy
+
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		suite.Require().Nil(err)
+		suite.Require().NotNil(evnts)
+
+		err = original.Reload(suite.tx)
+		suite.Require().Nil(err)
+		err = proxy.Reload(suite.tx)
+		suite.Require().Nil(err)
+
+		suite.assertFiles(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy)
+
+		// collection association
+		err = original.L.LoadContentUnit(suite.tx, true, original)
+		suite.Require().Nil(err)
+		cu := original.R.ContentUnit
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		suite.Require().Nil(err)
+		suite.Equal(2, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+
+		// load ccu collections
+		var lccu, eccu *models.CollectionsContentUnit
+		for j := range cu.R.CollectionsContentUnits {
+			ccu := cu.R.CollectionsContentUnits[j]
+			err = ccu.L.LoadCollection(suite.tx, true, ccu)
+			suite.Require().Nil(err)
+			switch CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
+			case CT_DAILY_LESSON:
+				lccu = ccu
+			case eventType:
+				eccu = ccu
+			default:
+				suite.FailNow("ccu.collection type %s", CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
+			}
+		}
+
+		// lesson collection association
+		suite.Equal(strconv.Itoa(i), lccu.Name, "lccu.Name")
+		suite.NotZero(lccu.Position, "lccu.Position")
+		suite.Equal(lessonCollection.ID, lccu.CollectionID, "lccu.CollectionID")
+
+		// event collection association
+		suite.Equal(strconv.Itoa(i), eccu.Name, "eccu.Name")
+		suite.Equal(eventCollection.ID, eccu.CollectionID, "eccu.CollectionID")
+	}
+
+	// process full
+	metadata.ContentType = CT_FULL_LESSON
+	metadata.Part = null.NewInt(0, false)
+	metadata.Sources = nil
+	metadata.Tags = nil
+	tf := chain["full"]
+	original, proxy = tf.Original, tf.Proxy
+
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy)
+
+	// collection association
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu = original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Equal(2, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+
+	// load ccu collections
+	lccu = nil
+	eccu = nil
+	for j := range cu.R.CollectionsContentUnits {
+		ccu := cu.R.CollectionsContentUnits[j]
+		err = ccu.L.LoadCollection(suite.tx, true, ccu)
+		suite.Require().Nil(err)
+		switch CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
+		case CT_DAILY_LESSON:
+			lccu = ccu
+		case eventType:
+			eccu = ccu
+		default:
+			suite.FailNow("ccu.collection type %s", CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
+		}
+	}
+
+	// lesson collection association
+	suite.Equal("full", lccu.Name, "lccu.Name")
+	suite.Equal(4, lccu.Position, "lccu.Position")
+	suite.Equal(lessonCollection.ID, lccu.CollectionID, "lccu.CollectionID")
+
+	// event collection association
+	suite.Equal(strconv.Itoa(metadata.Number.Int), eccu.Name, "eccu.Name")
+	suite.Equal(eventCollection.ID, eccu.CollectionID, "eccu.CollectionID")
+
+}
+
 // Helpers
 
 type TrimFiles struct {
@@ -471,7 +672,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 	TRM_P_SHA1 := utils.RandomSHA1()
 
 	// capture_start
-	_, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
@@ -482,9 +683,10 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 		CollectionUID: "c12356788",
 	})
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	// capture_stop
-	_, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+	_, evnts, err = handleCaptureStop(suite.tx, CaptureStopRequest{
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
@@ -504,7 +706,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 	suite.Require().Nil(err)
 
 	// demux
-	_, err = handleDemux(suite.tx, DemuxRequest{
+	_, evnts, err = handleDemux(suite.tx, DemuxRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
 			User:    "operator@dev.com",
@@ -533,7 +735,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 	suite.Require().Nil(err)
 
 	// trim
-	op, err := handleTrim(suite.tx, TrimRequest{
+	op, evnts, err := handleTrim(suite.tx, TrimRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
 			User:    "operator@dev.com",
@@ -588,7 +790,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 	TRM_P_SHA1[5] = utils.RandomSHA1()
 
 	// capture_start
-	_, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
@@ -599,10 +801,11 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 		CollectionUID: "c12356789",
 	})
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	for i := 0; i < 4; i++ {
 		part := strconv.Itoa(i)
-		_, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+		_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
 			Operation: Operation{
 				Station:    "Capture station",
 				User:       "operator@dev.com",
@@ -613,10 +816,11 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			CollectionUID: "c12356789",
 		})
 		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
 	}
 
 	// capture_stop
-	_, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+	_, evnts, err = handleCaptureStop(suite.tx, CaptureStopRequest{
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
@@ -637,7 +841,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 
 	for i := 0; i < 4; i++ {
 		part := strconv.Itoa(i)
-		_, err := handleCaptureStop(suite.tx, CaptureStopRequest{
+		_, evnts, err := handleCaptureStop(suite.tx, CaptureStopRequest{
 			Operation: Operation{
 				Station:    "Capture station",
 				User:       "operator@dev.com",
@@ -655,10 +859,11 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			Part:          part,
 		})
 		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
 	}
 
 	// demux
-	_, err = handleDemux(suite.tx, DemuxRequest{
+	_, evnts, err = handleDemux(suite.tx, DemuxRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
 			User:    "operator@dev.com",
@@ -685,10 +890,11 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 		CaptureSource: "mltbackup",
 	})
 	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
 
 	for i := 0; i < 4; i++ {
 		part := strconv.Itoa(i)
-		_, err := handleDemux(suite.tx, DemuxRequest{
+		_, evnts, err := handleDemux(suite.tx, DemuxRequest{
 			Operation: Operation{
 				Station: "Trimmer station",
 				User:    "operator@dev.com",
@@ -715,12 +921,13 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			CaptureSource: "mltcap",
 		})
 		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
 	}
 
 	trimFiles := make(map[string]TrimFiles)
 
 	// trim
-	op, err := handleTrim(suite.tx, TrimRequest{
+	op, evnts, err := handleTrim(suite.tx, TrimRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
 			User:    "operator@dev.com",
@@ -758,7 +965,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 
 	for i := 0; i < 4; i++ {
 		part := strconv.Itoa(i)
-		op, err := handleTrim(suite.tx, TrimRequest{
+		op, evnts, err := handleTrim(suite.tx, TrimRequest{
 			Operation: Operation{
 				Station: "Trimmer station",
 				User:    "operator@dev.com",
@@ -788,6 +995,8 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			Out:           []float64{240.51, 899.27},
 		})
 		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
+
 		files := suite.opFilesBySHA1(op)
 		trimFiles["part"+part] = TrimFiles{
 			Original: files[TRM_O_SHA1[i]],
@@ -796,7 +1005,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 	}
 
 	// trim kitei makor from part1
-	op, err = handleTrim(suite.tx, TrimRequest{
+	op, evnts, err = handleTrim(suite.tx, TrimRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
 			User:    "operator@dev.com",

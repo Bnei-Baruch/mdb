@@ -6,7 +6,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/vattle/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/hebcal"
@@ -19,6 +19,9 @@ var knownKMContentTypes = map[int]string{
 	1: api.CT_VIDEO_PROGRAM_CHAPTER,
 	4: api.CT_LESSON_PART,
 	5: api.CT_LECTURE,
+	16: api.CT_FRIENDS_GATHERING,
+	17: api.CT_VIRTUAL_LESSON,
+	18: api.CT_MEAL,
 }
 
 type HolidayCollection struct {

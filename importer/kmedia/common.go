@@ -12,10 +12,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/vattle/sqlboiler/boil"
-	"github.com/vattle/sqlboiler/queries"
-	"github.com/vattle/sqlboiler/queries/qm"
-	"gopkg.in/nullbio/null.v6"
+	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
@@ -236,12 +236,12 @@ func importContainer(exec boil.Executor,
 		return nil, errors.Wrapf(err, "Load catalogs, container [%d]", container.ID)
 	}
 
-	err = unit.L.LoadSources(exec,true,unit)
+	err = unit.L.LoadSources(exec, true, unit)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load CU sources %d", unit.ID)
 	}
 
-	err = unit.L.LoadTags(exec,true,unit)
+	err = unit.L.LoadTags(exec, true, unit)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load CU tags %d", unit.ID)
 	}
@@ -620,7 +620,6 @@ FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id`
 		s := page * pageSize
 		e := utils.Min(len(cnIDs), s+pageSize)
 		ids := utils.ConvertArgsInt(cnIDs[s:e]...)
-		log.Infof("Load page %d [%d:%d]", page, s, e)
 
 		cns, err := kmodels.Containers(kmdb,
 			qm.WhereIn("id in ?", ids...),
@@ -636,6 +635,58 @@ FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id`
 
 		cus, err := models.ContentUnits(mdb,
 			qm.WhereIn("(properties->>'kmedia_id')::int in ?", ids...)).
+			All()
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "Load content units page %d", page)
+		}
+		for i := range cus {
+			cu := cus[i]
+			var props map[string]interface{}
+			if err := json.Unmarshal(cu.Properties.JSON, &props); err != nil {
+				return nil, nil, errors.Wrapf(err, "json.Unmarshal CU properties %d", cu.ID)
+			}
+			cuMap[int(props["kmedia_id"].(float64))] = cu
+		}
+
+		page++
+	}
+	log.Infof("len(cnMap) = %d", len(cnMap))
+	log.Infof("len(cuMap) = %d", len(cuMap))
+
+	return cnMap, cuMap, nil
+}
+
+func loadContainersByTypeAndCUs(typeID int) (map[int]*kmodels.Container, map[int]*models.ContentUnit, error) {
+	containers, err := kmodels.Containers(kmdb,
+		qm.Where("content_type_id = ?", typeID),
+		qm.Load("Catalogs")).
+		All()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Load containers")
+	}
+
+	cnMap := make(map[int]*kmodels.Container)
+	for i := range containers {
+		cn := containers[i]
+		cnMap[cn.ID] = cn
+	}
+
+	cnIDs := make([]interface{}, len(cnMap))
+	i := 0
+	for k := range cnMap {
+		cnIDs[i] = k
+		i++
+	}
+
+	pageSize := 2500
+	page := 0
+	cuMap := make(map[int]*models.ContentUnit)
+	for page*pageSize < len(cnIDs) {
+		s := page * pageSize
+		e := utils.Min(len(cnIDs), s+pageSize)
+
+		cus, err := models.ContentUnits(mdb,
+			qm.WhereIn("(properties->>'kmedia_id')::int in ?", cnIDs[s:e]...)).
 			All()
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "Load content units page %d", page)

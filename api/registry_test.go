@@ -4,15 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/vattle/sqlboiler/boil"
-
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type RegistrySuite struct {
 	suite.Suite
 	utils.TestDBManager
-	tx boil.Transactor
 }
 
 func (suite *RegistrySuite) SetupSuite() {
@@ -30,7 +27,7 @@ func TestRegistry(t *testing.T) {
 }
 
 func (suite *RegistrySuite) TestTypeRegistries() {
-	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
+	suite.Require().Nil(InitTypeRegistries(suite.DB))
 
 	for _, x := range ALL_CONTENT_TYPES {
 		ct, ok := CONTENT_TYPE_REGISTRY.ByName[x]

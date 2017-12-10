@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/nullbio/null.v6"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/vattle/sqlboiler/types"
@@ -74,6 +74,8 @@ type (
 		Episode        null.String       `json:"episode"`
 		PartType       null.Int          `json:"part_type"`
 		Major          *CITMetadataMajor `json:"major" binding:"omitempty"`
+		LabelID        null.String       `json:"label_id"`
+		FilmDate       *Date             `json:"film_date"`
 	}
 
 	Rename struct {
@@ -148,6 +150,8 @@ type (
 		InsertType     string `json:"insert_type" binding:"required"`
 		ContentUnitUID string `json:"content_unit_uid" binding:"required,len=8"`
 		ParentSha1     string `json:"parent_sha1" binding:"omitempty,len=40,hexadecimal"`
+		Mode           string `json:"mode" binding:"required"`
+		OldSha1        string `json:"old_sha1" binding:"omitempty,len=40,hexadecimal"`
 	}
 
 	TranscodeRequest struct {
@@ -348,9 +352,19 @@ type (
 		I18n map[string]*models.CollectionI18n `json:"i18n"`
 	}
 
+	PartialCollection struct {
+		models.Collection
+		Secure null.Int16 `json:"secure"`
+	}
+
 	ContentUnit struct {
 		models.ContentUnit
 		I18n map[string]*models.ContentUnitI18n `json:"i18n"`
+	}
+
+	PartialContentUnit struct {
+		models.ContentUnit
+		Secure null.Int16 `json:"secure"`
 	}
 
 	CollectionContentUnit struct {

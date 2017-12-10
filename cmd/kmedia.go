@@ -56,10 +56,37 @@ func init() {
 	RootCmd.AddCommand(command)
 
 	command = &cobra.Command{
+		Use:   "kmedia-vls",
+		Short: "Import KMedia VLs to MDB",
+		Run: func(cmd *cobra.Command, args []string) {
+			kmedia.ImportVLs()
+		},
+	}
+	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
+		Use:   "kmedia-clips",
+		Short: "Import KMedia Clips to MDB",
+		Run: func(cmd *cobra.Command, args []string) {
+			kmedia.ImportClips()
+		},
+	}
+	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
 		Use:   "kmedia-flat",
 		Short: "Import KMedia flat catalogs to MDB",
 		Run: func(cmd *cobra.Command, args []string) {
 			kmedia.ImportFlatCatalogs()
+		},
+	}
+	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
+		Use:   "kmedia-custom",
+		Short: "Import KMedia custom containers to MDB",
+		Run: func(cmd *cobra.Command, args []string) {
+			kmedia.ImportCustom()
 		},
 	}
 	RootCmd.AddCommand(command)

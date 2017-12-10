@@ -5,8 +5,8 @@ import "fmt"
 // See http://semver.org/ for more information on Semantic Versioning
 var (
 	Major      = 0
-	Minor      = 7
-	Patch      = 8
+	Minor      = 8
+	Patch      = 6
 	PreRelease = "" // Set this via makefile. See docs for more info on release process
 )
 

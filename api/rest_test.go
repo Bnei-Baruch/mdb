@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -8,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/vattle/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/boil"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/nullbio/null.v6"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -19,12 +20,12 @@ import (
 type RestSuite struct {
 	suite.Suite
 	utils.TestDBManager
-	tx boil.Transactor
+	tx *sql.Tx
 }
 
 func (suite *RestSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
+	suite.Require().Nil(InitTypeRegistries(suite.DB))
 }
 
 func (suite *RestSuite) TearDownSuite() {
@@ -33,7 +34,7 @@ func (suite *RestSuite) TearDownSuite() {
 
 func (suite *RestSuite) SetupTest() {
 	var err error
-	suite.tx, err = boil.Begin()
+	suite.tx, err = suite.DB.Begin()
 	suite.Require().Nil(err)
 }
 
