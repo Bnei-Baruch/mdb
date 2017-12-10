@@ -627,7 +627,6 @@ func FileStoragesHandler(c *gin.Context) {
 }
 
 func FilesWithOperationsTreeHandler(c *gin.Context) {
-
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
@@ -640,11 +639,18 @@ func FilesWithOperationsTreeHandler(c *gin.Context) {
 		return
 	}
 
-	opIds := make([]int64, 0)
-	for _, file := range files {
-		for _, id := range file.OperationIds {
-			opIds = append(opIds, id)
+	opIdsMap := make(map[int64]bool)
+	for i := range files {
+		for j := range files[i].OperationIds {
+			opIdsMap[files[i].OperationIds[j]] = true
 		}
+	}
+
+	opIds := make([]int64, len(opIdsMap))
+	i := 0
+	for k := range opIdsMap {
+		opIds[i] = k
+		i++
 	}
 
 	ops, err := models.Operations(boil.GetDB(),
