@@ -633,7 +633,9 @@ func FilesWithOperationsTreeHandler(c *gin.Context) {
 		return
 	}
 
-	files, err := FindFileTreeWithOperations(boil.GetDB(), id)
+	db := c.MustGet("MDB").(*sql.DB)
+
+	files, err := FindFileTreeWithOperations(db, id)
 	if err != nil {
 		NewInternalError(err).Abort(c)
 		return
@@ -653,7 +655,7 @@ func FilesWithOperationsTreeHandler(c *gin.Context) {
 		i++
 	}
 
-	ops, err := models.Operations(boil.GetDB(),
+	ops, err := models.Operations(db,
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(opIds)...)).
 		All()
 	if err != nil {
@@ -667,8 +669,8 @@ func FilesWithOperationsTreeHandler(c *gin.Context) {
 	}
 
 	resp := &struct {
-		Files         []*MFile
-		OperationsMap map[int64]*models.Operation
+		Files      []*MFile                    `json:"files"`
+		Operations map[int64]*models.Operation `json:"operations"`
 	}{
 		files,
 		opsMap,

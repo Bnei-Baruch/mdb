@@ -5,18 +5,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
-	//_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/volatiletech/sqlboiler/queries"
-	"time"
 )
 
 const FILE_ANCESTORS_SQL = `
@@ -112,7 +111,7 @@ SELECT id
 ) SELECT id
   FROM rfd))
   
- select f.id, f.sha1, f.name, f.size, f.type, f.sub_type, f.mime_type, f.created_at, f.language, f.file_created_at, f.parent_id, f.published,
+ select f.id, f.uid, f.sha1, f.name, f.size, f.type, f.sub_type, f.mime_type, f.created_at, f.language, f.file_created_at, f.parent_id, f.published,
  array_agg(fop.operation_id) as OperationIds from ids
  join files f on f.id=ids.id
  join files_operations fop on fop.file_id = ids.id
@@ -635,6 +634,36 @@ func FindFileAncestors(exec boil.Executor, id int64) ([]*models.File, error) {
 	return ancestors, nil
 }
 
+func FindFileTreeWithOperations(exec boil.Executor, fileID int64) ([]*MFile, error) {
+	files := make([]*MFile, 0)
+
+	rows, err := queries.Raw(exec, FILES_TREE_WITH_OPERATIONS, fileID).Query()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		f := new(MFile)
+		err := rows.Scan(&f.ID, &f.UID, &f.Sha1, &f.Name, &f.Size, &f.Type, &f.SubType, &f.MimeType, &f.CreatedAt,
+			&f.Language, &f.FileCreatedAt, &f.ParentID, &f.Published, &f.OperationIds)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		if f.Sha1.Valid {
+			f.Sha1Str = hex.EncodeToString(f.Sha1.Bytes)
+		}
+		files = append(files, f)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return files, nil
+}
+
 func FindSourceByUID(exec boil.Executor, uid string) (*models.Source, error) {
 	return models.Sources(exec, qm.Where("uid = ?", uid)).One()
 }
@@ -670,33 +699,6 @@ func FindTagPath(exec boil.Executor, id int64) ([]*models.Tag, error) {
 	}
 
 	return ancestors, nil
-}
-
-func FindFileTreeWithOperations(exec boil.Executor, fileID int64) ([]*MFile, error) {
-	files := make([]*MFile, 0)
-
-	rows, err := queries.Raw(exec, FILES_TREE_WITH_OPERATIONS, fileID).Query()
-	if err != nil {
-		return nil, NewInternalError(err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		f := new(MFile)
-		err := rows.Scan(&f.ID, &f.Sha1, &f.Name, &f.Size, &f.Type, &f.SubType, &f.MimeType, &f.CreatedAt,
-			&f.Language, &f.FileCreatedAt, &f.ParentID, &f.Published, &f.OperationIds)
-		if err != nil {
-			return nil, NewInternalError(err)
-		}
-		files = append(files, f)
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return nil, NewInternalError(err)
-	}
-
-	return files, nil
 }
 
 // Return standard language or LANG_UNKNOWN

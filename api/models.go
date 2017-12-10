@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/sqlboiler/types"
 
 	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/vattle/sqlboiler/types"
 )
 
 type (
