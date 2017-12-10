@@ -673,28 +673,29 @@ func FindTagPath(exec boil.Executor, id int64) ([]*models.Tag, error) {
 }
 
 func FindFileTreeWithOperations(exec boil.Executor, fileID int64) ([]*MFile, error) {
-
 	files := make([]*MFile, 0)
 
 	rows, err := queries.Raw(exec, FILES_TREE_WITH_OPERATIONS, fileID).Query()
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		f := new(MFile)
-		err := rows.Scan(&f.ID, &f.Sha1, &f.Name, &f.Size, &f.Type, &f.SubType, &f.MimeType, &f.CreatedAt, &f.Language, &f.FileCreatedAt, &f.ParentID, &f.Published, &f.OperationIds)
+		err := rows.Scan(&f.ID, &f.Sha1, &f.Name, &f.Size, &f.Type, &f.SubType, &f.MimeType, &f.CreatedAt,
+			&f.Language, &f.FileCreatedAt, &f.ParentID, &f.Published, &f.OperationIds)
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
 		files = append(files, f)
 	}
+
 	err = rows.Err()
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
 
-	defer rows.Close()
 	return files, nil
 }
 
