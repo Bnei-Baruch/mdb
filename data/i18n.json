@@ -69,6 +69,11 @@
     "en": "Clips",
     "ru": "Клипсы"
   },
+  "content_type.ARTICLES": {
+    "he": "מאמרים",
+    "en": "Articles",
+    "ru": "Статьи"
+  },
   "content_type.LESSON_PART": {
     "he": "חלק שיעור",
     "en": "Lesson Part",
@@ -114,10 +119,10 @@
     "en": "Full Lesson",
     "ru": "Полный Урок"
   },
-  "content_type.TEXT": {
-    "he": "טקסט",
-    "en": "Text",
-    "ru": "Текст"
+  "content_type.ARTICLE": {
+    "he": "מאמר",
+    "en": "Article",
+    "ru": "Статья"
   },
   "content_type.UNKNOWN": {
     "he": "לא ידוע",
@@ -143,6 +148,11 @@
     "he": "קטעי מקור",
     "en": "Source Excerpts",
     "ru": "Исходные Выдержки"
+  },
+  "content_type.PUBLICATION": {
+    "he": "פירסום",
+    "en": "Publication",
+    "ru": "Публикация"
   },
   "autoname.lesson_by_topic_tag": {
     "he": "שיעור%s בנושא",
