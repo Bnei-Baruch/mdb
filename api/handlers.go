@@ -697,7 +697,9 @@ FROM content_units cu
 			log.Infof("PUBLICATION derived unit exist: %d", cuID)
 		} else {
 			log.Infof("PUBLICATION derived unit doesn't exists. Creating...")
-			pCU, err := CreateContentUnit(exec, CT_PUBLICATION, nil)
+			pCU, err := CreateContentUnit(exec, CT_PUBLICATION, map[string]interface{}{
+				"original_language": file.Language.String,
+			})
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "Create PUBLICATION derived unit")
 			}

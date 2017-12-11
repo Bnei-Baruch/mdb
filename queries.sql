@@ -945,9 +945,7 @@ WITH RECURSIVE rec_catalogs AS (
   FROM catalogs c INNER JOIN rec_catalogs rc ON c.parent_id = rc.id
 )
 SELECT
-  regexp_replace(split_part(fa.name, '.', 1), '^.*_', '') AS publicator,
-  fa.id,
-  fa.name
+  DISTINCT regexp_replace(split_part(fa.name, '.', 1), '^.*_', '') AS publicator
 FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id
   INNER JOIN containers_file_assets cfa ON cc.container_id = cfa.container_id
   INNER JOIN file_assets fa ON cfa.file_asset_id = fa.id AND fa.asset_type = 'zip'
