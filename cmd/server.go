@@ -53,14 +53,12 @@ func serverFn(cmd *cobra.Command, args []string) {
 	hNames := viper.GetStringSlice("events.handlers")
 	if len(hNames) > 0 {
 		for i := range hNames {
-			var h events.EventHandler
-			var err error
 			switch hNames[i] {
 			case "logger":
-				h = new(events.LoggerEventHandler)
+				eventHandlers = append(eventHandlers, new(events.LoggerEventHandler))
 			case "nats":
 				log.Info("Initializing nats streaming event handler")
-				h, err = events.NewNatsStreamingEventHandler(
+				h, err := events.NewNatsStreamingEventHandler(
 					viper.GetString("nats.subject"),
 					viper.GetString("nats.cluster-id"),
 					viper.GetString("nats.client-id"),
@@ -69,11 +67,12 @@ func serverFn(cmd *cobra.Command, args []string) {
 				)
 				if err != nil {
 					log.Errorf("Error connecting to nats streaming server: %s", err)
+				} else {
+					eventHandlers = append(eventHandlers, h)
 				}
 			default:
 				log.Warnf("Unknown event handler: %s", hNames[i])
 			}
-			eventHandlers = append(eventHandlers, h)
 		}
 	}
 
