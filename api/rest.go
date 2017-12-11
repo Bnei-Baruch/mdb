@@ -2265,8 +2265,27 @@ func handleUpdateFile(exec boil.Executor, f *MFile) (*MFile, *HttpError) {
 		}
 	}
 
+	if f.Type.Valid {
+		file.Type = f.Type.String
+	}
+	if f.SubType.Valid {
+		file.SubType = f.SubType.String
+	}
+	if f.MimeType.Valid {
+		file.MimeType = f.MimeType
+	}
+	if f.ContentUnitID.Valid {
+		file.ContentUnitID = f.ContentUnitID
+	}
+	if f.Language.Valid {
+		file.Language = f.Language
+	}
+	if f.ParentID.Valid {
+		file.ParentID = f.ParentID
+	}
 	file.Secure = f.Secure
-	err = file.Update(exec, "secure")
+	//err = file.Update(exec, "secure")
+	err = file.Update(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
