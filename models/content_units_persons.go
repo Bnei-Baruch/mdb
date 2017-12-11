@@ -22,7 +22,7 @@ import (
 // ContentUnitsPerson is an object representing the database table.
 type ContentUnitsPerson struct {
 	ContentUnitID int64 `boil:"content_unit_id" json:"content_unit_id" toml:"content_unit_id" yaml:"content_unit_id"`
-	PersonID      int64 `boil:"person_gid" json:"person_id" toml:"person_id" yaml:"person_id"`
+	PersonID      int64 `boil:"person_id" json:"person_id" toml:"person_id" yaml:"person_id"`
 	RoleID        int64 `boil:"role_id" json:"role_id" toml:"role_id" yaml:"role_id"`
 
 	R *contentUnitsPersonR `boil:"-" json:"-" toml:"-" yaml:"-"`
