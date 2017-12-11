@@ -111,6 +111,7 @@ var (
 		{Extension: "wav", Type: "audio", SubType: "", MimeType: "audio/x-wav"},
 		{Extension: "aac", Type: "audio", SubType: "", MimeType: "audio/aac"},
 		{Extension: "jpg", Type: "image", SubType: "", MimeType: "image/jpeg"},
+		{Extension: "png", Type: "image", SubType: "", MimeType: "image/png"},
 		{Extension: "gif", Type: "image", SubType: "", MimeType: "image/gif"},
 		{Extension: "bmp", Type: "image", SubType: "", MimeType: "image/bmp"},
 		{Extension: "tif", Type: "image", SubType: "", MimeType: "image/tiff"},

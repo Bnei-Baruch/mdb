@@ -152,6 +152,7 @@ type (
 		ParentSha1     string `json:"parent_sha1" binding:"omitempty,len=40,hexadecimal"`
 		Mode           string `json:"mode" binding:"required"`
 		OldSha1        string `json:"old_sha1" binding:"omitempty,len=40,hexadecimal"`
+		PublisherUID   string `json:"publisher_uid" binding:"omitempty,len=8"`
 	}
 
 	TranscodeRequest struct {

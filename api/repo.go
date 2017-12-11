@@ -766,6 +766,12 @@ func (c *PersonUIDChecker) Check(exec boil.Executor, uid string) (exists bool, e
 	return models.Persons(exec, qm.Where("uid = ?", uid)).Exists()
 }
 
+type PublisherUIDChecker struct{}
+
+func (c *PublisherUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Publishers(exec, qm.Where("uid = ?", uid)).Exists()
+}
+
 func GetFreeUID(exec boil.Executor, checker UIDChecker) (uid string, err error) {
 	for {
 		uid = utils.GenerateUID(8)

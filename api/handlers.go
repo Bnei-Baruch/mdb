@@ -403,7 +403,7 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []
 	log.Infof("%d unique files out of %d", len(uniq), len(r.Output))
 
 	log.Info("Creating output files")
-	evnts := make([]events.Event,0)
+	evnts := make([]events.Event, 0)
 	files := make([]*models.File, len(uniq)+1)
 	files[0] = in
 	props := make(map[string]interface{})
@@ -613,15 +613,17 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 
 	// Create new file
 	log.Info("Creating new file")
-	switch r.InsertType {
-	case "akladot", "tamlil", "kitei-makor":
-		r.File.Type = "text"
-	case "sirtutim":
-		r.File.Type = "image"
-	case "dgima", "aricha":
-		r.File.Type = "video"
-	default:
-		r.File.Type = ""
+	if r.File.Type == "" {
+		switch r.InsertType {
+		case "akladot", "tamlil", "kitei-makor", "article":
+			r.File.Type = "text"
+		case "sirtutim", "publication":
+			r.File.Type = "image"
+		case "dgima", "aricha":
+			r.File.Type = "video"
+		default:
+			r.File.Type = ""
+		}
 	}
 
 	if r.AVFile.Duration > 0 {
@@ -634,22 +636,23 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 	}
 	opFiles = append(opFiles, file)
 
+	// special types logic
 	cuID := cu.ID
 	if r.InsertType == "kitei-makor" {
 		log.Infof("Kitei makor, associating to derived unit")
 
-		var ktCUID int64
+		var cudID int64
 		if len(cu.R.SourceContentUnitDerivations) > 0 {
 			for _, cud := range cu.R.SourceContentUnitDerivations {
 				if CONTENT_TYPE_REGISTRY.ByID[cud.R.Derived.TypeID].Name == CT_KITEI_MAKOR {
-					ktCUID = cud.DerivedID
+					cudID = cud.DerivedID
 					break
 				}
 			}
 		}
 
-		if ktCUID > 0 {
-			cuID = ktCUID
+		if cudID > 0 {
+			cuID = cudID
 			log.Infof("KITEI_MAKOR derived unit exist: %d", cuID)
 		} else {
 			log.Infof("KITEI_MAKOR derived unit doesn't exists. Creating...")
@@ -668,6 +671,52 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 			}
 
 			cuID = ktCU.ID
+		}
+	} else if r.InsertType == "publication" {
+		log.Infof("Publication, associating to derived unit")
+
+		publisher, err := models.Publishers(exec, qm.Where("uid = ?", r.PublisherUID)).One()
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Fetch publisher from mdb")
+		}
+
+		var cudID int64
+		err = queries.Raw(exec, `SELECT cu.id
+FROM content_units cu
+  INNER JOIN content_unit_derivations cud ON cu.id = cud.derived_id AND cud.source_id = $1 AND cu.type_id = $2
+  INNER JOIN content_units_publishers cup ON cud.derived_id = cup.content_unit_id AND cup.publisher_id = $3`,
+			cu.ID, CONTENT_TYPE_REGISTRY.ByName[CT_PUBLICATION].ID, publisher.ID).
+			QueryRow().
+			Scan(&cudID)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, nil, errors.Wrap(err, "Lookup existing cud from mdb")
+		}
+
+		if cudID > 0 {
+			cuID = cudID
+			log.Infof("PUBLICATION derived unit exist: %d", cuID)
+		} else {
+			log.Infof("PUBLICATION derived unit doesn't exists. Creating...")
+			pCU, err := CreateContentUnit(exec, CT_PUBLICATION, nil)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "Create PUBLICATION derived unit")
+			}
+
+			err = pCU.AddPublishers(exec, false, publisher)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "Associate publisher with cud")
+			}
+
+			cud := &models.ContentUnitDerivation{
+				SourceID: cu.ID,
+				Name:     CT_PUBLICATION,
+			}
+			err = pCU.AddDerivedContentUnitDerivations(exec, true, cud)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "Save CUD in DB")
+			}
+
+			cuID = pCU.ID
 		}
 	}
 

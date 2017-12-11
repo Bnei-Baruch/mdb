@@ -935,7 +935,7 @@ SELECT
 FROM file_assets fa INNER JOIN containers_file_assets cfa ON fa.id = cfa.file_asset_id AND fa.sha1 IS NOT NULL
 GROUP BY fa.id;
 
--- publicators
+-- publishers
 WITH RECURSIVE rec_catalogs AS (
   SELECT c.id
   FROM catalogs c
