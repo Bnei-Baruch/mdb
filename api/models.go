@@ -383,7 +383,9 @@ type (
 	// Marshalable File
 	MFile struct {
 		models.File
-		Sha1Str      string           `json:"sha1"`
+		Sha1Str string      `json:"sha1"`
+		Type    null.String `boil:"type" json:"type,omitempty" toml:"type" yaml:"type,omitempty"`
+		SubType null.String `boil:"sub_type" json:"sub_type,omitempty" toml:"sub_type" yaml:"sub_type,omitempty"`
 		OperationIds types.Int64Array `json:"operationids"`
 	}
 
