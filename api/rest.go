@@ -596,7 +596,7 @@ func FileHandler(c *gin.Context) {
 		resp, err = handleGetFile(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
-			var f MFile
+			var f PartialFile
 			if c.Bind(&f) != nil {
 				return
 			}
@@ -2308,7 +2308,7 @@ func handleGetFile(exec boil.Executor, id int64) (*MFile, *HttpError) {
 	return NewMFile(file), nil
 }
 
-func handleUpdateFile(exec boil.Executor, f *MFile) (*MFile, *HttpError) {
+func handleUpdateFile(exec boil.Executor, f *PartialFile) (*MFile, *HttpError) {
 	file, err := models.FindFile(exec, f.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2336,8 +2336,10 @@ func handleUpdateFile(exec boil.Executor, f *MFile) (*MFile, *HttpError) {
 	if f.ParentID.Valid {
 		file.ParentID = f.ParentID
 	}
-	file.Secure = f.Secure
-	//err = file.Update(exec, "secure")
+	if f.Secure.Valid {
+		file.Secure = f.Secure.Int16
+	}
+
 	err = file.Update(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
