@@ -2196,6 +2196,7 @@ func handleContentUnitAddPerson(exec boil.Executor, id int64, cup models.Content
 			if err != nil {
 				return nil, NewInternalError(err)
 			}
+			return cu, nil
 		} else {
 			return nil, NewInternalError(err)
 		}
