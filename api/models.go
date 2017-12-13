@@ -210,7 +210,8 @@ type (
 	}
 
 	SearchTermFilter struct {
-		Query string `json:"query" form:"query" binding:"omitempty"`
+		Query   string `json:"query" form:"query" binding:"omitempty"`
+		InFiles bool   `json:"infiles" form:"infiles" binding:"omitempty"`
 	}
 
 	DateRangeFilter struct {
@@ -234,6 +235,7 @@ type (
 		DateRangeFilter
 		SecureFilter
 		PublishedFilter
+		SearchTermFilter
 	}
 
 	CollectionsResponse struct {
@@ -251,6 +253,7 @@ type (
 		PublishedFilter
 		SourcesFilter
 		TagsFilter
+		SearchTermFilter
 	}
 
 	ContentUnitsResponse struct {

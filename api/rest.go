@@ -3013,6 +3013,20 @@ func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
 	return nil
 }
 
+func appendSearchTermFilterMods(mods *[]qm.QueryMod, f SearchTermFilter) error {
+	if f.Query == "" {
+		return nil
+	}
+
+	*mods = append(*mods, qm.Where("id = ? OR uid = ?", f.Query))
+	if f.InFiles {
+		*mods = append(*mods, qm.Where("sha1 = ?", f.Query))
+		*mods = append(*mods, qm.Where("name like %?%", f.Query))
+	}
+
+	return nil
+}
+
 func appendIDsFilterMods(mods *[]qm.QueryMod, f IDsFilter) error {
 	if len(f.IDs) == 0 {
 		return nil
