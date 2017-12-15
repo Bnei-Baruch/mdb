@@ -25,6 +25,10 @@ import (
 const (
 	DEFAULT_PAGE_SIZE = 50
 	MAX_PAGE_SIZE     = 1000
+
+	SEARCH_IN_FILES         = 1
+	SEARCH_IN_CONTENT_UNITS = 2
+	SEARCH_IN_COLLECTIONS   = 3
 )
 
 func CollectionsListHandler(c *gin.Context) {
@@ -1513,6 +1517,9 @@ func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*Content
 	if err := appendTagsFilterMods(exec, &mods, r.TagsFilter); err != nil {
 		return nil, NewInternalError(err)
 	}
+	if err := appendSearchTermFilterMods(&mods, r.SearchTermFilter, SEARCH_IN_CONTENT_UNITS); err != nil {
+		return nil, NewBadRequestError(err)
+	}
 	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
 		return nil, NewBadRequestError(err)
 	}
@@ -2259,7 +2266,7 @@ func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpE
 		return nil, NewBadRequestError(err)
 	}
 	appendPublishedFilterMods(&mods, r.PublishedFilter)
-	if err := appendSearchTermFilterMods(&mods, r.SearchTermFilter, true); err != nil {
+	if err := appendSearchTermFilterMods(&mods, r.SearchTermFilter, SEARCH_IN_FILES); err != nil {
 		return nil, NewBadRequestError(err)
 	}
 	/*if r.Query != "" {
@@ -3016,7 +3023,7 @@ func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
 	return nil
 }
 
-func appendSearchTermFilterMods(mods *[]qm.QueryMod, f SearchTermFilter, inFiles bool) error {
+func appendSearchTermFilterMods(mods *[]qm.QueryMod, f SearchTermFilter, entityType int) error {
 	if f.Query == "" {
 		return nil
 	}
@@ -3024,9 +3031,15 @@ func appendSearchTermFilterMods(mods *[]qm.QueryMod, f SearchTermFilter, inFiles
 	*mods = append(*mods, qm.Where("uid = ?", f.Query),
 		qm.Or("id::TEXT = ?", f.Query))
 
-	if inFiles {
+	switch entityType {
+	case SEARCH_IN_FILES:
 		*mods = append(*mods, qm.Or("sha1::TEXT ~ ?", f.Query),
 			qm.Or("name ~ ?", f.Query))
+	case SEARCH_IN_CONTENT_UNITS:
+		*mods = append(*mods, qm.InnerJoin("content_unit_i18n on id = content_unit_i18n.content_unit_id"),
+			qm.Or("content_unit_i18n.name ~ ?", f.Query), qm.Or("content_unit_i18n.description ~ ?", f.Query))
+	case SEARCH_IN_COLLECTIONS:
+		fmt.Println("three")
 	}
 
 	return nil
