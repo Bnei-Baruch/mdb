@@ -2259,11 +2259,14 @@ func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpE
 		return nil, NewBadRequestError(err)
 	}
 	appendPublishedFilterMods(&mods, r.PublishedFilter)
-	if r.Query != "" {
+	if err := appendSearchTermFilterMods(&mods, r.SearchTermFilter, true); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	/*if r.Query != "" {
 		mods = append(mods, qm.Where("name ~ ?", r.Query),
 			qm.Or("uid ~ ?", r.Query),
 			qm.Or("id::TEXT ~ ?", r.Query))
-	}
+	}*/
 
 	// count query
 	total, err := models.Files(exec, mods...).Count()
@@ -3013,15 +3016,17 @@ func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
 	return nil
 }
 
-func appendSearchTermFilterMods(mods *[]qm.QueryMod, f SearchTermFilter) error {
+func appendSearchTermFilterMods(mods *[]qm.QueryMod, f SearchTermFilter, inFiles bool) error {
 	if f.Query == "" {
 		return nil
 	}
 
-	*mods = append(*mods, qm.Where("id = ? OR uid = ?", f.Query))
-	if f.InFiles {
-		*mods = append(*mods, qm.Where("sha1 = ?", f.Query))
-		*mods = append(*mods, qm.Where("name like %?%", f.Query))
+	*mods = append(*mods, qm.Where("uid = ?", f.Query),
+		qm.Or("id::TEXT = ?", f.Query))
+
+	if inFiles {
+		*mods = append(*mods, qm.Or("sha1::TEXT ~ ?", f.Query),
+			qm.Or("name ~ ?", f.Query))
 	}
 
 	return nil

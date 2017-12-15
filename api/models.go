@@ -210,8 +210,7 @@ type (
 	}
 
 	SearchTermFilter struct {
-		Query   string `json:"query" form:"query" binding:"omitempty"`
-		InFiles bool   `json:"infiles" form:"infiles" binding:"omitempty"`
+		Query string `json:"query" form:"query" binding:"omitempty"`
 	}
 
 	DateRangeFilter struct {
