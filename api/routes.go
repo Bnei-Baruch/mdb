@@ -76,6 +76,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.PUT("/persons/:id/", PersonHandler)
 	rest.PUT("/persons/:id/i18n/", PersonI18nHandler)
 	rest.GET("/storages/", StoragesHandler)
+	rest.GET("/publishers/", PublishersHandler)
 
 	hierarchy := router.Group("hierarchy")
 	hierarchy.GET("/sources/", SourcesHierarchyHandler)

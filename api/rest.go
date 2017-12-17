@@ -1060,6 +1060,16 @@ func StoragesHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func PublishersHandler(c *gin.Context) {
+	var r PublishersRequest
+	if c.Bind(&r) != nil {
+		return
+	}
+
+	resp, err := handlePublishersList(c.MustGet("MDB").(*sql.DB), r)
+	concludeRequest(c, resp, err)
+}
+
 // Handlers Logic
 
 func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*CollectionsResponse, *HttpError) {
@@ -2952,7 +2962,7 @@ func handleStoragesList(exec boil.Executor, r StoragesRequest) (*StoragesRespons
 		return nil, NewInternalError(err)
 	}
 	if total == 0 {
-		return NewStoragessResponse(), nil
+		return NewStoragesResponse(), nil
 	}
 
 	// order, limit, offset
@@ -2969,6 +2979,60 @@ func handleStoragesList(exec boil.Executor, r StoragesRequest) (*StoragesRespons
 	return &StoragesResponse{
 		ListResponse: ListResponse{Total: total},
 		Storages:     data,
+	}, nil
+}
+
+func handlePublishersList(exec boil.Executor, r PublishersRequest) (*PublishersResponse, *HttpError) {
+	mods := make([]qm.QueryMod, 0)
+
+	// filters
+	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendUIDsFilterMods(&mods, r.UIDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendPatternsFilterMods(&mods, r.PatternsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+
+	// count query
+	total, err := models.Publishers(exec, mods...).Count()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if total == 0 {
+		return NewPublishersResponse(), nil
+	}
+
+	// order, limit, offset
+	if err = appendListMods(&mods, r.ListRequest); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+
+	// Eager loading
+	mods = append(mods, qm.Load("PublisherI18ns"))
+
+	// data query
+	publishers, err := models.Publishers(exec, mods...).All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// i18n
+	data := make([]*Publisher, len(publishers))
+	for i, pr := range publishers {
+		x := &Publisher{Publisher: *pr}
+		data[i] = x
+		x.I18n = make(map[string]*models.PublisherI18n, len(pr.R.PublisherI18ns))
+		for _, i18n := range pr.R.PublisherI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+	}
+
+	return &PublishersResponse{
+		ListResponse: ListResponse{Total: total},
+		Publishers:   data,
 	}, nil
 }
 

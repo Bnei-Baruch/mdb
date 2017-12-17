@@ -258,18 +258,6 @@ type (
 		ContentUnits []*ContentUnit `json:"data"`
 	}
 
-	PersonsRequest struct {
-		ListRequest
-		IDsFilter
-		UIDsFilter
-		PatternsFilter
-	}
-
-	PersonsResponse struct {
-		ListResponse
-		Persons []*Person `json:"data"`
-	}
-
 	FilesRequest struct {
 		ListRequest
 		IDsFilter
@@ -325,6 +313,18 @@ type (
 		Tags []*Tag `json:"data"`
 	}
 
+	PersonsRequest struct {
+		ListRequest
+		IDsFilter
+		UIDsFilter
+		PatternsFilter
+	}
+
+	PersonsResponse struct {
+		ListResponse
+		Persons []*Person `json:"data"`
+	}
+
 	StoragesRequest struct {
 		ListRequest
 	}
@@ -332,6 +332,18 @@ type (
 	StoragesResponse struct {
 		ListResponse
 		Storages []*models.Storage `json:"data"`
+	}
+
+	PublishersRequest struct {
+		ListRequest
+		IDsFilter
+		UIDsFilter
+		PatternsFilter
+	}
+
+	PublishersResponse struct {
+		ListResponse
+		Publishers []*Publisher `json:"data"`
 	}
 
 	HierarchyRequest struct {
@@ -426,6 +438,11 @@ type (
 		models.Storage
 	}
 
+	Publisher struct {
+		models.Publisher
+		I18n map[string]*models.PublisherI18n `json:"i18n"`
+	}
+
 	SourceH struct {
 		ID          int64       `json:"id"`
 		UID         string      `json:"uid"`
@@ -487,12 +504,16 @@ func NewTagsResponse() *TagsResponse {
 	return &TagsResponse{Tags: make([]*Tag, 0)}
 }
 
-func NewStoragessResponse() *StoragesResponse {
+func NewPersonsResponse() *PersonsResponse {
+	return &PersonsResponse{Persons: make([]*Person, 0)}
+}
+
+func NewStoragesResponse() *StoragesResponse {
 	return &StoragesResponse{Storages: make([]*models.Storage, 0)}
 }
 
-func NewPersonsResponse() *PersonsResponse {
-	return &PersonsResponse{Persons: make([]*Person, 0)}
+func NewPublishersResponse() *PublishersResponse {
+	return &PublishersResponse{Publishers: make([]*Publisher, 0)}
 }
 
 func (mf MaybeFile) AsFile() File {
