@@ -174,3 +174,8 @@ go get github.com/tools/godep
 # https://github.com/tools/godep
 godep save
 ```
+
+
+## License
+
+MIT
