@@ -1086,6 +1086,10 @@ func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*Collectio
 	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
 		return nil, NewBadRequestError(err)
 	}
+	if err := appendSearchTermFilterMods(exec, &mods, r.SearchTermFilter, SEARCH_IN_COLLECTIONS); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+
 	appendPublishedFilterMods(&mods, r.PublishedFilter)
 
 	// count query
@@ -1517,7 +1521,7 @@ func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*Content
 	if err := appendTagsFilterMods(exec, &mods, r.TagsFilter); err != nil {
 		return nil, NewInternalError(err)
 	}
-	if err := appendSearchTermFilterMods(&mods, r.SearchTermFilter, SEARCH_IN_CONTENT_UNITS); err != nil {
+	if err := appendSearchTermFilterMods(exec, &mods, r.SearchTermFilter, SEARCH_IN_CONTENT_UNITS); err != nil {
 		return nil, NewBadRequestError(err)
 	}
 	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
@@ -2266,7 +2270,7 @@ func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpE
 		return nil, NewBadRequestError(err)
 	}
 	appendPublishedFilterMods(&mods, r.PublishedFilter)
-	if err := appendSearchTermFilterMods(&mods, r.SearchTermFilter, SEARCH_IN_FILES); err != nil {
+	if err := appendSearchTermFilterMods(exec, &mods, r.SearchTermFilter, SEARCH_IN_FILES); err != nil {
 		return nil, NewBadRequestError(err)
 	}
 	/*if r.Query != "" {
@@ -3023,7 +3027,7 @@ func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
 	return nil
 }
 
-func appendSearchTermFilterMods(mods *[]qm.QueryMod, f SearchTermFilter, entityType int) error {
+func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SearchTermFilter, entityType int) error {
 	if f.Query == "" {
 		return nil
 	}
@@ -3036,10 +3040,44 @@ func appendSearchTermFilterMods(mods *[]qm.QueryMod, f SearchTermFilter, entityT
 		*mods = append(*mods, qm.Or("sha1::TEXT ~ ?", f.Query),
 			qm.Or("name ~ ?", f.Query))
 	case SEARCH_IN_CONTENT_UNITS:
-		*mods = append(*mods, qm.InnerJoin("content_unit_i18n on id = content_unit_i18n.content_unit_id"),
-			qm.Or("content_unit_i18n.name ~ ?", f.Query), qm.Or("content_unit_i18n.description ~ ?", f.Query))
+
+		var ids pq.Int64Array
+		q := `select array_agg(cui.content_unit_id)
+			  from content_units cu 
+			  left join content_unit_i18n cui on cu.id = cui.content_unit_id
+			  where cui.name ~ $1 or cui .description ~ $1`
+		err := queries.Raw(exec, q, f.Query).QueryRow().Scan(&ids)
+		if err != nil {
+			return err
+		}
+
+		if ids == nil || len(ids) == 0 {
+			*mods = append(*mods, qm.Where("id < 0")) // so results would be empty
+		} else {
+			*mods = append(*mods,
+				qm.InnerJoin("content_unit_i18n on id = content_unit_i18n.content_unit_id"),
+				qm.OrIn("content_unit_i18n.content_unit_id in ?", utils.ConvertArgsInt64(ids)...))
+		}
+
 	case SEARCH_IN_COLLECTIONS:
-		fmt.Println("three")
+
+		var ids pq.Int64Array
+		q := `select array_agg(ci.collection_id)
+			  from collections c 
+			  left join collection_i18n ci on c.id = ci.collection_id
+			  where ci.name ~ $1 or ci .description ~ $1`
+		err := queries.Raw(exec, q, f.Query).QueryRow().Scan(&ids)
+		if err != nil {
+			return err
+		}
+
+		if ids == nil || len(ids) == 0 {
+			*mods = append(*mods, qm.Where("id < 0")) // so results would be empty
+		} else {
+			*mods = append(*mods,
+				qm.InnerJoin("collection_i18n on id = collection_i18n.collection_id"),
+				qm.OrIn("collection_i18n.collection_id in ?", utils.ConvertArgsInt64(ids)...))
+		}
 	}
 
 	return nil
