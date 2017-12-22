@@ -2438,7 +2438,7 @@ func handleContentUnitAddPublisher(exec boil.Executor, id int64, publisherID int
 
 	var count int64
 	err = queries.Raw(exec,
-		`SELECT COUNT(1) FROM content_units_sources WHERE content_unit_id=$1 AND publisher_id=$2`,
+		`SELECT COUNT(1) FROM content_units_publishers WHERE content_unit_id=$1 AND publisher_id=$2`,
 		cu.ID, publisher.ID).
 		QueryRow().
 		Scan(&count)
