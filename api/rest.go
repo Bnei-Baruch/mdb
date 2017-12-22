@@ -572,6 +572,57 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func ContentUnitPublishersHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		resp, err = handleGetContentUnitPublishers(c.MustGet("MDB").(*sql.DB), id)
+	case http.MethodPost:
+		var body map[string]int64
+		if c.BindJSON(&body) != nil {
+			return
+		}
+
+		publisherID, ok := body["publisherID"]
+		if !ok {
+			err = NewBadRequestError(errors.Wrap(e, "No publisherID given"))
+			break
+		}
+
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitAddPublisher(tx, id, publisherID)
+		mustConcludeTx(tx, err)
+
+		if err == nil && resp != nil {
+			emitEvents(c, events.ContentUnitSourcesChangeEvent(resp.(*models.ContentUnit)))
+		}
+	case http.MethodDelete:
+		publisherID, e := strconv.ParseInt(c.Param("publisherID"), 10, 0)
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "publisherID expects int64"))
+			break
+		}
+
+		tx := mustBeginTx(c)
+		resp, err = handleContentUnitRemovePublisher(tx, id, publisherID)
+		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.ContentUnitSourcesChangeEvent(resp.(*models.ContentUnit)))
+		}
+	}
+
+	concludeRequest(c, resp, err)
+}
+
 func FilesListHandler(c *gin.Context) {
 	var r FilesRequest
 	if c.Bind(&r) != nil {
@@ -1050,6 +1101,68 @@ func PersonI18nHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func PublisherHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var err *HttpError
+	var resp interface{}
+
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		resp, err = handleGetPublisher(c.MustGet("MDB").(*sql.DB), id)
+	} else {
+		if c.Request.Method == http.MethodPut {
+			var p Publisher
+			if c.Bind(&p) != nil {
+				return
+			}
+
+			p.ID = id
+			tx := mustBeginTx(c)
+			resp, err = handleUpdatePublisher(tx, &p)
+			mustConcludeTx(tx, err)
+
+			if err == nil {
+				emitEvents(c, events.PublisherUpdateEvent(&resp.(*Publisher).Publisher))
+			}
+		}
+	}
+
+	concludeRequest(c, resp, err)
+}
+
+func PublisherI18nHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var i18ns []*models.PublisherI18n
+	if c.Bind(&i18ns) != nil {
+		return
+	}
+	for _, x := range i18ns {
+		if StdLang(x.Language) == LANG_UNKNOWN {
+			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+			return
+		}
+	}
+
+	tx := mustBeginTx(c)
+	resp, err := handleUpdatePublisherI18n(tx, id, i18ns)
+	mustConcludeTx(tx, err)
+
+	if err == nil {
+		emitEvents(c, events.PublisherUpdateEvent(&resp.Publisher))
+	}
+
+	concludeRequest(c, resp, err)
+}
+
 func StoragesHandler(c *gin.Context) {
 	var r StoragesRequest
 	if c.Bind(&r) != nil {
@@ -1061,12 +1174,40 @@ func StoragesHandler(c *gin.Context) {
 }
 
 func PublishersHandler(c *gin.Context) {
-	var r PublishersRequest
-	if c.Bind(&r) != nil {
-		return
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		var r PublishersRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+
+		resp, err = handlePublishersList(c.MustGet("MDB").(*sql.DB), r)
+	case http.MethodPost:
+		var publisher Publisher
+		if c.BindJSON(&publisher) != nil {
+			return
+		}
+
+		for _, x := range publisher.I18n {
+			if StdLang(x.Language) == LANG_UNKNOWN {
+				err := errors.Errorf("Unknown language %s", x.Language)
+				NewBadRequestError(err).Abort(c)
+				return
+			}
+		}
+
+		tx := mustBeginTx(c)
+		resp, err = handleCreatePublisher(tx, &publisher)
+		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.PublisherCreateEvent(&resp.(*Publisher).Publisher))
+		}
 	}
 
-	resp, err := handlePublishersList(c.MustGet("MDB").(*sql.DB), r)
 	concludeRequest(c, resp, err)
 }
 
@@ -2249,6 +2390,100 @@ func handleContentUnitRemovePerson(exec boil.Executor, id int64, personID int64)
 	return cu, nil
 }
 
+func handleGetContentUnitPublishers(exec boil.Executor, id int64) ([]*Publisher, *HttpError) {
+	unit, err := models.ContentUnits(exec,
+		qm.Where("id = ?", id),
+		qm.Load("Publishers", "Publishers.PublisherI18ns")).
+		One()
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	data := make([]*Publisher, len(unit.R.Publishers))
+	for i, publisher := range unit.R.Publishers {
+		p := &Publisher{Publisher: *publisher}
+		p.I18n = make(map[string]*models.PublisherI18n, len(publisher.R.PublisherI18ns))
+		for _, i18n := range publisher.R.PublisherI18ns {
+			p.I18n[i18n.Language] = i18n
+		}
+		data[i] = p
+	}
+
+	return data, nil
+}
+
+func handleContentUnitAddPublisher(exec boil.Executor, id int64, publisherID int64) (*models.ContentUnit, *HttpError) {
+	cu, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	publisher, err := models.FindPublisher(exec, publisherID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewBadRequestError(errors.Errorf("Unknown publisher id %d", publisherID))
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	var count int64
+	err = queries.Raw(exec,
+		`SELECT COUNT(1) FROM content_units_sources WHERE content_unit_id=$1 AND publisher_id=$2`,
+		cu.ID, publisher.ID).
+		QueryRow().
+		Scan(&count)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if count > 0 {
+		return nil, nil // noop
+	}
+
+	err = cu.AddPublishers(exec, false, publisher)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return cu, nil
+}
+
+func handleContentUnitRemovePublisher(exec boil.Executor, id int64, publisherID int64) (*models.ContentUnit, *HttpError) {
+	cu, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	publisher, err := models.FindPublisher(exec, publisherID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewBadRequestError(errors.Errorf("Unknown publisher id %d", publisherID))
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	err = cu.RemovePublishers(exec, publisher)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return cu, nil
+}
+
 func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpError) {
 	mods := make([]qm.QueryMod, 0)
 
@@ -3034,6 +3269,105 @@ func handlePublishersList(exec boil.Executor, r PublishersRequest) (*PublishersR
 		ListResponse: ListResponse{Total: total},
 		Publishers:   data,
 	}, nil
+}
+
+func handleCreatePublisher(exec boil.Executor, p *Publisher) (*Publisher, *HttpError) {
+
+	// save publisher to DB
+	uid, err := GetFreeUID(exec, new(PublisherUIDChecker))
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	p.UID = uid
+
+	err = p.Publisher.Insert(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// save i18n
+	for _, v := range p.I18n {
+		err := p.AddPublisherI18ns(exec, true, v)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	return handleGetPublisher(exec, p.ID)
+}
+
+func handleGetPublisher(exec boil.Executor, id int64) (*Publisher, *HttpError) {
+	publisher, err := models.Publishers(exec,
+		qm.Where("id = ?", id),
+		qm.Load("PublisherI18ns")).
+		One()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// i18n
+	x := &Publisher{Publisher: *publisher}
+	x.I18n = make(map[string]*models.PublisherI18n, len(publisher.R.PublisherI18ns))
+	for _, i18n := range publisher.R.PublisherI18ns {
+		x.I18n[i18n.Language] = i18n
+	}
+
+	return x, nil
+}
+
+func handleUpdatePublisher(exec boil.Executor, p *Publisher) (*Publisher, *HttpError) {
+	publisher, err := models.FindPublisher(exec, p.ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	publisher.Pattern = p.Pattern
+	err = p.Update(exec, "pattern")
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return handleGetPublisher(exec, p.ID)
+}
+
+func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.PublisherI18n) (*Publisher, *HttpError) {
+	publisher, err := handleGetPublisher(exec, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Upsert all new i18ns
+	nI18n := make(map[string]*models.PublisherI18n, len(i18ns))
+	for _, i18n := range i18ns {
+		i18n.PublisherID = id
+		nI18n[i18n.Language] = i18n
+		err := i18n.Upsert(exec, true,
+			[]string{"publisher_id", "language"},
+			[]string{"name", "description"})
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// Delete old i18ns not in new i18ns
+	for k, v := range publisher.I18n {
+		if _, ok := nI18n[k]; !ok {
+			err := v.Delete(exec)
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+		}
+	}
+
+	return handleGetPublisher(exec, id)
 }
 
 // Query Helpers
