@@ -950,3 +950,10 @@ FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id
   INNER JOIN containers_file_assets cfa ON cc.container_id = cfa.container_id
   INNER JOIN file_assets fa ON cfa.file_asset_id = fa.id AND fa.asset_type = 'zip'
 ORDER BY publicator;
+
+SELECT *
+FROM "files"
+WHERE (uid = '72824d8e6dd0103d90957854c786d6c47a0056ce') OR (id :: TEXT = '72824d8e6dd0103d90957854c786d6c47a0056ce') OR
+      (sha1 :: TEXT ~ '72824d8e6dd0103d90957854c786d6c47a0056ce') OR (name ~ '72824d8e6dd0103d90957854c786d6c47a0056ce')
+ORDER BY id DESC
+LIMIT 50;
