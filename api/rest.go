@@ -3096,52 +3096,69 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 		return nil
 	}
 
-	*mods = append(*mods, qm.Where("uid = ?", f.Query),
-		qm.Or("id::TEXT = ?", f.Query))
+	fMods := make([]qm.QueryMod, 0)
+
+	// id field - must be unsigned int
+	if id, err := strconv.ParseUint(f.Query, 10, 64); err == nil {
+		fMods = append(fMods, qm.Or("id = ?", id))
+	}
+
+	// uid field
+	if len(f.Query) == 8 {
+		fMods = append(fMods, qm.Or("uid = ?", f.Query))
+	}
 
 	switch entityType {
 	case SEARCH_IN_FILES:
-		*mods = append(*mods, qm.Or("sha1::TEXT ~ ?", f.Query),
-			qm.Or("name ~ ?", f.Query))
+		// file name field
+		fMods = append(fMods, qm.Or("name ~ ?", f.Query))
+
+		// file sha1
+		if len(f.Query) == 40 {
+			s, err := hex.DecodeString(f.Query)
+			if err == nil {
+				fMods = append(fMods, qm.Or("sha1 = ?", s))
+			}
+		}
 	case SEARCH_IN_CONTENT_UNITS:
 
+		// get CU IDs from search in i18ns
 		var ids pq.Int64Array
 		q := `select array_agg(cui.content_unit_id)
 			  from content_units cu 
 			  left join content_unit_i18n cui on cu.id = cui.content_unit_id
-			  where cui.name ~ $1 or cui .description ~ $1`
-		err := queries.Raw(exec, q, f.Query).QueryRow().Scan(&ids)
+			  where cui.name ~ $1 or cui .description ~ $1 limit $2`
+		err := queries.Raw(exec, q, f.Query, MAX_PAGE_SIZE).QueryRow().Scan(&ids)
 		if err != nil {
 			return err
 		}
 
-		if ids == nil || len(ids) == 0 {
-			*mods = append(*mods, qm.Where("id < 0")) // so results would be empty
-		} else {
-			*mods = append(*mods,
-				qm.InnerJoin("content_unit_i18n on id = content_unit_i18n.content_unit_id"),
-				qm.OrIn("content_unit_i18n.content_unit_id in ?", utils.ConvertArgsInt64(ids)...))
+		if ids != nil && len(ids) != 0 {
+			fMods = append(fMods, qm.OrIn("id in ?", utils.ConvertArgsInt64(ids)...))
 		}
 
 	case SEARCH_IN_COLLECTIONS:
 
+		// get Collection IDs from search in i18ns
 		var ids pq.Int64Array
 		q := `select array_agg(ci.collection_id)
 			  from collections c 
 			  left join collection_i18n ci on c.id = ci.collection_id
-			  where ci.name ~ $1 or ci .description ~ $1`
-		err := queries.Raw(exec, q, f.Query).QueryRow().Scan(&ids)
+			  where ci.name ~ $1 or ci .description ~ $1 limit $2`
+		err := queries.Raw(exec, q, f.Query, MAX_PAGE_SIZE).QueryRow().Scan(&ids)
 		if err != nil {
 			return err
 		}
 
-		if ids == nil || len(ids) == 0 {
-			*mods = append(*mods, qm.Where("id < 0")) // so results would be empty
-		} else {
-			*mods = append(*mods,
-				qm.InnerJoin("collection_i18n on id = collection_i18n.collection_id"),
-				qm.OrIn("collection_i18n.collection_id in ?", utils.ConvertArgsInt64(ids)...))
+		if ids != nil && len(ids) != 0 {
+			fMods = append(fMods, qm.OrIn("id in ?", utils.ConvertArgsInt64(ids)...))
 		}
+	}
+
+	if len(fMods) > 0 {
+		*mods = append(*mods, fMods...)
+	} else {
+		*mods = append(*mods, qm.Where("id < 0")) // so we get back empty results
 	}
 
 	return nil
