@@ -234,6 +234,7 @@ type (
 		DateRangeFilter
 		SecureFilter
 		PublishedFilter
+		SearchTermFilter
 	}
 
 	CollectionsResponse struct {
@@ -251,6 +252,7 @@ type (
 		PublishedFilter
 		SourcesFilter
 		TagsFilter
+		SearchTermFilter
 	}
 
 	ContentUnitsResponse struct {
