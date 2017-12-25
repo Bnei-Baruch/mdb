@@ -957,3 +957,15 @@ WHERE (uid = '72824d8e6dd0103d90957854c786d6c47a0056ce') OR (id :: TEXT = '72824
       (sha1 :: TEXT ~ '72824d8e6dd0103d90957854c786d6c47a0056ce') OR (name ~ '72824d8e6dd0103d90957854c786d6c47a0056ce')
 ORDER BY id DESC
 LIMIT 50;
+
+
+-- cu with image files in more than one language
+SELECT
+  cu.id,
+  cu.uid,
+  cu.type_id,
+  array_agg(DISTINCT f.language)
+FROM content_units cu INNER JOIN files f ON cu.id = f.content_unit_id AND f.type = 'image'
+GROUP BY cu.id
+HAVING count(DISTINCT f.language) > 1
+ORDER BY cu.created_at DESC;
