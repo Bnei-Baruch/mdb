@@ -602,7 +602,7 @@ func ContentUnitPublishersHandler(c *gin.Context) {
 		mustConcludeTx(tx, err)
 
 		if err == nil && resp != nil {
-			emitEvents(c, events.ContentUnitSourcesChangeEvent(resp.(*models.ContentUnit)))
+			emitEvents(c, events.ContentUnitPublishersChangeEvent(resp.(*models.ContentUnit)))
 		}
 	case http.MethodDelete:
 		publisherID, e := strconv.ParseInt(c.Param("publisherID"), 10, 0)
@@ -616,7 +616,7 @@ func ContentUnitPublishersHandler(c *gin.Context) {
 		mustConcludeTx(tx, err)
 
 		if err == nil {
-			emitEvents(c, events.ContentUnitSourcesChangeEvent(resp.(*models.ContentUnit)))
+			emitEvents(c, events.ContentUnitPublishersChangeEvent(resp.(*models.ContentUnit)))
 		}
 	}
 
