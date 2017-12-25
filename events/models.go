@@ -109,6 +109,13 @@ func ContentUnitPersonsChangeEvent(cu *models.ContentUnit) Event {
 	})
 }
 
+func ContentUnitPublishersChangeEvent(cu *models.ContentUnit) Event {
+	return makeEvent(E_CONTENT_UNIT_PUBLISHERS_CHANGE, map[string]interface{}{
+		"id":  cu.ID,
+		"uid": cu.UID,
+	})
+}
+
 func FileUpdateEvent(f *models.File) Event {
 	return makeEvent(E_FILE_UPDATE, map[string]interface{}{
 		"id":  f.ID,
@@ -204,6 +211,20 @@ func PersonUpdateEvent(p *models.Person) Event {
 
 func PersonDeleteEvent(p *models.Person) Event {
 	return makeEvent(E_PERSON_DELETE, map[string]interface{}{
+		"id":  p.ID,
+		"uid": p.UID,
+	})
+}
+
+func PublisherCreateEvent(p *models.Publisher) Event {
+	return makeEvent(E_PUBLISHER_CREATE, map[string]interface{}{
+		"id":  p.ID,
+		"uid": p.UID,
+	})
+}
+
+func PublisherUpdateEvent(p *models.Publisher) Event {
+	return makeEvent(E_PUBLISHER_UPDATE, map[string]interface{}{
 		"id":  p.ID,
 		"uid": p.UID,
 	})
