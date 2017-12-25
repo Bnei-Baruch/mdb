@@ -201,3 +201,10 @@ func PersonUpdateEvent(p *models.Person) Event {
 		"uid": p.UID,
 	})
 }
+
+func PersonDeleteEvent(p *models.Person) Event {
+	return makeEvent(E_PERSON_DELETE, map[string]interface{}{
+		"id":  p.ID,
+		"uid": p.UID,
+	})
+}

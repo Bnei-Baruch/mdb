@@ -1002,23 +1002,30 @@ func PersonHandler(c *gin.Context) {
 	var err *HttpError
 	var resp interface{}
 
-	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+	switch c.Request.Method {
+	case http.MethodGet, "":
 		resp, err = handleGetPerson(c.MustGet("MDB").(*sql.DB), id)
-	} else {
-		if c.Request.Method == http.MethodPut {
-			var p Person
-			if c.Bind(&p) != nil {
-				return
-			}
+	case http.MethodPut:
+		var p Person
+		if c.Bind(&p) != nil {
+			return
+		}
 
-			p.ID = id
-			tx := mustBeginTx(c)
-			resp, err = handleUpdatePerson(tx, &p)
-			mustConcludeTx(tx, err)
+		p.ID = id
+		tx := mustBeginTx(c)
+		resp, err = handleUpdatePerson(tx, &p)
+		mustConcludeTx(tx, err)
 
-			if err == nil {
-				emitEvents(c, events.PersonUpdateEvent(&resp.(*Person).Person))
-			}
+		if err == nil {
+			emitEvents(c, events.PersonUpdateEvent(&resp.(*Person).Person))
+		}
+	case http.MethodDelete:
+		tx := mustBeginTx(c)
+		pr, err := handleDeletePerson(tx, id)
+		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.PersonDeleteEvent(pr))
 		}
 	}
 
@@ -2965,6 +2972,34 @@ func handleUpdatePersonI18n(exec boil.Executor, id int64, i18ns []*models.Person
 	}
 
 	return handleGetPerson(exec, id)
+}
+
+func handleDeletePerson(exec boil.Executor, id int64) (*models.Person, *HttpError) {
+	person, err := models.FindPerson(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	err = models.ContentUnitsPersons(exec, qm.Where("person_id = ?", id)).DeleteAll()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	err = models.PersonI18ns(exec, qm.Where("person_id = ?", id)).DeleteAll()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	err = person.Delete(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return person, nil
 }
 
 func handleStoragesList(exec boil.Executor, r StoragesRequest) (*StoragesResponse, *HttpError) {

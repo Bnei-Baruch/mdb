@@ -74,6 +74,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.POST("/persons/", PersonsListHandler)
 	rest.GET("/persons/:id/", PersonHandler)
 	rest.PUT("/persons/:id/", PersonHandler)
+	rest.DELETE("/persons/:id/", PersonHandler)
 	rest.PUT("/persons/:id/i18n/", PersonI18nHandler)
 	rest.GET("/storages/", StoragesHandler)
 	rest.GET("/publishers/", PublishersHandler)
