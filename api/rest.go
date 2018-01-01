@@ -2361,6 +2361,7 @@ func handleContentUnitAddPerson(exec boil.Executor, id int64, cup models.Content
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// create new
+			cup.ContentUnitID = id
 			err = cup.Insert(exec)
 			if err != nil {
 				return nil, NewInternalError(err)
