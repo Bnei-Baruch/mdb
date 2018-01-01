@@ -1,0 +1,11 @@
+{
+  "version": "2",
+  "exclude_patterns": [
+    "models/",
+    "vendor/",
+    "Godeps/",
+    "*.sample.toml",
+    "spec/",
+    "!spec/support/helpers"
+  ]
+}

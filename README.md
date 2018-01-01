@@ -1,5 +1,9 @@
 # MDB - Metadata DB
 
+[![Maintainability](https://api.codeclimate.com/v1/badges/3f7da320a15bb28e8af5/maintainability)](https://codeclimate.com/github/Bnei-Baruch/mdb/maintainability)
+
+[![Test Coverage](https://api.codeclimate.com/v1/badges/3f7da320a15bb28e8af5/test_coverage)](https://codeclimate.com/github/Bnei-Baruch/mdb/test_coverage)
+
 ## Overview
 
 BB archive Metadata Database.
