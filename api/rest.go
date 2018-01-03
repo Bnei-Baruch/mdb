@@ -3510,10 +3510,10 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 
 		// get Collection IDs from search in i18ns
 		var ids pq.Int64Array
-		q := `select array_agg(ci.collection_id)
-			  from collections c 
-			  left join collection_i18n ci on c.id = ci.collection_id
-			  where ci.name ~ $1 or ci .description ~ $1 limit $2`
+		q := `select array_agg(c.id)
+				from collections c 
+				left join collection_i18n ci on c.id = ci.collection_id
+				where ci.name ~ $1 or ci.description ~ $1 or CAST(c.type_id AS varchar) = $1 limit $2`
 		err := queries.Raw(exec, q, f.Query, MAX_PAGE_SIZE).QueryRow().Scan(&ids)
 		if err != nil {
 			return err
