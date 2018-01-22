@@ -101,6 +101,12 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	if metadata.LabelID.Valid {
 		props["label_id"] = metadata.LabelID.String
 	}
+	if metadata.Number.Valid {
+		props["number"] = metadata.Number.Int
+	}
+	if metadata.Part.Valid {
+		props["part"] = metadata.Part.Int
+	}
 
 	log.Infof("Creating content unit of type %s", ct)
 	cu, err := CreateContentUnit(exec, ct, props)
@@ -293,6 +299,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 					props["number"] = metadata.Number.Int
 				}
 				delete(props, "duration")
+				delete(props, "part")
 
 				// get or create collection
 				c, err := FindCollectionByCaptureID(exec, captureID)
@@ -356,49 +363,15 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		log.Warn("We don't have original's parent file. Skipping derived units association.")
 	} else {
 		log.Info("Processing derived units associations")
-		mainCUID := original.R.Parent.ContentUnitID
 		if !metadata.ArtifactType.Valid ||
 			metadata.ArtifactType.String == "main" {
 			// main content unit
 			log.Info("We're the main content unit")
 
-			// We lookup original's siblings for derived content units that arrived before us.
-			// We then associate them with us and remove their "unprocessed" mark.
-			// Meaning, the presence of "artifact_type" property
-			rows, err := queries.Raw(exec,
-				`SELECT
-				  cu.id,
-				  cu.properties ->> 'artifact_type'
-				FROM files f
-				  INNER JOIN content_units cu ON f.content_unit_id = cu.id
-				    AND cu.id != $1
-				    AND cu.properties ? 'artifact_type'
-				WHERE f.parent_id = $2`,
-				original.ContentUnitID.Int64, original.ParentID.Int64).
-				Query()
+			log.Info("Looking up pending derived units")
+			derivedCUs, err := mainToDerived(exec, metadata, original)
 			if err != nil {
-				return nil, errors.Wrap(err, "Load derived content units")
-			}
-
-			// put results in a map first since we can't process them while iterating.
-			// see this bug:  https://github.com/lib/pq/issues/81
-			derivedCUs := make(map[int64]string)
-			for rows.Next() {
-				var cuid int64
-				var artifactType string
-				err = rows.Scan(&cuid, &artifactType)
-				if err != nil {
-					return nil, errors.Wrap(err, "Scan row")
-				}
-				derivedCUs[cuid] = artifactType
-			}
-			err = rows.Err()
-			if err != nil {
-				return nil, errors.Wrap(err, "Iter rows")
-			}
-			err = rows.Close()
-			if err != nil {
-				return nil, errors.Wrap(err, "Close rows")
+				return nil, err
 			}
 
 			log.Infof("%d derived units pending our association", len(derivedCUs))
@@ -429,19 +402,12 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			// derived content unit
 			log.Info("We're the derived content unit")
 
-			if mainCUID.Valid {
-				// main content unit already exists
-				log.Infof("Main content unit exists %d", mainCUID.Int64)
-				cud := &models.ContentUnitDerivation{
-					SourceID: mainCUID.Int64,
-					Name:     metadata.ArtifactType.String,
-				}
-				err = cu.AddDerivedContentUnitDerivations(exec, true, cud)
-				if err != nil {
-					return nil, errors.Wrap(err, "Save source unit in DB")
-				}
-				evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(cu))
-			} else {
+			mainCUID, err := derivedToMain(exec, metadata, cu, original)
+			if err != nil {
+				return nil, err
+			}
+
+			if mainCUID == 0 {
 				// save artifact type for later use (when main unit appears)
 				log.Info("Main content unit not found, saving artifact_type property")
 				err = UpdateContentUnitProperties(exec, cu, map[string]interface{}{
@@ -450,6 +416,18 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 				if err != nil {
 					return nil, err
 				}
+			} else {
+				// main content unit already exists
+				log.Infof("Main content unit exists %d", mainCUID)
+				cud := &models.ContentUnitDerivation{
+					SourceID: mainCUID,
+					Name:     metadata.ArtifactType.String,
+				}
+				err = cu.AddDerivedContentUnitDerivations(exec, true, cud)
+				if err != nil {
+					return nil, errors.Wrap(err, "Save source unit in DB")
+				}
+				evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(cu))
 			}
 		}
 	}
@@ -517,4 +495,81 @@ func associateUnitToCollection(exec boil.Executor, cu *models.ContentUnit, c *mo
 	}
 
 	return nil
+}
+
+func mainToDerived(exec boil.Executor, metadata CITMetadata, original *models.File) (map[int64]string, error) {
+
+	part := -888
+	if metadata.Part.Valid {
+		part = metadata.Part.Int
+	}
+
+	// We lookup original's siblings for derived content units that arrived before us.
+	// We then associate them with us and remove their "unprocessed" mark.
+	// Meaning, the presence of "artifact_type" property
+	rows, err := queries.Raw(exec,
+		`SELECT
+  cu.id,
+  cu.properties ->> 'artifact_type'
+FROM content_units cu
+  INNER JOIN files f ON f.content_unit_id = cu.id AND f.parent_id = $1
+WHERE cu.properties ? 'artifact_type' AND (cu.properties ->> 'part') :: INT = $2`,
+		original.ParentID.Int64, part).
+		Query()
+	if err != nil {
+		return nil, errors.Wrap(err, "Load derived content units")
+	}
+
+	// put results in a map first since we can't process them while iterating.
+	// see this bug:  https://github.com/lib/pq/issues/81
+	derivedCUs := make(map[int64]string)
+	for rows.Next() {
+		var cuid int64
+		var artifactType string
+		err = rows.Scan(&cuid, &artifactType)
+		if err != nil {
+			return nil, errors.Wrap(err, "Scan row")
+		}
+		derivedCUs[cuid] = artifactType
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, errors.Wrap(err, "Iter rows")
+	}
+	err = rows.Close()
+	if err != nil {
+		return nil, errors.Wrap(err, "Close rows")
+	}
+
+	return derivedCUs, nil
+}
+
+func derivedToMain(exec boil.Executor, metadata CITMetadata, cu *models.ContentUnit, original *models.File) (int64, error) {
+	part := -888
+	if metadata.Part.Valid {
+		part = metadata.Part.Int
+	}
+
+	mainCT, ok := CONTENT_TYPE_REGISTRY.ByName[metadata.ContentType]
+	if !ok {
+		return 0, errors.Errorf("Unknown content type %s", metadata.ContentType)
+	}
+
+	var cuID int64
+	err := queries.Raw(exec, `
+SELECT cu.id
+FROM content_units cu
+  INNER JOIN files f ON f.content_unit_id = cu.id AND f.parent_id = $1 AND cu.id != $2 AND cu.type_id = $3
+WHERE (cu.properties ->> 'part') :: INT = $4`,
+		original.ParentID.Int64, cu.ID, mainCT.ID, part).QueryRow().Scan(&cuID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		} else {
+			return 0, errors.Wrap(err, "Query main CU ID")
+		}
+	}
+
+	return cuID, nil
 }

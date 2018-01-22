@@ -224,7 +224,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	err = cu.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
 	_, ok := props["artifact_type"]
-	suite.False(ok, "cu.propeties[\"artifact_type\"]")
+	suite.False(ok, "cu.properties[\"artifact_type\"]")
 
 	// not associated with collection
 	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
@@ -242,6 +242,239 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.NotEqual(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
 	suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
 	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
+}
+
+func (suite *MetadataProcessorSuite) TestSpecialLesson() {
+	chain := suite.simulateSpecialLessonChain()
+
+	// send parts
+	// send full
+	// send kitei makor of all parts
+	// send lelo mikud of all parts
+
+	metadata := CITMetadata{
+		ContentType:    CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(0),
+		Sources:        suite.someSources(),
+		Tags:           suite.someTags(),
+		RequireTest:    false,
+	}
+	original, proxy := chain["part0"].Original, chain["part0"].Proxy
+
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy)
+
+	// collection association
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu := original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+	ccu := cu.R.CollectionsContentUnits[0]
+	suite.Equal("0", ccu.Name, "ccu.Name")
+	suite.Equal(0, ccu.Position, "ccu.Position")
+
+	// collection
+	err = ccu.L.LoadCollection(suite.tx, true, ccu)
+	suite.Require().Nil(err)
+	c := ccu.R.Collection
+	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.True(c.Properties.Valid, "c.Properties.Valid")
+	var props map[string]interface{}
+	err = json.Unmarshal(c.Properties.JSON, &props)
+	suite.Require().Nil(err)
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["capture_date"], "c.Properties[\"capture_date\"]")
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
+	suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
+	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
+
+	// process other parts
+	for i := 1; i < 4; i++ {
+		metadata.Part = null.IntFrom(i)
+		metadata.Sources = suite.someSources()
+		metadata.Tags = suite.someTags()
+		tf := chain[fmt.Sprintf("part%d", i)]
+		original, proxy := tf.Original, tf.Proxy
+
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		suite.Require().Nil(err)
+		suite.Require().NotNil(evnts)
+
+		err = original.Reload(suite.tx)
+		suite.Require().Nil(err)
+		err = proxy.Reload(suite.tx)
+		suite.Require().Nil(err)
+
+		suite.assertFiles(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy)
+
+		// collection association
+		err = original.L.LoadContentUnit(suite.tx, true, original)
+		suite.Require().Nil(err)
+		cu := original.R.ContentUnit
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		suite.Require().Nil(err)
+		suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+		ccu := cu.R.CollectionsContentUnits[0]
+		suite.Equal(strconv.Itoa(i), ccu.Name, "ccu.Name")
+		suite.Equal(i, ccu.Position, "ccu.Position")
+		suite.Equal(c.ID, ccu.CollectionID, "ccu.CollectionID")
+	}
+
+	// process full
+	metadata.ContentType = CT_FULL_LESSON
+	metadata.Part = null.NewInt(0, false)
+	metadata.Sources = nil
+	metadata.Tags = nil
+	tf := chain["full"]
+	original, proxy = tf.Original, tf.Proxy
+
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy)
+
+	// collection association
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu = original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+	ccu = cu.R.CollectionsContentUnits[0]
+	suite.Equal("full", ccu.Name, "ccu.Name")
+	suite.Equal(4, ccu.Position, "ccu.Position")
+	suite.Equal(c.ID, ccu.CollectionID, "ccu.CollectionID")
+
+	// process kitei makor for all parts
+	for i := 0; i < 4; i++ {
+		metadata.ContentType = CT_LESSON_PART
+		metadata.Part = null.IntFrom(i)
+		metadata.ArtifactType = null.StringFrom("kitei_makor")
+		metadata.WeekDate = nil
+		tf = chain[fmt.Sprintf("part%d_kitei-makor", i)]
+		original, proxy = tf.Original, tf.Proxy
+		evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		suite.Require().Nil(err)
+		suite.Require().NotNil(evnts)
+
+		err = original.Reload(suite.tx)
+		suite.Require().Nil(err)
+		err = proxy.Reload(suite.tx)
+		suite.Require().Nil(err)
+
+		suite.assertFiles(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy)
+
+		// associated to "main" content unit
+		err = original.L.LoadContentUnit(suite.tx, true, original)
+		suite.Require().Nil(err)
+		cu = original.R.ContentUnit
+		err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
+		suite.Require().Nil(err)
+		suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
+		cud := cu.R.DerivedContentUnitDerivations[0]
+		suite.Equal(chain[fmt.Sprintf("part%d", i)].Original.ContentUnitID.Int64, cud.SourceID, "cud.SourceID")
+		suite.Equal("kitei_makor", cud.Name, "cud.Name")
+		err = cu.Properties.Unmarshal(&props)
+		suite.Require().Nil(err)
+		_, ok := props["artifact_type"]
+		suite.False(ok, "cu.properties[\"artifact_type\"]")
+
+		// not associated with collection
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		suite.Require().Nil(err)
+		suite.Empty(cu.R.CollectionsContentUnits, "cu.R.CollectionsContentUnits empty")
+
+		// no changes to collection
+		err = c.Reload(suite.tx)
+		suite.Require().Nil(err)
+		suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
+		suite.True(c.Properties.Valid, "c.Properties.Valid")
+		err = json.Unmarshal(c.Properties.JSON, &props)
+		suite.Require().Nil(err)
+		suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["capture_date"], "c.Properties[\"capture_date\"]")
+		suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
+		suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
+		suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
+	}
+
+	// process lelo mikud for all parts
+	for i := 0; i < 4; i++ {
+		metadata.ContentType = CT_LESSON_PART
+		metadata.Part = null.IntFrom(i)
+		metadata.ArtifactType = null.StringFrom("lelo_mikud")
+		metadata.WeekDate = nil
+		tf = chain[fmt.Sprintf("part%d_lelo-mikud", i)]
+		original, proxy = tf.Original, tf.Proxy
+		evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		suite.Require().Nil(err)
+		suite.Require().NotNil(evnts)
+
+		err = original.Reload(suite.tx)
+		suite.Require().Nil(err)
+		err = proxy.Reload(suite.tx)
+		suite.Require().Nil(err)
+
+		suite.assertFiles(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy)
+
+		// associated to "main" content unit
+		err = original.L.LoadContentUnit(suite.tx, true, original)
+		suite.Require().Nil(err)
+		cu = original.R.ContentUnit
+		err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
+		suite.Require().Nil(err)
+		suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
+		cud := cu.R.DerivedContentUnitDerivations[0]
+		suite.Equal(chain[fmt.Sprintf("part%d", i)].Original.ContentUnitID.Int64, cud.SourceID, "cud.SourceID")
+		suite.Equal("lelo_mikud", cud.Name, "cud.Name")
+		err = cu.Properties.Unmarshal(&props)
+		suite.Require().Nil(err)
+		_, ok := props["artifact_type"]
+		suite.False(ok, "cu.properties[\"artifact_type\"]")
+
+		// not associated with collection
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		suite.Require().Nil(err)
+		suite.Empty(cu.R.CollectionsContentUnits, "cu.R.CollectionsContentUnits empty")
+
+		// no changes to collection
+		err = c.Reload(suite.tx)
+		suite.Require().Nil(err)
+		suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
+		suite.True(c.Properties.Valid, "c.Properties.Valid")
+		err = json.Unmarshal(c.Properties.JSON, &props)
+		suite.Require().Nil(err)
+		suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["capture_date"], "c.Properties[\"capture_date\"]")
+		suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
+		suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
+		suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
+	}
 }
 
 func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
@@ -1039,6 +1272,314 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 	trimFiles["part1_kitei-makor"] = TrimFiles{
 		Original: files[TRM_O_SHA1[5]],
 		Proxy:    files[TRM_P_SHA1[5]],
+	}
+
+	return trimFiles
+}
+
+func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]TrimFiles {
+	CS_SHA1 := [2]string{}
+	DMX_O_SHA1 := [2]string{}
+	DMX_P_SHA1 := [2]string{}
+	TRM_O_SHA1 := [13]string{}
+	TRM_P_SHA1 := [13]string{}
+
+	CS_SHA1[0] = utils.RandomSHA1()
+	CS_SHA1[1] = utils.RandomSHA1()
+	DMX_O_SHA1[0] = utils.RandomSHA1()
+	DMX_O_SHA1[1] = utils.RandomSHA1()
+	DMX_P_SHA1[0] = utils.RandomSHA1()
+	DMX_P_SHA1[1] = utils.RandomSHA1()
+	for i := range TRM_O_SHA1 {
+		TRM_O_SHA1[i] = utils.RandomSHA1()
+		TRM_P_SHA1[i] = utils.RandomSHA1()
+	}
+
+	// capture_start
+	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: "c12356789",
+		},
+		FileName:      "capture_start_full",
+		CaptureSource: "mltbackup",
+		CollectionUID: "c12356789",
+	})
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	part := strconv.Itoa(0)
+	_, evnts, err = handleCaptureStart(suite.tx, CaptureStartRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: "c" + strings.Repeat(part, 8),
+		},
+		FileName:      "capture_start_part" + part,
+		CaptureSource: "mltcap",
+		CollectionUID: "c12356789",
+	})
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	// capture_stop
+	_, evnts, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: "c12356789",
+		},
+		File: File{
+			FileName:  "capture_stop_full.mp4",
+			Sha1:      CS_SHA1[0],
+			Size:      98737,
+			CreatedAt: &Timestamp{Time: time.Now()},
+			Language:  LANG_MULTI,
+		},
+		CaptureSource: "mltbackup",
+		CollectionUID: "c12356789",
+		Part:          "full",
+	})
+	suite.Require().Nil(err)
+
+	_, evnts, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: "c" + strings.Repeat(part, 8),
+		},
+		File: File{
+			FileName:  "capture_stop_part" + part + ".mp4",
+			Sha1:      CS_SHA1[1],
+			Size:      int64(1),
+			CreatedAt: &Timestamp{Time: time.Now()},
+			Language:  LANG_MULTI,
+		},
+		CaptureSource: "mltcap",
+		CollectionUID: "c12356789",
+		Part:          part,
+	})
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	// demux
+	_, evnts, err = handleDemux(suite.tx, DemuxRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		Sha1: CS_SHA1[0],
+		Original: AVFile{
+			File: File{
+				FileName:  "demux_full_original.mp4",
+				Sha1:      DMX_O_SHA1[0],
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		Proxy: AVFile{
+			File: File{
+				FileName:  "demux_full_proxy.mp4",
+				Sha1:      DMX_P_SHA1[0],
+				Size:      9878,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 891.8800,
+		},
+		CaptureSource: "mltbackup",
+	})
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	_, evnts, err = handleDemux(suite.tx, DemuxRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		Sha1: CS_SHA1[1],
+		Original: AVFile{
+			File: File{
+				FileName:  "demux_part" + part + "_original.mp4",
+				Sha1:      DMX_O_SHA1[1],
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		Proxy: AVFile{
+			File: File{
+				FileName:  "demux_part" + part + "_proxy.mp4",
+				Sha1:      DMX_P_SHA1[1],
+				Size:      9878,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 891.8800,
+		},
+		CaptureSource: "mltcap",
+	})
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	trimFiles := make(map[string]TrimFiles)
+
+	// trim
+	op, evnts, err := handleTrim(suite.tx, TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: DMX_O_SHA1[0],
+		ProxySha1:    DMX_P_SHA1[0],
+		Original: AVFile{
+			File: File{
+				FileName:  "trim_full_original.mp4",
+				Sha1:      TRM_O_SHA1[4],
+				Size:      98000,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		Proxy: AVFile{
+			File: File{
+				FileName:  "trim_full_proxy.mp4",
+				Sha1:      TRM_P_SHA1[4],
+				Size:      9800,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 891.8800,
+		},
+		CaptureSource: "mltbackup",
+		In:            []float64{10.05, 249.43},
+		Out:           []float64{240.51, 899.27},
+	})
+	suite.Require().Nil(err)
+	files := suite.opFilesBySHA1(op)
+	trimFiles["full"] = TrimFiles{
+		Original: files[TRM_O_SHA1[4]],
+		Proxy:    files[TRM_P_SHA1[4]],
+	}
+
+	for i := 0; i < 4; i++ {
+		part := strconv.Itoa(i)
+		op, evnts, err := handleTrim(suite.tx, TrimRequest{
+			Operation: Operation{
+				Station: "Trimmer station",
+				User:    "operator@dev.com",
+			},
+			OriginalSha1: DMX_O_SHA1[1],
+			ProxySha1:    DMX_P_SHA1[1],
+			Original: AVFile{
+				File: File{
+					FileName:  "trim_part" + part + "_original.mp4",
+					Sha1:      TRM_O_SHA1[i],
+					Size:      98000,
+					CreatedAt: &Timestamp{Time: time.Now()},
+				},
+				Duration: 892.1900,
+			},
+			Proxy: AVFile{
+				File: File{
+					FileName:  "trim_part" + part + "_proxy.mp4",
+					Sha1:      TRM_P_SHA1[i],
+					Size:      9800,
+					CreatedAt: &Timestamp{Time: time.Now()},
+				},
+				Duration: 891.8800,
+			},
+			CaptureSource: "mltbackup",
+			In:            []float64{10.05, 249.43},
+			Out:           []float64{240.51, 899.27},
+		})
+		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
+
+		files := suite.opFilesBySHA1(op)
+		trimFiles["part"+part] = TrimFiles{
+			Original: files[TRM_O_SHA1[i]],
+			Proxy:    files[TRM_P_SHA1[i]],
+		}
+	}
+
+	// trim kitei makor from all parts
+	for i := 0; i < 4; i++ {
+		part := strconv.Itoa(i)
+		op, evnts, err = handleTrim(suite.tx, TrimRequest{
+			Operation: Operation{
+				Station: "Trimmer station",
+				User:    "operator@dev.com",
+			},
+			OriginalSha1: DMX_O_SHA1[1],
+			ProxySha1:    DMX_P_SHA1[1],
+			Original: AVFile{
+				File: File{
+					FileName:  fmt.Sprintf("trim_part%d_kitei_makor_original.mp4", i),
+					Sha1:      TRM_O_SHA1[5+i],
+					Size:      6700,
+					CreatedAt: &Timestamp{Time: time.Now()},
+				},
+				Duration: 92.1900,
+			},
+			Proxy: AVFile{
+				File: File{
+					FileName:  fmt.Sprintf("trim_part%d_kitei_makor_proxy.mp4", i),
+					Sha1:      TRM_P_SHA1[5+i],
+					Size:      6700,
+					CreatedAt: &Timestamp{Time: time.Now()},
+				},
+				Duration: 91.8800,
+			},
+			CaptureSource: "mltcap",
+			In:            []float64{10.05, 249.43, 253.83, 312.23, 463.3, 512.3},
+			Out:           []float64{240.51, 250.31, 282.13, 441.03, 483.39, 899.81},
+		})
+		suite.Require().Nil(err)
+		files = suite.opFilesBySHA1(op)
+		trimFiles["part"+part+"_kitei-makor"] = TrimFiles{
+			Original: files[TRM_O_SHA1[5+i]],
+			Proxy:    files[TRM_P_SHA1[5+i]],
+		}
+	}
+
+	// trim lelo mikud from all parts
+	for i := 0; i < 4; i++ {
+		part := strconv.Itoa(i)
+		op, evnts, err = handleTrim(suite.tx, TrimRequest{
+			Operation: Operation{
+				Station: "Trimmer station",
+				User:    "operator@dev.com",
+			},
+			OriginalSha1: DMX_O_SHA1[1],
+			ProxySha1:    DMX_P_SHA1[1],
+			Original: AVFile{
+				File: File{
+					FileName:  fmt.Sprintf("trim_part%d_lelo_mikud_original.mp4", i),
+					Sha1:      TRM_O_SHA1[9+i],
+					Size:      6700,
+					CreatedAt: &Timestamp{Time: time.Now()},
+				},
+				Duration: 92.1900,
+			},
+			Proxy: AVFile{
+				File: File{
+					FileName:  fmt.Sprintf("trim_part%d_lelo_mikud_proxy.mp4", i),
+					Sha1:      TRM_P_SHA1[9+i],
+					Size:      6700,
+					CreatedAt: &Timestamp{Time: time.Now()},
+				},
+				Duration: 91.8800,
+			},
+			CaptureSource: "mltcap",
+			In:            []float64{10.05, 249.43, 253.83, 312.23, 463.3, 512.3},
+			Out:           []float64{240.51, 250.31, 282.13, 441.03, 483.39, 899.81},
+		})
+		suite.Require().Nil(err)
+		files = suite.opFilesBySHA1(op)
+		trimFiles["part"+part+"_lelo-mikud"] = TrimFiles{
+			Original: files[TRM_O_SHA1[9+i]],
+			Proxy:    files[TRM_P_SHA1[9+i]],
+		}
 	}
 
 	return trimFiles
