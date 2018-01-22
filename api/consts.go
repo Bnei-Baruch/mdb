@@ -35,6 +35,7 @@ const (
 	CT_TRAINING              = "TRAINING"
 	CT_KITEI_MAKOR           = "KITEI_MAKOR"
 	CT_PUBLICATION           = "PUBLICATION"
+	CT_LELO_MIKUD            = "LELO_MIKUD"
 
 	// Operation Types
 	OP_CAPTURE_START = "capture_start"

@@ -154,6 +154,11 @@
     "en": "Publication",
     "ru": "Публикация"
   },
+  "content_type.LELO_MIKUD": {
+    "he": "ללא קבוצת מיקוד",
+    "en": "Without Focus Group",
+    "ru": "Без Фокус-Группы"
+  },
   "autoname.lesson_by_topic_tag": {
     "he": "שיעור%s בנושא",
     "en": "Lesson%s on the topic of",

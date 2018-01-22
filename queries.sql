@@ -969,3 +969,26 @@ FROM content_units cu INNER JOIN files f ON cu.id = f.content_unit_id AND f.type
 GROUP BY cu.id
 HAVING count(DISTINCT f.language) > 1
 ORDER BY cu.created_at DESC;
+
+-- Published CU's without published files
+SELECT
+  cu.id,
+  cu.uid,
+  ct.name,
+  cu.created_at,
+  cu.properties
+FROM content_units cu
+  INNER JOIN content_types ct ON cu.type_id = ct.id
+  LEFT JOIN files f ON cu.id = f.content_unit_id AND f.published IS TRUE
+WHERE cu.secure = 0 AND cu.published IS TRUE AND f.id IS NULL
+ORDER BY cu.created_at;
+
+-- kmedia containers mapped to more than one CU
+SELECT
+  properties ->> 'kmedia_id',
+  array_agg(DISTINCT id)
+FROM content_units
+WHERE properties ? 'kmedia_id'
+GROUP BY properties ->> 'kmedia_id'
+HAVING count(id) > 1
+ORDER BY count(id);
