@@ -1,8 +1,13 @@
 package batch
 
 import (
+	"bufio"
 	"database/sql"
+	"fmt"
 	"io/ioutil"
+	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -319,4 +324,59 @@ func queueFile(id int64, sha1 string) error {
 	}
 
 	return nil
+}
+
+type TranscodeLog struct {
+	Size      int64
+	TDuration time.Duration
+	Text      string
+}
+
+func (x *TranscodeLog) Ratio() float64 {
+	return float64(x.Size) / float64(x.TDuration)
+}
+
+func ReadLogs() {
+	f, err := os.Open("transcode.log")
+	defer f.Close()
+	utils.Must(err)
+
+	malformat := make([]string, 0)
+	tFiles := make([]*TranscodeLog, 0)
+
+	scanner := bufio.NewScanner(bufio.NewReader(f))
+	for scanner.Scan() {
+		text := scanner.Text()
+		s := strings.Split(text, " ")
+		if len(s) != 6 {
+			malformat = append(malformat, text)
+			continue
+		}
+
+		size, err := strconv.ParseInt(s[4], 10, 64)
+		utils.Must(err)
+
+		duration, err := time.ParseDuration(s[3])
+		utils.Must(err)
+
+		tFiles = append(tFiles, &TranscodeLog{
+			Text:      text,
+			Size:      size,
+			TDuration: duration,
+		})
+	}
+	utils.Must(scanner.Err())
+
+	log.Infof("%d malformed", len(malformat))
+	log.Infof("%d correct format", len(tFiles))
+
+	sort.Slice(tFiles, func(i, j int) bool {
+		return tFiles[i].TDuration < tFiles[j].TDuration
+		//return tFiles[i].Ratio() < tFiles[j].Ratio()
+	})
+
+	for i := range tFiles {
+		t := tFiles[i]
+		fmt.Printf("%f %s\n", t.Ratio(), t.Text)
+	}
 }
