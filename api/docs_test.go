@@ -15,6 +15,7 @@ import (
 	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/events"
+	"github.com/Bnei-Baruch/mdb/permissions"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
@@ -36,16 +37,19 @@ func (suite *DocsSuite) SetupSuite() {
 	suite.Require().Nil(InitTypeRegistries(suite.DB))
 	//suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
 
+	enforcer, err := permissions.NewEnforcer()
+	utils.Must(err)
+	enforcer.EnableEnforce(false)
+
 	gin.SetMode(gin.TestMode)
 	suite.router = gin.New()
 	suite.router.Use(
-		utils.EnvMiddleware(suite.DB, new(events.NoopEmitter)),
+		utils.EnvMiddleware(suite.DB, new(events.NoopEmitter), enforcer, nil),
 		utils.ErrorHandlingMiddleware(),
 		gin.Recovery())
 	SetupRoutes(suite.router)
 
 	test.RegisterURLVarExtractor(Vars)
-	var err error
 	suite.testServer, err = test.NewServer(suite.router)
 	if err != nil {
 		panic(err.Error())

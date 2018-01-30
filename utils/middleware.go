@@ -1,18 +1,23 @@
 package utils
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
-	"database/sql"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/casbin/casbin"
+	"github.com/coreos/go-oidc"
 	"github.com/pkg/errors"
 	"github.com/stvp/rollbar"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/go-playground/validator.v8"
+
 	"github.com/Bnei-Baruch/mdb/events"
 )
 
@@ -34,10 +39,13 @@ func MdbLoggerMiddleware() gin.HandlerFunc {
 	}
 }
 
-func EnvMiddleware(mdb *sql.DB, emitter events.EventEmitter) gin.HandlerFunc {
+func EnvMiddleware(mdb *sql.DB, emitter events.EventEmitter, enforcer *casbin.Enforcer,
+	tokenVerifier *oidc.IDTokenVerifier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set("MDB", mdb)
 		c.Set("EVENTS_EMITTER", emitter)
+		c.Set("PERMISSIONS_ENFORCER", enforcer)
+		c.Set("TOKEN_VERIFIER", tokenVerifier)
 		c.Next()
 	}
 }
@@ -161,5 +169,67 @@ func ErrorHandlingMiddleware() gin.HandlerFunc {
 					gin.H{"status": "error", "error": "Internal Server Error"})
 			}
 		}
+	}
+}
+
+type Roles struct {
+	Roles []string `json:"roles"`
+}
+
+type IDTokenClaims struct {
+	Acr               string           `json:"acr"`
+	AllowedOrigins    []string         `json:"allowed-origins"`
+	Aud               string           `json:"aud"`
+	AuthTime          int              `json:"auth_time"`
+	Azp               string           `json:"azp"`
+	Email             string           `json:"email"`
+	Exp               int              `json:"exp"`
+	FamilyName        string           `json:"family_name"`
+	GivenName         string           `json:"given_name"`
+	Iat               int              `json:"iat"`
+	Iss               string           `json:"iss"`
+	Jti               string           `json:"jti"`
+	Name              string           `json:"name"`
+	Nbf               int              `json:"nbf"`
+	Nonce             string           `json:"nonce"`
+	PreferredUsername string           `json:"preferred_username"`
+	RealmAccess       Roles            `json:"realm_access"`
+	ResourceAccess    map[string]Roles `json:"resource_access"`
+	SessionState      string           `json:"session_state"`
+	Sub               string           `json:"sub"`
+	Typ               string           `json:"typ"`
+}
+
+func AuthenticationMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenVerifier, _ := c.Get("TOKEN_VERIFIER")
+		if verifier, ok := tokenVerifier.(*oidc.IDTokenVerifier); ok {
+			// We have a proper ID Token Verifier. Game on
+
+			authHeader := strings.Split(strings.TrimSpace(c.Request.Header.Get("Authorization")), " ")
+			if len(authHeader) == 2 || strings.ToLower(authHeader[0]) == "bearer" {
+				// Authorization header provided, let's verify.
+
+				token, err := verifier.Verify(context.TODO(), authHeader[1])
+				if err != nil {
+					c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
+					return
+				}
+
+				// ID Token is verified. WooHoo !
+				c.Set("ID_TOKEN", token)
+
+				// parse claims
+				var claims IDTokenClaims
+				if err := token.Claims(&claims); err != nil {
+					c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
+					return
+				}
+
+				c.Set("ID_TOKEN_CLAIMS", claims)
+			}
+		}
+
+		c.Next()
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/coreos/go-oidc"
 	"github.com/nats-io/go-nats-streaming"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/events"
+	"github.com/Bnei-Baruch/mdb/permissions"
 	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/Bnei-Baruch/mdb/version"
 )
@@ -90,13 +92,30 @@ func serverFn(cmd *cobra.Command, args []string) {
 	corsConfig.AllowHeaders = append(corsConfig.AllowHeaders, "Authorization")
 	corsConfig.AllowAllOrigins = true
 
+	// Authentication
+	var oidcIDTokenVerifier *oidc.IDTokenVerifier
+	if viper.GetBool("authentication.enable") {
+		oidcProvider, err := oidc.NewProvider(context.TODO(), viper.GetString("authentication.issuer"))
+		utils.Must(err)
+		oidcIDTokenVerifier = oidcProvider.Verifier(&oidc.Config{
+			SkipClientIDCheck: true,
+		})
+	}
+
+	// casbin
+	enforcer, err := permissions.NewEnforcer()
+	utils.Must(err)
+	enforcer.EnableEnforce(viper.GetBool("permissions.enable"))
+	enforcer.EnableLog(viper.GetBool("permissions.log"))
+
 	// Setup gin
 	gin.SetMode(viper.GetString("server.mode"))
 	router := gin.New()
 	router.Use(
 		utils.MdbLoggerMiddleware(),
-		utils.EnvMiddleware(db, emitter),
+		utils.EnvMiddleware(db, emitter, enforcer, oidcIDTokenVerifier),
 		utils.ErrorHandlingMiddleware(),
+		utils.AuthenticationMiddleware(),
 		cors.New(corsConfig),
 		utils.RecoveryMiddleware())
 

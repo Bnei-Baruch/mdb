@@ -29,3 +29,11 @@ subject="subject"
 [events]
 handlers=["logger"]
 emitter-size=1024
+
+[authentication]
+enable=true
+issuer="https://accounts.kbb1.com/auth/realms/main"
+
+[permissions]
+enable=true
+log=true
