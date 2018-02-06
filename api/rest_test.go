@@ -14,7 +14,9 @@ import (
 	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/permissions"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/casbin/casbin"
 )
 
 type RestSuite struct {
@@ -111,7 +113,8 @@ func (suite *RestSuite) TestCollectionsList() {
 }
 
 func (suite *RestSuite) TestCollectionItem() {
-	c, err := handleGetCollection(suite.tx, 1)
+	cp := new(DummyAuthProvider)
+	c, err := handleGetCollection(cp, suite.tx, 1)
 	suite.Nil(c, "Collection nil")
 	suite.Require().NotNil(err, "Not Found error")
 	suite.Equal(http.StatusNotFound, err.Code, "Error http status code")
@@ -119,7 +122,7 @@ func (suite *RestSuite) TestCollectionItem() {
 
 	collections := createDummyCollections(suite.tx, 3)
 	for i, c := range collections {
-		x, err := handleGetCollection(suite.tx, c.ID)
+		x, err := handleGetCollection(cp, suite.tx, c.ID)
 		suite.Require().Nil(err, "Collection item err [%d]", i)
 		suite.assertEqualDummyCollection(c, x, i)
 	}
@@ -187,7 +190,8 @@ func (suite *RestSuite) TestContentUnitsList() {
 }
 
 func (suite *RestSuite) TestContentUnitItem() {
-	cu, err := handleGetContentUnit(suite.tx, 1)
+	cp := new(DummyAuthProvider)
+	cu, err := handleGetContentUnit(cp, suite.tx, 1)
 	suite.Nil(cu, "ContentUnit nil")
 	suite.Require().NotNil(err, "Not Found error")
 	suite.Equal(http.StatusNotFound, err.Code, "Error http status code")
@@ -195,7 +199,7 @@ func (suite *RestSuite) TestContentUnitItem() {
 
 	units := createDummyContentUnits(suite.tx, 3)
 	for i, cu := range units {
-		x, err := handleGetContentUnit(suite.tx, cu.ID)
+		x, err := handleGetContentUnit(cp, suite.tx, cu.ID)
 		suite.Require().Nil(err, "ContentUnit item err [%d]", i)
 		suite.assertEqualDummyContentUnit(cu, x, i)
 	}
@@ -458,4 +462,34 @@ func createDummyOperations(exec boil.Executor, n int) []*models.Operation {
 	}
 
 	return operations
+}
+
+type DummyAuthProvider struct {
+}
+
+func (p *DummyAuthProvider) Get(key string) (interface{}, bool) {
+
+	switch key {
+	case "ID_TOKEN_CLAIMS":
+		return permissions.IDTokenClaims{
+			Name: "Test User",
+			Sub:  "test-user",
+			RealmAccess: permissions.Roles{
+				Roles: []string{"test_user"},
+			},
+		}, true
+	default:
+		return nil, false
+	}
+}
+
+func (p *DummyAuthProvider) MustGet(key string) interface{} {
+	switch key {
+	case "PERMISSIONS_ENFORCER":
+		enforcer := casbin.NewEnforcer()
+		enforcer.EnableEnforce(false)
+		return enforcer
+	default:
+		return nil
+	}
 }

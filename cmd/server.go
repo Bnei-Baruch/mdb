@@ -115,7 +115,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 		utils.MdbLoggerMiddleware(),
 		utils.EnvMiddleware(db, emitter, enforcer, oidcIDTokenVerifier),
 		utils.ErrorHandlingMiddleware(),
-		utils.AuthenticationMiddleware(),
+		permissions.AuthenticationMiddleware(),
 		cors.New(corsConfig),
 		utils.RecoveryMiddleware())
 

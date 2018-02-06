@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/casbin/casbin"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/boil"
@@ -19,6 +21,7 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/permissions"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
@@ -64,7 +67,7 @@ func CollectionsListHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleCreateCollection(tx, collection)
+		resp, err = handleCreateCollection(c, tx, collection)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -87,7 +90,7 @@ func CollectionHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetCollection(c.MustGet("MDB").(*sql.DB), id)
+		resp, err = handleGetCollection(c, c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPut:
 		var cl PartialCollection
 		if c.Bind(&cl) != nil {
@@ -96,7 +99,7 @@ func CollectionHandler(c *gin.Context) {
 
 		cl.ID = id
 		tx := mustBeginTx(c)
-		resp, err = handleUpdateCollection(tx, &cl)
+		resp, err = handleUpdateCollection(c, tx, &cl)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -105,7 +108,7 @@ func CollectionHandler(c *gin.Context) {
 	case http.MethodDelete:
 		tx := mustBeginTx(c)
 		var cl *models.Collection
-		cl, err = handleDeleteCollection(tx, id)
+		cl, err = handleDeleteCollection(c, tx, id)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -135,7 +138,7 @@ func CollectionI18nHandler(c *gin.Context) {
 	}
 
 	tx := mustBeginTx(c)
-	resp, err := handleUpdateCollectionI18n(tx, id, i18ns)
+	resp, err := handleUpdateCollectionI18n(c, tx, id, i18ns)
 	mustConcludeTx(tx, err)
 
 	if err == nil {
@@ -166,7 +169,7 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 
 		var evnts []events.Event
 		tx := mustBeginTx(c)
-		evnts, err = handleCollectionAddCCU(tx, id, ccu)
+		evnts, err = handleCollectionAddCCU(c, tx, id, ccu)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -187,7 +190,7 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 
 		var event *events.Event
 		tx := mustBeginTx(c)
-		event, err = handleCollectionUpdateCCU(tx, id, ccu)
+		event, err = handleCollectionUpdateCCU(c, tx, id, ccu)
 		mustConcludeTx(tx, err)
 
 		if err == nil && event != nil {
@@ -202,7 +205,7 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 
 		var evnts []events.Event
 		tx := mustBeginTx(c)
-		evnts, err = handleCollectionRemoveCCU(tx, id, cuID)
+		evnts, err = handleCollectionRemoveCCU(c, tx, id, cuID)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -221,7 +224,7 @@ func CollectionActivateHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleCollectionActivate(c.MustGet("MDB").(*sql.DB), id)
+	resp, err := handleCollectionActivate(c, c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -258,7 +261,7 @@ func ContentUnitsListHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleCreateContentUnit(tx, unit)
+		resp, err = handleCreateContentUnit(c, tx, unit)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -280,7 +283,7 @@ func ContentUnitHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		resp, err = handleGetContentUnit(c.MustGet("MDB").(*sql.DB), id)
+		resp, err = handleGetContentUnit(c, c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
 			var cu PartialContentUnit
@@ -290,7 +293,7 @@ func ContentUnitHandler(c *gin.Context) {
 
 			cu.ID = id
 			tx := mustBeginTx(c)
-			resp, err = handleUpdateContentUnit(tx, &cu)
+			resp, err = handleUpdateContentUnit(c, tx, &cu)
 			mustConcludeTx(tx, err)
 
 			if err == nil {
@@ -321,7 +324,7 @@ func ContentUnitI18nHandler(c *gin.Context) {
 	}
 
 	tx := mustBeginTx(c)
-	resp, err := handleUpdateContentUnitI18n(tx, id, i18ns)
+	resp, err := handleUpdateContentUnitI18n(c, tx, id, i18ns)
 	mustConcludeTx(tx, err)
 
 	if err == nil {
@@ -373,7 +376,7 @@ func ContentUnitDerivativesHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitAddCUD(tx, id, cud)
+		resp, err = handleContentUnitAddCUD(c, tx, id, cud)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -393,7 +396,7 @@ func ContentUnitDerivativesHandler(c *gin.Context) {
 		cud.DerivedID = duID
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitUpdateCUD(tx, id, cud)
+		resp, err = handleContentUnitUpdateCUD(c, tx, id, cud)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -407,7 +410,7 @@ func ContentUnitDerivativesHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitRemoveCUD(tx, id, duID)
+		resp, err = handleContentUnitRemoveCUD(c, tx, id, duID)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -455,7 +458,7 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitAddSource(tx, id, sourceID)
+		resp, err = handleContentUnitAddSource(c, tx, id, sourceID)
 		mustConcludeTx(tx, err)
 
 		if err == nil && resp != nil {
@@ -469,7 +472,7 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitRemoveSource(tx, id, sourceID)
+		resp, err = handleContentUnitRemoveSource(c, tx, id, sourceID)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -506,7 +509,7 @@ func ContentUnitTagsHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitAddTag(tx, id, tagID)
+		resp, err = handleContentUnitAddTag(c, tx, id, tagID)
 		mustConcludeTx(tx, err)
 
 		if err == nil && resp != nil {
@@ -520,7 +523,7 @@ func ContentUnitTagsHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitRemoveTag(tx, id, tagID)
+		resp, err = handleContentUnitRemoveTag(c, tx, id, tagID)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -551,7 +554,7 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitAddPerson(tx, id, cup)
+		resp, err = handleContentUnitAddPerson(c, tx, id, cup)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -565,7 +568,7 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitRemovePerson(tx, id, personID)
+		resp, err = handleContentUnitRemovePerson(c, tx, id, personID)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -602,7 +605,7 @@ func ContentUnitPublishersHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitAddPublisher(tx, id, publisherID)
+		resp, err = handleContentUnitAddPublisher(c, tx, id, publisherID)
 		mustConcludeTx(tx, err)
 
 		if err == nil && resp != nil {
@@ -616,7 +619,7 @@ func ContentUnitPublishersHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitRemovePublisher(tx, id, publisherID)
+		resp, err = handleContentUnitRemovePublisher(c, tx, id, publisherID)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -658,7 +661,7 @@ func FileHandler(c *gin.Context) {
 
 			f.ID = id
 			tx := mustBeginTx(c)
-			resp, err = handleUpdateFile(tx, &f)
+			resp, err = handleUpdateFile(c, tx, &f)
 			mustConcludeTx(tx, err)
 
 			if err == nil {
@@ -812,6 +815,11 @@ func SourcesHandler(c *gin.Context) {
 		resp, err = handleGetSources(c.MustGet("MDB").(*sql.DB), r)
 	} else {
 		if c.Request.Method == http.MethodPost {
+			if !isAdmin(c) {
+				NewForbiddenError().Abort(c)
+				return
+			}
+
 			var r CreateSourceRequest
 			if c.Bind(&r) != nil {
 				return
@@ -858,6 +866,11 @@ func SourceHandler(c *gin.Context) {
 		resp, err = handleGetSource(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
+			if !isAdmin(c) {
+				NewForbiddenError().Abort(c)
+				return
+			}
+
 			var s Source
 			if c.Bind(&s) != nil {
 				return
@@ -878,6 +891,11 @@ func SourceHandler(c *gin.Context) {
 }
 
 func SourceI18nHandler(c *gin.Context) {
+	if !isAdmin(c) {
+		NewForbiddenError().Abort(c)
+		return
+	}
+
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
@@ -918,6 +936,11 @@ func TagsHandler(c *gin.Context) {
 		resp, err = handleGetTags(c.MustGet("MDB").(*sql.DB), r)
 	} else {
 		if c.Request.Method == http.MethodPost {
+			if !isAdmin(c) {
+				NewForbiddenError().Abort(c)
+				return
+			}
+
 			var t Tag
 			if c.Bind(&t) != nil {
 				return
@@ -957,6 +980,11 @@ func TagHandler(c *gin.Context) {
 		resp, err = handleGetTag(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
+			if !isAdmin(c) {
+				NewForbiddenError().Abort(c)
+				return
+			}
+
 			var t Tag
 			if c.Bind(&t) != nil {
 				return
@@ -977,6 +1005,11 @@ func TagHandler(c *gin.Context) {
 }
 
 func TagI18nHandler(c *gin.Context) {
+	if !isAdmin(c) {
+		NewForbiddenError().Abort(c)
+		return
+	}
+
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
@@ -1018,6 +1051,11 @@ func PersonsListHandler(c *gin.Context) {
 
 		resp, err = handlePersonsList(c.MustGet("MDB").(*sql.DB), r)
 	case http.MethodPost:
+		if !isAdmin(c) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
 		var person Person
 		if c.BindJSON(&person) != nil {
 			return
@@ -1057,6 +1095,11 @@ func PersonHandler(c *gin.Context) {
 	case http.MethodGet, "":
 		resp, err = handleGetPerson(c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPut:
+		if !isAdmin(c) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
 		var p Person
 		if c.Bind(&p) != nil {
 			return
@@ -1071,6 +1114,11 @@ func PersonHandler(c *gin.Context) {
 			emitEvents(c, events.PersonUpdateEvent(&resp.(*Person).Person))
 		}
 	case http.MethodDelete:
+		if !isAdmin(c) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
 		tx := mustBeginTx(c)
 		pr, err := handleDeletePerson(tx, id)
 		mustConcludeTx(tx, err)
@@ -1084,6 +1132,11 @@ func PersonHandler(c *gin.Context) {
 }
 
 func PersonI18nHandler(c *gin.Context) {
+	if !isAdmin(c) {
+		NewForbiddenError().Abort(c)
+		return
+	}
+
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
@@ -1126,6 +1179,11 @@ func PublisherHandler(c *gin.Context) {
 		resp, err = handleGetPublisher(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
+			if !isAdmin(c) {
+				NewForbiddenError().Abort(c)
+				return
+			}
+
 			var p Publisher
 			if c.Bind(&p) != nil {
 				return
@@ -1145,7 +1203,55 @@ func PublisherHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func PublishersHandler(c *gin.Context) {
+	var err *HttpError
+	var resp interface{}
+
+	switch c.Request.Method {
+	case http.MethodGet, "":
+		var r PublishersRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+
+		resp, err = handlePublishersList(c.MustGet("MDB").(*sql.DB), r)
+	case http.MethodPost:
+		if !isAdmin(c) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
+		var publisher Publisher
+		if c.BindJSON(&publisher) != nil {
+			return
+		}
+
+		for _, x := range publisher.I18n {
+			if StdLang(x.Language) == LANG_UNKNOWN {
+				err := errors.Errorf("Unknown language %s", x.Language)
+				NewBadRequestError(err).Abort(c)
+				return
+			}
+		}
+
+		tx := mustBeginTx(c)
+		resp, err = handleCreatePublisher(tx, &publisher)
+		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.PublisherCreateEvent(&resp.(*Publisher).Publisher))
+		}
+	}
+
+	concludeRequest(c, resp, err)
+}
+
 func PublisherI18nHandler(c *gin.Context) {
+	if !isAdmin(c) {
+		NewForbiddenError().Abort(c)
+		return
+	}
+
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
@@ -1181,44 +1287,6 @@ func StoragesHandler(c *gin.Context) {
 	}
 
 	resp, err := handleStoragesList(c.MustGet("MDB").(*sql.DB), r)
-	concludeRequest(c, resp, err)
-}
-
-func PublishersHandler(c *gin.Context) {
-	var err *HttpError
-	var resp interface{}
-
-	switch c.Request.Method {
-	case http.MethodGet, "":
-		var r PublishersRequest
-		if c.Bind(&r) != nil {
-			return
-		}
-
-		resp, err = handlePublishersList(c.MustGet("MDB").(*sql.DB), r)
-	case http.MethodPost:
-		var publisher Publisher
-		if c.BindJSON(&publisher) != nil {
-			return
-		}
-
-		for _, x := range publisher.I18n {
-			if StdLang(x.Language) == LANG_UNKNOWN {
-				err := errors.Errorf("Unknown language %s", x.Language)
-				NewBadRequestError(err).Abort(c)
-				return
-			}
-		}
-
-		tx := mustBeginTx(c)
-		resp, err = handleCreatePublisher(tx, &publisher)
-		mustConcludeTx(tx, err)
-
-		if err == nil {
-			emitEvents(c, events.PublisherCreateEvent(&resp.(*Publisher).Publisher))
-		}
-	}
-
 	concludeRequest(c, resp, err)
 }
 
@@ -1290,7 +1358,12 @@ func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*Collectio
 	}, nil
 }
 
-func handleCreateCollection(exec boil.Executor, c Collection) (*Collection, *HttpError) {
+func handleCreateCollection(cp utils.ContextProvider, exec boil.Executor, c Collection) (*Collection, *HttpError) {
+	// check object level permissions
+	if !can(cp, secureToPermission(c.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
+	}
+
 	// unmarshal properties
 	props := make(map[string]interface{})
 	if c.Properties.Valid {
@@ -1315,10 +1388,10 @@ func handleCreateCollection(exec boil.Executor, c Collection) (*Collection, *Htt
 		}
 	}
 
-	return handleGetCollection(exec, collection.ID)
+	return handleGetCollection(cp, exec, collection.ID)
 }
 
-func handleGetCollection(exec boil.Executor, id int64) (*Collection, *HttpError) {
+func handleGetCollection(cp utils.ContextProvider, exec boil.Executor, id int64) (*Collection, *HttpError) {
 	collection, err := models.Collections(exec,
 		qm.Where("id = ?", id),
 		qm.Load("CollectionI18ns")).
@@ -1331,6 +1404,11 @@ func handleGetCollection(exec boil.Executor, id int64) (*Collection, *HttpError)
 		}
 	}
 
+	// check object level permissions
+	if !can(cp, secureToPermission(collection.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
+	}
+
 	// i18n
 	x := &Collection{Collection: *collection}
 	x.I18n = make(map[string]*models.CollectionI18n, len(collection.R.CollectionI18ns))
@@ -1341,7 +1419,7 @@ func handleGetCollection(exec boil.Executor, id int64) (*Collection, *HttpError)
 	return x, nil
 }
 
-func handleUpdateCollection(exec boil.Executor, c *PartialCollection) (*Collection, *HttpError) {
+func handleUpdateCollection(cp utils.ContextProvider, exec boil.Executor, c *PartialCollection) (*Collection, *HttpError) {
 	collection, err := models.FindCollection(exec, c.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1349,6 +1427,11 @@ func handleUpdateCollection(exec boil.Executor, c *PartialCollection) (*Collecti
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(collection.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	// update entity attributes
@@ -1374,10 +1457,10 @@ func handleUpdateCollection(exec boil.Executor, c *PartialCollection) (*Collecti
 		}
 	}
 
-	return handleGetCollection(exec, c.ID)
+	return handleGetCollection(cp, exec, c.ID)
 }
 
-func handleDeleteCollection(exec boil.Executor, id int64) (*models.Collection, *HttpError) {
+func handleDeleteCollection(cp utils.ContextProvider, exec boil.Executor, id int64) (*models.Collection, *HttpError) {
 	collection, err := models.FindCollection(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1385,6 +1468,11 @@ func handleDeleteCollection(exec boil.Executor, id int64) (*models.Collection, *
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(collection.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	err = models.CollectionsContentUnits(exec, qm.Where("collection_id = ?", id)).DeleteAll()
@@ -1405,10 +1493,15 @@ func handleDeleteCollection(exec boil.Executor, id int64) (*models.Collection, *
 	return collection, nil
 }
 
-func handleUpdateCollectionI18n(exec boil.Executor, id int64, i18ns []*models.CollectionI18n) (*Collection, *HttpError) {
-	collection, err := handleGetCollection(exec, id)
+func handleUpdateCollectionI18n(cp utils.ContextProvider, exec boil.Executor, id int64, i18ns []*models.CollectionI18n) (*Collection, *HttpError) {
+	collection, err := handleGetCollection(cp, exec, id)
 	if err != nil {
 		return nil, err
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(collection.Secure), PERM_I18N_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	// Upsert all new i18ns
@@ -1434,10 +1527,10 @@ func handleUpdateCollectionI18n(exec boil.Executor, id int64, i18ns []*models.Co
 		}
 	}
 
-	return handleGetCollection(exec, id)
+	return handleGetCollection(cp, exec, id)
 }
 
-func handleCollectionActivate(exec boil.Executor, id int64) (*Collection, *HttpError) {
+func handleCollectionActivate(cp utils.ContextProvider, exec boil.Executor, id int64) (*Collection, *HttpError) {
 	collection, err := models.FindCollection(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1445,6 +1538,11 @@ func handleCollectionActivate(exec boil.Executor, id int64) (*Collection, *HttpE
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(collection.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	var props = make(map[string]interface{})
@@ -1469,7 +1567,7 @@ func handleCollectionActivate(exec boil.Executor, id int64) (*Collection, *HttpE
 		return nil, NewInternalError(err)
 	}
 
-	return handleGetCollection(exec, id)
+	return handleGetCollection(cp, exec, id)
 }
 
 func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit, *HttpError) {
@@ -1525,7 +1623,7 @@ func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit
 	return data, nil
 }
 
-func handleCollectionAddCCU(exec boil.Executor, id int64, ccu models.CollectionsContentUnit) ([]events.Event, *HttpError) {
+func handleCollectionAddCCU(cp utils.ContextProvider, exec boil.Executor, id int64, ccu models.CollectionsContentUnit) ([]events.Event, *HttpError) {
 	c, err := models.FindCollection(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1533,6 +1631,11 @@ func handleCollectionAddCCU(exec boil.Executor, id int64, ccu models.Collections
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(c.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	cu, err := models.FindContentUnit(exec, ccu.ContentUnitID)
@@ -1573,7 +1676,7 @@ func handleCollectionAddCCU(exec boil.Executor, id int64, ccu models.Collections
 	return evnts, nil
 }
 
-func handleCollectionUpdateCCU(exec boil.Executor, id int64, ccu models.CollectionsContentUnit) (*events.Event, *HttpError) {
+func handleCollectionUpdateCCU(cp utils.ContextProvider, exec boil.Executor, id int64, ccu models.CollectionsContentUnit) (*events.Event, *HttpError) {
 	c, err := models.FindCollection(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1581,6 +1684,11 @@ func handleCollectionUpdateCCU(exec boil.Executor, id int64, ccu models.Collecti
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(c.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	mCCU, err := models.FindCollectionsContentUnit(exec, id, ccu.ContentUnitID)
@@ -1604,7 +1712,7 @@ func handleCollectionUpdateCCU(exec boil.Executor, id int64, ccu models.Collecti
 	return &e, nil
 }
 
-func handleCollectionRemoveCCU(exec boil.Executor, id int64, cuID int64) ([]events.Event, *HttpError) {
+func handleCollectionRemoveCCU(cp utils.ContextProvider, exec boil.Executor, id int64, cuID int64) ([]events.Event, *HttpError) {
 	c, err := models.FindCollection(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1612,6 +1720,11 @@ func handleCollectionRemoveCCU(exec boil.Executor, id int64, cuID int64) ([]even
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(c.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	ccu, err := models.FindCollectionsContentUnit(exec, id, cuID)
@@ -1727,7 +1840,7 @@ func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*Content
 	}, nil
 }
 
-func handleGetContentUnit(exec boil.Executor, id int64) (*ContentUnit, *HttpError) {
+func handleGetContentUnit(cp utils.ContextProvider, exec boil.Executor, id int64) (*ContentUnit, *HttpError) {
 	unit, err := models.ContentUnits(exec,
 		qm.Where("id = ?", id),
 		qm.Load("ContentUnitI18ns")).
@@ -1740,6 +1853,11 @@ func handleGetContentUnit(exec boil.Executor, id int64) (*ContentUnit, *HttpErro
 		}
 	}
 
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
+	}
+
 	// i18n
 	x := &ContentUnit{ContentUnit: *unit}
 	x.I18n = make(map[string]*models.ContentUnitI18n, len(unit.R.ContentUnitI18ns))
@@ -1750,7 +1868,12 @@ func handleGetContentUnit(exec boil.Executor, id int64) (*ContentUnit, *HttpErro
 	return x, nil
 }
 
-func handleCreateContentUnit(exec boil.Executor, cu ContentUnit) (*ContentUnit, *HttpError) {
+func handleCreateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu ContentUnit) (*ContentUnit, *HttpError) {
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
+	}
+
 	// unmarshal properties
 	props := make(map[string]interface{})
 	if cu.Properties.Valid {
@@ -1775,10 +1898,10 @@ func handleCreateContentUnit(exec boil.Executor, cu ContentUnit) (*ContentUnit, 
 		}
 	}
 
-	return handleGetContentUnit(exec, unit.ID)
+	return handleGetContentUnit(cp, exec, unit.ID)
 }
 
-func handleUpdateContentUnit(exec boil.Executor, cu *PartialContentUnit) (*ContentUnit, *HttpError) {
+func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *PartialContentUnit) (*ContentUnit, *HttpError) {
 	unit, err := models.FindContentUnit(exec, cu.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1786,6 +1909,11 @@ func handleUpdateContentUnit(exec boil.Executor, cu *PartialContentUnit) (*Conte
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	if cu.Secure.Valid {
@@ -1810,13 +1938,18 @@ func handleUpdateContentUnit(exec boil.Executor, cu *PartialContentUnit) (*Conte
 		}
 	}
 
-	return handleGetContentUnit(exec, cu.ID)
+	return handleGetContentUnit(cp, exec, cu.ID)
 }
 
-func handleUpdateContentUnitI18n(exec boil.Executor, id int64, i18ns []*models.ContentUnitI18n) (*ContentUnit, *HttpError) {
-	unit, err := handleGetContentUnit(exec, id)
+func handleUpdateContentUnitI18n(cp utils.ContextProvider, exec boil.Executor, id int64, i18ns []*models.ContentUnitI18n) (*ContentUnit, *HttpError) {
+	unit, err := handleGetContentUnit(cp, exec, id)
 	if err != nil {
 		return nil, err
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_I18N_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	// Upsert all new i18ns
@@ -1842,7 +1975,7 @@ func handleUpdateContentUnitI18n(exec boil.Executor, id int64, i18ns []*models.C
 		}
 	}
 
-	return handleGetContentUnit(exec, id)
+	return handleGetContentUnit(cp, exec, id)
 }
 
 func handleContentUnitFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
@@ -1970,7 +2103,7 @@ func handleContentUnitCUD(exec boil.Executor, id int64) ([]*ContentUnitDerivatio
 	return data, nil
 }
 
-func handleContentUnitAddCUD(exec boil.Executor, id int64, cud models.ContentUnitDerivation) (*models.ContentUnit, *HttpError) {
+func handleContentUnitAddCUD(cp utils.ContextProvider, exec boil.Executor, id int64, cud models.ContentUnitDerivation) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1978,6 +2111,11 @@ func handleContentUnitAddCUD(exec boil.Executor, id int64, cud models.ContentUni
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	exists, err := models.ContentUnits(exec,
@@ -2008,7 +2146,7 @@ func handleContentUnitAddCUD(exec boil.Executor, id int64, cud models.ContentUni
 	return cu, nil
 }
 
-func handleContentUnitUpdateCUD(exec boil.Executor, id int64, cud models.ContentUnitDerivation) (*models.ContentUnit, *HttpError) {
+func handleContentUnitUpdateCUD(cp utils.ContextProvider, exec boil.Executor, id int64, cud models.ContentUnitDerivation) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2016,6 +2154,11 @@ func handleContentUnitUpdateCUD(exec boil.Executor, id int64, cud models.Content
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	mCUD, err := models.FindContentUnitDerivation(exec, id, cud.DerivedID)
@@ -2036,7 +2179,7 @@ func handleContentUnitUpdateCUD(exec boil.Executor, id int64, cud models.Content
 	return cu, nil
 }
 
-func handleContentUnitRemoveCUD(exec boil.Executor, id int64, duID int64) (*models.ContentUnit, *HttpError) {
+func handleContentUnitRemoveCUD(cp utils.ContextProvider, exec boil.Executor, id int64, duID int64) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2044,6 +2187,11 @@ func handleContentUnitRemoveCUD(exec boil.Executor, id int64, duID int64) (*mode
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	cud, err := models.FindContentUnitDerivation(exec, id, duID)
@@ -2141,7 +2289,7 @@ func handleGetContentUnitSources(exec boil.Executor, id int64) ([]*Source, *Http
 	return data, nil
 }
 
-func handleContentUnitAddSource(exec boil.Executor, id int64, sourceID int64) (*models.ContentUnit, *HttpError) {
+func handleContentUnitAddSource(cp utils.ContextProvider, exec boil.Executor, id int64, sourceID int64) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2149,6 +2297,11 @@ func handleContentUnitAddSource(exec boil.Executor, id int64, sourceID int64) (*
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	source, err := models.FindSource(exec, sourceID)
@@ -2181,7 +2334,7 @@ func handleContentUnitAddSource(exec boil.Executor, id int64, sourceID int64) (*
 	return cu, nil
 }
 
-func handleContentUnitRemoveSource(exec boil.Executor, id int64, sourceID int64) (*models.ContentUnit, *HttpError) {
+func handleContentUnitRemoveSource(cp utils.ContextProvider, exec boil.Executor, id int64, sourceID int64) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2189,6 +2342,11 @@ func handleContentUnitRemoveSource(exec boil.Executor, id int64, sourceID int64)
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	source, err := models.FindSource(exec, sourceID)
@@ -2235,7 +2393,7 @@ func handleGetContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError)
 	return data, nil
 }
 
-func handleContentUnitAddTag(exec boil.Executor, id int64, tagID int64) (*models.ContentUnit, *HttpError) {
+func handleContentUnitAddTag(cp utils.ContextProvider, exec boil.Executor, id int64, tagID int64) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2243,6 +2401,11 @@ func handleContentUnitAddTag(exec boil.Executor, id int64, tagID int64) (*models
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	tag, err := models.FindTag(exec, tagID)
@@ -2275,7 +2438,7 @@ func handleContentUnitAddTag(exec boil.Executor, id int64, tagID int64) (*models
 	return cu, nil
 }
 
-func handleContentUnitRemoveTag(exec boil.Executor, id int64, tagID int64) (*models.ContentUnit, *HttpError) {
+func handleContentUnitRemoveTag(cp utils.ContextProvider, exec boil.Executor, id int64, tagID int64) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2283,6 +2446,11 @@ func handleContentUnitRemoveTag(exec boil.Executor, id int64, tagID int64) (*mod
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	tag, err := models.FindTag(exec, tagID)
@@ -2331,7 +2499,7 @@ func handleGetContentUnitPersons(exec boil.Executor, id int64) ([]*ContentUnitPe
 	return data, nil
 }
 
-func handleContentUnitAddPerson(exec boil.Executor, id int64, cup models.ContentUnitsPerson) (*models.ContentUnit, *HttpError) {
+func handleContentUnitAddPerson(cp utils.ContextProvider, exec boil.Executor, id int64, cup models.ContentUnitsPerson) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2339,6 +2507,11 @@ func handleContentUnitAddPerson(exec boil.Executor, id int64, cup models.Content
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	exists, err := models.PersonExists(exec, cup.PersonID)
@@ -2382,7 +2555,7 @@ func handleContentUnitAddPerson(exec boil.Executor, id int64, cup models.Content
 	return cu, nil
 }
 
-func handleContentUnitRemovePerson(exec boil.Executor, id int64, personID int64) (*models.ContentUnit, *HttpError) {
+func handleContentUnitRemovePerson(cp utils.ContextProvider, exec boil.Executor, id int64, personID int64) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2390,6 +2563,11 @@ func handleContentUnitRemovePerson(exec boil.Executor, id int64, personID int64)
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	cup, err := models.FindContentUnitsPerson(exec, id, personID)
@@ -2436,7 +2614,7 @@ func handleGetContentUnitPublishers(exec boil.Executor, id int64) ([]*Publisher,
 	return data, nil
 }
 
-func handleContentUnitAddPublisher(exec boil.Executor, id int64, publisherID int64) (*models.ContentUnit, *HttpError) {
+func handleContentUnitAddPublisher(cp utils.ContextProvider, exec boil.Executor, id int64, publisherID int64) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2444,6 +2622,11 @@ func handleContentUnitAddPublisher(exec boil.Executor, id int64, publisherID int
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	publisher, err := models.FindPublisher(exec, publisherID)
@@ -2476,7 +2659,7 @@ func handleContentUnitAddPublisher(exec boil.Executor, id int64, publisherID int
 	return cu, nil
 }
 
-func handleContentUnitRemovePublisher(exec boil.Executor, id int64, publisherID int64) (*models.ContentUnit, *HttpError) {
+func handleContentUnitRemovePublisher(cp utils.ContextProvider, exec boil.Executor, id int64, publisherID int64) (*models.ContentUnit, *HttpError) {
 	cu, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2484,6 +2667,11 @@ func handleContentUnitRemovePublisher(exec boil.Executor, id int64, publisherID 
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	publisher, err := models.FindPublisher(exec, publisherID)
@@ -2576,7 +2764,7 @@ func handleGetFile(exec boil.Executor, id int64) (*MFile, *HttpError) {
 	return NewMFile(file), nil
 }
 
-func handleUpdateFile(exec boil.Executor, f *PartialFile) (*MFile, *HttpError) {
+func handleUpdateFile(cp utils.ContextProvider, exec boil.Executor, f *PartialFile) (*MFile, *HttpError) {
 	file, err := models.FindFile(exec, f.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2584,6 +2772,11 @@ func handleUpdateFile(exec boil.Executor, f *PartialFile) (*MFile, *HttpError) {
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(file.Secure), PERM_WRITE) {
+		return nil, NewForbiddenError()
 	}
 
 	if f.Type.Valid {
@@ -3783,6 +3976,54 @@ func concludeRequest(c *gin.Context, resp interface{}, err *HttpError) {
 	}
 }
 
-func emitEvents(c *gin.Context, evnts ...events.Event) {
-	c.MustGet("EVENTS_EMITTER").(events.EventEmitter).Emit(evnts...)
+func emitEvents(cp utils.ContextProvider, evnts ...events.Event) {
+	cp.MustGet("EVENTS_EMITTER").(events.EventEmitter).Emit(evnts...)
+}
+
+func can(cp utils.ContextProvider, obj string, act string) bool {
+	sub := []string{""}
+	if v, ok := cp.Get("ID_TOKEN_CLAIMS"); ok {
+		claims := v.(permissions.IDTokenClaims)
+		sub = claims.RealmAccess.Roles
+		log.Infof("Subject is %s %s with roles %v", claims.Sub, claims.Name, sub)
+	} else {
+		log.Infof("No subject.")
+
+		// TODO: add bypass hack for workflow clients
+	}
+
+	enforcer := cp.MustGet("PERMISSIONS_ENFORCER").(*casbin.Enforcer)
+
+	for i := range sub {
+		if enforcer.Enforce(sub[i], obj, act) {
+			log.Infof("ALLOW %s, %s, %s", sub[i], obj, act)
+			return true
+		}
+	}
+
+	log.Warnf("DENY %v, %s, %s", sub, obj, act)
+	return false
+}
+
+func isAdmin(cp utils.ContextProvider) bool {
+	if v, ok := cp.Get("ID_TOKEN_CLAIMS"); ok {
+		claims := v.(permissions.IDTokenClaims)
+		for i := range claims.RealmAccess.Roles {
+			if "archive_admin" == claims.RealmAccess.Roles[i] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func secureToPermission(secure int16) string {
+	switch secure {
+	case SEC_PRIVATE:
+		return "data_private"
+	case SEC_SENSITIVE:
+		return "data_sensitive"
+	default:
+		return "data_public"
+	}
 }

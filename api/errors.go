@@ -33,6 +33,10 @@ func NewBadRequestError(err error) *HttpError {
 	return NewHttpError(http.StatusBadRequest, err, gin.ErrorTypePublic)
 }
 
+func NewForbiddenError() *HttpError {
+	return &HttpError{Code: http.StatusForbidden, Type: gin.ErrorTypePublic}
+}
+
 func NewInternalError(err error) *HttpError {
 	return NewHttpError(http.StatusInternalServerError, err, gin.ErrorTypePrivate)
 }

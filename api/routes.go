@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/pkg/errors"
 	"gopkg.in/gin-gonic/gin.v1"
 )
 
@@ -90,12 +89,12 @@ func SetupRoutes(router *gin.Engine) {
 	hierarchy.GET("/sources/", SourcesHierarchyHandler)
 	hierarchy.GET("/tags/", TagsHierarchyHandler)
 
-	router.GET("/recover", func(c *gin.Context) {
-		panic("test recover")
-	})
-	router.GET("/error", func(c *gin.Context) {
-		c.AbortWithError(500,
-			errors.Wrap(errors.New("test error with stack"), "wrap msg")).
-			SetType(gin.ErrorTypePrivate)
-	})
+	//router.GET("/recover", func(c *gin.Context) {
+	//	panic("test recover")
+	//})
+	//router.GET("/error", func(c *gin.Context) {
+	//	c.AbortWithError(500,
+	//		errors.Wrap(errors.New("test error with stack"), "wrap msg")).
+	//		SetType(gin.ErrorTypePrivate)
+	//})
 }

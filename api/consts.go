@@ -73,6 +73,12 @@ const (
 	SEC_SENSITIVE = int16(1)
 	SEC_PRIVATE   = int16(2)
 
+	// Permissions
+	PERM_READ           = "read"
+	PERM_WRITE          = "write"
+	PERM_I18N_WRITE     = "i18n_write"
+	PERM_METADATA_WRITE = "metadata_write"
+
 	// Languages
 	LANG_ENGLISH    = "en"
 	LANG_HEBREW     = "he"

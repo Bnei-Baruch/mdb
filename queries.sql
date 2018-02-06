@@ -992,25 +992,3 @@ WHERE properties ? 'kmedia_id'
 GROUP BY properties ->> 'kmedia_id'
 HAVING count(id) > 1
 ORDER BY count(id);
-
-SELECT
-  cu.id,
-  cu.properties ->> 'artifact_type'
-FROM files f
-  INNER JOIN content_units cu ON f.content_unit_id = cu.id
-                                 AND cu.id != $1
-                                 AND cu.properties ? 'artifact_type'
-WHERE f.parent_id = $2
-
-SELECT
-  cu.id,
-  cu.properties ->> 'artifact_type'
-FROM content_units cu
-  INNER JOIN files f ON f.content_unit_id = cu.id AND f.parent_id = 8
-WHERE cu.properties ? 'artifact_type' AND (cu.properties -> 'part') :: INT = $2;
-
-
-SELECT cu.id
-FROM content_units cu
-  INNER JOIN files f ON f.content_unit_id = cu.id AND f.parent_id = 8
-WHERE (NOT cu.properties ? 'artifact_type') AND (cu.properties -> 'part') :: INT = $2;

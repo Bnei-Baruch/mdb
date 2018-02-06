@@ -96,3 +96,8 @@ func Reverse(s string) string {
 	}
 	return string(buf)
 }
+
+type ContextProvider interface {
+	Get(key string) (interface{}, bool)
+	MustGet(key string) interface{}
+}
