@@ -2102,7 +2102,6 @@ func handleContentUnitCCU(cp utils.ContextProvider, exec boil.Executor, id int64
 	}
 
 	ccus, err := models.CollectionsContentUnits(exec,
-		qm.Where("secure <= ?", allowedSecureLevel(cp)),
 		qm.Where("content_unit_id = ?", id)).
 		All()
 	if err != nil {
@@ -2116,6 +2115,7 @@ func handleContentUnitCCU(cp utils.ContextProvider, exec boil.Executor, id int64
 		ids[i] = ccu.CollectionID
 	}
 	cs, err := models.Collections(exec,
+		qm.Where("secure <= ?", allowedSecureLevel(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("CollectionI18ns")).
 		All()
@@ -3808,24 +3808,24 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 
 	// id field - must be unsigned int
 	if id, err := strconv.ParseUint(f.Query, 10, 64); err == nil {
-		whereParts = append(whereParts, fmt.Sprintf("id = %d",id))
+		whereParts = append(whereParts, fmt.Sprintf("id = %d", id))
 	}
 
 	// uid field
 	if len(f.Query) == 8 {
-		whereParts = append(whereParts, fmt.Sprintf("uid = '%s'",f.Query))
+		whereParts = append(whereParts, fmt.Sprintf("uid = '%s'", f.Query))
 	}
 
 	switch entityType {
 	case SEARCH_IN_FILES:
 		// file name field
-		whereParts = append(whereParts, fmt.Sprintf("name ~ '%s'",f.Query))
+		whereParts = append(whereParts, fmt.Sprintf("name ~ '%s'", f.Query))
 
 		// file sha1
 		if len(f.Query) == 40 {
 			s, err := hex.DecodeString(f.Query)
 			if err == nil {
-				whereParts = append(whereParts, fmt.Sprintf("sha1 ~ '%s'",string(s)))
+				whereParts = append(whereParts, fmt.Sprintf("sha1 ~ '%s'", string(s)))
 			}
 		}
 	case SEARCH_IN_CONTENT_UNITS:
@@ -3843,7 +3843,7 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 
 		if ids != nil && len(ids) != 0 {
 			intListStr := strings.Trim(strings.Replace(fmt.Sprint(ids), " ", ",", -1), "[]")
-			whereParts = append(whereParts, fmt.Sprintf("id in (%s)",intListStr))
+			whereParts = append(whereParts, fmt.Sprintf("id in (%s)", intListStr))
 		}
 
 	case SEARCH_IN_COLLECTIONS:
@@ -3861,7 +3861,7 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 
 		if ids != nil && len(ids) != 0 {
 			intListStr := strings.Trim(strings.Replace(fmt.Sprint(ids), " ", ",", -1), "[]")
-			whereParts = append(whereParts, fmt.Sprintf("id in (%s)",intListStr))
+			whereParts = append(whereParts, fmt.Sprintf("id in (%s)", intListStr))
 		}
 	}
 
