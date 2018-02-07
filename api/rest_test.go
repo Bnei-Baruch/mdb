@@ -52,17 +52,19 @@ func TestRest(t *testing.T) {
 }
 
 func (suite *RestSuite) TestCollectionsList() {
+	cp := new(DummyAuthProvider)
+
 	req := CollectionsRequest{
 		ListRequest: ListRequest{StartIndex: 1, StopIndex: 5},
 	}
-	resp, err := handleCollectionsList(suite.tx, req)
+	resp, err := handleCollectionsList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(0, resp.Total, "empty total")
 	suite.Empty(resp.Collections, "empty data")
 
 	collections := createDummyCollections(suite.tx, 10)
 
-	resp, err = handleCollectionsList(suite.tx, req)
+	resp, err = handleCollectionsList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.Collections {
@@ -71,7 +73,7 @@ func (suite *RestSuite) TestCollectionsList() {
 
 	req.StartIndex = 6
 	req.StopIndex = 10
-	resp, err = handleCollectionsList(suite.tx, req)
+	resp, err = handleCollectionsList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.Collections {
@@ -92,7 +94,7 @@ func (suite *RestSuite) TestCollectionsList() {
 			IDs: ids,
 		},
 	}
-	resp, err = handleCollectionsList(suite.tx, req)
+	resp, err = handleCollectionsList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.Collections {
@@ -104,7 +106,7 @@ func (suite *RestSuite) TestCollectionsList() {
 			UIDs: uids,
 		},
 	}
-	resp, err = handleCollectionsList(suite.tx, req)
+	resp, err = handleCollectionsList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.Collections {
@@ -129,17 +131,18 @@ func (suite *RestSuite) TestCollectionItem() {
 }
 
 func (suite *RestSuite) TestContentUnitsList() {
+	cp := new(DummyAuthProvider)
 	req := ContentUnitsRequest{
 		ListRequest: ListRequest{StartIndex: 1, StopIndex: 5},
 	}
-	resp, err := handleContentUnitsList(suite.tx, req)
+	resp, err := handleContentUnitsList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(0, resp.Total, "empty total")
 	suite.Empty(resp.ContentUnits, "empty data")
 
 	units := createDummyContentUnits(suite.tx, 10)
 
-	resp, err = handleContentUnitsList(suite.tx, req)
+	resp, err = handleContentUnitsList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.ContentUnits {
@@ -148,7 +151,7 @@ func (suite *RestSuite) TestContentUnitsList() {
 
 	req.StartIndex = 6
 	req.StopIndex = 10
-	resp, err = handleContentUnitsList(suite.tx, req)
+	resp, err = handleContentUnitsList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.ContentUnits {
@@ -169,7 +172,7 @@ func (suite *RestSuite) TestContentUnitsList() {
 			IDs: ids,
 		},
 	}
-	resp, err = handleContentUnitsList(suite.tx, req)
+	resp, err = handleContentUnitsList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.ContentUnits {
@@ -181,7 +184,7 @@ func (suite *RestSuite) TestContentUnitsList() {
 			UIDs: uids,
 		},
 	}
-	resp, err = handleContentUnitsList(suite.tx, req)
+	resp, err = handleContentUnitsList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.ContentUnits {
@@ -206,17 +209,18 @@ func (suite *RestSuite) TestContentUnitItem() {
 }
 
 func (suite *RestSuite) TestFilesList() {
+	cp := new(DummyAuthProvider)
 	req := FilesRequest{
 		ListRequest: ListRequest{StartIndex: 1, StopIndex: 5},
 	}
-	resp, err := handleFilesList(suite.tx, req)
+	resp, err := handleFilesList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(0, resp.Total, "empty total")
 	suite.Empty(resp.Files, "empty data")
 
 	files := createDummyFiles(suite.tx, 10)
 
-	resp, err = handleFilesList(suite.tx, req)
+	resp, err = handleFilesList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.Files {
@@ -225,7 +229,7 @@ func (suite *RestSuite) TestFilesList() {
 
 	req.StartIndex = 6
 	req.StopIndex = 10
-	resp, err = handleFilesList(suite.tx, req)
+	resp, err = handleFilesList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.Files {
@@ -248,7 +252,7 @@ func (suite *RestSuite) TestFilesList() {
 			IDs: ids,
 		},
 	}
-	resp, err = handleFilesList(suite.tx, req)
+	resp, err = handleFilesList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.Files {
@@ -260,7 +264,7 @@ func (suite *RestSuite) TestFilesList() {
 			UIDs: uids,
 		},
 	}
-	resp, err = handleFilesList(suite.tx, req)
+	resp, err = handleFilesList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.Files {
@@ -272,7 +276,7 @@ func (suite *RestSuite) TestFilesList() {
 			SHA1s: sha1s,
 		},
 	}
-	resp, err = handleFilesList(suite.tx, req)
+	resp, err = handleFilesList(cp, suite.tx, req)
 	suite.Require().Nil(err)
 	suite.EqualValues(10, resp.Total, "total")
 	for i, x := range resp.Files {
@@ -281,7 +285,8 @@ func (suite *RestSuite) TestFilesList() {
 }
 
 func (suite *RestSuite) TestFileItem() {
-	f, err := handleGetFile(suite.tx, 1)
+	cp := new(DummyAuthProvider)
+	f, err := handleGetFile(cp, suite.tx, 1)
 	suite.Nil(f, "file nil")
 	suite.Require().NotNil(err, "Not Found error")
 	suite.Equal(http.StatusNotFound, err.Code, "Error http status code")
@@ -289,7 +294,7 @@ func (suite *RestSuite) TestFileItem() {
 
 	files := createDummyFiles(suite.tx, 3)
 	for i, f := range files {
-		x, err := handleGetFile(suite.tx, f.ID)
+		x, err := handleGetFile(cp, suite.tx, f.ID)
 		suite.Require().Nil(err, "file item err [%d]", i)
 		suite.assertEqualDummyFile(f, x, i)
 	}
@@ -324,7 +329,8 @@ func (suite *RestSuite) TestOperationsList() {
 }
 
 func (suite *RestSuite) TestOperationItem() {
-	f, err := handleGetFile(suite.tx, 1)
+	cp := new(DummyAuthProvider)
+	f, err := handleGetFile(cp, suite.tx, 1)
 	suite.Nil(f, "file nil")
 	suite.Require().NotNil(err, "Not Found error")
 	suite.Equal(http.StatusNotFound, err.Code, "Error http status code")
@@ -332,7 +338,7 @@ func (suite *RestSuite) TestOperationItem() {
 
 	files := createDummyFiles(suite.tx, 3)
 	for i, f := range files {
-		x, err := handleGetFile(suite.tx, f.ID)
+		x, err := handleGetFile(cp, suite.tx, f.ID)
 		suite.Require().Nil(err, "file item err [%d]", i)
 		suite.assertEqualDummyFile(f, x, i)
 	}

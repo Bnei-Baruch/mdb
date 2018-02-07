@@ -45,7 +45,7 @@ func CollectionsListHandler(c *gin.Context) {
 			return
 		}
 
-		resp, err = handleCollectionsList(c.MustGet("MDB").(*sql.DB), r)
+		resp, err = handleCollectionsList(c, c.MustGet("MDB").(*sql.DB), r)
 	case http.MethodPost:
 		var collection Collection
 		if c.BindJSON(&collection) != nil {
@@ -160,7 +160,7 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleCollectionCCU(c.MustGet("MDB").(*sql.DB), id)
+		resp, err = handleCollectionCCU(c, c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var ccu models.CollectionsContentUnit
 		if c.BindJSON(&ccu) != nil {
@@ -239,7 +239,7 @@ func ContentUnitsListHandler(c *gin.Context) {
 			return
 		}
 
-		resp, err = handleContentUnitsList(c.MustGet("MDB").(*sql.DB), r)
+		resp, err = handleContentUnitsList(c, c.MustGet("MDB").(*sql.DB), r)
 	case http.MethodPost:
 		var unit ContentUnit
 		if c.BindJSON(&unit) != nil {
@@ -341,7 +341,7 @@ func ContentUnitFilesHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleContentUnitFiles(c.MustGet("MDB").(*sql.DB), id)
+	resp, err := handleContentUnitFiles(c, c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -352,7 +352,7 @@ func ContentUnitCollectionsHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleContentUnitCCU(c.MustGet("MDB").(*sql.DB), id)
+	resp, err := handleContentUnitCCU(c, c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -368,7 +368,7 @@ func ContentUnitDerivativesHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleContentUnitCUD(c.MustGet("MDB").(*sql.DB), id)
+		resp, err = handleContentUnitCUD(c, c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var cud models.ContentUnitDerivation
 		if c.BindJSON(&cud) != nil {
@@ -428,7 +428,7 @@ func ContentUnitOriginsHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleContentUnitOrigins(c.MustGet("MDB").(*sql.DB), id)
+	resp, err := handleContentUnitOrigins(c, c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -444,7 +444,7 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetContentUnitSources(c.MustGet("MDB").(*sql.DB), id)
+		resp, err = handleGetContentUnitSources(c, c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var body map[string]int64
 		if c.BindJSON(&body) != nil {
@@ -495,7 +495,7 @@ func ContentUnitTagsHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetContentUnitTags(c.MustGet("MDB").(*sql.DB), id)
+		resp, err = handleGetContentUnitTags(c, c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var body map[string]int64
 		if c.BindJSON(&body) != nil {
@@ -546,7 +546,7 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetContentUnitPersons(c.MustGet("MDB").(*sql.DB), id)
+		resp, err = handleGetContentUnitPersons(c, c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var cup models.ContentUnitsPerson
 		if c.BindJSON(&cup) != nil {
@@ -591,7 +591,7 @@ func ContentUnitPublishersHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetContentUnitPublishers(c.MustGet("MDB").(*sql.DB), id)
+		resp, err = handleGetContentUnitPublishers(c, c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
 		var body map[string]int64
 		if c.BindJSON(&body) != nil {
@@ -636,7 +636,7 @@ func FilesListHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleFilesList(c.MustGet("MDB").(*sql.DB), r)
+	resp, err := handleFilesList(c, c.MustGet("MDB").(*sql.DB), r)
 	concludeRequest(c, resp, err)
 }
 
@@ -651,7 +651,7 @@ func FileHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		resp, err = handleGetFile(c.MustGet("MDB").(*sql.DB), id)
+		resp, err = handleGetFile(c, c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
 			var f PartialFile
@@ -680,7 +680,7 @@ func FileStoragesHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleFileStorages(c.MustGet("MDB").(*sql.DB), id)
+	resp, err := handleFileStorages(c, c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
@@ -738,6 +738,12 @@ func FilesWithOperationsTreeHandler(c *gin.Context) {
 }
 
 func OperationsListHandler(c *gin.Context) {
+	// check permissions
+	if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		NewForbiddenError().Abort(c)
+		return
+	}
+
 	var r OperationsRequest
 	if c.Bind(&r) != nil {
 		return
@@ -748,6 +754,12 @@ func OperationsListHandler(c *gin.Context) {
 }
 
 func OperationItemHandler(c *gin.Context) {
+	// check permissions
+	if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		NewForbiddenError().Abort(c)
+		return
+	}
+
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
@@ -759,17 +771,28 @@ func OperationItemHandler(c *gin.Context) {
 }
 
 func OperationFilesHandler(c *gin.Context) {
+	// check permissions
+	if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		NewForbiddenError().Abort(c)
+		return
+	}
+
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
 		return
 	}
 
-	resp, err := handleOperationFiles(c.MustGet("MDB").(*sql.DB), id)
+	resp, err := handleOperationFiles(c, c.MustGet("MDB").(*sql.DB), id)
 	concludeRequest(c, resp, err)
 }
 
 func AuthorsHandler(c *gin.Context) {
+	if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		NewForbiddenError().Abort(c)
+		return
+	}
+
 	authors, err := models.Authors(c.MustGet("MDB").(*sql.DB),
 		qm.Load("AuthorI18ns", "Sources")).
 		All()
@@ -808,6 +831,11 @@ func SourcesHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
 		var r SourcesRequest
 		if c.Bind(&r) != nil {
 			return
@@ -863,6 +891,11 @@ func SourceHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
 		resp, err = handleGetSource(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
@@ -929,6 +962,11 @@ func TagsHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
 		var r TagsRequest
 		if c.Bind(&r) != nil {
 			return
@@ -977,6 +1015,11 @@ func TagHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
 		resp, err = handleGetTag(c.MustGet("MDB").(*sql.DB), id)
 	} else {
 		if c.Request.Method == http.MethodPut {
@@ -1044,6 +1087,11 @@ func PersonsListHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
+		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
 		var r PersonsRequest
 		if c.Bind(&r) != nil {
 			return
@@ -1093,6 +1141,11 @@ func PersonHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
+		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
 		resp, err = handleGetPerson(c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPut:
 		if !isAdmin(c) {
@@ -1165,50 +1218,17 @@ func PersonI18nHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
-func PublisherHandler(c *gin.Context) {
-	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
-	if e != nil {
-		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
-		return
-	}
-
-	var err *HttpError
-	var resp interface{}
-
-	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		resp, err = handleGetPublisher(c.MustGet("MDB").(*sql.DB), id)
-	} else {
-		if c.Request.Method == http.MethodPut {
-			if !isAdmin(c) {
-				NewForbiddenError().Abort(c)
-				return
-			}
-
-			var p Publisher
-			if c.Bind(&p) != nil {
-				return
-			}
-
-			p.ID = id
-			tx := mustBeginTx(c)
-			resp, err = handleUpdatePublisher(tx, &p)
-			mustConcludeTx(tx, err)
-
-			if err == nil {
-				emitEvents(c, events.PublisherUpdateEvent(&resp.(*Publisher).Publisher))
-			}
-		}
-	}
-
-	concludeRequest(c, resp, err)
-}
-
 func PublishersHandler(c *gin.Context) {
 	var err *HttpError
 	var resp interface{}
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
+		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
 		var r PublishersRequest
 		if c.Bind(&r) != nil {
 			return
@@ -1240,6 +1260,49 @@ func PublishersHandler(c *gin.Context) {
 
 		if err == nil {
 			emitEvents(c, events.PublisherCreateEvent(&resp.(*Publisher).Publisher))
+		}
+	}
+
+	concludeRequest(c, resp, err)
+}
+
+func PublisherHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var err *HttpError
+	var resp interface{}
+
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
+		resp, err = handleGetPublisher(c.MustGet("MDB").(*sql.DB), id)
+	} else {
+		if c.Request.Method == http.MethodPut {
+			if !isAdmin(c) {
+				NewForbiddenError().Abort(c)
+				return
+			}
+
+			var p Publisher
+			if c.Bind(&p) != nil {
+				return
+			}
+
+			p.ID = id
+			tx := mustBeginTx(c)
+			resp, err = handleUpdatePublisher(tx, &p)
+			mustConcludeTx(tx, err)
+
+			if err == nil {
+				emitEvents(c, events.PublisherUpdateEvent(&resp.(*Publisher).Publisher))
+			}
 		}
 	}
 
@@ -1281,6 +1344,11 @@ func PublisherI18nHandler(c *gin.Context) {
 }
 
 func StoragesHandler(c *gin.Context) {
+	if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		NewForbiddenError().Abort(c)
+		return
+	}
+
 	var r StoragesRequest
 	if c.Bind(&r) != nil {
 		return
@@ -1292,8 +1360,9 @@ func StoragesHandler(c *gin.Context) {
 
 // Handlers Logic
 
-func handleCollectionsList(exec boil.Executor, r CollectionsRequest) (*CollectionsResponse, *HttpError) {
+func handleCollectionsList(cp utils.ContextProvider, exec boil.Executor, r CollectionsRequest) (*CollectionsResponse, *HttpError) {
 	mods := make([]qm.QueryMod, 0)
+	appendPermissionsMods(cp, &mods)
 
 	// filters
 	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
@@ -1570,13 +1639,19 @@ func handleCollectionActivate(cp utils.ContextProvider, exec boil.Executor, id i
 	return handleGetCollection(cp, exec, id)
 }
 
-func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit, *HttpError) {
-	ok, err := models.CollectionExists(exec, id)
+func handleCollectionCCU(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*CollectionContentUnit, *HttpError) {
+	collection, err := models.FindCollection(exec, id)
 	if err != nil {
-		return nil, NewInternalError(err)
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
-	if !ok {
-		return nil, NewNotFoundError()
+
+	// check object level permissions
+	if !can(cp, secureToPermission(collection.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
 	}
 
 	ccus, err := models.CollectionsContentUnits(exec,
@@ -1594,6 +1669,7 @@ func handleCollectionCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit
 		ids[i] = ccu.ContentUnitID
 	}
 	cus, err := models.ContentUnits(exec,
+		qm.Where("secure <= ?", allowedSecureLevel(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("ContentUnitI18ns")).
 		All()
@@ -1765,8 +1841,9 @@ func handleCollectionRemoveCCU(cp utils.ContextProvider, exec boil.Executor, id 
 	return evnts, nil
 }
 
-func handleContentUnitsList(exec boil.Executor, r ContentUnitsRequest) (*ContentUnitsResponse, *HttpError) {
+func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r ContentUnitsRequest) (*ContentUnitsResponse, *HttpError) {
 	mods := make([]qm.QueryMod, 0)
+	appendPermissionsMods(cp, &mods)
 
 	// filters
 	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
@@ -1978,16 +2055,25 @@ func handleUpdateContentUnitI18n(cp utils.ContextProvider, exec boil.Executor, i
 	return handleGetContentUnit(cp, exec, id)
 }
 
-func handleContentUnitFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
-	ok, err := models.ContentUnitExists(exec, id)
+func handleContentUnitFiles(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*MFile, *HttpError) {
+	unit, err := models.FindContentUnit(exec, id)
 	if err != nil {
-		return nil, NewInternalError(err)
-	}
-	if !ok {
-		return nil, NewNotFoundError()
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
 
-	files, err := models.Files(exec, qm.Where("content_unit_id = ?", id)).All()
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
+	}
+
+	files, err := models.Files(exec,
+		qm.Where("secure <= ?", allowedSecureLevel(cp)),
+		qm.Where("content_unit_id = ?", id)).
+		All()
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2000,16 +2086,23 @@ func handleContentUnitFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError)
 	return data, nil
 }
 
-func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUnit, *HttpError) {
-	ok, err := models.ContentUnitExists(exec, id)
+func handleContentUnitCCU(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*CollectionContentUnit, *HttpError) {
+	unit, err := models.FindContentUnit(exec, id)
 	if err != nil {
-		return nil, NewInternalError(err)
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
-	if !ok {
-		return nil, NewNotFoundError()
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
 	}
 
 	ccus, err := models.CollectionsContentUnits(exec,
+		qm.Where("secure <= ?", allowedSecureLevel(cp)),
 		qm.Where("content_unit_id = ?", id)).
 		All()
 	if err != nil {
@@ -2052,13 +2145,19 @@ func handleContentUnitCCU(exec boil.Executor, id int64) ([]*CollectionContentUni
 	return data, nil
 }
 
-func handleContentUnitCUD(exec boil.Executor, id int64) ([]*ContentUnitDerivation, *HttpError) {
-	ok, err := models.ContentUnitExists(exec, id)
+func handleContentUnitCUD(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*ContentUnitDerivation, *HttpError) {
+	unit, err := models.FindContentUnit(exec, id)
 	if err != nil {
-		return nil, NewInternalError(err)
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
-	if !ok {
-		return nil, NewNotFoundError()
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
 	}
 
 	cuds, err := models.ContentUnitDerivations(exec,
@@ -2075,6 +2174,7 @@ func handleContentUnitCUD(exec boil.Executor, id int64) ([]*ContentUnitDerivatio
 		ids[i] = cuds[i].DerivedID
 	}
 	cus, err := models.ContentUnits(exec,
+		qm.Where("secure <= ?", allowedSecureLevel(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("ContentUnitI18ns")).
 		All()
@@ -2211,13 +2311,19 @@ func handleContentUnitRemoveCUD(cp utils.ContextProvider, exec boil.Executor, id
 	return cu, nil
 }
 
-func handleContentUnitOrigins(exec boil.Executor, id int64) ([]*ContentUnitDerivation, *HttpError) {
-	ok, err := models.ContentUnitExists(exec, id)
+func handleContentUnitOrigins(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*ContentUnitDerivation, *HttpError) {
+	unit, err := models.FindContentUnit(exec, id)
 	if err != nil {
-		return nil, NewInternalError(err)
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
-	if !ok {
-		return nil, NewNotFoundError()
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
 	}
 
 	cuds, err := models.ContentUnitDerivations(exec,
@@ -2234,6 +2340,7 @@ func handleContentUnitOrigins(exec boil.Executor, id int64) ([]*ContentUnitDeriv
 		ids[i] = cuds[i].SourceID
 	}
 	cus, err := models.ContentUnits(exec,
+		qm.Where("secure <= ?", allowedSecureLevel(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("ContentUnitI18ns")).
 		All()
@@ -2262,7 +2369,7 @@ func handleContentUnitOrigins(exec boil.Executor, id int64) ([]*ContentUnitDeriv
 	return data, nil
 }
 
-func handleGetContentUnitSources(exec boil.Executor, id int64) ([]*Source, *HttpError) {
+func handleGetContentUnitSources(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*Source, *HttpError) {
 	unit, err := models.ContentUnits(exec,
 		qm.Where("id = ?", id),
 		qm.Load("Sources", "Sources.SourceI18ns")).
@@ -2274,6 +2381,11 @@ func handleGetContentUnitSources(exec boil.Executor, id int64) ([]*Source, *Http
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
 	}
 
 	data := make([]*Source, len(unit.R.Sources))
@@ -2366,7 +2478,7 @@ func handleContentUnitRemoveSource(cp utils.ContextProvider, exec boil.Executor,
 	return cu, nil
 }
 
-func handleGetContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError) {
+func handleGetContentUnitTags(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*Tag, *HttpError) {
 	unit, err := models.ContentUnits(exec,
 		qm.Where("id = ?", id),
 		qm.Load("Tags", "Tags.TagI18ns")).
@@ -2378,6 +2490,11 @@ func handleGetContentUnitTags(exec boil.Executor, id int64) ([]*Tag, *HttpError)
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
 	}
 
 	data := make([]*Tag, len(unit.R.Tags))
@@ -2470,7 +2587,7 @@ func handleContentUnitRemoveTag(cp utils.ContextProvider, exec boil.Executor, id
 	return cu, nil
 }
 
-func handleGetContentUnitPersons(exec boil.Executor, id int64) ([]*ContentUnitPerson, *HttpError) {
+func handleGetContentUnitPersons(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*ContentUnitPerson, *HttpError) {
 	unit, err := models.ContentUnits(exec,
 		qm.Where("id = ?", id),
 		qm.Load("ContentUnitsPersons",
@@ -2484,6 +2601,11 @@ func handleGetContentUnitPersons(exec boil.Executor, id int64) ([]*ContentUnitPe
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
 	}
 
 	data := make([]*ContentUnitPerson, len(unit.R.ContentUnitsPersons))
@@ -2587,7 +2709,7 @@ func handleContentUnitRemovePerson(cp utils.ContextProvider, exec boil.Executor,
 	return cu, nil
 }
 
-func handleGetContentUnitPublishers(exec boil.Executor, id int64) ([]*Publisher, *HttpError) {
+func handleGetContentUnitPublishers(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*Publisher, *HttpError) {
 	unit, err := models.ContentUnits(exec,
 		qm.Where("id = ?", id),
 		qm.Load("Publishers", "Publishers.PublisherI18ns")).
@@ -2599,6 +2721,11 @@ func handleGetContentUnitPublishers(exec boil.Executor, id int64) ([]*Publisher,
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
 	}
 
 	data := make([]*Publisher, len(unit.R.Publishers))
@@ -2691,8 +2818,9 @@ func handleContentUnitRemovePublisher(cp utils.ContextProvider, exec boil.Execut
 	return cu, nil
 }
 
-func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpError) {
+func handleFilesList(cp utils.ContextProvider, exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpError) {
 	mods := make([]qm.QueryMod, 0)
+	appendPermissionsMods(cp, &mods)
 
 	// filters
 	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
@@ -2751,7 +2879,7 @@ func handleFilesList(exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpE
 	}, nil
 }
 
-func handleGetFile(exec boil.Executor, id int64) (*MFile, *HttpError) {
+func handleGetFile(cp utils.ContextProvider, exec boil.Executor, id int64) (*MFile, *HttpError) {
 	file, err := models.FindFile(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2759,6 +2887,11 @@ func handleGetFile(exec boil.Executor, id int64) (*MFile, *HttpError) {
 		} else {
 			return nil, NewInternalError(err)
 		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(file.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
 	}
 
 	return NewMFile(file), nil
@@ -2806,16 +2939,22 @@ func handleUpdateFile(cp utils.ContextProvider, exec boil.Executor, f *PartialFi
 		return nil, NewInternalError(err)
 	}
 
-	return handleGetFile(exec, f.ID)
+	return handleGetFile(cp, exec, f.ID)
 }
 
-func handleFileStorages(exec boil.Executor, id int64) ([]*Storage, *HttpError) {
-	ok, err := models.FileExists(exec, id)
+func handleFileStorages(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*Storage, *HttpError) {
+	file, err := models.FindFile(exec, id)
 	if err != nil {
-		return nil, NewInternalError(err)
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
 	}
-	if !ok {
-		return nil, NewNotFoundError()
+
+	// check object level permissions
+	if !can(cp, secureToPermission(file.Secure), PERM_READ) {
+		return nil, NewForbiddenError()
 	}
 
 	storages, err := models.Storages(exec,
@@ -2834,7 +2973,6 @@ func handleFileStorages(exec boil.Executor, id int64) ([]*Storage, *HttpError) {
 }
 
 func handleOperationsList(exec boil.Executor, r OperationsRequest) (*OperationsResponse, *HttpError) {
-
 	mods := make([]qm.QueryMod, 0)
 
 	// filters
@@ -2884,7 +3022,7 @@ func handleOperationItem(exec boil.Executor, id int64) (*models.Operation, *Http
 	return operation, nil
 }
 
-func handleOperationFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
+func handleOperationFiles(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*MFile, *HttpError) {
 	ok, err := models.OperationExists(exec, id)
 	if err != nil {
 		return nil, NewInternalError(err)
@@ -2894,7 +3032,8 @@ func handleOperationFiles(exec boil.Executor, id int64) ([]*MFile, *HttpError) {
 	}
 
 	files, err := models.Files(exec,
-		qm.InnerJoin("files_operations fo on fo.file_id=id and fo.operation_id = ?", id)).
+		qm.InnerJoin("files_operations fo on fo.file_id=id and fo.operation_id = ? and secure <= ?",
+			id, allowedSecureLevel(cp))).
 		All()
 	if err != nil {
 		return nil, NewInternalError(err)
@@ -3654,6 +3793,10 @@ func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
 	return nil
 }
 
+func appendPermissionsMods(cp utils.ContextProvider, mods *[]qm.QueryMod) {
+	*mods = append(*mods, qm.Where("secure <= ?", allowedSecureLevel(cp)))
+}
+
 func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SearchTermFilter, entityType int) error {
 	if f.Query == "" {
 		return nil
@@ -4026,4 +4169,16 @@ func secureToPermission(secure int16) string {
 	default:
 		return "data_public"
 	}
+}
+
+func allowedSecureLevel(cp utils.ContextProvider) int16 {
+	if can(cp, secureToPermission(SEC_PRIVATE), PERM_READ) {
+		return SEC_PRIVATE
+	} else if can(cp, secureToPermission(SEC_SENSITIVE), PERM_READ) {
+		return SEC_SENSITIVE
+	} else if can(cp, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		return SEC_PUBLIC
+	}
+
+	return -1
 }
