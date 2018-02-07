@@ -3465,28 +3465,34 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 		return nil
 	}
 
+	whereParts := []string{}
+
 	fMods := make([]qm.QueryMod, 0)
 
 	// id field - must be unsigned int
 	if id, err := strconv.ParseUint(f.Query, 10, 64); err == nil {
-		fMods = append(fMods, qm.Or("id = ?", id))
+		//fMods = append(fMods, qm.Or("id = ?", id))
+		whereParts = append(whereParts, fmt.Sprintf("id = %d",id))
 	}
 
 	// uid field
 	if len(f.Query) == 8 {
-		fMods = append(fMods, qm.Or("uid = ?", f.Query))
+		//fMods = append(fMods, qm.Or("uid = ?", f.Query))
+		whereParts = append(whereParts, fmt.Sprintf("uid = '%s'",f.Query))
 	}
 
 	switch entityType {
 	case SEARCH_IN_FILES:
 		// file name field
-		fMods = append(fMods, qm.And("name ~ ?", f.Query))
+		//fMods = append(fMods, qm.And("name ~ ?", f.Query))
+		whereParts = append(whereParts, fmt.Sprintf("name ~ '%s'",f.Query))
 
 		// file sha1
 		if len(f.Query) == 40 {
 			s, err := hex.DecodeString(f.Query)
 			if err == nil {
-				fMods = append(fMods, qm.And("sha1 = ?", s))
+				//fMods = append(fMods, qm.And("sha1 = ?", s))
+				whereParts = append(whereParts, fmt.Sprintf("sha1 ~ '%s'",string(s)))
 			}
 		}
 	case SEARCH_IN_CONTENT_UNITS:
@@ -3503,7 +3509,9 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 		}
 
 		if ids != nil && len(ids) != 0 {
-			fMods = append(fMods, qm.AndIn("id in ?", utils.ConvertArgsInt64(ids)...))
+			//fMods = append(fMods, qm.AndIn("id in ?", utils.ConvertArgsInt64(ids)...))
+			intListStr := strings.Trim(strings.Replace(fmt.Sprint(ids), " ", ",", -1), "[]")
+			whereParts = append(whereParts, fmt.Sprintf("id in (%s)",intListStr))
 		}
 
 	case SEARCH_IN_COLLECTIONS:
@@ -3520,9 +3528,14 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 		}
 
 		if ids != nil && len(ids) != 0 {
-			fMods = append(fMods, qm.AndIn("id in ?", utils.ConvertArgsInt64(ids)...))
+			//fMods = append(fMods, qm.AndIn("id in ?", utils.ConvertArgsInt64(ids)...))
+			intListStr := strings.Trim(strings.Replace(fmt.Sprint(ids), " ", ",", -1), "[]")
+			whereParts = append(whereParts, fmt.Sprintf("id in (%s)",intListStr))
 		}
 	}
+
+	whereQuery := fmt.Sprintf("(%s)", strings.Join(whereParts, " or "))
+	fMods = append(fMods, qm.And(whereQuery))
 
 	if len(fMods) > 0 {
 		*mods = append(*mods, fMods...)
