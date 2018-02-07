@@ -4137,9 +4137,13 @@ func can(cp utils.ContextProvider, obj string, act string) bool {
 		sub = claims.RealmAccess.Roles
 		log.Infof("Subject is %s %s with roles %v", claims.Sub, claims.Name, sub)
 	} else {
-		log.Infof("No subject.")
+		// bypass hack for workflow insert station
+		if act == PERM_READ && cp.(*gin.Context).ClientIP() == "146.185.60.45" {
+			log.Info("Workflow Insert station read")
+			return true
+		}
 
-		// TODO: add bypass hack for workflow clients
+		log.Infof("No subject.")
 	}
 
 	enforcer := cp.MustGet("PERMISSIONS_ENFORCER").(*casbin.Enforcer)
@@ -4179,6 +4183,14 @@ func secureToPermission(secure int16) string {
 }
 
 func allowedSecureLevel(cp utils.ContextProvider) int16 {
+	// bypass hack for workflow insert station
+	if ginCtx, ok := cp.(*gin.Context); ok {
+		if ginCtx.ClientIP() == "146.185.60.45" {
+			log.Info("Workflow Insert station secure level")
+			return SEC_PRIVATE
+		}
+	}
+
 	if can(cp, secureToPermission(SEC_PRIVATE), PERM_READ) {
 		return SEC_PRIVATE
 	} else if can(cp, secureToPermission(SEC_SENSITIVE), PERM_READ) {
