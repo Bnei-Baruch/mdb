@@ -3471,27 +3471,23 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 
 	// id field - must be unsigned int
 	if id, err := strconv.ParseUint(f.Query, 10, 64); err == nil {
-		//fMods = append(fMods, qm.Or("id = ?", id))
 		whereParts = append(whereParts, fmt.Sprintf("id = %d",id))
 	}
 
 	// uid field
 	if len(f.Query) == 8 {
-		//fMods = append(fMods, qm.Or("uid = ?", f.Query))
 		whereParts = append(whereParts, fmt.Sprintf("uid = '%s'",f.Query))
 	}
 
 	switch entityType {
 	case SEARCH_IN_FILES:
 		// file name field
-		//fMods = append(fMods, qm.And("name ~ ?", f.Query))
 		whereParts = append(whereParts, fmt.Sprintf("name ~ '%s'",f.Query))
 
 		// file sha1
 		if len(f.Query) == 40 {
 			s, err := hex.DecodeString(f.Query)
 			if err == nil {
-				//fMods = append(fMods, qm.And("sha1 = ?", s))
 				whereParts = append(whereParts, fmt.Sprintf("sha1 ~ '%s'",string(s)))
 			}
 		}
@@ -3509,7 +3505,6 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 		}
 
 		if ids != nil && len(ids) != 0 {
-			//fMods = append(fMods, qm.AndIn("id in ?", utils.ConvertArgsInt64(ids)...))
 			intListStr := strings.Trim(strings.Replace(fmt.Sprint(ids), " ", ",", -1), "[]")
 			whereParts = append(whereParts, fmt.Sprintf("id in (%s)",intListStr))
 		}
@@ -3521,14 +3516,13 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 		q := `select array_agg(c.id)
 				from collections c 
 				left join collection_i18n ci on c.id = ci.collection_id
-				where ci.name ~ $1 or ci.description ~ $1 or CAST(c.type_id AS varchar) = $1 limit $2`
+				where ci.name ~ $1 or ci.description ~ $1 limit $2`
 		err := queries.Raw(exec, q, f.Query, MAX_PAGE_SIZE).QueryRow().Scan(&ids)
 		if err != nil {
 			return err
 		}
 
 		if ids != nil && len(ids) != 0 {
-			//fMods = append(fMods, qm.AndIn("id in ?", utils.ConvertArgsInt64(ids)...))
 			intListStr := strings.Trim(strings.Replace(fmt.Sprint(ids), " ", ",", -1), "[]")
 			whereParts = append(whereParts, fmt.Sprintf("id in (%s)",intListStr))
 		}
