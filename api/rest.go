@@ -4183,20 +4183,28 @@ func secureToPermission(secure int16) string {
 }
 
 func allowedSecureLevel(cp utils.ContextProvider) int16 {
-	// bypass hack for workflow insert station
-	if ginCtx, ok := cp.(*gin.Context); ok {
-		if ginCtx.ClientIP() == "146.185.60.45" {
-			log.Info("Workflow Insert station secure level")
-			return SEC_PRIVATE
-		}
-	}
-
 	if can(cp, secureToPermission(SEC_PRIVATE), PERM_READ) {
 		return SEC_PRIVATE
 	} else if can(cp, secureToPermission(SEC_SENSITIVE), PERM_READ) {
 		return SEC_SENSITIVE
 	} else if can(cp, secureToPermission(SEC_PUBLIC), PERM_READ) {
 		return SEC_PUBLIC
+	}
+
+	if ginCtx, ok := cp.(*gin.Context); ok {
+		clientIP := ginCtx.ClientIP()
+
+		// workflow insert station
+		if clientIP == "146.185.60.45" {
+			log.Info("Workflow Insert station secure level")
+			return SEC_PRIVATE
+		}
+
+		// internal network (hopefully MDB-CIT [aka rename])
+		if strings.HasPrefix(clientIP, "10.") {
+			log.Info("Internal network secure level: %s", clientIP)
+			return SEC_PRIVATE
+		}
 	}
 
 	return -1
