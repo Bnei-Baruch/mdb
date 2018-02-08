@@ -1293,6 +1293,51 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 	// check content unit association
 	suite.True(mp4.ContentUnitID.Valid, "mp4: ContentUnitID.Valid")
 	suite.Equal(cu.ID, mp4.ContentUnitID.Int64, "mp4: ContentUnitID.Int64")
+
+
+	// re-transcode
+	input.MaybeFile = MaybeFile{
+		FileName:  "re-transcoded.mp4",
+		Sha1:      "012356789abcdef012356789abcdef2222222222",
+		Size:      98738,
+		CreatedAt: &Timestamp{Time: time.Now()},
+	}
+
+	op, evnts, err = handleTranscode(suite.tx, input)
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 3, "Number of files")
+	fm = make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+	originalParent = fm[ofi.FileName]
+	suite.Equal(original.ID, originalParent.ID, "original <-> operation")
+	suite.Equal(mp4.ID, fm[mp4.Name].ID, "old transcoded <-> operation")
+
+	// Check re-transcoded file
+	mp4New := fm[input.FileName]
+	suite.Equal(input.FileName, mp4New.Name, "mp4New: Name")
+	suite.Equal(input.Sha1, hex.EncodeToString(mp4New.Sha1.Bytes), "mp4New: SHA1")
+	suite.Equal(input.Size, mp4New.Size, "mp4: Size")
+	suite.Equal(input.CreatedAt.Time.Unix(), mp4New.FileCreatedAt.Time.Unix(), "mp4New: FileCreatedAt")
+	suite.Equal(MEDIA_TYPE_REGISTRY.ByExtension["mp4"].Type, mp4New.Type, "mp4: Type")
+	suite.True(mp4New.MimeType.Valid, "mp4New: MimeType.Valid")
+	suite.Equal(MEDIA_TYPE_REGISTRY.ByExtension["mp4"].MimeType, mp4New.MimeType.String, "mp4New: Type")
+	suite.True(mp4New.ParentID.Valid, "mp4New: ParentID.Valid")
+	suite.Equal(original.ID, mp4New.ParentID.Int64, "mp4New: ParentID")
+	suite.True(mp4New.Properties.Valid, "mp4New: Properties.Valid")
+	err = json.Unmarshal(mp4New.Properties.JSON, &props)
+	suite.Require().Nil(err, "json.Unmarshal mp4New.Properties")
+	suite.EqualValues(oProps["duration"], props["duration"], "mp4New.Properties duration")
+
+	// Check old transcoded file
+	err = mp4.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.True(mp4.RemovedAt.Valid, "old mp4 removed")
 }
 
 func (suite *HandlersSuite) TestHandleTranscodeError() {

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	//_ "github.com/lib/pq"
@@ -841,8 +842,32 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 		return nil, nil, errors.Wrap(err, "Update queue table")
 	}
 
+	opFiles := []*models.File{original, file}
+
+	log.Info("Loading original's children")
+	err = original.L.LoadParentFiles(exec, true, original)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Load original children")
+	}
+
+	log.Infof("Original has %d children", len(original.R.ParentFiles))
+	for i := range original.R.ParentFiles {
+		child := original.R.ParentFiles[i]
+		if child.ID == file.ID {
+			continue
+		}
+
+		log.Infof("Removing child file [%d]", child.ID)
+		child.RemovedAt = null.TimeFrom(time.Now().UTC())
+		err := child.Update(exec, "removed_at")
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "Save file to DB: %d", child.ID)
+		}
+		opFiles = append(opFiles, child)
+	}
+
 	log.Info("Associating files to operation")
-	return operation, nil, operation.AddFiles(exec, false, original, file)
+	return operation, nil, operation.AddFiles(exec, false, opFiles...)
 }
 
 // Helpers
