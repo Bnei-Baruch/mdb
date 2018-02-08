@@ -4202,7 +4202,7 @@ func allowedSecureLevel(cp utils.ContextProvider) int16 {
 
 		// internal network (hopefully MDB-CIT [aka rename])
 		if strings.HasPrefix(clientIP, "10.") {
-			log.Info("Internal network secure level: %s", clientIP)
+			log.Infof("Internal network secure level: %s", clientIP)
 			return SEC_PRIVATE
 		}
 	}

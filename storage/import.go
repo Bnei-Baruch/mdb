@@ -268,9 +268,7 @@ func syncStorages(db *sql.DB) error {
 		tx, err = db.Begin()
 		utils.Must(err)
 
-		// TODO: this is buggy, seems like a bug in sqlboiler...
-		// need to dig in and fix asap
-		err = models.Storages(tx, qm.WhereIn("id in ?", ids)).DeleteAll()
+		err = models.Storages(tx, qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...)).DeleteAll()
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrap(err, "Delete storages from MDB")
