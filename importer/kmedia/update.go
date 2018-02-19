@@ -47,8 +47,8 @@ func UpdateI18ns() {
 	log.Info("Updating content units")
 	utils.Must(doUnits())
 
-	log.Info("Updating collections")
-	utils.Must(doCollections())
+	//log.Info("Updating collections")
+	//utils.Must(doCollections())
 
 	log.Info("Success")
 	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
@@ -57,6 +57,7 @@ func UpdateI18ns() {
 func doUnits() error {
 	log.Info("Loading all units with kmedia_id")
 	units, err := models.ContentUnits(mdb,
+		qm.Where("created_at > '2018-01-01'"),
 		qm.Where("properties -> 'kmedia_id' is not null")).
 		All()
 	if err != nil {
