@@ -192,6 +192,18 @@
     "en": "Dr. Michael Laitman's talk at the meal",
     "ru": "Речь д-ра Михаэля Лайтмана на трапезе",
     "es": "Discurso del Rav M. Laitman en la comida"
+  },
+  "autoname.yh": {
+    "he": "ישיבת החברים העולמית",
+    "en": "Global Yeshivat Haverim",
+    "ru": "Мировая Ешиват Хаверим",
+    "es": "Reunión Mundial de Amigos"
+  },
+  "autoname.webinar": {
+    "he": "וובינר עם הרב ד\"ר מיכאל לייטמן",
+    "en": "Webinar with Dr. Michael Laitman",
+    "ru": "Вебинар с д-ром Михаэлем Лайтманом",
+    "es": "Webinar con el Dr. Michael Laitman"
   }
 }
 

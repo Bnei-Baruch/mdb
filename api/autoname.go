@@ -9,8 +9,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/boil"
-	"gopkg.in/volatiletech/null.v6"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/bindata"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -81,13 +81,25 @@ func (d GenericDescriber) DescribeContentUnit(exec boil.Executor,
 	cu *models.ContentUnit,
 	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
 
-	names := map[string]string{
-		LANG_HEBREW:  metadata.FinalName,
-		LANG_ENGLISH: metadata.FinalName,
-		LANG_RUSSIAN: metadata.FinalName,
-	}
+	ct := CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
+	if ct == CT_KITEI_MAKOR ||
+		ct == CT_LELO_MIKUD ||
+		ct == CT_FULL_LESSON ||
+		ct == CT_PUBLICATION {
 
-	return makeCUI18ns(cu.ID, names), nil
+		// Keep technical name for these guys
+		names := map[string]string{
+			LANG_HEBREW:  metadata.FinalName,
+			LANG_ENGLISH: metadata.FinalName,
+			LANG_RUSSIAN: metadata.FinalName,
+		}
+
+		return makeCUI18ns(cu.ID, names), nil
+	} else {
+		// just use content_type i18ns
+		k := fmt.Sprintf("content_type.%s", ct)
+		return FixedKeyDescriber{Key: k}.DescribeContentUnit(exec, cu, metadata)
+	}
 }
 
 func (d GenericDescriber) DescribeCollection(c *models.Collection) ([]*models.CollectionI18n, error) {
@@ -194,13 +206,15 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 	return makeCUI18ns(cu.ID, names), nil
 }
 
-type MealDescriber struct{}
+type FixedKeyDescriber struct {
+	Key string
+}
 
-func (d MealDescriber) DescribeContentUnit(exec boil.Executor,
+func (d FixedKeyDescriber) DescribeContentUnit(exec boil.Executor,
 	cu *models.ContentUnit,
 	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
 
-	names, err := GetI18ns("autoname.meal")
+	names, err := GetI18ns(d.Key)
 	if err != nil {
 		return nil, errors.Wrap(err, "Get I18ns")
 	}
@@ -240,7 +254,8 @@ func (d VideoProgramChapterDescriber) DescribeContentUnit(exec boil.Executor,
 var CUDescribers = map[string]ContentUnitDescriber{
 	CT_LESSON_PART:           new(LessonPartDescriber),
 	CT_VIDEO_PROGRAM_CHAPTER: new(VideoProgramChapterDescriber),
-	CT_MEAL:                  new(MealDescriber),
+	CT_MEAL:                  &FixedKeyDescriber{Key: "autoname.meal"},
+	CT_FRIENDS_GATHERING:     &FixedKeyDescriber{Key: "autoname.yh"},
 }
 
 var CDescribers = map[string]CollectionDescriber{}
@@ -303,7 +318,7 @@ func (d EventPartDescriber) DescribeContentUnit(exec boil.Executor,
 func GetCUDescriber(exec boil.Executor, cu *models.ContentUnit, metadata CITMetadata) (ContentUnitDescriber, error) {
 	var describer ContentUnitDescriber
 
-	// do we need a special describer based on collection type ?
+	// do we need a special describer based on collection ?
 	if metadata.CollectionUID.Valid {
 		collection, err := models.Collections(exec,
 			qm.Where("uid=?", metadata.CollectionUID.String)).One()
@@ -311,13 +326,20 @@ func GetCUDescriber(exec boil.Executor, cu *models.ContentUnit, metadata CITMeta
 			return nil, errors.Wrap(err, "Lookup collection in DB")
 		}
 
-		ct := CONTENT_TYPE_REGISTRY.ByID[collection.TypeID].Name
-		if ct == CT_CONGRESS || ct == CT_HOLIDAY || ct == CT_UNITY_DAY || ct == CT_PICNIC {
-			describer = new(EventPartDescriber)
+		// Weekly webinar with rav in russian
+		if collection.UID == "VwCQ0OBq" {
+			describer = &FixedKeyDescriber{Key: "autoname.webinar"}
+		} else {
+			ct := CONTENT_TYPE_REGISTRY.ByID[collection.TypeID].Name
+
+			// Events
+			if ct == CT_CONGRESS || ct == CT_HOLIDAY || ct == CT_UNITY_DAY || ct == CT_PICNIC {
+				describer = new(EventPartDescriber)
+			}
 		}
 	}
 
-	// no special describer based on collection type,
+	// no special describer based on collection,
 	// use describer based on CU type
 	if describer == nil {
 		var ok bool

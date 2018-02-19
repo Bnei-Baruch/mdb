@@ -75,7 +75,15 @@ func (suite *AutonameSuite) TestGenericDescriberContentUnit() {
 		suite.Require().Nil(err)
 		suite.Len(i18ns, 3, "len(i18ns)")
 		for _, i18n := range i18ns {
-			suite.Equal(metadata.FinalName, i18n.Name.String, "%s name", i18n.Language)
+			if x == CT_KITEI_MAKOR ||
+				x == CT_LELO_MIKUD ||
+				x == CT_FULL_LESSON ||
+				x == CT_PUBLICATION {
+				suite.Equal(metadata.FinalName, i18n.Name.String, "%s techincal name", i18n.Language)
+			} else {
+				suite.NotEmpty(i18n.Name.String, "%s name empty", i18n.Language)
+				suite.NotEqual(metadata.FinalName, i18n.Name.String, "%s name", i18n.Language)
+			}
 		}
 	}
 }
