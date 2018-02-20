@@ -191,6 +191,19 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 				if err != nil {
 					return nil, errors.Wrap(err, "Name by source")
 				}
+			} else {
+				// give name by content unit type
+				ct := CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
+				names, err = GetI18ns(fmt.Sprintf("content_type.%s", ct))
+				if err != nil {
+					return nil, errors.Wrap(err, "Get I18ns")
+				}
+
+				if cNumber != nil {
+					for k, v := range names {
+						names[k] = fmt.Sprintf("%s %d", v, *cNumber)
+					}
+				}
 			}
 		}
 	}
