@@ -289,7 +289,7 @@ func (d EventPartDescriber) DescribeContentUnit(exec boil.Executor,
 		}
 
 	default:
-		names, err := GetI18ns(fmt.Sprintf("content_type.%s", ct))
+		names, err = GetI18ns(fmt.Sprintf("content_type.%s", ct))
 		if err != nil {
 			return nil, errors.Wrap(err, "Get I18ns")
 		}
