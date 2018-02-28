@@ -47,7 +47,8 @@ type (
 
 	AVFile struct {
 		File
-		Duration float64 `json:"duration"`
+		Duration  float64 `json:"duration"`
+		VideoSize string  `json:"video_size"`
 	}
 
 	CITMetadataMajor struct {

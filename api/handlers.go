@@ -412,6 +412,9 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []
 	for _, v := range uniq {
 		x := r.Output[v]
 		props["duration"] = x.Duration
+		if x.VideoSize != "" {
+			props["video_size"] = x.VideoSize
+		}
 
 		// lookup by sha1 as it might be a "reconvert"
 		f, _, err := FindFileBySHA1(exec, x.Sha1)
@@ -629,6 +632,9 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 
 	if r.AVFile.Duration > 0 {
 		props["duration"] = r.AVFile.Duration
+	}
+	if r.AVFile.VideoSize != "" {
+		props["video_size"] = r.AVFile.VideoSize
 	}
 
 	file, err = CreateFile(exec, parent, r.File, props)
