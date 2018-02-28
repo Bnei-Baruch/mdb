@@ -182,34 +182,6 @@ func (suite *AutonameSuite) TestEventPartDescriber() {
 	}
 }
 
-func (suite *AutonameSuite) TestDescribeContentUnit() {
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
-	suite.Require().Nil(err)
-
-	metadata := CITMetadata{
-		ContentType: CT_UNKNOWN,
-		FinalName:   "final_name",
-	}
-
-	err = DescribeContentUnit(suite.tx, cu, metadata)
-	suite.Require().Nil(err)
-	err = cu.L.LoadContentUnitI18ns(suite.tx, true, cu)
-	suite.Require().Nil(err)
-	i18ns := cu.R.ContentUnitI18ns
-	suite.Len(i18ns, 3, "len(i18ns)")
-	for _, i18n := range i18ns {
-		switch i18n.Language {
-		case LANG_HEBREW:
-		case LANG_ENGLISH:
-		case LANG_RUSSIAN:
-			suite.Equal(metadata.FinalName, i18n.Name.String, "%s name", i18n.Language)
-			break
-		default:
-			suite.Fail("Unexpected Language %s", i18n.Language)
-		}
-	}
-}
-
 func (suite *AutonameSuite) TestDescribeCollection() {
 	c, err := CreateCollection(suite.tx, CT_UNKNOWN, nil)
 	suite.Require().Nil(err)
