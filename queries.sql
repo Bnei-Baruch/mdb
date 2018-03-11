@@ -41,11 +41,11 @@ FROM sources s INNER JOIN source_i18n si ON s.id = si.source_id
 ORDER BY s.id;
 
 -- Delete all sources
-DELETE FROM authors_sources;
-DELETE FROM author_i18n;
-DELETE FROM authors;
-DELETE FROM source_i18n;
-DELETE FROM sources;
+-- DELETE FROM authors_sources;
+-- DELETE FROM author_i18n;
+-- DELETE FROM authors;
+-- DELETE FROM source_i18n;
+-- DELETE FROM sources;
 
 
 WITH RECURSIVE rec_sources AS (
@@ -528,6 +528,40 @@ ORDER BY path, position
 ) TO '/var/lib/postgres/data/all_sources.csv'  (
 FORMAT CSV );
 
+-- all tags for translation
+COPY (
+WITH RECURSIVE rec_tags AS (
+  SELECT
+    t.id,
+    t.uid,
+    (SELECT label
+     FROM tag_i18n
+     WHERE tag_id = t.id AND language = 'he') AS "he.name",
+    (SELECT label
+     FROM tag_i18n
+     WHERE tag_id = t.id AND language = 'ru') AS "ru.name",
+    ARRAY [t.id]                                    "path"
+  FROM tags t
+  WHERE t.parent_id IS NULL
+  UNION
+  SELECT
+    t.id,
+    t.uid,
+    (SELECT label
+     FROM tag_i18n
+     WHERE tag_id = t.id AND language = 'he') AS "he.name",
+    (SELECT label
+     FROM tag_i18n
+     WHERE tag_id = t.id AND language = 'ru') AS "ru.name",
+    rt.path || t.id
+  FROM tags t INNER JOIN rec_tags rt ON t.parent_id = rt.id
+)
+SELECT *
+FROM rec_tags
+ORDER BY path
+) TO '/var/lib/postgres/data/all_tags.csv'  (
+FORMAT CSV );
+
 
 -- all sources for roza mappings
 COPY (
@@ -992,3 +1026,4 @@ WHERE properties ? 'kmedia_id'
 GROUP BY properties ->> 'kmedia_id'
 HAVING count(id) > 1
 ORDER BY count(id);
+
