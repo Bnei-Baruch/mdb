@@ -2,208 +2,248 @@
   "content_type.DAILY_LESSON": {
     "he": "שיעור יומי",
     "en": "Daily Lesson",
-    "ru": "Урок"
+    "ru": "Урок",
+    "ua": "Урок"
   },
   "content_type.SPECIAL_LESSON": {
     "he": "שיעור יומי",
     "en": "Daily Lesson",
-    "ru": "Урок"
+    "ru": "Урок",
+    "ua": "Урок"
   },
   "content_type.FRIENDS_GATHERINGS": {
     "he": "ישיבות חברים",
     "en": "Gatherings of Friends",
-    "ru": "Ешиват Хаверим"
+    "ru": "Ешиват Хаверим",
+    "ua": "Єшиват Хаверім"
   },
   "content_type.CONGRESS": {
     "he": "כנס",
     "en": "Convention",
-    "ru": "Конгресс"
+    "ru": "Конгресс",
+    "ua": "Конгрес"
   },
   "content_type.VIDEO_PROGRAM": {
     "he": "תוכנית טלוויזיה",
     "en": "TV Show",
-    "ru": "ТВ Программа"
+    "ru": "ТВ Программа",
+    "ua": "ТВ Програма"
   },
   "content_type.LECTURE_SERIES": {
     "he": "סדרת הרצאות",
     "en": "Lecture Series",
-    "ru": "Серия Лекций"
+    "ru": "Серия Лекций",
+    "ua": "Серія Лекцій"
   },
   "content_type.CHILDREN_LESSONS": {
     "he": "שיעורי ילדים",
     "en": "Children Lessons",
-    "ru": "Дети Уроки"
+    "ru": "Дети Уроки",
+    "ua": "Діти Уроки"
   },
   "content_type.WOMEN_LESSONS": {
     "he": "שיעורי נשים",
     "en": "Women Lessons",
-    "ru": "Женщины Уроки"
+    "ru": "Женщины Уроки",
+    "ua": "Жінки Уроки"
   },
   "content_type.VIRTUAL_LESSONS": {
     "he": "שיעורים וירטואלים",
     "en": "Virtual Lessons",
-    "ru": "Виртуальный Уроки"
+    "ru": "Виртуальный Уроки",
+    "ua": "Віртуальний Уроки"
   },
   "content_type.MEALS": {
     "he": "סעודות",
     "en": "Meals",
-    "ru": "Трапезы"
+    "ru": "Трапезы",
+    "ua": "Трапези"
   },
   "content_type.HOLIDAY": {
     "he": "חג",
     "en": "Holiday",
-    "ru": "Праздник"
+    "ru": "Праздник",
+    "ua": "Свято"
   },
   "content_type.PICNIC": {
     "he": "פיקניק",
     "en": "Picnic",
-    "ru": "Пикник"
+    "ru": "Пикник",
+    "ua": "Пікнік"
   },
   "content_type.UNITY_DAY": {
     "he": "יום איחוד",
     "en": "Unity Day",
-    "ru": "День Народного Единства"
+    "ru": "День Народного Единства",
+    "ua": "День Народної Єдності"
   },
   "content_type.CLIPS": {
     "he": "קליפים",
     "en": "Clips",
-    "ru": "Клипсы"
+    "ru": "Клипсы",
+    "ua": "Кліпи"
   },
   "content_type.ARTICLES": {
     "he": "מאמרים",
     "en": "Articles",
-    "ru": "Статьи"
+    "ru": "Статьи",
+    "ua": "Статті"
   },
   "content_type.LESSON_PART": {
     "he": "חלק שיעור",
     "en": "Lesson Part",
-    "ru": "Урок Часть"
+    "ru": "Урок Часть",
+    "ua": "Урок Частина"
   },
   "content_type.LECTURE": {
     "he": "הרצאה",
     "en": "Lecture",
-    "ru": "Лекция"
+    "ru": "Лекция",
+    "ua": "Лекція"
   },
   "content_type.CHILDREN_LESSON": {
     "he": "שיעור ילדים",
     "en": "Children Lesson",
-    "ru": "Дети Урок"
+    "ru": "Дети Урок",
+    "ua": "Діти Урок"
   },
   "content_type.WOMEN_LESSON": {
     "he": "שיעור נשים",
     "en": "Women Lesson",
-    "ru": "Женщины Урок"
+    "ru": "Женщины Урок",
+    "ua": "Жінки Урок"
   },
   "content_type.VIRTUAL_LESSON": {
     "he": "שיעור וירטואלי",
     "en": "Virtual Lesson",
-    "ru": "Виртуальный Урок"
+    "ru": "Виртуальный Урок",
+    "ua": "Віртуальний Урок"
   },
   "content_type.FRIENDS_GATHERING": {
     "he": "ישיבת חברים",
     "en": "Gathering of Friends",
-    "ru": "Ешиват Хаверим"
+    "ru": "Ешиват Хаверим",
+    "ua": "Єшиват Хаверім"
   },
   "content_type.MEAL": {
     "he": "סעודה",
     "en": "Meal",
-    "ru": "Трапеза"
+    "ru": "Трапеза",
+    "ua": "Трапеза"
   },
   "content_type.VIDEO_PROGRAM_CHAPTER": {
     "he": "פרק",
     "en": "Episode",
-    "ru": "Эпизод"
+    "ru": "Эпизод",
+    "ua": "Епізод"
   },
   "content_type.FULL_LESSON": {
     "he": "שיעור מלא",
     "en": "Full Lesson",
-    "ru": "Полный Урок"
+    "ru": "Полный Урок",
+    "ua": "Цілий Урок"
   },
   "content_type.ARTICLE": {
     "he": "מאמר",
     "en": "Article",
-    "ru": "Статья"
+    "ru": "Статья",
+    "ua": "Стаття"
   },
   "content_type.UNKNOWN": {
     "he": "לא ידוע",
     "en": "Unknown",
-    "ru": "Неизвестный"
+    "ru": "Неизвестный",
+    "ua": "Невідомий"
   },
   "content_type.EVENT_PART": {
     "he": "חלק מאירוע",
     "en": "Event Part",
-    "ru": "Событие Часть"
+    "ru": "Событие Часть",
+    "ua": "Подія Частина"
   },
   "content_type.CLIP": {
     "he": "קליפ",
     "en": "Clip",
-    "ru": "Клип"
+    "ru": "Клип",
+    "ua": "Кліп"
   },
   "content_type.TRAINING": {
     "he": "הכשרה",
     "en": "Training",
-    "ru": "Обучение"
+    "ru": "Обучение",
+    "ua": "Навчання"
   },
   "content_type.KITEI_MAKOR": {
     "he": "קטעי מקור",
     "en": "Source Excerpts",
-    "ru": "Исходные Выдержки"
+    "ru": "Исходные Выдержки",
+    "ua": "Початкові Витяги"
   },
   "content_type.PUBLICATION": {
     "he": "פירסום",
     "en": "Publication",
-    "ru": "Публикация"
+    "ru": "Публикация",
+    "ua": "Публікація"
   },
   "content_type.LELO_MIKUD": {
     "he": "ללא קבוצת מיקוד",
     "en": "Without Focus Group",
-    "ru": "Без Фокус-Группы"
+    "ru": "Без Фокус-Группы",
+    "ua": "Без Фокус-Групи"
   },
   "autoname.lesson_by_topic_tag": {
     "he": "שיעור%s בנושא",
     "en": "Lesson%s on the topic of",
     "ru": "Урок%s на тему",
-    "es": "Lección%s sobre el tema de"
+    "es": "Lección%s sobre el tema de",
+    "ua": "Урок%s на тему"
   },
   "autoname.lesson_preparation": {
     "he": "הכנה לשיעור",
     "en": "Preparation to the Lesson",
-    "ru": "Подготовка к Уроку"
+    "ru": "Подготовка к Уроку",
+    "ua": "Підготовка до Уроку"
   },
   "autoname.record": {
     "he": "רשומה",
     "en": "Record",
-    "ru": "Записка"
+    "ru": "Записка",
+    "ua": "Записка"
   },
   "autoname.lfq8P1du": {
     "he": "שאלות ותשובות עם הרב ד\"ר מיכאל לייטמן",
     "en": "Questions and answers with Dr. Michael Laitman",
     "ru": "Вопросы и ответы с д-р Михаэлем Лайтманом",
-    "es": "Preguntas y respuestas con Dr. Michael Laitman"
+    "es": "Preguntas y respuestas con Dr. Michael Laitman",
+    "ua": "Запитання та відповіді з д-ром Міхаелем Лайтманом"
   },
   "autoname.iWPWpSNy": {
     "he": "שיחה של הרב ד\"ר מיכאל לייטמן עם נשים",
     "en": "Dr. Michael Laitman conversation with women",
     "ru": "Беседа д-р Михаэля Лайтмана с женщинами",
-    "es": "Michael Laitman conversación con las mujeres"
+    "es": "Michael Laitman conversación con las mujeres",
+    "ua": "Бесіда д-ра Міхаеля Лайтмана з жінками"
   },
   "autoname.meal": {
     "he": "דברי הרב ד\"ר מיכאל לייטמן בסעודה",
     "en": "Dr. Michael Laitman's talk at the meal",
     "ru": "Речь д-ра Михаэля Лайтмана на трапезе",
-    "es": "Discurso del Rav M. Laitman en la comida"
+    "es": "Discurso del Rav M. Laitman en la comida",
+    "ua": "Промова д-ра Міхаеля Лайтмана на трапезі"
   },
   "autoname.yh": {
     "he": "ישיבת החברים העולמית",
     "en": "Global Yeshivat Haverim",
     "ru": "Мировая Ешиват Хаверим",
-    "es": "Reunión Mundial de Amigos"
+    "es": "Reunión Mundial de Amigos",
+    "ua": "Світова Єшиват Хаверім"
   },
   "autoname.webinar": {
     "he": "וובינר עם הרב ד\"ר מיכאל לייטמן",
     "en": "Webinar with Dr. Michael Laitman",
     "ru": "Вебинар с д-ром Михаэлем Лайтманом",
-    "es": "Webinar con el Dr. Michael Laitman"
+    "es": "Webinar con el Dr. Michael Laitman",
+    "ua": "Вебінар з д-ром Міхаелем Лайтманом"
   }
 }
 
