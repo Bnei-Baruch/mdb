@@ -73,14 +73,15 @@ func (suite *AutonameSuite) TestGenericDescriberContentUnit() {
 		cu.TypeID = CONTENT_TYPE_REGISTRY.ByName[x].ID
 		i18ns, err := describer.DescribeContentUnit(suite.tx, cu, metadata)
 		suite.Require().Nil(err)
-		suite.Len(i18ns, 3, "len(i18ns)")
 		for _, i18n := range i18ns {
 			if x == CT_KITEI_MAKOR ||
 				x == CT_LELO_MIKUD ||
 				x == CT_FULL_LESSON ||
 				x == CT_PUBLICATION {
 				suite.Equal(metadata.FinalName, i18n.Name.String, "%s techincal name", i18n.Language)
+				suite.Len(i18ns, 3, "len(i18ns)")
 			} else {
+				suite.Len(i18ns, 4, "len(i18ns)")
 				suite.NotEmpty(i18n.Name.String, "%s name empty", i18n.Language)
 				suite.NotEqual(metadata.FinalName, i18n.Name.String, "%s name", i18n.Language)
 			}
