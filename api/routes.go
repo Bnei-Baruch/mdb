@@ -35,6 +35,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.PUT("/content_units/:id/", ContentUnitHandler)
 	rest.PUT("/content_units/:id/i18n/", ContentUnitI18nHandler)
 	rest.GET("/content_units/:id/files/", ContentUnitFilesHandler)
+	rest.POST("/content_units/:id/files/", ContentUnitFilesHandler)
 	rest.GET("/content_units/:id/collections/", ContentUnitCollectionsHandler)
 	rest.GET("/content_units/:id/derivatives/", ContentUnitDerivativesHandler)
 	rest.POST("/content_units/:id/derivatives/", ContentUnitDerivativesHandler)

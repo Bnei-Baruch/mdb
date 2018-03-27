@@ -341,7 +341,29 @@ func ContentUnitFilesHandler(c *gin.Context) {
 		return
 	}
 
-	resp, err := handleContentUnitFiles(c, c.MustGet("MDB").(*sql.DB), id)
+	var err *HttpError
+	var resp interface{}
+
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		resp, err = handleContentUnitFiles(c, c.MustGet("MDB").(*sql.DB), id)
+	} else {
+		if c.Request.Method == http.MethodPost {
+			var fids []int64
+			if c.Bind(&fids) != nil {
+				return
+			}
+
+			var evnts []events.Event
+			tx := mustBeginTx(c)
+			resp, evnts, err = handleContentUnitAddFiles(c, tx, id, fids)
+			mustConcludeTx(tx, err)
+
+			if err == nil {
+				emitEvents(c, evnts...)
+			}
+		}
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -1669,7 +1691,7 @@ func handleCollectionCCU(cp utils.ContextProvider, exec boil.Executor, id int64)
 		ids[i] = ccu.ContentUnitID
 	}
 	cus, err := models.ContentUnits(exec,
-		qm.Where("secure <= ?", allowedSecureLevel(cp)),
+		qm.Where("secure <= ?", allowedRead(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("ContentUnitI18ns")).
 		All()
@@ -2071,7 +2093,7 @@ func handleContentUnitFiles(cp utils.ContextProvider, exec boil.Executor, id int
 	}
 
 	files, err := models.Files(exec,
-		qm.Where("secure <= ?", allowedSecureLevel(cp)),
+		qm.Where("secure <= ?", allowedRead(cp)),
 		qm.Where("content_unit_id = ?", id)).
 		All()
 	if err != nil {
@@ -2084,6 +2106,80 @@ func handleContentUnitFiles(cp utils.ContextProvider, exec boil.Executor, id int
 	}
 
 	return data, nil
+}
+
+func handleContentUnitAddFiles(cp utils.ContextProvider, exec boil.Executor, id int64, fileIDs []int64) ([]*MFile, []events.Event, *HttpError) {
+	unit, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil, NewNotFoundError()
+		} else {
+			return nil, nil, NewInternalError(err)
+		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_WRITE) {
+		return nil, nil, NewForbiddenError()
+	}
+
+	// fetch files
+	// With respect to write permissions (as we're about to modify them)
+	files, err := models.Files(exec,
+		qm.Where("secure <= ?", allowedWrite(cp)),
+		qm.WhereIn("id in ?", utils.ConvertArgsInt64(fileIDs)...)).
+		All()
+	if err != nil {
+		return nil, nil, NewInternalError(err)
+	}
+
+	if len(files) != len(fileIDs) {
+		return nil, nil, NewBadRequestError(errors.New("Couldn't find all files (permissions maybe ?)"))
+	}
+
+	// look through files, some might change indeed.
+	evnts := make([]events.Event, 0)
+	somePublished := false
+	changedIDs := make([]interface{}, 0)
+	for i := range files {
+		f := files[i]
+		if f.ContentUnitID.Int64 == id {
+			continue
+		} else {
+			f.ContentUnitID = null.Int64From(id) // so we respond with it without re-fetch from db
+		}
+
+		changedIDs = append(changedIDs, f.ID)
+		evnts = append(evnts, events.FileUpdateEvent(f))
+
+		if f.Published {
+			somePublished = true
+		}
+	}
+
+	// actual update of files that needs to be changed
+	err = models.Files(exec,
+		qm.WhereIn("id in ?", changedIDs...),
+	).UpdateAll(models.M{"content_unit_id": id})
+	if err != nil {
+		return nil, nil, NewInternalError(err)
+	}
+
+	// published files in an unpublished unit make the unit published
+	if somePublished && !unit.Published {
+		unit.Published = true
+		if err := unit.Update(exec, "published"); err != nil {
+			return nil, nil, NewInternalError(err)
+		}
+		evnts = append(evnts, events.ContentUnitPublishedChangeEvent(unit))
+	}
+
+	data := make([]*MFile, len(files))
+	for i, f := range files {
+		data[i] = NewMFile(f)
+	}
+
+	return data, evnts, nil
 }
 
 func handleContentUnitCCU(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*CollectionContentUnit, *HttpError) {
@@ -2115,7 +2211,7 @@ func handleContentUnitCCU(cp utils.ContextProvider, exec boil.Executor, id int64
 		ids[i] = ccu.CollectionID
 	}
 	cs, err := models.Collections(exec,
-		qm.Where("secure <= ?", allowedSecureLevel(cp)),
+		qm.Where("secure <= ?", allowedRead(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("CollectionI18ns")).
 		All()
@@ -2174,7 +2270,7 @@ func handleContentUnitCUD(cp utils.ContextProvider, exec boil.Executor, id int64
 		ids[i] = cuds[i].DerivedID
 	}
 	cus, err := models.ContentUnits(exec,
-		qm.Where("secure <= ?", allowedSecureLevel(cp)),
+		qm.Where("secure <= ?", allowedRead(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("ContentUnitI18ns")).
 		All()
@@ -2340,7 +2436,7 @@ func handleContentUnitOrigins(cp utils.ContextProvider, exec boil.Executor, id i
 		ids[i] = cuds[i].SourceID
 	}
 	cus, err := models.ContentUnits(exec,
-		qm.Where("secure <= ?", allowedSecureLevel(cp)),
+		qm.Where("secure <= ?", allowedRead(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("ContentUnitI18ns")).
 		All()
@@ -3033,7 +3129,7 @@ func handleOperationFiles(cp utils.ContextProvider, exec boil.Executor, id int64
 
 	files, err := models.Files(exec,
 		qm.InnerJoin("files_operations fo on fo.file_id=id and fo.operation_id = ? and secure <= ?",
-			id, allowedSecureLevel(cp))).
+			id, allowedRead(cp))).
 		All()
 	if err != nil {
 		return nil, NewInternalError(err)
@@ -3794,7 +3890,7 @@ func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
 }
 
 func appendPermissionsMods(cp utils.ContextProvider, mods *[]qm.QueryMod) {
-	*mods = append(*mods, qm.Where("secure <= ?", allowedSecureLevel(cp)))
+	*mods = append(*mods, qm.Where("secure <= ?", allowedRead(cp)))
 }
 
 func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SearchTermFilter, entityType int) error {
@@ -4182,12 +4278,20 @@ func secureToPermission(secure int16) string {
 	}
 }
 
-func allowedSecureLevel(cp utils.ContextProvider) int16 {
-	if can(cp, secureToPermission(SEC_PRIVATE), PERM_READ) {
+func allowedRead(cp utils.ContextProvider) int16 {
+	return allowedSecure(cp, PERM_READ)
+}
+
+func allowedWrite(cp utils.ContextProvider) int16 {
+	return allowedSecure(cp, PERM_WRITE)
+}
+
+func allowedSecure(cp utils.ContextProvider, act string) int16 {
+	if can(cp, secureToPermission(SEC_PRIVATE), act) {
 		return SEC_PRIVATE
-	} else if can(cp, secureToPermission(SEC_SENSITIVE), PERM_READ) {
+	} else if can(cp, secureToPermission(SEC_SENSITIVE), act) {
 		return SEC_SENSITIVE
-	} else if can(cp, secureToPermission(SEC_PUBLIC), PERM_READ) {
+	} else if can(cp, secureToPermission(SEC_PUBLIC), act) {
 		return SEC_PUBLIC
 	}
 
