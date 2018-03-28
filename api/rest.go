@@ -4081,13 +4081,13 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 	switch entityType {
 	case SEARCH_IN_FILES:
 		// file name field
-		whereParts = append(whereParts, fmt.Sprintf("name ~ '%s'", f.Query))
+		whereParts = append(whereParts, fmt.Sprintf("name ~~ '%%%s%%'", f.Query))
 
 		// file sha1
 		if len(f.Query) == 40 {
 			s, err := hex.DecodeString(f.Query)
 			if err == nil {
-				whereParts = append(whereParts, fmt.Sprintf("sha1 ~ '%s'", string(s)))
+				whereParts = append(whereParts, fmt.Sprintf("sha1 = '%s'", string(s)))
 			}
 		}
 	case SEARCH_IN_CONTENT_UNITS:
