@@ -162,14 +162,14 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 	case http.MethodGet, "":
 		resp, err = handleCollectionCCU(c, c.MustGet("MDB").(*sql.DB), id)
 	case http.MethodPost:
-		var ccu models.CollectionsContentUnit
-		if c.BindJSON(&ccu) != nil {
+		var ccus []*models.CollectionsContentUnit
+		if c.BindJSON(&ccus) != nil {
 			return
 		}
 
 		var evnts []events.Event
 		tx := mustBeginTx(c)
-		evnts, err = handleCollectionAddCCU(c, tx, id, ccu)
+		evnts, err = handleCollectionAddCCU(c, tx, id, ccus)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
@@ -1753,7 +1753,7 @@ func handleCollectionCCU(cp utils.ContextProvider, exec boil.Executor, id int64)
 	return data, nil
 }
 
-func handleCollectionAddCCU(cp utils.ContextProvider, exec boil.Executor, id int64, ccu models.CollectionsContentUnit) ([]events.Event, *HttpError) {
+func handleCollectionAddCCU(cp utils.ContextProvider, exec boil.Executor, id int64, ccus []*models.CollectionsContentUnit) ([]events.Event, *HttpError) {
 	c, err := models.FindCollection(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1768,39 +1768,41 @@ func handleCollectionAddCCU(cp utils.ContextProvider, exec boil.Executor, id int
 		return nil, NewForbiddenError()
 	}
 
-	cu, err := models.FindContentUnit(exec, ccu.ContentUnitID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, NewBadRequestError(errors.Errorf("Unknown content unit id %d", ccu.ContentUnitID))
-		} else {
-			return nil, NewInternalError(err)
-		}
-	}
-
-	exists, err := models.CollectionsContentUnits(exec,
-		qm.Where("collection_id = ? AND content_unit_id = ?", id, ccu.ContentUnitID)).
-		Exists()
-	if err != nil {
-		return nil, NewInternalError(err)
-	}
-	if exists {
-		return nil, NewBadRequestError(errors.New("Association already exists"))
-	}
-
-	err = c.AddCollectionsContentUnits(exec, true, &ccu)
-	if err != nil {
-		return nil, NewInternalError(err)
-	}
-
 	evnts := make([]events.Event, 1)
 	evnts[0] = events.CollectionContentUnitsChangeEvent(c)
 
-	if cu.Published && !c.Published {
-		c.Published = true
-		if err := c.Update(exec, "published"); err != nil {
+	for _, ccu := range ccus {
+		cu, err := models.FindContentUnit(exec, ccu.ContentUnitID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, NewBadRequestError(errors.Errorf("Unknown content unit id %d", ccu.ContentUnitID))
+			} else {
+				return nil, NewInternalError(err)
+			}
+		}
+
+		exists, err := models.CollectionsContentUnits(exec,
+			qm.Where("collection_id = ? AND content_unit_id = ?", id, ccu.ContentUnitID)).
+			Exists()
+		if err != nil {
 			return nil, NewInternalError(err)
 		}
-		evnts = append(evnts, events.CollectionPublishedChangeEvent(c))
+		if exists {
+			return nil, NewBadRequestError(errors.New("Association already exists"))
+		}
+
+		err = c.AddCollectionsContentUnits(exec, true, ccu)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+
+		if cu.Published && !c.Published {
+			c.Published = true
+			if err := c.Update(exec, "published"); err != nil {
+				return nil, NewInternalError(err)
+			}
+			evnts = append(evnts, events.CollectionPublishedChangeEvent(c))
+		}
 	}
 
 	return evnts, nil
