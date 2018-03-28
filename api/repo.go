@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -287,6 +289,28 @@ func CreateContentUnit(exec boil.Executor, contentType string, properties map[st
 	return unit, err
 }
 
+func DeleteContentUnit(exec boil.Executor, unit *models.ContentUnit) error {
+	log.Infof("Removing content_unit %d", unit.ID)
+
+	tables := [...]string{
+		"collections_content_units",
+		"content_units_persons",
+		"content_units_sources",
+		"content_units_tags",
+		"content_units_publishers",
+		"content_unit_i18n",
+	}
+	for i := range tables {
+		q := fmt.Sprintf("DELETE FROM %s WHERE content_unit_id = $1", tables[i])
+		_, err := queries.Raw(exec, q, unit.ID).Exec()
+		if err != nil {
+			return errors.Wrapf(err, "Delete %s", tables[i])
+		}
+	}
+
+	return unit.Delete(exec)
+}
+
 func GetNextPositionInCollection(exec boil.Executor, id int64) (position int, err error) {
 	err = queries.Raw(exec,
 		"SELECT COALESCE(MAX(position), -1) + 1 FROM collections_content_units WHERE collection_id = $1", id).
@@ -461,12 +485,27 @@ func UpdateFileProperties(exec boil.Executor, file *models.File, props map[strin
 	return nil
 }
 
-type FilePublishedChangeImpact struct {
+type PublishedChangeImpact struct {
 	ChangedContentUnit *models.ContentUnit
 	ChangedCollections []*models.Collection
 }
 
-func PublishFile(exec boil.Executor, file *models.File) (*FilePublishedChangeImpact, error) {
+func (p *PublishedChangeImpact) Events() []events.Event {
+	evnts := make([]events.Event, 0)
+
+	if p.ChangedContentUnit != nil {
+		evnts = append(evnts, events.ContentUnitPublishedChangeEvent(p.ChangedContentUnit))
+	}
+	if p.ChangedCollections != nil {
+		for i := range p.ChangedCollections {
+			evnts = append(evnts, events.CollectionPublishedChangeEvent(p.ChangedCollections[i]))
+		}
+	}
+
+	return evnts
+}
+
+func PublishFile(exec boil.Executor, file *models.File) (*PublishedChangeImpact, error) {
 	log.Infof("Publishing file [%d]", file.ID)
 	file.Published = true
 	err := file.Update(exec, "published")
@@ -474,39 +513,62 @@ func PublishFile(exec boil.Executor, file *models.File) (*FilePublishedChangeImp
 		return nil, errors.Wrap(err, "Save file to DB")
 	}
 
-	impact := new(FilePublishedChangeImpact)
+	if !file.ContentUnitID.Valid {
+		return new(PublishedChangeImpact), nil
+	}
 
-	if file.ContentUnitID.Valid {
-		cuid := file.ContentUnitID.Int64
+	return FileAddedUnitImpact(exec, file.Published, file.ContentUnitID.Int64)
+}
 
-		// Load CU
-		cu, err := models.ContentUnits(exec,
-			qm.Where("id=?", cuid),
-			qm.Load("CollectionsContentUnits", "CollectionsContentUnits.Collection"),
-		).One()
-		if err != nil {
-			return nil, errors.Wrapf(err, "Load content_unit %d", cuid)
+func RemoveFile(exec boil.Executor, file *models.File) (*PublishedChangeImpact, error) {
+	log.Infof("Removing file [%d]", file.ID)
+	file.RemovedAt = null.TimeFrom(time.Now().UTC())
+	err := file.Update(exec, "removed_at")
+	if err != nil {
+		return nil, errors.Wrap(err, "Save file to DB")
+	}
+
+	if !file.ContentUnitID.Valid {
+		return new(PublishedChangeImpact), nil
+	}
+
+	return FileLeftUnitImpact(exec, file.Published, file.ContentUnitID.Int64)
+}
+
+func FileAddedUnitImpact(exec boil.Executor, fileIsPublished bool, cuID int64) (*PublishedChangeImpact, error) {
+	impact := new(PublishedChangeImpact)
+
+	if !fileIsPublished {
+		return impact, nil
+	}
+
+	// Load CU
+	cu, err := models.ContentUnits(exec,
+		qm.Where("id=?", cuID),
+		qm.Load("CollectionsContentUnits", "CollectionsContentUnits.Collection"),
+	).One()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Load content_unit %d", cuID)
+	}
+
+	// Publish CU and associated collections if necessary
+	if !cu.Published {
+		cu.Published = true
+		if err := cu.Update(exec, "published"); err != nil {
+			return nil, errors.Wrapf(err, "Update content_unit %d", cuID)
 		}
+		impact.ChangedContentUnit = cu
 
-		// Publish CU and associated collections if necessary
-		if !cu.Published {
-			cu.Published = true
-			if err := cu.Update(exec, "published"); err != nil {
-				return nil, errors.Wrapf(err, "Update content_unit %d", cuid)
-			}
-			impact.ChangedContentUnit = cu
-
-			// handle associated collections
-			if len(cu.R.CollectionsContentUnits) > 0 {
-				for i := range cu.R.CollectionsContentUnits {
-					c := cu.R.CollectionsContentUnits[i].R.Collection
-					if !c.Published {
-						c.Published = true
-						if err := c.Update(exec, "published"); err != nil {
-							return nil, errors.Wrapf(err, "Update collection %d", cuid)
-						}
-						impact.ChangedCollections = append(impact.ChangedCollections, c)
+		// handle associated collections
+		if len(cu.R.CollectionsContentUnits) > 0 {
+			for i := range cu.R.CollectionsContentUnits {
+				c := cu.R.CollectionsContentUnits[i].R.Collection
+				if !c.Published {
+					c.Published = true
+					if err := c.Update(exec, "published"); err != nil {
+						return nil, errors.Wrapf(err, "Update collection %d", cuID)
 					}
+					impact.ChangedCollections = append(impact.ChangedCollections, c)
 				}
 			}
 		}
@@ -515,88 +577,84 @@ func PublishFile(exec boil.Executor, file *models.File) (*FilePublishedChangeImp
 	return impact, nil
 }
 
-func RemoveFile(exec boil.Executor, file *models.File) (*FilePublishedChangeImpact, error) {
-	log.Infof("Removing file [%d]", file.ID)
-	file.RemovedAt = null.TimeFrom(time.Now().UTC())
-	err := file.Update(exec, "removed_at")
-	if err != nil {
-		return nil, errors.Wrap(err, "Save file to DB")
+func FileLeftUnitImpact(exec boil.Executor, fileIsPublished bool, cuID int64) (*PublishedChangeImpact, error) {
+	impact := new(PublishedChangeImpact)
+
+	if !fileIsPublished {
+		return impact, nil
 	}
 
-	impact := new(FilePublishedChangeImpact)
+	// Load CU
+	cu, err := models.ContentUnits(exec,
+		qm.Where("id=?", cuID),
+		qm.Load("Files", "CollectionsContentUnits"),
+	).One()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Load content_unit %d", cuID)
+	}
 
-	// Unpublish CU and collections
-	if file.ContentUnitID.Valid {
-		cuid := file.ContentUnitID.Int64
+	if !cu.Published {
+		return impact, nil
+	}
 
-		// Load CU
-		cu, err := models.ContentUnits(exec,
-			qm.Where("id=?", cuid),
-			qm.Load("Files", "CollectionsContentUnits"),
-		).One()
+	// Check if any other file in CU is published
+	unpublishCU := true
+	for i := range cu.R.Files {
+		f := cu.R.Files[i]
+		if f.Published && !f.RemovedAt.Valid {
+			unpublishCU = false
+			break
+		}
+	}
+
+	// cu has other published files so no change
+	if !unpublishCU {
+		return impact, nil
+	}
+
+	// unpublish content unit
+	cu.Published = false
+	if err := cu.Update(exec, "published"); err != nil {
+		return nil, errors.Wrapf(err, "Update [published=false] content_unit %d", cuID)
+	}
+	impact.ChangedContentUnit = cu
+
+	// Load all collections associated with this CU and do the same for them
+	if len(cu.R.CollectionsContentUnits) > 0 {
+
+		// Load collections
+		cIDs := make([]int64, len(cu.R.CollectionsContentUnits))
+		for i := range cu.R.CollectionsContentUnits {
+			cIDs[i] = cu.R.CollectionsContentUnits[i].CollectionID
+		}
+		cs, err := models.Collections(exec,
+			qm.WhereIn("id in ?", utils.ConvertArgsInt64(cIDs)...),
+			qm.Load("CollectionsContentUnits",
+				"CollectionsContentUnits.ContentUnit")).
+			All()
 		if err != nil {
-			return nil, errors.Wrapf(err, "Load content_unit %d", cuid)
+			return nil, errors.Wrapf(err, "Load collections CCU's %v", cIDs)
 		}
 
-		if cu.Published {
-			// Check if any other file in CU is published
-			unpublishCU := true
-			for i := range cu.R.Files {
-				f := cu.R.Files[i]
-				if f.Published && !f.RemovedAt.Valid {
-					unpublishCU = false
-					break
-				}
-			}
-
-			if !unpublishCU {
-				return impact, nil
-			}
-
-			cu.Published = false
-			if err := cu.Update(exec, "published"); err != nil {
-				return nil, errors.Wrapf(err, "Update [published=false] content_unit %d", cuid)
-			}
-			impact.ChangedContentUnit = cu
-
-			// Load all collections associated with this CU and do the same for them
-			if len(cu.R.CollectionsContentUnits) > 0 {
-
-				// Load collections
-				cIDs := make([]int64, len(cu.R.CollectionsContentUnits))
-				for i := range cu.R.CollectionsContentUnits {
-					cIDs[i] = cu.R.CollectionsContentUnits[i].CollectionID
-				}
-				cs, err := models.Collections(exec,
-					qm.WhereIn("id in ?", utils.ConvertArgsInt64(cIDs)...),
-					qm.Load("CollectionsContentUnits",
-						"CollectionsContentUnits.ContentUnit")).
-					All()
-				if err != nil {
-					return nil, errors.Wrapf(err, "Load collections CCU's %v", cIDs)
-				}
-
-				// Check if each collection has any other published CU and unpublish if not
-				for i := range cs {
-					c := cs[i]
-					if c.Published {
-						unpublishC := true
-						for i := range c.R.CollectionsContentUnits {
-							cu := c.R.CollectionsContentUnits[i].R.ContentUnit
-							if cu.Published {
-								unpublishC = false
-								break
-							}
-						}
-
-						if unpublishC {
-							c.Published = false
-							if err := c.Update(exec, "published"); err != nil {
-								return nil, errors.Wrapf(err, "Update [published=false] collection %d", cuid)
-							}
-							impact.ChangedCollections = append(impact.ChangedCollections, c)
-						}
+		// Check if each collection has any other published CU and unpublish if not
+		for i := range cs {
+			c := cs[i]
+			if c.Published {
+				unpublishC := true
+				for i := range c.R.CollectionsContentUnits {
+					cu := c.R.CollectionsContentUnits[i].R.ContentUnit
+					if cu.Published {
+						unpublishC = false
+						break
 					}
+				}
+
+				if unpublishC {
+					c.Published = false
+					if err := c.Update(exec, "published"); err != nil {
+						return nil, errors.Wrapf(err, "Update [published=false] collection %d", cuID)
+					}
+					impact.ChangedCollections = append(impact.ChangedCollections, c)
 				}
 			}
 		}

@@ -66,13 +66,13 @@ func ContentUnitUpdateEvent(cu *models.ContentUnit) Event {
 	})
 }
 
-//func ContentUnitDeleteEvent(cu *models.ContentUnit) Event {
-//	return makeEvent(E_CONTENT_UNIT_DELETE, map[string]interface{}{
-//		"id":  cu.ID,
-//		"uid": cu.UID,
-//	})
-//}
-//
+func ContentUnitDeleteEvent(cu *models.ContentUnit) Event {
+	return makeEvent(E_CONTENT_UNIT_DELETE, map[string]interface{}{
+		"id":  cu.ID,
+		"uid": cu.UID,
+	})
+}
+
 func ContentUnitPublishedChangeEvent(cu *models.ContentUnit) Event {
 	return makeEvent(E_CONTENT_UNIT_PUBLISHED_CHANGE, map[string]interface{}{
 		"id":  cu.ID,

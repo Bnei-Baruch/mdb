@@ -487,14 +487,7 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []e
 
 	evnts := make([]events.Event, 0)
 	evnts = append(evnts, events.FilePublishedEvent(file))
-	if impact.ChangedContentUnit != nil {
-		evnts = append(evnts, events.ContentUnitPublishedChangeEvent(impact.ChangedContentUnit))
-	}
-	if impact.ChangedCollections != nil {
-		for i := range impact.ChangedCollections {
-			evnts = append(evnts, events.CollectionPublishedChangeEvent(impact.ChangedCollections[i]))
-		}
-	}
+	evnts = append(evnts, impact.Events()...)
 
 	log.Info("Associating file to operation")
 	return operation, evnts, operation.AddFiles(exec, false, file)
@@ -747,16 +740,8 @@ FROM content_units cu
 		if impact, err := RemoveFile(exec, oldFile); err != nil {
 			return nil, nil, errors.Wrapf(err, "Remove old file %d", oldFile.ID)
 		} else {
-			if impact.ChangedContentUnit != nil {
-				evnts = append(evnts, events.ContentUnitPublishedChangeEvent(impact.ChangedContentUnit))
-			}
-			if impact.ChangedCollections != nil {
-				for i := range impact.ChangedCollections {
-					evnts = append(evnts, events.CollectionPublishedChangeEvent(impact.ChangedCollections[i]))
-				}
-			}
+			evnts = append(evnts, impact.Events()...)
 		}
-
 	}
 
 	log.Info("Associating files to operation")

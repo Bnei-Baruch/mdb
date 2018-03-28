@@ -652,6 +652,37 @@ func ContentUnitPublishersHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func ContentUnitMergeHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var cuIDs []int64
+	if c.Bind(&cuIDs) != nil {
+		return
+	}
+
+	// filter out host unit ID
+	b := cuIDs[:0]
+	for _, x := range cuIDs {
+		if x != id {
+			b = append(b, x)
+		}
+	}
+
+	tx := mustBeginTx(c)
+	resp, evnts, err := handleContentUnitMerge(c, tx, id, b)
+	mustConcludeTx(tx, err)
+
+	if err == nil {
+		emitEvents(c, evnts...)
+	}
+
+	concludeRequest(c, resp, err)
+}
+
 func FilesListHandler(c *gin.Context) {
 	var r FilesRequest
 	if c.Bind(&r) != nil {
@@ -682,12 +713,13 @@ func FileHandler(c *gin.Context) {
 			}
 
 			f.ID = id
+			var evnts []events.Event
 			tx := mustBeginTx(c)
-			resp, err = handleUpdateFile(c, tx, &f)
+			resp, evnts, err = handleUpdateFile(c, tx, &f)
 			mustConcludeTx(tx, err)
 
 			if err == nil {
-				emitEvents(c, events.FileUpdateEvent(&resp.(*MFile).File))
+				emitEvents(c, evnts...)
 			}
 		}
 	}
@@ -2108,7 +2140,7 @@ func handleContentUnitFiles(cp utils.ContextProvider, exec boil.Executor, id int
 	return data, nil
 }
 
-func handleContentUnitAddFiles(cp utils.ContextProvider, exec boil.Executor, id int64, fileIDs []int64) ([]*MFile, []events.Event, *HttpError) {
+func handleContentUnitAddFiles(cp utils.ContextProvider, exec boil.Executor, id int64, fileIDs []int64) (*ContentUnit, []events.Event, *HttpError) {
 	unit, err := models.FindContentUnit(exec, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2138,14 +2170,20 @@ func handleContentUnitAddFiles(cp utils.ContextProvider, exec boil.Executor, id 
 	}
 
 	// look through files, some might change indeed.
+	// collect a set of CU IDs whose files are gone. Any impact on published status ?
 	evnts := make([]events.Event, 0)
 	somePublished := false
 	changedIDs := make([]interface{}, 0)
+	possiblyEffectedCUs := make(map[int64]bool)
 	for i := range files {
 		f := files[i]
-		if f.ContentUnitID.Int64 == id {
+		fCUID := f.ContentUnitID.Int64
+		if fCUID == id {
 			continue
 		} else {
+			if f.ContentUnitID.Valid {
+				possiblyEffectedCUs[fCUID] = possiblyEffectedCUs[fCUID] || f.Published
+			}
 			f.ContentUnitID = null.Int64From(id) // so we respond with it without re-fetch from db
 		}
 
@@ -2165,21 +2203,25 @@ func handleContentUnitAddFiles(cp utils.ContextProvider, exec boil.Executor, id 
 		return nil, nil, NewInternalError(err)
 	}
 
-	// published files in an unpublished unit make the unit published
-	if somePublished && !unit.Published {
-		unit.Published = true
-		if err := unit.Update(exec, "published"); err != nil {
+	// published status may change for host unit and it's related collections
+	impact, err := FileAddedUnitImpact(exec, somePublished, unit.ID)
+	if err != nil {
+		return nil, nil, NewInternalError(err)
+	}
+	evnts = append(evnts, impact.Events()...)
+
+	// published status may change for units we leave as well
+	for k, v := range possiblyEffectedCUs {
+		impact, err := FileLeftUnitImpact(exec, v, k)
+		if err != nil {
 			return nil, nil, NewInternalError(err)
 		}
-		evnts = append(evnts, events.ContentUnitPublishedChangeEvent(unit))
+		evnts = append(evnts, impact.Events()...)
 	}
 
-	data := make([]*MFile, len(files))
-	for i, f := range files {
-		data[i] = NewMFile(f)
-	}
+	resp, herr := handleGetContentUnit(cp, exec, id)
 
-	return data, evnts, nil
+	return resp, evnts, herr
 }
 
 func handleContentUnitCCU(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*CollectionContentUnit, *HttpError) {
@@ -2914,6 +2956,102 @@ func handleContentUnitRemovePublisher(cp utils.ContextProvider, exec boil.Execut
 	return cu, nil
 }
 
+func handleContentUnitMerge(cp utils.ContextProvider, exec boil.Executor, id int64, cuIDs []int64) (*ContentUnit, []events.Event, *HttpError) {
+	unit, err := models.FindContentUnit(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil, NewNotFoundError()
+		} else {
+			return nil, nil, NewInternalError(err)
+		}
+	}
+
+	// check object level permissions
+	if !can(cp, secureToPermission(unit.Secure), PERM_WRITE) {
+		return nil, nil, NewForbiddenError()
+	}
+
+	// fetch units to be merged
+	// With respect to write permissions (as we're about to modify them)
+	units, err := models.ContentUnits(exec,
+		qm.Where("secure <= ?", allowedWrite(cp)),
+		qm.WhereIn("id in ?", utils.ConvertArgsInt64(cuIDs)...),
+		qm.Load("Files")).
+		All()
+	if err != nil {
+		return nil, nil, NewInternalError(err)
+	}
+
+	if len(units) != len(cuIDs) {
+		return nil, nil, NewBadRequestError(errors.New("Couldn't find all units (permissions maybe ?)"))
+	}
+
+	// for each merged unit we:
+	// 1. move all it's files to host unit
+	// 2. move all derivations to host unit
+	// 3. remove unit
+
+	evnts := make([]events.Event, 0)
+	somePublished := false
+	cuDerivativesChange := false
+	for i := range units {
+		cu := units[i]
+		log.Infof("Merging CU %d into CU %d", cu.ID, unit.ID)
+		if cu.Published {
+			somePublished = true
+		}
+
+		// move files
+		err := cu.R.Files.UpdateAll(exec, models.M{"content_unit_id": unit.ID})
+		if err != nil {
+			return nil, nil, NewInternalError(err)
+		}
+		for i := range cu.R.Files {
+			evnts = append(evnts, events.FileUpdateEvent(cu.R.Files[i]))
+		}
+
+		// move derivations
+		err = cu.R.DerivedContentUnitDerivations.UpdateAll(exec, models.M{"derived_id": unit.ID})
+		if err != nil {
+			return nil, nil, NewInternalError(err)
+		}
+		for i := range cu.R.DerivedContentUnitDerivations {
+			evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(
+				cu.R.DerivedContentUnitDerivations[i].R.Source))
+		}
+
+		err = cu.R.SourceContentUnitDerivations.UpdateAll(exec, models.M{"source_id": unit.ID})
+		if err != nil {
+			return nil, nil, NewInternalError(err)
+		}
+		if len(cu.R.SourceContentUnitDerivations) > 0 {
+			cuDerivativesChange = true
+		}
+
+		// remove unit
+		err = DeleteContentUnit(exec, cu)
+		if err != nil {
+			return nil, nil, NewInternalError(err)
+		}
+		evnts = append(evnts, events.ContentUnitDeleteEvent(cu))
+	}
+
+	if cuDerivativesChange {
+		evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(unit))
+	}
+
+	// published status may change for host unit and it's related collections
+	impact, err := FileAddedUnitImpact(exec, somePublished, unit.ID)
+	if err != nil {
+		return nil, nil, NewInternalError(err)
+	}
+	evnts = append(evnts, impact.Events()...)
+
+	resp, herr := handleGetContentUnit(cp, exec, id)
+
+	return resp, evnts, herr
+}
+
 func handleFilesList(cp utils.ContextProvider, exec boil.Executor, r FilesRequest) (*FilesResponse, *HttpError) {
 	mods := make([]qm.QueryMod, 0)
 	appendPermissionsMods(cp, &mods)
@@ -2993,20 +3131,22 @@ func handleGetFile(cp utils.ContextProvider, exec boil.Executor, id int64) (*MFi
 	return NewMFile(file), nil
 }
 
-func handleUpdateFile(cp utils.ContextProvider, exec boil.Executor, f *PartialFile) (*MFile, *HttpError) {
+func handleUpdateFile(cp utils.ContextProvider, exec boil.Executor, f *PartialFile) (*MFile, []events.Event, *HttpError) {
 	file, err := models.FindFile(exec, f.ID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, NewNotFoundError()
+			return nil, nil, NewNotFoundError()
 		} else {
-			return nil, NewInternalError(err)
+			return nil, nil, NewInternalError(err)
 		}
 	}
 
 	// check object level permissions
 	if !can(cp, secureToPermission(file.Secure), PERM_WRITE) {
-		return nil, NewForbiddenError()
+		return nil, nil, NewForbiddenError()
 	}
+
+	evnts := make([]events.Event, 0)
 
 	if f.Type.Valid {
 		file.Type = f.Type.String
@@ -3016,9 +3156,6 @@ func handleUpdateFile(cp utils.ContextProvider, exec boil.Executor, f *PartialFi
 	}
 	if f.MimeType.Valid {
 		file.MimeType = f.MimeType
-	}
-	if f.ContentUnitID.Valid {
-		file.ContentUnitID = f.ContentUnitID
 	}
 	if f.Language.Valid {
 		file.Language = f.Language
@@ -3030,12 +3167,41 @@ func handleUpdateFile(cp utils.ContextProvider, exec boil.Executor, f *PartialFi
 		file.Secure = f.Secure.Int16
 	}
 
-	err = file.Update(exec)
-	if err != nil {
-		return nil, NewInternalError(err)
+	prevCUID := file.ContentUnitID.Int64
+	if f.ContentUnitID.Valid {
+		file.ContentUnitID = f.ContentUnitID
 	}
 
-	return handleGetFile(cp, exec, f.ID)
+	err = file.Update(exec)
+	if err != nil {
+		return nil, nil, NewInternalError(err)
+	}
+
+	evnts = append(evnts, events.FileUpdateEvent(file))
+
+	// We might be leaving some unit and joining another.
+	// What should be the impact of their published status ?
+
+	// The unit we're joining
+	if f.ContentUnitID.Valid {
+		impact, err := FileAddedUnitImpact(exec, file.Published, f.ContentUnitID.Int64)
+		if err != nil {
+			return nil, nil, NewInternalError(err)
+		}
+		evnts = append(evnts, impact.Events()...)
+	}
+
+	// The unit we're leaving
+	if prevCUID != 0 {
+		impact, err := FileLeftUnitImpact(exec, file.Published, prevCUID)
+		if err != nil {
+			return nil, nil, NewInternalError(err)
+		}
+		evnts = append(evnts, impact.Events()...)
+	}
+
+	resp, herr := handleGetFile(cp, exec, f.ID)
+	return resp, evnts, herr
 }
 
 func handleFileStorages(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*Storage, *HttpError) {
