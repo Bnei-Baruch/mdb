@@ -2,6 +2,7 @@ package batch
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,9 +13,9 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 
-	"bytes"
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -28,7 +29,7 @@ type Meta struct {
 }
 
 type Request struct {
-	Meta     Meta
+	Meta     *Meta
 	Payload  []string
 	Response []string
 	req      bool
@@ -47,23 +48,35 @@ func (r *Request) dump() {
 }
 
 func ReadRequestsLog() {
-	rMap, err := readLog("requests.log")
+	rMap, err := readLog("requests.log.combined")
 	utils.Must(err)
 	fmt.Printf("len(rMap) %d\n", len(rMap))
-	//utils.Must(printFiltered(rMap))
-	utils.Must(replayTranscodeWErr(rMap))
+	utils.Must(printFiltered(rMap))
+	//utils.Must(replayTranscodeWErr(rMap))
 	//utils.Must(replayConvertWErr(rMap))
 }
 
-func parseMeta(line string) Meta {
+func parseMeta(line string) (*Meta, error) {
 	meta := strings.Split(line, " ")
-	id, _ := strconv.Atoi(meta[0])
-	ts, _ := strconv.ParseInt(meta[2], 10, 64)
-	return Meta{
-		Type:      id,
+	if len(meta) < 3 {
+		return nil, errors.Errorf("Expected > 3 fields got %d", len(meta))
+	}
+
+	t, err := strconv.Atoi(meta[0])
+	if err != nil {
+		return nil, errors.Errorf("type should be int got: %s", meta[0])
+	}
+
+	ts, err := strconv.ParseInt(meta[2], 10, 64)
+	if err != nil {
+		return nil, errors.Errorf("timestamp should be int64 got: %s", meta[2])
+	}
+
+	return &Meta{
+		Type:      t,
 		ID:        meta[1],
 		Timestamp: time.Unix(0, ts),
-	}
+	}, nil
 }
 
 // scanning here is rather dumb:
@@ -81,16 +94,22 @@ func readLog(path string) (map[string]*Request, error) {
 	rMap := make(map[string]*Request)
 
 	var current *Request
+	var ln int64
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
+		ln += 1
 
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 
 		if strings.HasPrefix(line, "1") {
-			meta := parseMeta(line)
+			meta, err := parseMeta(line)
+			if err != nil {
+				log.Fatalf("Malformed request [Line %d]: %s", ln, err.Error())
+			}
+
 			r := Request{
 				Meta:     meta,
 				Payload:  make([]string, 0),
@@ -100,8 +119,16 @@ func readLog(path string) (map[string]*Request, error) {
 			rMap[meta.ID] = &r
 			current = &r
 		} else if strings.HasPrefix(line, "2") {
-			meta := parseMeta(line)
-			rMap[meta.ID].req = false
+			meta, err := parseMeta(line)
+			if err != nil {
+				log.Fatalf("Malformed response [Line %d]: %s", ln, err.Error())
+			}
+
+			if val, ok := rMap[meta.ID]; ok {
+				val.req = false
+			} else {
+				log.Errorf("No Request for Response [Line %d]: %s", ln, meta.ID)
+			}
 		} else {
 			if current == nil {
 				continue
@@ -278,16 +305,16 @@ func replayTranscodeWErr(rMap map[string]*Request) error {
 }
 
 func printFiltered(rMap map[string]*Request) error {
-	filter := andFilters(
-		afterFilter(time.Date(2017, 5, 31, 0, 0, 0, 0, time.UTC)),
-		beforeFilter(time.Date(2017, 6, 2, 0, 0, 0, 0, time.UTC)),
-		responseExcludeSuffixFilter("200 OK"),
-	)
 	//filter := andFilters(
-	//	afterFilter(time.Date(2017, 9, 12, 0, 0, 0, 0, time.UTC)),
-	//	payloadHasPrefixFilter("POST /operations/transcode"),
-	//	responseHasSuffixFilter("500 Internal Server Error"),
+	//	afterFilter(time.Date(2017, 5, 31, 0, 0, 0, 0, time.UTC)),
+	//	beforeFilter(time.Date(2017, 6, 2, 0, 0, 0, 0, time.UTC)),
+	//	responseExcludeSuffixFilter("200 OK"),
 	//)
+	filter := andFilters(
+		//afterFilter(time.Date(2017, 9, 12, 0, 0, 0, 0, time.UTC)),
+		payloadHasPrefixFilter("POST /operations/insert"),
+		responseHasSuffixFilter("400 Bad Request"),
+	)
 
 	failed := filterRequests(rMap, filter)
 	fmt.Printf("filtered %d\n", len(failed))
