@@ -999,6 +999,14 @@ func handleOperation(c *gin.Context, input interface{}, opHandler OperationHandl
 	//tx, err := boil.Begin()
 	utils.Must(err)
 
+	// recover from panics in transaction
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p) // re-throw panic after Rollback
+		}
+	}()
+
 	_, evnts, err := opHandler(tx, input)
 	if err == nil {
 		utils.Must(tx.Commit())
