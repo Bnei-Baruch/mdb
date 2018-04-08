@@ -343,7 +343,7 @@ func replayInsertWErr(rMap map[string]*Request) error {
 		}
 
 		req, err := http.NewRequest("POST",
-			"http://localhost:8080/operations/insert",
+			"http://app.mdb.bbdomain.org/operations/insert",
 			bytes.NewReader(bodyPayload))
 		req.Header.Set("Content-Type", "application/json")
 
