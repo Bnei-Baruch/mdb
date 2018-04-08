@@ -84,7 +84,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Require().Nil(err)
 
 	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
 	err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -129,7 +129,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 		suite.Require().Nil(err)
 
 		suite.assertFiles(metadata, original, proxy)
-		suite.assertContentUnit(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// collection association
 		err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -162,7 +162,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Require().Nil(err)
 
 	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
 	err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -209,7 +209,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Require().Nil(err)
 
 	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// associated to "main" content unit
 	err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -278,7 +278,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	suite.Require().Nil(err)
 
 	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
 	err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -323,7 +323,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		suite.Require().Nil(err)
 
 		suite.assertFiles(metadata, original, proxy)
-		suite.assertContentUnit(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// collection association
 		err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -356,7 +356,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	suite.Require().Nil(err)
 
 	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
 	err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -388,7 +388,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		suite.Require().Nil(err)
 
 		suite.assertFiles(metadata, original, proxy)
-		suite.assertContentUnit(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// associated to "main" content unit
 		err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -441,7 +441,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		suite.Require().Nil(err)
 
 		suite.assertFiles(metadata, original, proxy)
-		suite.assertContentUnit(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// associated to "main" content unit
 		err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -510,7 +510,7 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	suite.Require().Nil(err)
 
 	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// not associated with collection
 	err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -542,7 +542,7 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	suite.Require().Nil(err)
 
 	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// reload cu cu association
 	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
@@ -616,7 +616,7 @@ func (suite *MetadataProcessorSuite) TestVideoProgram() {
 	suite.Require().Nil(err)
 
 	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
 	err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -677,7 +677,7 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 			suite.Require().Nil(err)
 
 			suite.assertFiles(metadata, original, proxy)
-			suite.assertContentUnit(metadata, original, proxy)
+			suite.assertContentUnit(metadata, original, proxy, false)
 
 			// collection association
 			err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -736,7 +736,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	suite.Require().Nil(err)
 
 	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
 	err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -798,7 +798,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 		suite.Require().Nil(err)
 
 		suite.assertFiles(metadata, original, proxy)
-		suite.assertContentUnit(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// collection association
 		err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -852,7 +852,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	suite.Require().Nil(err)
 
 	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
 	err = original.L.LoadContentUnit(suite.tx, true, original)
@@ -888,6 +888,124 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	suite.Equal(strconv.Itoa(metadata.Number.Int), eccu.Name, "eccu.Name")
 	suite.Equal(eventCollection.ID, eccu.CollectionID, "eccu.CollectionID")
 
+}
+
+func (suite *MetadataProcessorSuite) TestFixUnit() {
+	chain := suite.simulateSpecialLessonChain()
+	originals := make(map[string]TrimFiles)
+
+	// send parts
+	// send full
+	// send kitei makor of all parts
+	// send lelo mikud of all parts
+
+	metadata := CITMetadata{
+		ContentType:    CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(0),
+		Sources:        suite.someSources(),
+		Tags:           suite.someTags(),
+		RequireTest:    false,
+	}
+	tf := chain["part0"]
+	originals["part0"] = tf
+
+	_, err := ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+	suite.Require().Nil(err)
+
+	// process other parts
+	for i := 1; i < 4; i++ {
+		metadata.Part = null.IntFrom(i)
+		metadata.Sources = suite.someSources()
+		metadata.Tags = suite.someTags()
+		tf := chain[fmt.Sprintf("part%d", i)]
+		originals[fmt.Sprintf("part%d", i)] = tf
+
+		_, err := ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+		suite.Require().Nil(err)
+	}
+
+	// process full
+	metadata.ContentType = CT_FULL_LESSON
+	metadata.Part = null.NewInt(0, false)
+	metadata.Sources = nil
+	metadata.Tags = nil
+	tf = chain["full"]
+	originals["full"] = tf
+
+	_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+	suite.Require().Nil(err)
+
+	// process kitei makor for all parts
+	for i := 0; i < 4; i++ {
+		metadata.ContentType = CT_LESSON_PART
+		metadata.Part = null.IntFrom(i)
+		metadata.ArtifactType = null.StringFrom("kitei_makor")
+		metadata.WeekDate = nil
+		tf = chain[fmt.Sprintf("part%d_kitei-makor", i)]
+		originals[fmt.Sprintf("part%d_kitei-makor", i)] = tf
+
+		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+		suite.Require().Nil(err)
+	}
+
+	// process lelo mikud for all parts
+	for i := 0; i < 4; i++ {
+		metadata.ContentType = CT_LESSON_PART
+		metadata.Part = null.IntFrom(i)
+		metadata.ArtifactType = null.StringFrom("lelo_mikud")
+		metadata.WeekDate = nil
+		tf = chain[fmt.Sprintf("part%d_lelo-mikud", i)]
+		originals[fmt.Sprintf("part%d_lelo-mikud", i)] = tf
+
+		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+		suite.Require().Nil(err)
+	}
+
+	// process updated metadata
+	tf = originals["part2"]
+	convertFiles := suite.simulateConvertUpload(tf.Original)
+
+	cu, err := tf.Original.ContentUnit(suite.tx).One()
+	suite.Require().Nil(err)
+
+	metadata.Mode = null.StringFrom("update")
+	metadata.UnitToFixUID = null.StringFrom(cu.UID)
+	metadata.ContentType = CT_CLIP
+	metadata.ArtifactType = null.NewString("", false)
+	metadata.AutoName = "auto_name_update"
+	metadata.FinalName = "final_name_update"
+	metadata.Language = LANG_ENGLISH
+	metadata.HasTranslation = false
+	metadata.Lecturer = "norav"
+	metadata.Sources = suite.someSources()
+	metadata.Tags = suite.someTags()
+
+	suite.True(cu.Published, "cu.Published before fix")
+
+	evnts, err := ProcessCITMetadataUpdate(suite.tx, metadata, tf.Original, tf.Proxy)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	// verify CU changed metadata
+	err = cu.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.assertFiles(metadata, tf.Original, tf.Proxy)
+	suite.assertContentUnit(metadata, tf.Original, tf.Proxy, true)
+	suite.False(cu.Published, "cu.Published after fix")
+
+	// verify removed files
+	for i, cf := range convertFiles {
+		err = cf.Reload(suite.tx)
+		suite.Require().Nil(err)
+		suite.True(cf.RemovedAt.Valid, "cf.RemovedAt.Valid %d", i)
+	}
 }
 
 // Helpers
@@ -1585,6 +1703,84 @@ func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]Tri
 	return trimFiles
 }
 
+func (suite *MetadataProcessorSuite) simulateConvertUpload(original *models.File) map[string]*models.File {
+	files := make(map[string]*models.File)
+
+	originalSha1 := hex.EncodeToString(original.Sha1.Bytes)
+	for _, lang := range ALL_LANGS {
+		if lang == LANG_UNKNOWN || lang == LANG_MULTI {
+			continue
+		}
+
+		input := ConvertRequest{
+			Operation: Operation{
+				Station: "Trimmer station",
+				User:    "operator@dev.com",
+			},
+			Sha1: originalSha1,
+			Output: []AVFile{
+				{
+					File: File{
+						FileName:  fmt.Sprintf("%s_test_file.mp4", lang),
+						Sha1:      utils.RandomSHA1(),
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "video",
+						MimeType:  "video/mp4",
+						Language:  lang,
+					},
+					Duration: 871,
+				},
+				{
+					File: File{
+						FileName:  fmt.Sprintf("%s_test_file.mp3", lang),
+						Sha1:      utils.RandomSHA1(),
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "audio",
+						MimeType:  "audio/mpeg",
+						Language:  lang,
+					},
+					Duration: 871,
+				},
+			},
+		}
+
+		op, _, err := handleConvert(suite.tx, input)
+		suite.Require().Nil(err)
+		err = op.L.LoadFiles(suite.tx, true, op)
+		suite.Require().Nil(err)
+
+		for _, f := range op.R.Files {
+			sha1Str := hex.EncodeToString(f.Sha1.Bytes)
+			files[sha1Str] = f
+
+			// upload
+			input := UploadRequest{
+				Operation: Operation{
+					Station: "Upload station",
+					User:    "operator@dev.com",
+				},
+				AVFile: AVFile{
+					File: File{
+						FileName:  f.Name,
+						Sha1:      sha1Str,
+						Size:      f.Size,
+						CreatedAt: &Timestamp{f.CreatedAt},
+					},
+					Duration: 871,
+				},
+				Url: "http://example.com/some/url/to/file.mp4",
+			}
+
+			_, _, err = handleUpload(suite.tx, input)
+			suite.Require().Nil(err)
+		}
+	}
+
+	return files
+}
+
 func (suite *MetadataProcessorSuite) opFilesBySHA1(o *models.Operation) map[string]*models.File {
 	files := make(map[string]*models.File)
 	for _, f := range o.R.Files {
@@ -1647,7 +1843,7 @@ func (suite *MetadataProcessorSuite) assertFiles(metadata CITMetadata, original,
 	suite.Equal(lang, original.Language.String, "original.Language")
 }
 
-func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, original, proxy *models.File) {
+func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, original, proxy *models.File, isUpdate bool) {
 	// reload unit
 	err := original.L.LoadContentUnit(suite.tx, true, original)
 	suite.Require().Nil(err)
@@ -1689,18 +1885,20 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	suite.Equal(original.ContentUnitID.Int64, proxy.ContentUnitID.Int64, "original.cuid = proxy.cuid")
 
 	// ancestors ?
-	if isDerived {
-		suite.Equal(2, len(cu.R.Files), "len(cu.R.Files)")
-	} else {
-		ancestors, err := FindFileAncestors(suite.tx, original.ID)
-		suite.Require().Nil(err)
-		proxy.L.LoadParent(suite.tx, true, proxy)
-		suite.Require().Nil(err)
-		ancestors = append(ancestors, proxy.R.Parent)
-		suite.Equal(2+len(ancestors), len(cu.R.Files), "len(cu.R.Files)")
-		for i, f := range ancestors {
-			suite.True(f.ContentUnitID.Valid, "Ancestor[%d].ContentUnitID.Valid", i)
-			suite.Equal(original.ContentUnitID.Int64, f.ContentUnitID.Int64, "Ancestor[%d]ContentUnitID.Int64", i)
+	if !isUpdate {
+		if isDerived {
+			suite.Equal(2, len(cu.R.Files), "len(cu.R.Files)")
+		} else {
+			ancestors, err := FindFileAncestors(suite.tx, original.ID)
+			suite.Require().Nil(err)
+			proxy.L.LoadParent(suite.tx, true, proxy)
+			suite.Require().Nil(err)
+			ancestors = append(ancestors, proxy.R.Parent)
+			suite.Equal(2+len(ancestors), len(cu.R.Files), "len(cu.R.Files)")
+			for i, f := range ancestors {
+				suite.True(f.ContentUnitID.Valid, "Ancestor[%d].ContentUnitID.Valid", i)
+				suite.Equal(original.ContentUnitID.Int64, f.ContentUnitID.Int64, "Ancestor[%d]ContentUnitID.Int64", i)
+			}
 		}
 	}
 

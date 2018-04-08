@@ -2,12 +2,13 @@ package api
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	//_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries"
@@ -147,6 +148,85 @@ func TranscodeHandler(c *gin.Context) {
 			}
 		}
 	}
+}
+
+// This endpoint is used in the trim admin workflow
+// We need this for the "fix" / "update" content unit flow.
+// When a trim from capture is made to fix some unit on capture files
+// with multiple descendant units.
+func DescendantUnitsHandler(c *gin.Context) {
+	mdb := c.MustGet("MDB").(*sql.DB)
+
+	f, _, err := FindFileBySHA1(mdb, c.Param("sha1"))
+	if err != nil {
+		if _, ok := err.(FileNotFound); ok {
+			NewNotFoundError().Abort(c)
+		} else if _, ok := errors.Cause(err).(hex.InvalidByteError); ok {
+			NewBadRequestError(err).Abort(c)
+		} else if errors.Cause(err) == hex.ErrLength {
+			NewBadRequestError(err).Abort(c)
+		} else {
+			NewInternalError(err).Abort(c)
+		}
+		return
+	}
+
+	// fetch content unit IDs of all files descendant from given file.
+	// We deliberately exclude derived content units as they are not
+	// explicitly created in the workflow (so no reason to change them)
+	var cuIDs pq.Int64Array
+	q := `WITH RECURSIVE rf AS (
+  SELECT f.*
+  FROM files f
+  WHERE f.id = $1
+  UNION
+  SELECT f.*
+  FROM files f INNER JOIN rf ON f.parent_id = rf.id
+) SELECT array_agg(DISTINCT rf.content_unit_id)
+  FILTER (WHERE rf.content_unit_id IS NOT NULL)
+  FROM rf 
+	INNER JOIN content_units cu ON rf.content_unit_id = cu.id AND NOT (cu.type_id = ANY($2))`
+	err = queries.Raw(mdb, q, f.ID, pq.Array([]int64{
+		//CONTENT_TYPE_REGISTRY.ByName[CT_KITEI_MAKOR].ID,  // created in workflow
+		//CONTENT_TYPE_REGISTRY.ByName[CT_LELO_MIKUD].ID,   // created in workflow
+		CONTENT_TYPE_REGISTRY.ByName[CT_PUBLICATION].ID,
+	})).QueryRow().Scan(&cuIDs)
+	if err != nil {
+		NewInternalError(err).Abort(c)
+		return
+	}
+
+	if len(cuIDs) == 0 {
+		c.JSON(http.StatusOK, NewContentUnitsResponse())
+		return
+	}
+
+	// fetch units by previously found IDs
+	units, err := models.ContentUnits(mdb,
+		qm.WhereIn("id in ?", utils.ConvertArgsInt64(cuIDs)...),
+		qm.Load("ContentUnitI18ns")).
+		All()
+	if err != nil {
+		NewInternalError(err).Abort(c)
+		return
+	}
+
+	// i18n
+	data := make([]*ContentUnit, len(units))
+	for i, cu := range units {
+		x := &ContentUnit{ContentUnit: *cu}
+		data[i] = x
+		x.I18n = make(map[string]*models.ContentUnitI18n, len(cu.R.ContentUnitI18ns))
+		for _, i18n := range cu.R.ContentUnitI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+	}
+
+	c.JSON(http.StatusOK, ContentUnitsResponse{
+		ListResponse: ListResponse{Total: int64(len(data))},
+		ContentUnits: data,
+	})
+	return
 }
 
 // Handler logic
@@ -345,8 +425,18 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 		}
 	}
 
-	log.Info("Processing CIT Metadata")
-	evnts, err := ProcessCITMetadata(exec, r.Metadata, original, proxy)
+	mode := "new"
+	if r.Metadata.Mode.Valid {
+		mode = r.Metadata.Mode.String
+	}
+
+	log.Info("Processing CIT Metadata: %s mode", mode)
+	var evnts []events.Event
+	if mode == "new" {
+		evnts, err = ProcessCITMetadata(exec, r.Metadata, original, proxy)
+	} else {
+		evnts, err = ProcessCITMetadataUpdate(exec, r.Metadata, original, proxy)
+	}
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Process CIT Metadata")
 	}

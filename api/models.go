@@ -77,6 +77,8 @@ type (
 		Major          *CITMetadataMajor `json:"major" binding:"omitempty"`
 		LabelID        null.String       `json:"label_id"`
 		FilmDate       *Date             `json:"film_date"`
+		Mode           null.String       `json:"mode"`
+		UnitToFixUID   null.String       `json:"fix_unit_uid" binding:"omitempty,len=8"`
 	}
 
 	Rename struct {

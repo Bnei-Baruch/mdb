@@ -167,6 +167,16 @@ func FilePublishedEvent(f *models.File) Event {
 	})
 }
 
+func FileRemoveEvent(f *models.File) Event {
+	return makeEvent(E_FILE_REMOVE, map[string]interface{}{
+		"id":  f.ID,
+		"uid": f.UID,
+		//"name": f.Name,
+		//"size": f.Size,
+		//"sha1": hex.EncodeToString(f.Sha1.Bytes),
+	})
+}
+
 func SourceCreateEvent(s *models.Source) Event {
 	return makeEvent(E_SOURCE_CREATE, map[string]interface{}{
 		"id":  s.ID,

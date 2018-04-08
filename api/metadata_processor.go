@@ -2,21 +2,28 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
 	"strconv"
+	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/emirpasic/gods/sets/hashset"
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
-	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/volatiletech/sqlboiler/queries"
-	"strings"
 )
+
+func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) ([]events.Event, error) {
+	return doProcess(exec, metadata, original, proxy, nil)
+}
 
 // Do all stuff for processing metadata coming from Content Identification Tool.
 // 	1. Update properties for original and proxy (film_date, capture_date)
@@ -31,8 +38,9 @@ import (
 // 	10. Associate collection and unit
 // 	11. Associate unit and derived units
 // 	12. Set default permissions ?!
-func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) ([]events.Event, error) {
-	log.Info("Processing CITMetadata")
+func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models.File, cu *models.ContentUnit) ([]events.Event, error) {
+	isUpdate := cu != nil
+	log.Infof("Processing CITMetadata, isUpdate: %t", isUpdate)
 
 	// Update properties for original and proxy (film_date, capture_date)
 	filmDate := metadata.CaptureDate
@@ -83,7 +91,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	isDerived := metadata.ArtifactType.Valid && metadata.ArtifactType.String != "main"
 	ct := metadata.ContentType
 	if isDerived {
-		// TODO: verify user input. artifact_type should be either invalid, "main" or a known content_type
+		// User input is verified below
 		ct = strings.ToUpper(metadata.ArtifactType.String)
 	}
 
@@ -108,17 +116,42 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 		props["part"] = metadata.Part.Int
 	}
 
-	log.Infof("Creating content unit of type %s", ct)
-	cu, err := CreateContentUnit(exec, ct, props)
-	if err != nil {
-		return nil, errors.Wrap(err, "Create content unit")
-	}
-	evnts = append(evnts, events.ContentUnitCreateEvent(cu))
+	if isUpdate {
+		// content_type
+		if ctVal, ok := CONTENT_TYPE_REGISTRY.ByName[ct]; !ok {
+			return nil, errors.Errorf("Unknown content type %s", ct)
+		} else if ctVal.ID != cu.TypeID {
+			// update unit's content type
+			cu.TypeID = ctVal.ID
+			err = cu.Update(exec, "type_id")
+			if err != nil {
+				return nil, errors.Wrap(err, "Update unit type in DB")
+			}
+		}
 
-	log.Infof("Describing content unit [%d]", cu.ID)
-	err = DescribeContentUnit(exec, cu, metadata)
-	if err != nil {
-		log.Errorf("Error describing content unit: %s", err.Error())
+		// props
+		propsBytes, err := json.Marshal(props)
+		if err != nil {
+			return nil, errors.Wrap(err, "json Marshal")
+		}
+		cu.Properties = null.JSONFrom(propsBytes)
+		err = cu.Update(exec, "properties")
+		if err != nil {
+			return nil, errors.Wrap(err, "Update unit properties in DB")
+		}
+	} else {
+		log.Infof("Creating content unit of type %s", ct)
+		cu, err = CreateContentUnit(exec, ct, props)
+		if err != nil {
+			return nil, errors.Wrap(err, "Create content unit")
+		}
+		evnts = append(evnts, events.ContentUnitCreateEvent(cu))
+
+		log.Infof("Describing content unit [%d]", cu.ID)
+		err = DescribeContentUnit(exec, cu, metadata)
+		if err != nil {
+			log.Errorf("Error describing content unit: %s", err.Error())
+		}
 	}
 
 	// Add files to new unit
@@ -129,7 +162,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	}
 
 	// Add ancestor files to unit (not for derived units)
-	if !isDerived {
+	if !isDerived && !isUpdate {
 		log.Info("Main unit, adding ancestors...")
 		ancestors, err := FindFileAncestors(exec, original.ID)
 		if err != nil {
@@ -184,7 +217,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			log.Warnf("Unknown sources: %s", missing)
 		}
 
-		err = cu.AddSources(exec, false, sources...)
+		err = cu.SetSources(exec, false, sources...)
 		if err != nil {
 			return nil, errors.Wrap(err, "Associate sources")
 		}
@@ -216,7 +249,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			}
 			log.Warnf("Unknown sources: %s", missing)
 		}
-		err = cu.AddTags(exec, false, tags...)
+		err = cu.SetTags(exec, false, tags...)
 		if err != nil {
 			return nil, errors.Wrap(err, "Associate tags")
 		}
@@ -226,19 +259,31 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 	if strings.ToLower(metadata.Lecturer) == P_RAV {
 		log.Info("Associating unit to rav")
 		cup := &models.ContentUnitsPerson{
-			PersonID: PERSON_REGISTRY.ByPattern[P_RAV].ID,
-			RoleID:   CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID,
+			ContentUnitID: cu.ID,
+			PersonID:      PERSON_REGISTRY.ByPattern[P_RAV].ID,
+			RoleID:        CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID,
 		}
-		err = cu.AddContentUnitsPersons(exec, true, cup)
+
+		// upsert make sure we either have such relation or insert a new one
+		err = cup.Upsert(exec, false, nil, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "Associate persons")
+		}
+	} else if isUpdate && strings.ToLower(metadata.Lecturer) == "norav" {
+		// in update mode, if norav so we remove relation to rav (if any)
+		cup := &models.ContentUnitsPerson{
+			ContentUnitID: cu.ID,
+			PersonID:      PERSON_REGISTRY.ByPattern[P_RAV].ID,
+		}
+		err = cup.Delete(exec)
+		if err != nil {
+			return nil, errors.Wrap(err, "Delete Rav association")
 		}
 	} else {
 		log.Infof("Unknown lecturer %s, skipping person association.", metadata.Lecturer)
 	}
 
 	// Get or create collection
-	//var c *models.Collection
 	if metadata.CollectionUID.Valid {
 		log.Infof("Specific collection %s", metadata.CollectionUID.String)
 
@@ -261,6 +306,11 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 			}
 			evnts = append(evnts, events.CollectionContentUnitsChangeEvent(c))
 		}
+	}
+
+	// Update mode ends here
+	if isUpdate {
+		return evnts, nil
 	}
 
 	if ct == CT_LESSON_PART || ct == CT_FULL_LESSON {
@@ -489,7 +539,9 @@ func associateUnitToCollection(exec boil.Executor, cu *models.ContentUnit, c *mo
 	}
 
 	log.Infof("Association name: %s", ccu.Name)
-	err = c.AddCollectionsContentUnits(exec, true, ccu)
+	err = ccu.Upsert(exec, true,
+		[]string{"collection_id", "content_unit_id"},
+		[]string{"name", "position"})
 	if err != nil {
 		return errors.Wrap(err, "Save collection and content unit association in DB")
 	}
@@ -572,4 +624,114 @@ WHERE (cu.properties ->> 'part') :: INT = $4`,
 	}
 
 	return cuID, nil
+}
+
+/* send-fix
+
+Sometimes, after a unit was created in a send operation,
+we need to fix it.
+
+Either the metadata that was given is wrong or we might need a different trim.
+For such cases a new button in the trim admin "fix" is made.
+
+The workflow simply shows the same CIT screen and unit selection.
+We should:
+
+1. re-process the metadata in "update" mode
+2. figure out files for removal
+3. mark those as removed
+4. update the unit's published status
+
+*/
+func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) ([]events.Event, error) {
+	unit, err := models.ContentUnits(exec, qm.Where("uid = ?", metadata.UnitToFixUID.String)).One()
+	if err != nil {
+		return nil, errors.Wrapf(err, "lookup unit UID %s", metadata.UnitToFixUID.String)
+	}
+
+	evnts, err := doProcess(exec, metadata, original, proxy, unit)
+	if err != nil {
+		return nil, errors.Wrap(err, "doProcess")
+	}
+
+	// We remove only files generated in convert (carbon)
+	// and previous trimmed not in our path.
+	// Other, manually inserted, files are not touched and are left to admin
+	// to figure out what to do with them.
+
+	// Figure out merged set of file IDs
+	// which are either ancestor of original or proxy
+	// These should be excluded from removal.
+	mutualAncestors := hashset.New()
+	oPath, err := FindFileAncestors(exec, original.ID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "lookup original ancestors %s", original.ID)
+	}
+	for i := range oPath {
+		mutualAncestors.Add(oPath[i].ID)
+	}
+
+	pPath, err := FindFileAncestors(exec, proxy.ID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "lookup proxy ancestors %s", original.ID)
+	}
+	for i := range pPath {
+		mutualAncestors.Add(pPath[i].ID)
+	}
+	ancestorsIDs := mutualAncestors.Values()
+	log.Infof("ancestorsIDs: %v", ancestorsIDs)
+
+	// fetch file IDs to remove
+	var fIDs pq.Int64Array
+	q := `SELECT array_agg(distinct f.id)
+FROM files f
+  INNER JOIN files_operations fo ON f.id = fo.file_id
+  INNER JOIN operations o ON fo.operation_id = o.id AND o.type_id = ANY($1)
+WHERE f.content_unit_id = $2 AND NOT f.id = ANY($3) 
+`
+	err = queries.Raw(exec, q, pq.Array([]int64{
+		OPERATION_TYPE_REGISTRY.ByName[OP_TRIM].ID,
+		OPERATION_TYPE_REGISTRY.ByName[OP_CONVERT].ID,
+	}), unit.ID, pq.Array(ancestorsIDs)).QueryRow().Scan(&fIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetch file IDs to remove")
+	}
+
+	log.Infof("%d files to remove: %v", len(fIDs), fIDs)
+	wasPublished := false
+	if len(fIDs) > 0 {
+		// actual removal
+		err = models.Files(exec,
+			qm.WhereIn("id in ?", utils.ConvertArgsInt64(fIDs)...)).
+			UpdateAll(models.M{
+				"removed_at": null.TimeFrom(time.Now().UTC()),
+			})
+		if err != nil {
+			return nil, errors.Wrap(err, "Update files to remove")
+		}
+
+		// file removed events
+		removedFiles, err := models.Files(exec,
+			qm.Select("id", "uid", "published"),
+			qm.WhereIn("id in ?", utils.ConvertArgsInt64(fIDs)...)).
+			All()
+		if err != nil {
+			return nil, errors.Wrap(err, "Refresh files to remove")
+		}
+
+		for i := range removedFiles {
+			evnts = append(evnts, events.FileRemoveEvent(removedFiles[i]))
+			wasPublished = wasPublished || removedFiles[i].Published
+		}
+
+	}
+
+	// unit published status change
+	impact, err := FileLeftUnitImpact(exec, wasPublished, unit.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "File left impact")
+	}
+	evnts = append(evnts, impact.Events()...)
+
+	return evnts, nil
 }
