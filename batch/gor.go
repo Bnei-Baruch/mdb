@@ -3,6 +3,7 @@ package batch
 import (
 	"bufio"
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -51,7 +53,8 @@ func ReadRequestsLog() {
 	rMap, err := readLog("requests.log.combined")
 	utils.Must(err)
 	fmt.Printf("len(rMap) %d\n", len(rMap))
-	utils.Must(printFiltered(rMap))
+	//utils.Must(printFiltered(rMap))
+	utils.Must(replayInsertWErr(rMap))
 	//utils.Must(replayTranscodeWErr(rMap))
 	//utils.Must(replayConvertWErr(rMap))
 }
@@ -242,11 +245,7 @@ func replayConvertWErr(rMap map[string]*Request) error {
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			fmt.Println("response Status:", resp.Status)
-			fmt.Println("response Headers:", resp.Header)
-			body, _ := ioutil.ReadAll(resp.Body)
-			fmt.Println("response Body:", string(body))
-			resp.Body.Close()
+			dumpHttpResponse(resp)
 		}
 	}
 
@@ -293,11 +292,69 @@ func replayTranscodeWErr(rMap map[string]*Request) error {
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			fmt.Println("response Status:", resp.Status)
-			fmt.Println("response Headers:", resp.Header)
-			body, _ := ioutil.ReadAll(resp.Body)
-			fmt.Println("response Body:", string(body))
-			resp.Body.Close()
+			dumpHttpResponse(resp)
+		}
+	}
+
+	return nil
+}
+
+func replayInsertWErr(rMap map[string]*Request) error {
+	log.Info("Setting up connection to MDB")
+	mdb, err := sql.Open("postgres", viper.GetString("mdb.url"))
+	utils.Must(err)
+	utils.Must(mdb.Ping())
+	defer mdb.Close()
+
+	filter := andFilters(
+		payloadHasPrefixFilter("POST /operations/insert"),
+		responseHasSuffixFilter("400 Bad Request"),
+	)
+	wErr := filterRequests(rMap, filter)
+	fmt.Printf("wErr %d\n", len(wErr))
+
+	client := &http.Client{}
+	for i := range wErr {
+		r := wErr[i]
+		strPayload := r.Payload[len(r.Payload)-1]
+
+		strPayload = strings.Replace(strPayload, "\"publisher_uid\":\"null\"", "\"publisher_uid\":\"\"", 1)
+
+		var body api.InsertRequest
+		err := json.Unmarshal([]byte(strPayload), &body)
+		if err != nil {
+			fmt.Errorf("json.Unmarshal %s : %s", r.Meta.ID, err.Error())
+		}
+
+		_, _, err = api.FindFileBySHA1(mdb, body.Sha1)
+		if err != nil {
+			if _, ok := err.(api.FileNotFound); ok {
+				body.Mode = "new"
+			} else {
+				log.Fatalf("Lookup file by sha1 %s: %s", body.Sha1, err.Error())
+			}
+		} else {
+			body.Mode = "rename"
+		}
+
+		bodyPayload, err := json.Marshal(body)
+		if err != nil {
+			return errors.Wrapf(err, "json.Marshal %s", r.Meta.ID)
+		}
+
+		req, err := http.NewRequest("POST",
+			"http://localhost:8080/operations/insert",
+			bytes.NewReader(bodyPayload))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return errors.Wrapf(err, "http client.Do %s", r.Meta.ID)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			dumpHttpResponse(resp)
+			fmt.Println(strPayload)
 		}
 	}
 
@@ -324,4 +381,12 @@ func printFiltered(rMap map[string]*Request) error {
 	}
 
 	return nil
+}
+
+func dumpHttpResponse(resp *http.Response) {
+	fmt.Println("response Status:", resp.Status)
+	fmt.Println("response Headers:", resp.Header)
+	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println("response Body:", string(body))
+	resp.Body.Close()
 }
