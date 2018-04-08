@@ -106,6 +106,7 @@ var (
 		{Extension: "mpg", Type: "video", SubType: "", MimeType: "video/mpeg"},
 		{Extension: "avi", Type: "video", SubType: "", MimeType: "video/x-msvideo"},
 		{Extension: "mp3", Type: "audio", SubType: "", MimeType: "audio/mpeg"},
+		{Extension: "mp3", Type: "audio", SubType: "", MimeType: "audio/mp3"},
 		{Extension: "wma", Type: "audio", SubType: "", MimeType: "audio/x-ms-wma"},
 		{Extension: "mid", Type: "audio", SubType: "", MimeType: "audio/midi"},
 		{Extension: "wav", Type: "audio", SubType: "", MimeType: "audio/x-wav"},

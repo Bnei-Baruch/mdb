@@ -632,6 +632,10 @@ func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, [
 	}
 }
 
+// modes:
+// new - create new file
+// update - create new file and remove old file
+// rename - change metadata of previously inserted file
 func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(InsertRequest)
 
@@ -698,8 +702,8 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 		return nil, nil, err
 	}
 
-	// Create new file
-	log.Info("Creating new file")
+	// process metadata
+	log.Info("Processing metadata")
 	if r.File.Type == "" {
 		switch r.InsertType {
 		case "akladot", "tamlil", "kitei-makor", "article":
@@ -720,10 +724,38 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 		props["video_size"] = r.AVFile.VideoSize
 	}
 
-	file, err = CreateFile(exec, parent, r.File, props)
-	if err != nil {
-		return nil, nil, err
+	// create new file based on mode
+	if r.Mode == "new" || r.Mode == "update" {
+		log.Info("Creating new file")
+		file, err = CreateFile(exec, parent, r.File, props)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else if r.Mode == "rename" {
+		log.Info("Renaming existing file")
+
+		// make a temp file
+		mf, err := makeFile(parent, r.File, props)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Make file")
+		}
+
+		// set new attributes
+		file.Name = mf.Name
+		file.Type = mf.Type
+		file.SubType = mf.SubType
+		file.MimeType = mf.MimeType
+		file.Language = mf.Language
+		file.Properties = mf.Properties
+		file.ParentID = mf.ParentID
+
+		// save
+		err = file.Update(exec)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Update file")
+		}
 	}
+
 	opFiles = append(opFiles, file)
 
 	// special types logic
@@ -824,6 +856,8 @@ FROM content_units cu
 	// remove oldFile in update mode and collect events
 	if r.Mode == "new" {
 		evnts = append(evnts, events.FileInsertEvent(file, r.InsertType))
+	} else if r.Mode == "rename" {
+		evnts = append(evnts, events.FileUpdateEvent(file))
 	} else if r.Mode == "update" {
 		evnts = append(evnts, events.FileReplaceEvent(oldFile, file, r.InsertType))
 
