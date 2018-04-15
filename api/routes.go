@@ -5,6 +5,8 @@ import (
 )
 
 func SetupRoutes(router *gin.Engine) {
+	router.GET("/health_check", HealthCheckHandler)
+
 	operations := router.Group("operations")
 	operations.POST("/capture_start", CaptureStartHandler)
 	operations.POST("/capture_stop", CaptureStopHandler)
