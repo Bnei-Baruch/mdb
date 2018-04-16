@@ -697,7 +697,7 @@ func (n ShamatiNamer) GetName(author *models.Author, path []*models.Source) (map
 
 type ZoharNamer struct{}
 
-// <path[0]>, <path[1].description>, <path[2:]>
+// <path[0]>,  <path[2:]>
 func (n ZoharNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
 	names := make(map[string]string)
 	for _, language := range ALL_LANGS {
@@ -705,27 +705,24 @@ func (n ZoharNamer) GetName(author *models.Author, path []*models.Source) (map[s
 
 		// sources path names
 		for i, s := range path {
+			if i == 1 {
+				continue
+			}
+
 			i18n := getSourceI18n(s, language)
 			if i18n == nil {
 				break
 			}
 
-			var val string
-			if i == 1 && i18n.Description.Valid {
-				val = i18n.Description.String
-			}
-			if i != 1 && i18n.Name.Valid {
-				val = i18n.Name.String
-			}
-			if val == "" {
+			if i18n.Name.Valid {
+				vals = append(vals, i18n.Name.String)
+			} else {
 				break
 			}
-
-			vals = append(vals, val)
 		}
 
 		// skip if we don't have all i18ns
-		if len(vals) != len(path) {
+		if len(vals)+1 != len(path) {
 			continue
 		}
 

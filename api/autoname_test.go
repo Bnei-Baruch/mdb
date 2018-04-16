@@ -283,5 +283,5 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
 	name = names[LANG_HEBREW]
-	suite.Equal("source 1. source 2 description. source 3. source 4", name, "name")
+	suite.Equal("source 1. source 3. source 4", name, "name")
 }
