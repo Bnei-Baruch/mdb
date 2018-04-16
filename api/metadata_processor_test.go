@@ -1751,6 +1751,11 @@ func (suite *MetadataProcessorSuite) simulateConvertUpload(original *models.File
 		suite.Require().Nil(err)
 
 		for _, f := range op.R.Files {
+			// This is the trimmed file, not converted...
+			if f.ID == original.ID {
+				continue
+			}
+
 			sha1Str := hex.EncodeToString(f.Sha1.Bytes)
 			files[sha1Str] = f
 

@@ -663,6 +663,7 @@ func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original
 	// which are either ancestor of original or proxy
 	// These should be excluded from removal.
 	mutualAncestors := hashset.New()
+
 	oPath, err := FindFileAncestors(exec, original.ID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "lookup original ancestors %s", original.ID)
@@ -679,6 +680,10 @@ func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original
 		mutualAncestors.Add(pPath[i].ID)
 	}
 	ancestorsIDs := mutualAncestors.Values()
+
+	// These are the fix. Not the problem. Don't remove them
+	ancestorsIDs = append(ancestorsIDs, original.ID, proxy.ID)
+
 	log.Infof("ancestorsIDs: %v", ancestorsIDs)
 
 	// fetch file IDs to remove
