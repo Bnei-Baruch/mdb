@@ -3,192 +3,224 @@
     "he": "שיעור יומי",
     "en": "Daily Lesson",
     "ru": "Урок",
+    "es": "Lección Diaria",
     "ua": "Урок"
   },
   "content_type.SPECIAL_LESSON": {
     "he": "שיעור יומי",
     "en": "Daily Lesson",
     "ru": "Урок",
+    "es": "Lección Diaria",
     "ua": "Урок"
   },
   "content_type.FRIENDS_GATHERINGS": {
     "he": "ישיבות חברים",
     "en": "Gatherings of Friends",
     "ru": "Ешиват Хаверим",
+    "es": "Asamblea de Amigos",
     "ua": "Єшиват Хаверім"
   },
   "content_type.CONGRESS": {
     "he": "כנס",
     "en": "Convention",
     "ru": "Конгресс",
+    "es": "Congreso",
     "ua": "Конгрес"
   },
   "content_type.VIDEO_PROGRAM": {
     "he": "תוכנית טלוויזיה",
     "en": "TV Show",
     "ru": "ТВ Программа",
+    "es": "Programa",
     "ua": "ТВ Програма"
   },
   "content_type.LECTURE_SERIES": {
     "he": "סדרת הרצאות",
     "en": "Lecture Series",
     "ru": "Серия Лекций",
+    "es": "Serie de Charlas",
     "ua": "Серія Лекцій"
   },
   "content_type.CHILDREN_LESSONS": {
     "he": "שיעורי ילדים",
     "en": "Children Lessons",
     "ru": "Дети Уроки",
+    "es": "Lección de Niños",
     "ua": "Діти Уроки"
   },
   "content_type.WOMEN_LESSONS": {
     "he": "שיעורי נשים",
     "en": "Women Lessons",
     "ru": "Женщины Уроки",
+    "es": "Lección de Mujeres",
     "ua": "Жінки Уроки"
   },
   "content_type.VIRTUAL_LESSONS": {
     "he": "שיעורים וירטואלים",
     "en": "Virtual Lessons",
     "ru": "Виртуальный Уроки",
+    "es": "Lecciones Virtuales",
     "ua": "Віртуальний Уроки"
   },
   "content_type.MEALS": {
     "he": "סעודות",
     "en": "Meals",
     "ru": "Трапезы",
+    "es": "Comidas",
     "ua": "Трапези"
   },
   "content_type.HOLIDAY": {
     "he": "חג",
     "en": "Holiday",
     "ru": "Праздник",
+    "es": "Fiestas",
     "ua": "Свято"
   },
   "content_type.PICNIC": {
     "he": "פיקניק",
     "en": "Picnic",
     "ru": "Пикник",
+    "es": "Picnic",
     "ua": "Пікнік"
   },
   "content_type.UNITY_DAY": {
     "he": "יום איחוד",
     "en": "Unity Day",
     "ru": "День Народного Единства",
+    "es": "Día de Unión",
     "ua": "День Народної Єдності"
   },
   "content_type.CLIPS": {
     "he": "קליפים",
     "en": "Clips",
     "ru": "Клипсы",
+    "es": "Clips",
     "ua": "Кліпи"
   },
   "content_type.ARTICLES": {
     "he": "מאמרים",
     "en": "Articles",
     "ru": "Статьи",
+    "es": "Artículos",
     "ua": "Статті"
   },
   "content_type.LESSON_PART": {
     "he": "חלק שיעור",
     "en": "Lesson Part",
     "ru": "Урок Часть",
+    "es": "Parte de la Lección",
     "ua": "Урок Частина"
   },
   "content_type.LECTURE": {
     "he": "הרצאה",
     "en": "Lecture",
     "ru": "Лекция",
+    "es": "Charla",
     "ua": "Лекція"
   },
   "content_type.CHILDREN_LESSON": {
     "he": "שיעור ילדים",
     "en": "Children Lesson",
     "ru": "Дети Урок",
+    "es": "Lección de Niños",
     "ua": "Діти Урок"
   },
   "content_type.WOMEN_LESSON": {
     "he": "שיעור נשים",
     "en": "Women Lesson",
     "ru": "Женщины Урок",
+    "es": "Lección de Mujeres",
     "ua": "Жінки Урок"
   },
   "content_type.VIRTUAL_LESSON": {
     "he": "שיעור וירטואלי",
     "en": "Virtual Lesson",
     "ru": "Виртуальный Урок",
+    "es": "Lección Virtual",
     "ua": "Віртуальний Урок"
   },
   "content_type.FRIENDS_GATHERING": {
     "he": "ישיבת חברים",
     "en": "Gathering of Friends",
     "ru": "Ешиват Хаверим",
+    "es": "Asamblea de Amigos",
     "ua": "Єшиват Хаверім"
   },
   "content_type.MEAL": {
     "he": "סעודה",
     "en": "Meal",
     "ru": "Трапеза",
+    "es": "Comida",
     "ua": "Трапеза"
   },
   "content_type.VIDEO_PROGRAM_CHAPTER": {
     "he": "פרק",
     "en": "Episode",
     "ru": "Эпизод",
+    "es": "Capitulo",
     "ua": "Епізод"
   },
   "content_type.FULL_LESSON": {
     "he": "שיעור מלא",
     "en": "Full Lesson",
     "ru": "Полный Урок",
+    "es": "Lección Completa",
     "ua": "Цілий Урок"
   },
   "content_type.ARTICLE": {
     "he": "מאמר",
     "en": "Article",
     "ru": "Статья",
+    "es": "Articulo",
     "ua": "Стаття"
   },
   "content_type.UNKNOWN": {
     "he": "לא ידוע",
     "en": "Unknown",
     "ru": "Неизвестный",
+    "es": "Desconocido",
     "ua": "Невідомий"
   },
   "content_type.EVENT_PART": {
     "he": "חלק מאירוע",
     "en": "Event Part",
     "ru": "Событие Часть",
+    "es": "Parte del Evento",
     "ua": "Подія Частина"
   },
   "content_type.CLIP": {
     "he": "קליפ",
     "en": "Clip",
     "ru": "Клип",
+    "es": "Clip",
     "ua": "Кліп"
   },
   "content_type.TRAINING": {
     "he": "הכשרה",
     "en": "Training",
     "ru": "Обучение",
+    "es": "Entrenamiento",
     "ua": "Навчання"
   },
   "content_type.KITEI_MAKOR": {
     "he": "קטעי מקור",
     "en": "Source Excerpts",
     "ru": "Исходные Выдержки",
+    "es": "Extractos de Fuentes",
     "ua": "Початкові Витяги"
   },
   "content_type.PUBLICATION": {
     "he": "פירסום",
     "en": "Publication",
     "ru": "Публикация",
+    "es": "Publicidad",
     "ua": "Публікація"
   },
   "content_type.LELO_MIKUD": {
     "he": "ללא קבוצת מיקוד",
     "en": "Without Focus Group",
     "ru": "Без Фокус-Группы",
+    "es": "Editado - sin grupo de enfoque",
     "ua": "Без Фокус-Групи"
   },
   "autoname.lesson_by_topic_tag": {
@@ -202,12 +234,14 @@
     "he": "הכנה לשיעור",
     "en": "Preparation to the Lesson",
     "ru": "Подготовка к Уроку",
+    "es": "Preparación para la Lección",
     "ua": "Підготовка до Уроку"
   },
   "autoname.record": {
     "he": "רשומה",
     "en": "Record",
     "ru": "Записка",
+    "es": "Récord",
     "ua": "Записка"
   },
   "autoname.lfq8P1du": {
