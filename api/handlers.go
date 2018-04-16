@@ -514,6 +514,17 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "Update file")
 			}
+
+			// restore files that were removed as they are now recreated a fresh.
+			// they were probably removed in update mode to send operation, aka fix.
+			if f.RemovedAt.Valid {
+				f.RemovedAt = null.NewTime(time.Unix(0, 0), false)
+				err = f.Update(exec, "removed_at")
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "Restore file")
+				}
+			}
+
 			evnts = append(evnts, events.FileUpdateEvent(f))
 		} else {
 			if _, ok := err.(FileNotFound); ok {
