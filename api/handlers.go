@@ -426,11 +426,11 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	}
 
 	mode := "new"
-	if r.Metadata.Mode.Valid {
-		mode = r.Metadata.Mode.String
+	if r.Mode.Valid {
+		mode = r.Mode.String
 	}
 
-	log.Info("Processing CIT Metadata: %s mode", mode)
+	log.Infof("Processing CIT Metadata: %s mode", mode)
 	var evnts []events.Event
 	if mode == "new" {
 		evnts, err = ProcessCITMetadata(exec, r.Metadata, original, proxy)

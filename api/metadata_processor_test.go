@@ -975,7 +975,6 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	cu, err := tf.Original.ContentUnit(suite.tx).One()
 	suite.Require().Nil(err)
 
-	metadata.Mode = null.StringFrom("update")
 	metadata.UnitToFixUID = null.StringFrom(cu.UID)
 	metadata.ContentType = CT_CLIP
 	metadata.ArtifactType = null.NewString("", false)
