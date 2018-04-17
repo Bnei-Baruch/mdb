@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -34,6 +35,7 @@ func initConfig() {
 	}
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Println("Could not read config, using: ", viper.ConfigFileUsed(), err.Error())
