@@ -1027,8 +1027,7 @@ func handleOperation(c *gin.Context, input interface{}, opHandler OperationHandl
 	}
 
 	if err == nil {
-		emitter := c.MustGet("EVENTS_EMITTER").(events.EventEmitter)
-		emitter.Emit(evnts...)
+		emitEvents(c, evnts...)
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	} else {
 		switch err.(type) {

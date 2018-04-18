@@ -4365,7 +4365,7 @@ func appendTagsFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f TagsFilter)
 }
 
 // mustBeginTx begins a transaction, panics on error.
-func mustBeginTx(c *gin.Context) *sql.Tx {
+func mustBeginTx(c utils.ContextProvider) *sql.Tx {
 	tx, err := c.MustGet("MDB").(*sql.DB).Begin()
 	utils.Must(err)
 	return tx
@@ -4381,6 +4381,17 @@ func mustConcludeTx(tx *sql.Tx, err *HttpError) {
 	}
 }
 
+func mdbReplicationLocation(c utils.ContextProvider) (string, error) {
+	var loc string
+	err := c.MustGet("MDB").(*sql.DB).
+		QueryRow("SELECT pg_current_xlog_insert_location();").
+		Scan(&loc)
+	if err != nil {
+		return "", errors.Wrap(err, "Fetch Replication Position")
+	}
+	return loc, nil
+}
+
 // concludeRequest responds with JSON of given response or aborts the request with the given error.
 func concludeRequest(c *gin.Context, resp interface{}, err *HttpError) {
 	if err == nil {
@@ -4391,6 +4402,24 @@ func concludeRequest(c *gin.Context, resp interface{}, err *HttpError) {
 }
 
 func emitEvents(cp utils.ContextProvider, evnts ...events.Event) {
+	if len(evnts) == 0 {
+		return
+	}
+
+	// We attach postgresql replication log location
+	// so that clients could verify that their stand-bys are synced
+	// see:
+	// https://blog.2ndquadrant.com/postgresql-10-transaction-traceability/
+	// https://www.postgresql.org/docs/9.6/static/functions-admin.html
+	// https://www.postgresql.org/docs/9.6/static/datatype-pg-lsn.html
+	if rLoc, err := mdbReplicationLocation(cp); err != nil {
+		log.Errorf("emitEvents: rLoc: %+v", err)
+	} else {
+		for i := range evnts {
+			evnts[i].ReplicationLocation = rLoc
+		}
+	}
+
 	cp.MustGet("EVENTS_EMITTER").(events.EventEmitter).Emit(evnts...)
 }
 

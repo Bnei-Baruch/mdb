@@ -5,9 +5,10 @@ import (
 )
 
 type Event struct {
-	ID      string                 `json:"id"`
-	Type    string                 `json:"type"`
-	Payload map[string]interface{} `json:"payload"`
+	ID                  string                 `json:"id"`
+	Type                string                 `json:"type"`
+	ReplicationLocation string                 `json:"rloc"`
+	Payload             map[string]interface{} `json:"payload"`
 }
 
 func makeEvent(Type string, Payload map[string]interface{}) Event {
