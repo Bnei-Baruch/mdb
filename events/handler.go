@@ -19,6 +19,7 @@ func (eh *LoggerEventHandler) Handle(event Event) {
 	log.WithFields(log.Fields{
 		"id":      event.ID,
 		"type":    event.Type,
+		"rloc":    event.ReplicationLocation,
 		"payload": event.Payload,
 	}).Info("event")
 }
