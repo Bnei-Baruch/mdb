@@ -117,6 +117,7 @@ var (
 		{Extension: "bmp", Type: "image", SubType: "", MimeType: "image/bmp"},
 		{Extension: "tif", Type: "image", SubType: "", MimeType: "image/tiff"},
 		{Extension: "zip", Type: "image", SubType: "", MimeType: "application/zip"},
+		{Extension: "zip", Type: "image", SubType: "", MimeType: "application/x-zip-compressed"},
 		{Extension: "7z", Type: "image", SubType: "", MimeType: "application/x-7z-compressed"},
 		{Extension: "rar", Type: "image", SubType: "", MimeType: "application/x-rar-compressed"},
 		{Extension: "sfk", Type: "image", SubType: "", MimeType: ""},
