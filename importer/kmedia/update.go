@@ -16,6 +16,8 @@ import (
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/vattle/sqlboiler/queries"
+	"gopkg.in/nullbio/null.v6"
 )
 
 func UpdateI18ns() {
@@ -24,6 +26,8 @@ func UpdateI18ns() {
 
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	//log.SetLevel(log.WarnLevel)
+
+	stats = NewImportStatistics()
 
 	log.Info("Starting Kmedia unit updates")
 
@@ -50,6 +54,8 @@ func UpdateI18ns() {
 	//log.Info("Updating collections")
 	//utils.Must(doCollections())
 
+	stats.dump()
+
 	log.Info("Success")
 	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
 }
@@ -57,7 +63,7 @@ func UpdateI18ns() {
 func doUnits() error {
 	log.Info("Loading all units with kmedia_id")
 	units, err := models.ContentUnits(mdb,
-		qm.Where("created_at > '2018-01-01'"),
+		//qm.Where("created_at > '2018-01-01'"),
 		qm.Where("properties -> 'kmedia_id' is not null")).
 		All()
 	if err != nil {
@@ -125,40 +131,104 @@ func updateUnitWorker(jobs <-chan *models.ContentUnit, wg *sync.WaitGroup) {
 		u.Properties.Unmarshal(&props)
 		kID := props["kmedia_id"]
 
-		descriptions, err := kmodels.ContainerDescriptions(kmdb,
-			qm.Where("container_id = ?", kID)).
-			All()
+		var lecturerID null.Int
+		err := queries.Raw(kmdb, "select lecturer_id from containers where id = $1", kID).QueryRow().Scan(&lecturerID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				log.Warnf("no kmedia container ID: %d", int(kID.(float64)))
+			} else {
+				log.Error(err)
+				debug.PrintStack()
+				continue
+			}
+		}
+		stats.ContainersVisited.Inc(1)
+
+		err = u.L.LoadContentUnitsPersons(mdb, true, u)
 		if err != nil {
 			log.Error(err)
 			debug.PrintStack()
 			continue
 		}
 
-		tx, err := mdb.Begin()
-		utils.Must(err)
 
-		for _, d := range descriptions {
-			if (d.ContainerDesc.Valid && d.ContainerDesc.String != "") ||
-				(d.Descr.Valid && d.Descr.String != "") {
-				cui18n := models.ContentUnitI18n{
-					ContentUnitID: u.ID,
-					Language:      api.LANG_MAP[d.LangID.String],
-					Name:          d.ContainerDesc,
-					Description:   d.Descr,
-				}
-				err = cui18n.Upsert(tx,
-					true,
-					[]string{"content_unit_id", "language"},
-					[]string{"name", "description"})
-				if err != nil {
-					log.Error(err)
-					debug.PrintStack()
-					utils.Must(tx.Rollback())
-				}
+		hasRav := false
+		for i := range u.R.ContentUnitsPersons {
+			if u.R.ContentUnitsPersons[i].PersonID == 1 {
+				hasRav = true
+				break
 			}
 		}
 
-		utils.Must(tx.Commit())
+		if lecturerID.IsZero() {
+			// no rav
+			if hasRav {
+				log.Infof("norav has rav: kmID %d mdbID %d", int(kID.(float64)), u.ID)
+				stats.UnkownCatalogs.Inc("norav => rav", 1)
+
+				// TODO: fix manually as there are only few
+			} else {
+				// These are good
+				stats.UnkownCatalogs.Inc("norav => norav", 1)
+			}
+		} else {
+			// rav
+			if !hasRav {
+				//log.Infof("Missing Rav: kmID %d mdbID %d", int(kID.(float64)), u.ID)
+				stats.UnkownCatalogs.Inc("rav => norav", 1)
+
+				tx, err := mdb.Begin()
+				utils.Must(err)
+
+				// create association to RAV
+				cup := models.ContentUnitsPerson{
+					PersonID: 1, // rav in mdb
+					ContentUnitID: u.ID,
+					RoleID: 1, // lecturer
+				}
+				cup.Insert(tx)
+
+				utils.Must(tx.Commit())
+			} else {
+				// These are good
+				stats.UnkownCatalogs.Inc("rav => rav", 1)
+			}
+		}
+
+		//descriptions, err := kmodels.ContainerDescriptions(kmdb,
+		//	qm.Where("container_id = ?", kID)).
+		//	All()
+		//if err != nil {
+		//	log.Error(err)
+		//	debug.PrintStack()
+		//	continue
+		//}
+		//
+		//tx, err := mdb.Begin()
+		//utils.Must(err)
+		//
+		//for _, d := range descriptions {
+		//	if (d.ContainerDesc.Valid && d.ContainerDesc.String != "") ||
+		//		(d.Descr.Valid && d.Descr.String != "") {
+		//		cui18n := models.ContentUnitI18n{
+		//			ContentUnitID: u.ID,
+		//			Language:      api.LANG_MAP[d.LangID.String],
+		//			Name:          d.ContainerDesc,
+		//			Description:   d.Descr,
+		//		}
+		//		err = cui18n.Upsert(tx,
+		//			true,
+		//			[]string{"content_unit_id", "language"},
+		//			[]string{"name", "description"})
+		//		if err != nil {
+		//			log.Error(err)
+		//			debug.PrintStack()
+		//			utils.Must(tx.Rollback())
+		//		}
+		//	}
+		//}
+		//
+		//utils.Must(tx.Commit())
 	}
 	wg.Done()
 }
