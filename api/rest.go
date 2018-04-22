@@ -1442,7 +1442,9 @@ func handleCollectionsList(cp utils.ContextProvider, exec boil.Executor, r Colle
 	appendPublishedFilterMods(&mods, r.PublishedFilter)
 
 	// count query
-	total, err := models.Collections(exec, mods...).Count()
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	err := models.Collections(exec, countMods...).QueryRow().Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -1934,7 +1936,9 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 	appendPublishedFilterMods(&mods, r.PublishedFilter)
 
 	// count query
-	total, err := models.ContentUnits(exec, mods...).Count()
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	err := models.ContentUnits(exec, countMods...).QueryRow().Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3085,7 +3089,9 @@ func handleFilesList(cp utils.ContextProvider, exec boil.Executor, r FilesReques
 	}*/
 
 	// count query
-	total, err := models.Files(exec, mods...).Count()
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	err := models.Files(exec, countMods...).QueryRow().Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3248,7 +3254,9 @@ func handleOperationsList(exec boil.Executor, r OperationsRequest) (*OperationsR
 	}
 
 	// count query
-	total, err := models.Operations(exec, mods...).Count()
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	err := models.Operations(exec, countMods...).QueryRow().Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3315,7 +3323,9 @@ func handleGetSources(exec boil.Executor, r SourcesRequest) (*SourcesResponse, *
 	mods := make([]qm.QueryMod, 0)
 
 	// count query
-	total, err := models.Sources(exec, mods...).Count()
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	err := models.Sources(exec, countMods...).QueryRow().Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3506,7 +3516,9 @@ func handleGetTags(exec boil.Executor, r TagsRequest) (*TagsResponse, *HttpError
 	mods := make([]qm.QueryMod, 0)
 
 	// count query
-	total, err := models.Tags(exec, mods...).Count()
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	err := models.Tags(exec, countMods...).QueryRow().Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3668,7 +3680,9 @@ func handlePersonsList(exec boil.Executor, r PersonsRequest) (*PersonsResponse, 
 	}
 
 	// count query
-	total, err := models.Persons(exec, mods...).Count()
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	err := models.Persons(exec, countMods...).QueryRow().Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3838,7 +3852,9 @@ func handleStoragesList(exec boil.Executor, r StoragesRequest) (*StoragesRespons
 	mods := make([]qm.QueryMod, 0)
 
 	// count query
-	total, err := models.Storages(exec, mods...).Count()
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	err := models.Storages(exec, countMods...).QueryRow().Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3878,7 +3894,9 @@ func handlePublishersList(exec boil.Executor, r PublishersRequest) (*PublishersR
 	}
 
 	// count query
-	total, err := models.Publishers(exec, mods...).Count()
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	err := models.Publishers(exec, countMods...).QueryRow().Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4019,6 +4037,10 @@ func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.Pub
 // Query Helpers
 
 func appendListMods(mods *[]qm.QueryMod, r ListRequest) error {
+
+	// group by id to remove duplicates
+	*mods = append(*mods, qm.GroupBy("id"))
+
 	if r.OrderBy == "" {
 		*mods = append(*mods, qm.OrderBy("id desc"))
 	} else {
