@@ -104,6 +104,13 @@
     "es": "Artículos",
     "ua": "Статті"
   },
+  "content_type.LESSONS_SERIES": {
+    "he": "סדרת שיעורים",
+    "en": "Lessons Series",
+    "ru": "Серия Уроки",
+    "es": "Serie de Lecciones",
+    "ua": "Серія Уроки"
+  },
   "content_type.LESSON_PART": {
     "he": "חלק שיעור",
     "en": "Lesson Part",
