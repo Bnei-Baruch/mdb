@@ -48,3 +48,14 @@ INSERT INTO tags (id, uid, pattern) VALUES
   (13, 'L8daQ2n7', 'test-tag-pattern-13'),
   (14, '0jt04pix', 'test-tag-pattern-14'),
   (15, '0QygF8Ib', 'test-tag-pattern-15');
+
+
+DO $a$
+DECLARE ver integer;
+BEGIN
+  SELECT current_setting('server_version_num') INTO ver;
+  IF (ver >= 90600) THEN
+    EXECUTE 'CREATE OR REPLACE FUNCTION pg_current_xlog_insert_location() RETURNS pg_lsn AS $$ SELECT pg_current_wal_insert_lsn();$$ LANGUAGE SQL;';
+  END IF;
+END
+$a$;
