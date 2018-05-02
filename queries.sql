@@ -522,11 +522,10 @@ WITH RECURSIVE rec_sources AS (
   FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
   --   WHERE rs.depth < 2
 )
-SELECT *
+SELECT id, uid, "he.name", "ru.name"
 FROM rec_sources
 ORDER BY path, position
-) TO '/var/lib/postgres/data/all_sources.csv'  (
-FORMAT CSV );
+) TO STDOUT WITH CSV HEADER;
 
 -- all tags for translation
 COPY (
@@ -559,8 +558,7 @@ WITH RECURSIVE rec_tags AS (
 SELECT *
 FROM rec_tags
 ORDER BY path
-) TO '/var/lib/postgres/data/all_tags.csv'  (
-FORMAT CSV );
+) TO STDOUT WITH CSV HEADER;
 
 
 -- all sources for roza mappings
@@ -1027,3 +1025,23 @@ GROUP BY properties ->> 'kmedia_id'
 HAVING count(id) > 1
 ORDER BY count(id);
 
+select
+  cu.id,
+  ccu.position,
+  ccu.name,
+  concat('https://archive.kbb1.com/he/programs/cu/', cu.uid)
+from content_units cu
+  inner join collections_content_units ccu on cu.id = ccu.content_unit_id
+  inner join collections c on ccu.collection_id = c.id
+  inner join collection_i18n ci on c.id = ci.collection_id and ci.name = 'חיים חדשים'
+where cu.type_id = 20 and cu.secure = 0 and cu.published is true
+order by ccu.position asc, (coalesce(cu.properties ->> 'film_date', cu.created_at :: text)) :: date, cu.created_at;
+
+
+
+
+-- add backward compatible version of wal lsn
+CREATE FUNCTION pg_current_xlog_insert_location()
+  RETURNS pg_lsn AS $$
+SELECT pg_current_wal_insert_lsn();
+$$ LANGUAGE SQL;
