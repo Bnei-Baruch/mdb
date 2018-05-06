@@ -4088,9 +4088,7 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 		return nil
 	}
 
-	whereParts := []string{}
-
-	fMods := make([]qm.QueryMod, 0)
+	var whereParts []string
 
 	// id field - must be unsigned int
 	if id, err := strconv.ParseUint(f.Query, 10, 64); err == nil {
@@ -4151,11 +4149,9 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 		}
 	}
 
-	whereQuery := fmt.Sprintf("(%s)", strings.Join(whereParts, " or "))
-	fMods = append(fMods, qm.And(whereQuery))
-
-	if len(fMods) > 0 {
-		*mods = append(*mods, fMods...)
+	if len(whereParts) > 0 {
+		whereQuery := fmt.Sprintf("(%s)", strings.Join(whereParts, " or "))
+		*mods = append(*mods, qm.And(whereQuery))
 	} else {
 		*mods = append(*mods, qm.Where("id < 0")) // so we get back empty results
 	}
