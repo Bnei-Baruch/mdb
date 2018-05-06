@@ -4450,7 +4450,7 @@ func can(cp utils.ContextProvider, obj string, act string) bool {
 	if v, ok := cp.Get("ID_TOKEN_CLAIMS"); ok {
 		claims := v.(permissions.IDTokenClaims)
 		sub = claims.RealmAccess.Roles
-		log.Infof("Subject is %s %s with roles %v", claims.Sub, claims.Name, sub)
+		//log.Infof("Subject is %s %s with roles %v", claims.Sub, claims.Name, sub)
 	} else {
 		// bypass hack for workflow insert station
 		if act == PERM_READ && cp.(*gin.Context).ClientIP() == "146.185.60.45" {
@@ -4470,7 +4470,7 @@ func can(cp utils.ContextProvider, obj string, act string) bool {
 		}
 	}
 
-	log.Warnf("DENY %v, %s, %s", sub, obj, act)
+	//log.Warnf("DENY %v, %s, %s", sub, obj, act)
 	return false
 }
 
@@ -4519,13 +4519,13 @@ func allowedSecure(cp utils.ContextProvider, act string) int16 {
 
 		// workflow insert station
 		if clientIP == "146.185.60.45" {
-			log.Info("Workflow Insert station secure level")
+			//log.Info("Workflow Insert station secure level")
 			return SEC_PRIVATE
 		}
 
 		// internal network (hopefully MDB-CIT [aka rename])
 		if strings.HasPrefix(clientIP, "10.") {
-			log.Infof("Internal network secure level: %s", clientIP)
+			//log.Infof("Internal network secure level: %s", clientIP)
 			return SEC_PRIVATE
 		}
 	}
