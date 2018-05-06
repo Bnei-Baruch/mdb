@@ -49,7 +49,7 @@ func AuthenticationMiddleware() gin.HandlerFunc {
 
 				token, err := verifier.Verify(context.TODO(), authHeader[1])
 				if err != nil {
-					c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
+					c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
 					return
 				}
 
@@ -59,7 +59,7 @@ func AuthenticationMiddleware() gin.HandlerFunc {
 				// parse claims
 				var claims IDTokenClaims
 				if err := token.Claims(&claims); err != nil {
-					c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
+					c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
 					return
 				}
 
