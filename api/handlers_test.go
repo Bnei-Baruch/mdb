@@ -372,8 +372,9 @@ func (suite *HandlersSuite) TestHandleSend() {
 	// Do send operation
 	input := SendRequest{
 		Operation: Operation{
-			Station: "Trimmer station",
-			User:    "operator@dev.com",
+			Station:    "Trimmer station",
+			User:       "operator@dev.com",
+			WorkflowID: "t123456789",
 		},
 		Original: Rename{
 			Sha1:     ofi.Sha1,
@@ -398,6 +399,7 @@ func (suite *HandlersSuite) TestHandleSend() {
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
+	suite.Equal(input.Operation.WorkflowID, props["workflow_id"], "properties: workflow_id")
 
 	// Check user
 	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
@@ -1252,7 +1254,7 @@ func (suite *HandlersSuite) TestHandleInsertRenameMode() {
 			},
 			Duration: 123.4,
 		},
-		Mode:    "rename",
+		Mode: "rename",
 	}
 
 	op, evnts, err := handleInsert(suite.tx, input)

@@ -697,6 +697,21 @@ FROM content_units cu
 WHERE cui.content_unit_id IS NULL;
 
 
+-- add last update workflow id from send operation to unit
+-- based on parsing the file name
+UPDATE content_units cu
+SET properties = properties || jsonb_build_object('workflow_id', tmp.wfid) FROM
+  (SELECT DISTINCT ON (cu.id)
+     cu.id,
+     cu.uid,
+     (regexp_matches(f.name, '.*_([t|d][\d+]*)o\.mp4')) [1] AS wfid
+   FROM operations o INNER JOIN files_operations fo ON o.id = fo.operation_id AND o.type_id = 4
+     INNER JOIN files f ON fo.file_id = f.id AND f.content_unit_id IS NOT NULL and f.name like '%o.mp4'
+     inner join content_units cu on f.content_unit_id = cu.id
+   GROUP BY cu.id, o.id, f.name
+   ORDER BY cu.id, o.id, f.name DESC) AS tmp
+WHERE cu.id = tmp.id;
+
 SELECT "content_units".* FROM "content_units" INNER JOIN content_units_sources cus ON id = cus.content_unit_id WHERE (secure=0 AND published IS TRUE) AND "type_id" IN (11) AND "cus"."source_id" IN (1754,1755,1756,1757,1758,1759,1760,1761,1762,1763,1764,1765,1766,1767,1768,1769,1770,1771,1772,1773,1774,1775,1776,1777,1778,1779,1780,1781,1782,1783,1784,1785,1786,1787,1788,1789,1790,1791,1792,1793,1794,1795,1796,1797,1798,1799,1800,1801,1802,1803,1804,1805,1806,1807,1808,1809,1810,1811,1812,1813) ORDER BY (properties->>'film_date')::date desc, created_at desc LIMIT 10;
 
 SELECT "content_units".* FROM "content_units" INNER JOIN content_units_sources cus ON id = cus.content_unit_id WHERE (secure=0 AND published IS TRUE) AND "type_id" IN (11) AND "cus"."source_id" IN (1754,1755,1756,1757,1758,1759,1760,1761,1762,1763,1764,1765,1766,1767,1768,1769,1770,1771,1772,1773,1774,1775,1776,1777,1778,1779,1780,1781,1782,1783,1784,1785,1786,1787,1788,1789,1790,1791,1792,1793,1794,1795,1796,1797,1798,1799,1800,1801,1802,1803,1804,1805,1806,1807,1808,1809,1810,1811,1812,1813) group by content_units.id ORDER BY (properties->>'film_date')::date desc, created_at desc LIMIT 10;
@@ -1038,7 +1053,21 @@ where cu.type_id = 20 and cu.secure = 0 and cu.published is true
 order by ccu.position asc, (coalesce(cu.properties ->> 'film_date', cu.created_at :: text)) :: date, cu.created_at;
 
 
-
+-- set ccu position by film_date
+UPDATE collections_content_units
+SET position = s.row_number
+FROM (select
+        cu.id,
+        cu.properties ->> 'film_date',
+        ccu.position,
+        ROW_NUMBER()
+        OVER (
+          ORDER BY cu.properties ->> 'film_date' ) as row_number
+      from
+        collections_content_units ccu inner join content_units cu
+          on ccu.content_unit_id = cu.id and ccu.collection_id = 10560
+      order by cu.properties ->> 'film_date') AS s
+WHERE content_unit_id = s.id and collection_id = 10560;
 
 -- add backward compatible version of wal lsn
 CREATE FUNCTION pg_current_xlog_insert_location()

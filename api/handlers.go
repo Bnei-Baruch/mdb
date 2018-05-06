@@ -461,6 +461,18 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 		return nil, nil, errors.Wrap(err, "Associate files")
 	}
 
+	log.Infof("Updating unit workflow_id to: %s", r.WorkflowID)
+	err = original.L.LoadContentUnit(exec, true, original)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "refresh original's unit: %d", original.ContentUnitID.Int64)
+	}
+	err = UpdateContentUnitProperties(exec, original.R.ContentUnit, map[string]interface{}{
+		"workflow_id": r.WorkflowID,
+	})
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "unit workflow_id: %d", original.ContentUnitID.Int64)
+	}
+
 	return operation, evnts, nil
 }
 
