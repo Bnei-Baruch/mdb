@@ -4109,9 +4109,9 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 
 		// file sha1
 		if len(f.Query) == 40 {
-			s, err := hex.DecodeString(f.Query)
+			_, err := hex.DecodeString(f.Query)  // make sure it's a hex string
 			if err == nil {
-				whereParts = append(whereParts, fmt.Sprintf("sha1 = '%s'", string(s)))
+				whereParts = append(whereParts, fmt.Sprintf("sha1 = '\\x%s'", f.Query))
 			}
 		}
 	case SEARCH_IN_CONTENT_UNITS:
