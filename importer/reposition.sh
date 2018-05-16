@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+array=( 11774 11251 11263 11262 11261 11260 11259 11258 11257 11256 11255 11254 11253 11252 11250 11249 11248 11247 11246 11245 11244 11243 11242 11241 11240 11239 11238 11237 11236 11235 11234 11233 11232 11231 11230 11229 10682 10683 )
+for i in "${array[@]}"
+do
+	sed "s/__cid__/${i}/g" reposition.tpl.sql > reposition.sql
+
+    psql -q -h pgsql.mdb.bbdomain.org -U mdb -d mdb -f reposition.sql
+done

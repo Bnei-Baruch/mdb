@@ -537,6 +537,8 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []
 				}
 			}
 
+			// TODO: Here we might change an unit published status...
+
 			evnts = append(evnts, events.FileUpdateEvent(f))
 		} else {
 			if _, ok := err.(FileNotFound); ok {

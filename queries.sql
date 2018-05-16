@@ -406,6 +406,8 @@ UPDATE content_units
 SET properties = properties - 'artifact_type'
 WHERE id = 1;
 
+select properties - 'artifact_type' from content_units limit 1;
+
 copy (
 WITH RECURSIVE rec_sources AS (
   SELECT
@@ -1074,3 +1076,28 @@ CREATE FUNCTION pg_current_xlog_insert_location()
   RETURNS pg_lsn AS $$
 SELECT pg_current_wal_insert_lsn();
 $$ LANGUAGE SQL;
+
+select *
+from (
+       select
+         cu.*,
+         row_number()
+         over (
+           partition by cu.type_id
+           order by (coalesce(cu.properties ->> 'film_date', cu.created_at :: TEXT)) :: DATE DESC, cu.created_at DESC )
+           as rownum
+       from tags t
+         inner join content_units_tags cut on t.id = cut.tag_id
+         inner join content_units cu on cut.content_unit_id = cu.id and cu.secure = 0 and cu.published is true
+       where t.id in (WITH RECURSIVE rec_tags AS (
+         SELECT t.id
+         FROM tags t
+         WHERE t.uid = '1nyptSIo'
+         UNION
+         SELECT t.id
+         FROM tags t INNER JOIN rec_tags rt ON t.parent_id = rt.id
+       )
+       SELECT distinct id
+       FROM rec_tags)) as tmp
+where rownum < 6;
+

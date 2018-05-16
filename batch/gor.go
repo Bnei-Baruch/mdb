@@ -50,11 +50,11 @@ func (r *Request) dump() {
 }
 
 func ReadRequestsLog() {
-	rMap, err := readLog("requests.log.combined")
+	rMap, err := readLog("requests.log")
 	utils.Must(err)
 	fmt.Printf("len(rMap) %d\n", len(rMap))
-	//utils.Must(printFiltered(rMap))
-	utils.Must(replayInsertWErr(rMap))
+	utils.Must(printFiltered(rMap))
+	//utils.Must(replayInsertWErr(rMap))
 	//utils.Must(replayTranscodeWErr(rMap))
 	//utils.Must(replayConvertWErr(rMap))
 }
@@ -130,7 +130,7 @@ func readLog(path string) (map[string]*Request, error) {
 			if val, ok := rMap[meta.ID]; ok {
 				val.req = false
 			} else {
-				log.Errorf("No Request for Response [Line %d]: %s", ln, meta.ID)
+				log.Warnf("No Request for Response [Line %d]: %s", ln, meta.ID)
 			}
 		} else {
 			if current == nil {
@@ -368,8 +368,8 @@ func printFiltered(rMap map[string]*Request) error {
 	//	responseExcludeSuffixFilter("200 OK"),
 	//)
 	filter := andFilters(
-		//afterFilter(time.Date(2017, 9, 12, 0, 0, 0, 0, time.UTC)),
-		payloadHasPrefixFilter("POST /operations/insert"),
+		afterFilter(time.Date(2018, 5, 1, 0, 0, 0, 0, time.UTC)),
+		//payloadHasPrefixFilter("POST /operations/insert"),
 		responseHasSuffixFilter("400 Bad Request"),
 	)
 
