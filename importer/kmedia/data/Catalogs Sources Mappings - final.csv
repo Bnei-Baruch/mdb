@@ -1883,3 +1883,40 @@ catalog_id,catalog_name,MDB named path
 4249,parashat_ashavua_dvarim_veileh,mr/Tora/Devarim/VaYelech
 4250,parashat_ashavua_dvarim_haazinu,mr/Tora/Devarim/Haazinu
 4251,parashat_ashavua_dvarim_zot-a-braha,mr/Tora/Devarim/Ve Zot HaBracha
+
+100,bs-tes-01_lessons,bs/TES/Vol. 1/Part 1
+307,bs-tes-02_lessons,bs/TES/Vol. 1/Part 2
+634,bs-tes-03_lessons,bs/TES/Vol. 1/Part 3
+635,bs-tes-04_lessons,bs/TES/Vol. 1/Part 4
+717,bs-tes-05_lessons,bs/TES/Vol. 2/Part 5
+15,bs-tes-06_lessons,bs/TES/Vol. 2/Part 6
+90,bs-tes-07_lessons,bs/TES/Vol. 2/Part 7
+97,bs-tes-08_lessons,bs/TES/Vol. 3/Part 8
+28,bs-tes-09_lessons,bs/TES/Vol. 3/Part 9
+714,bs-tes-10_lessons,bs/TES/Vol. 3/Part 10
+88,bs-tes-11_lessons,bs/TES/Vol. 4/Part 11
+718,bs-tes-12_lessons,bs/TES/Vol. 4/Part 12
+1350,bs-tes-13_lessons,bs/TES/Vol. 5/Part 13
+1351,bs-tes-14_lessons,bs/TES/Vol. 5/Part 14
+170,bs-tes-15_lessons,bs/TES/Vol. 6/Part 15
+96,bs-tes-16_lessons,bs/TES/Vol. 6/Part 16
+4826,rb_ar-etss-chayim,ar/Etss Chayim
+4825,rb_ar-shaar-kavanot,ar/Shaar Hakavanot
+2052,rb-avoda-pnimit,rb/Maamarim
+4824,rb_bs-beit-shaar-kavanot,bs/Beit Shaar Kavanot
+4822,rb_bs-pticha,bs/Akdamot/Pticha
+6882,rb_bs-tes-01,bs/TES/Vol. 1/Part 1
+4783,rb_bs-tes-04,bs/TES/Vol. 1/Part 4
+4785,rb_bs-tes-05,bs/TES/Vol. 2/Part 5
+4782,rb_bs-tes-06,bs/TES/Vol. 2/Part 6
+4784,rb_bs-tes-07,bs/TES/Vol. 2/Part 7
+4686,rb_bs-tes-08,bs/TES/Vol. 3/Part 8
+4781,rb_bs-tes-09,bs/TES/Vol. 3/Part 9
+4733,rb_bs-tes-10,bs/TES/Vol. 3/Part 10
+4732,rb_bs-tes-11,bs/TES/Vol. 4/Part 11
+4688,rb_bs-tes-12,bs/TES/Vol. 4/Part 12
+4734,rb_bs-tes-13,bs/TES/Vol. 5/Part 13
+4814,rb_bs-tes-14,bs/TES/Vol. 5/Part 14
+4815,rb_bs-tes-15,bs/TES/Vol. 6/Part 15
+4827,rb_rh-zohar,rh/Zohar La Am
+4085,rb_zohar_safra-dezniuta,rh/Zohar La Am/Vol. 5/Safra De Tzneuta
