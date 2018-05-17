@@ -256,6 +256,8 @@ func fixUnitMappings(mappings []*FileMappings) error {
 	utils.Must(err)
 	unexpectedCT := map[int64]bool{
 		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_KITEI_MAKOR].ID: true,
+		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_LELO_MIKUD].ID: true,
+		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_PUBLICATION].ID: true,
 	}
 	for k, v := range bySize {
 		fmt.Printf("size %d\n", k)

@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"strings"
 	"time"
 
@@ -15,10 +13,14 @@ import (
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
+	"fmt"
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"io/ioutil"
+	"regexp"
+	"sort"
 )
 
 func Compare() {
@@ -122,6 +124,93 @@ func compareUnits() error {
 	return nil
 }
 
+type Grouper interface {
+	Match(*kmodels.Container) bool
+	String() string
+}
+
+type ContentTypeGrouper struct {
+	TypeID int
+}
+
+func NewContentTypeGrouper(typeID int) *ContentTypeGrouper {
+	g := new(ContentTypeGrouper)
+	g.TypeID = typeID
+	return g
+}
+
+func (g *ContentTypeGrouper) String() string {
+	return fmt.Sprintf("%d", g.TypeID)
+}
+
+func (g *ContentTypeGrouper) Match(cn *kmodels.Container) bool {
+	return g.TypeID == cn.ContentTypeID.Int && (g.TypeID != 7 || cn.ID != 24502)
+}
+
+type RegexGrouper struct {
+	re   *regexp.Regexp
+	name string
+}
+
+func NewRegexGrouper(name, re string) *RegexGrouper {
+	g := new(RegexGrouper)
+	g.name = name
+	g.re = regexp.MustCompile(re)
+	return g
+}
+
+func (g *RegexGrouper) String() string {
+	return g.name
+}
+
+func (g *RegexGrouper) Match(cn *kmodels.Container) bool {
+	return g.re.MatchString(cn.Name.String)
+}
+
+type PredicateGrouper struct {
+	fn   func(cn *kmodels.Container) bool
+	name string
+}
+
+func NewPredicateGrouper(name string, fn func(cn *kmodels.Container) bool) *PredicateGrouper {
+	g := new(PredicateGrouper)
+	g.name = name
+	g.fn = fn
+	return g
+}
+
+func (g *PredicateGrouper) String() string {
+	return g.name
+}
+
+func (g *PredicateGrouper) Match(cn *kmodels.Container) bool {
+	return g.fn(cn)
+}
+
+var groupers = []Grouper{
+	NewContentTypeGrouper(2),  // clip
+	NewContentTypeGrouper(3),  // song
+	NewContentTypeGrouper(5),  // lecture
+	NewContentTypeGrouper(6),  // book
+	NewContentTypeGrouper(7),  // declamation
+	NewContentTypeGrouper(10), // text
+
+	NewRegexGrouper("rabash", "(?i)(^rb_)|(_rb_)"),
+	NewRegexGrouper("maamar", "(?i)Maamar_zohoraim|mzohoraim"),
+	NewRegexGrouper("ulpan", "(?i)UlpanIvrit"),
+	NewRegexGrouper("hodaot", "(?i)hodaot"),
+	NewRegexGrouper("lesson summary", "(?i)lesson-summary"),
+	NewRegexGrouper("YH", "(?i)yeshivat-haverim"),
+	NewRegexGrouper("websites", "(?i)website"),
+
+	NewPredicateGrouper("misc - public", func(cn *kmodels.Container) bool {
+		return cn.Secure == 0
+	}),
+	NewPredicateGrouper("misc - private", func(cn *kmodels.Container) bool {
+		return cn.Secure != 0
+	}),
+}
+
 func missingContainers() error {
 	cuMap := make(map[int]bool)
 
@@ -149,18 +238,87 @@ func missingContainers() error {
 		return errors.Wrap(err, "Load containers")
 	}
 
+	missing := make(map[string][]*kmodels.Container, 0)
+	for i := range containers {
+		cn := containers[i]
+		if _, ok := cuMap[cn.ID]; !ok {
+			err := cn.L.LoadFileAssets(kmdb, true, cn)
+			if err != nil {
+				return errors.Wrapf(err, "Load File Assets cnID %d", cn.ID)
+			}
+
+			if len(cn.R.FileAssets) == 0 {
+				continue
+			}
+
+			var key string
+			for j := range groupers {
+				if groupers[j].Match(cn) {
+					key = groupers[j].String()
+					break
+				}
+			}
+			if key == "" {
+				key = "misc"
+			}
+
+			if v, ok := missing[key]; ok {
+				missing[key] = append(v, cn)
+			} else {
+				missing[key] = []*kmodels.Container{cn}
+			}
+		}
+	}
+
+	for _, v := range missing {
+		sort.Slice(v, func(i, j int) bool {
+			a := v[i]
+			b := v[j]
+
+			if a.ContentTypeID.Int != b.ContentTypeID.Int {
+				return a.ContentTypeID.Int < b.ContentTypeID.Int
+			}
+
+			if !a.Filmdate.Time.Equal(b.Filmdate.Time) {
+				return a.Filmdate.Time.Before(b.Filmdate.Time)
+			}
+
+			return a.Name.String < b.Name.String
+		})
+	}
+
 	f, err := ioutil.TempFile("/tmp", "kmedia_compare")
 	if err != nil {
 		return errors.Wrap(err, "Create temp file")
 	}
 	defer f.Close()
-
 	log.Infof("Report file: %s", f.Name())
 
-	for i := range containers {
-		cn := containers[i]
-		if _, ok := cuMap[cn.ID]; !ok {
-			_, err := fmt.Fprintf(f, "%d\t%d\t%s\t%s\t%d\n", cn.ID, cn.ContentTypeID.Int, cn.Filmdate.Time.Format("2006-01-02"), cn.Name.String, cn.VirtualLessonID.Int)
+	names := make([]string, len(groupers)+1)
+
+	for i := range groupers {
+		names[i] = groupers[i].String()
+	}
+	names[len(names)-1] = "misc"
+
+	for i := range names {
+		v := missing[names[i]]
+		fmt.Fprintf(f, "%s\t\t\t%d\n", names[i], len(v))
+	}
+
+	for i := range names {
+		v := missing[names[i]]
+		fmt.Fprintf(f, "\n\n#################\n%s\t%d\n#################\n\n", names[i], len(v))
+		for i := range v {
+			cn := v[i]
+			_, err := fmt.Fprintf(f, "%d\t%d\t%s\t%s\t%d\t%d\n",
+				cn.ID,
+				cn.ContentTypeID.Int,
+				cn.Filmdate.Time.Format("2006-01-02"),
+				cn.Name.String,
+				cn.VirtualLessonID.Int,
+				cn.Secure,
+			)
 			if err != nil {
 				return errors.Wrapf(err, "Write tsv row %d", cn.ID)
 			}
