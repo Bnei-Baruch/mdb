@@ -111,6 +111,20 @@
     "es": "Serie de Lecciones",
     "ua": "Серія Уроки"
   },
+  "content_type.SONGS": {
+    "he": "שירים",
+    "en": "Songs",
+    "ru": "песни",
+    "es": "Canciones",
+    "ua": "Пісні"
+  },
+  "content_type.BOOKS": {
+    "he": "ספרים",
+    "en": "Books",
+    "ru": "книги",
+    "es": "Libros",
+    "ua": "Книги"
+  },
   "content_type.LESSON_PART": {
     "he": "חלק שיעור",
     "en": "Lesson Part",
@@ -229,6 +243,27 @@
     "ru": "Без Фокус-Группы",
     "es": "Editado - sin grupo de enfoque",
     "ua": "Без Фокус-Групи"
+  },
+  "content_type.SONG": {
+    "he": "שיר",
+    "en": "Song",
+    "ru": "песня",
+    "es": "Canción",
+    "ua": "Пісня"
+  },
+  "content_type.BOOK": {
+    "he": "ספר",
+    "en": "Book",
+    "ru": "Книга",
+    "es": "Libro",
+    "ua": "Книга"
+  },
+  "content_type.BLOG_POST": {
+    "he": "פוסט בבלוג",
+    "en": "Blog Post",
+    "ru": "Сообщение блога",
+    "es": "Entrada en el blog",
+    "ua": "Публікація блогів"
   },
   "autoname.lesson_by_topic_tag": {
     "he": "שיעור%s בנושא",
