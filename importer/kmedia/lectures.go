@@ -1,14 +1,11 @@
 package kmedia
 
 import (
-	"database/sql"
 	"runtime/debug"
-	"strconv"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
@@ -62,89 +59,6 @@ func importLectures(catalogID int) error {
 		} else {
 			utils.Must(tx.Commit())
 			stats.TxCommitted.Inc(1)
-		}
-	}
-
-	return nil
-}
-
-func importContainerWCollection(exec boil.Executor, container *kmodels.Container, collection *models.Collection, cuType string) error {
-	stats.ContainersProcessed.Inc(1)
-
-	unit, err := models.ContentUnits(mdb, qm.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One()
-	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Infof("New CU %d %s", container.ID, container.Name.String)
-			return importContainerWCollectionNewCU(exec, container, collection, cuType)
-		}
-		return errors.Wrapf(err, "Lookup content unit kmid %s", container.ID)
-	}
-
-	log.Infof("CU exists [%d] container: %s %d", unit.ID, container.Name.String, container.ID)
-	_, err = importContainer(exec, container, collection, cuType,
-		strconv.Itoa(container.Position.Int), container.Position.Int)
-	if err != nil {
-		return errors.Wrapf(err, "Import container %d", container.ID)
-	}
-
-	if cuType != api.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
-		log.Infof("Overriding CU Type to %s", cuType)
-		unit.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[cuType].ID
-		err = unit.Update(exec, "type_id")
-		if err != nil {
-			return errors.Wrapf(err, "Update CU type %d", unit.ID)
-		}
-	}
-
-	return nil
-}
-
-func importContainerWCollectionNewCU(exec boil.Executor, container *kmodels.Container, collection *models.Collection, cuType string) error {
-	err := container.L.LoadFileAssets(kmdb, true, container)
-	if err != nil {
-		return errors.Wrapf(err, "Load kmedia file assets %d", container.ID)
-	}
-
-	// Create import operation
-	operation, err := api.CreateOperation(exec, api.OP_IMPORT_KMEDIA,
-		api.Operation{WorkflowID: strconv.Itoa(container.ID)}, nil)
-	if err != nil {
-		return errors.Wrapf(err, "Create operation %d", container.ID)
-	}
-	stats.OperationsCreated.Inc(1)
-
-	// import container
-	unit, err := importContainer(exec, container, collection, cuType,
-		strconv.Itoa(container.Position.Int), container.Position.Int)
-	if err != nil {
-		return errors.Wrapf(err, "Import container %d", container.ID)
-	}
-
-	// import container files
-	var file *models.File
-	for _, fileAsset := range container.R.FileAssets {
-		log.Infof("Processing file_asset %d", fileAsset.ID)
-		stats.FileAssetsProcessed.Inc(1)
-
-		// Create or update MDB file
-		file, err = importFileAsset(exec, fileAsset, unit, operation)
-		if err != nil {
-			log.Error(err)
-			debug.PrintStack()
-			break
-		}
-		if file != nil && file.Published {
-			unit.Published = true
-		}
-	}
-	if err != nil {
-		return errors.Wrapf(err, "Import container files %d", container.ID)
-	}
-
-	if unit.Published {
-		err = unit.Update(exec, "published")
-		if err != nil {
-			return errors.Wrapf(err, "Update unit published column %d", container.ID)
 		}
 	}
 

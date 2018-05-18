@@ -9,8 +9,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
 	"fmt"
@@ -24,30 +22,9 @@ import (
 )
 
 func Compare() {
-	var err error
-	clock := time.Now()
+	clock := Init()
 
-	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
-	//log.SetLevel(log.WarnLevel)
-
-	log.Info("Starting Kmedia compare")
-
-	log.Info("Setting up connection to MDB")
-	mdb, err = sql.Open("postgres", viper.GetString("mdb.url"))
-	utils.Must(err)
-	utils.Must(mdb.Ping())
-	defer mdb.Close()
-	boil.SetDB(mdb)
-	//boil.DebugMode = true
-
-	log.Info("Setting up connection to Kmedia")
-	kmdb, err = sql.Open("postgres", viper.GetString("kmedia.url"))
-	utils.Must(err)
-	utils.Must(kmdb.Ping())
-	defer kmdb.Close()
-
-	log.Info("Initializing static data from MDB")
-	utils.Must(api.InitTypeRegistries(mdb))
+	stats = NewImportStatistics()
 
 	log.Info("Loading kmedia catalogs hierarchy")
 	utils.Must(loadCatalogHierarchy())
@@ -59,7 +36,15 @@ func Compare() {
 	//utils.Must(compareUnits())
 
 	log.Info("Missing containers")
-	utils.Must(missingContainers())
+	//_, err := missingContainers()
+	missing, err := missingContainers()
+	utils.Must(err)
+
+	utils.Must(importMissingContainers(missing))
+
+	stats.dump()
+
+	Shutdown()
 
 	log.Info("Success")
 	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
@@ -196,22 +181,22 @@ var groupers = []Grouper{
 	NewContentTypeGrouper(10), // text
 
 	NewRegexGrouper("rabash", "(?i)(^rb_)|(_rb_)"),
+	NewRegexGrouper("YH", "(?i)yeshivat-haverim"),
 	NewRegexGrouper("maamar", "(?i)Maamar_zohoraim|mzohoraim"),
-	NewRegexGrouper("ulpan", "(?i)UlpanIvrit"),
 	NewRegexGrouper("hodaot", "(?i)hodaot"),
 	NewRegexGrouper("lesson summary", "(?i)lesson-summary"),
-	NewRegexGrouper("YH", "(?i)yeshivat-haverim"),
+	NewRegexGrouper("ulpan", "(?i)UlpanIvrit"),
 	NewRegexGrouper("websites", "(?i)website"),
 
-	NewPredicateGrouper("misc - public", func(cn *kmodels.Container) bool {
-		return cn.Secure == 0
-	}),
-	NewPredicateGrouper("misc - private", func(cn *kmodels.Container) bool {
-		return cn.Secure != 0
-	}),
+	//NewPredicateGrouper("misc - public", func(cn *kmodels.Container) bool {
+	//	return cn.Secure == 0
+	//}),
+	//NewPredicateGrouper("misc - private", func(cn *kmodels.Container) bool {
+	//	return cn.Secure != 0
+	//}),
 }
 
-func missingContainers() error {
+func missingContainers() (map[string][]*kmodels.Container, error) {
 	cuMap := make(map[int]bool)
 
 	log.Info("Loading all content units with kmedia_id")
@@ -219,7 +204,7 @@ func missingContainers() error {
 		qm.Where("properties -> 'kmedia_id' is not null")).
 		All()
 	if err != nil {
-		return errors.Wrap(err, "Load content_units from mdb")
+		return nil, errors.Wrap(err, "Load content_units from mdb")
 	}
 	log.Infof("Got %d units", len(units))
 
@@ -228,14 +213,14 @@ func missingContainers() error {
 		var props map[string]interface{}
 		err := json.Unmarshal(cu.Properties.JSON, &props)
 		if err != nil {
-			return errors.Wrapf(err, "json.Unmarshal unit properties %d", cu.ID)
+			return nil, errors.Wrapf(err, "json.Unmarshal unit properties %d", cu.ID)
 		}
 		cuMap[int(props["kmedia_id"].(float64))] = true
 	}
 
 	containers, err := kmodels.Containers(kmdb).All()
 	if err != nil {
-		return errors.Wrap(err, "Load containers")
+		return nil, errors.Wrap(err, "Load containers")
 	}
 
 	missing := make(map[string][]*kmodels.Container, 0)
@@ -244,7 +229,7 @@ func missingContainers() error {
 		if _, ok := cuMap[cn.ID]; !ok {
 			err := cn.L.LoadFileAssets(kmdb, true, cn)
 			if err != nil {
-				return errors.Wrapf(err, "Load File Assets cnID %d", cn.ID)
+				return nil, errors.Wrapf(err, "Load File Assets cnID %d", cn.ID)
 			}
 
 			if len(cn.R.FileAssets) == 0 {
@@ -289,7 +274,7 @@ func missingContainers() error {
 
 	f, err := ioutil.TempFile("/tmp", "kmedia_compare")
 	if err != nil {
-		return errors.Wrap(err, "Create temp file")
+		return nil, errors.Wrap(err, "Create temp file")
 	}
 	defer f.Close()
 	log.Infof("Report file: %s", f.Name())
@@ -320,9 +305,241 @@ func missingContainers() error {
 				cn.Secure,
 			)
 			if err != nil {
-				return errors.Wrapf(err, "Write tsv row %d", cn.ID)
+				return nil, errors.Wrapf(err, "Write tsv row %d", cn.ID)
 			}
 		}
+	}
+
+	return missing, nil
+}
+
+func importMissingContainers(missing map[string][]*kmodels.Container) error {
+
+	// clips
+	cns := missing["2"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		stats.ContainersProcessed.Inc(1)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_CLIP)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import clip %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// songs
+	cns = missing["3"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		stats.ContainersProcessed.Inc(1)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_SONG)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import song %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// lectures
+	cns = missing["5"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		stats.ContainersProcessed.Inc(1)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_LECTURE)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import lecture %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// books
+	cns = missing["6"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		stats.ContainersProcessed.Inc(1)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_BOOK)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import book %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// declamation
+	cns = missing["7"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		stats.ContainersProcessed.Inc(1)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_BLOG_POST)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import declamation %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// texts
+	collection, err := models.FindCollection(mdb, 11825)
+	utils.Must(err)
+	cns = missing["10"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		err = importContainerWCollection(tx, cns[i], collection, api.CT_UNKNOWN)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import text %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// rabash
+	cns = missing["rabash"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		collection, err = api.CreateCollection(tx, api.CT_DAILY_LESSON, map[string]interface{}{
+			"film_date":         "1970-01-01",
+			"original_language": api.LANG_HEBREW,
+			"kmedia_rabash":     true,
+		})
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Create rabash lesson %d", cns[i].ID)
+		}
+
+
+		err = importContainerWCollection(tx, cns[i], collection, api.CT_LESSON_PART)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import rabash %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// YH
+	cns = missing["YH"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		stats.ContainersProcessed.Inc(1)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_FRIENDS_GATHERING)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import YH %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// maamar
+	collection, err = models.FindCollection(mdb, 11821)
+	utils.Must(err)
+	cns = missing["maamar"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		err = importContainerWCollection(tx, cns[i], collection, api.CT_CLIP)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import maamar %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// hodaot
+	collection, err = models.FindCollection(mdb, 11822)
+	utils.Must(err)
+	cns = missing["hodaot"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		err = importContainerWCollection(tx, cns[i], collection, api.CT_CLIP)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import hodaot %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// lesson summary
+	collection, err = models.FindCollection(mdb, 11823)
+	utils.Must(err)
+	cns = missing["lesson summary"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		err = importContainerWCollection(tx, cns[i], collection, api.CT_CLIP)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import lesson summary %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// ulpan ivrit
+	collection, err = models.FindCollection(mdb, 11824)
+	utils.Must(err)
+	cns = missing["ulpan"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		err = importContainerWCollection(tx, cns[i], collection, api.CT_VIDEO_PROGRAM_CHAPTER)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import ulpan ivrit %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// websites
+	collection, err = models.FindCollection(mdb, 11820)
+	utils.Must(err)
+	cns = missing["websites"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		err = importContainerWCollection(tx, cns[i], collection, api.CT_UNKNOWN)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import website %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
+	}
+
+	// misc
+	collection, err = models.FindCollection(mdb, 11826)
+	utils.Must(err)
+	cns = missing["misc"]
+	for i := range cns {
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		err = importContainerWCollection(mdb, cns[i], collection, api.CT_UNKNOWN)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			return errors.Wrapf(err, "Import misc %d", cns[i].ID)
+		}
+		utils.Must(tx.Commit())
 	}
 
 	return nil

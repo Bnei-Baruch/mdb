@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -136,6 +137,89 @@ func importContainerWOCollectionNewCU(exec boil.Executor, container *kmodels.Con
 	return unit, nil
 }
 
+func importContainerWCollection(exec boil.Executor, container *kmodels.Container, collection *models.Collection, cuType string) error {
+	stats.ContainersProcessed.Inc(1)
+
+	unit, err := models.ContentUnits(mdb, qm.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Infof("New CU %d %s", container.ID, container.Name.String)
+			return importContainerWCollectionNewCU(exec, container, collection, cuType)
+		}
+		return errors.Wrapf(err, "Lookup content unit kmid %s", container.ID)
+	}
+
+	log.Infof("CU exists [%d] container: %s %d", unit.ID, container.Name.String, container.ID)
+	_, err = importContainer(exec, container, collection, cuType,
+		strconv.Itoa(container.Position.Int), container.Position.Int)
+	if err != nil {
+		return errors.Wrapf(err, "Import container %d", container.ID)
+	}
+
+	if cuType != api.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
+		log.Infof("Overriding CU Type to %s", cuType)
+		unit.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[cuType].ID
+		err = unit.Update(exec, "type_id")
+		if err != nil {
+			return errors.Wrapf(err, "Update CU type %d", unit.ID)
+		}
+	}
+
+	return nil
+}
+
+func importContainerWCollectionNewCU(exec boil.Executor, container *kmodels.Container, collection *models.Collection, cuType string) error {
+	err := container.L.LoadFileAssets(kmdb, true, container)
+	if err != nil {
+		return errors.Wrapf(err, "Load kmedia file assets %d", container.ID)
+	}
+
+	// Create import operation
+	operation, err := api.CreateOperation(exec, api.OP_IMPORT_KMEDIA,
+		api.Operation{WorkflowID: strconv.Itoa(container.ID)}, nil)
+	if err != nil {
+		return errors.Wrapf(err, "Create operation %d", container.ID)
+	}
+	stats.OperationsCreated.Inc(1)
+
+	// import container
+	unit, err := importContainer(exec, container, collection, cuType,
+		strconv.Itoa(container.Position.Int), container.Position.Int)
+	if err != nil {
+		return errors.Wrapf(err, "Import container %d", container.ID)
+	}
+
+	// import container files
+	var file *models.File
+	for _, fileAsset := range container.R.FileAssets {
+		log.Infof("Processing file_asset %d", fileAsset.ID)
+		stats.FileAssetsProcessed.Inc(1)
+
+		// Create or update MDB file
+		file, err = importFileAsset(exec, fileAsset, unit, operation)
+		if err != nil {
+			log.Error(err)
+			debug.PrintStack()
+			break
+		}
+		if file != nil && file.Published {
+			unit.Published = true
+		}
+	}
+	if err != nil {
+		return errors.Wrapf(err, "Import container files %d", container.ID)
+	}
+
+	if unit.Published {
+		err = unit.Update(exec, "published")
+		if err != nil {
+			return errors.Wrapf(err, "Update unit published column %d", container.ID)
+		}
+	}
+
+	return nil
+}
+
 func importContainer(exec boil.Executor,
 	container *kmodels.Container,
 	collection *models.Collection,
@@ -198,14 +282,35 @@ func importContainer(exec boil.Executor,
 	if err != nil {
 		return nil, errors.Wrapf(err, "Lookup container descriptions, container_id [%d]", container.ID)
 	}
+
+	hasI18n := false
 	for _, d := range descriptions {
 		if (d.ContainerDesc.Valid && d.ContainerDesc.String != "") ||
 			(d.Descr.Valid && d.Descr.String != "") {
+			hasI18n = true
 			cui18n := models.ContentUnitI18n{
 				ContentUnitID: unit.ID,
 				Language:      api.LANG_MAP[d.LangID.String],
 				Name:          d.ContainerDesc,
 				Description:   d.Descr,
+			}
+			err = cui18n.Upsert(exec,
+				true,
+				[]string{"content_unit_id", "language"},
+				[]string{"name", "description"})
+			if err != nil {
+				return nil, errors.Wrapf(err, "Upsert unit i18n, unit [%d]", unit.ID)
+			}
+		}
+	}
+
+	// no i18n - use container name
+	if !hasI18n && container.Name.Valid {
+		for _, lang := range []string{api.LANG_ENGLISH, api.LANG_HEBREW, api.LANG_RUSSIAN, api.LANG_SPANISH} {
+			cui18n := models.ContentUnitI18n{
+				ContentUnitID: unit.ID,
+				Language:      lang,
+				Name:          container.Name,
 			}
 			err = cui18n.Upsert(exec,
 				true,
@@ -286,6 +391,21 @@ func importContainer(exec boil.Executor,
 	err = unit.SetTags(exec, false, tags...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Set tags, unit [%d]", unit.ID)
+	}
+
+	// person
+	if container.LecturerID.Valid {
+		person := mapPerson(container.LecturerID.Int)
+		if person != nil {
+			cup := models.ContentUnitsPerson{
+				PersonID: person.ID,
+				RoleID:   1, // lecturer
+			}
+			err := unit.AddContentUnitsPersons(exec, true, &cup)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Add person, unit [%d]", unit.ID)
+			}
+		}
 	}
 
 	return unit, nil
@@ -572,6 +692,17 @@ func mapSecure(kmVal int) int16 {
 		return api.SEC_SENSITIVE
 	}
 	return api.SEC_PRIVATE
+}
+
+func mapPerson(kmID int) *models.Person {
+	switch kmID {
+	case 1:
+		return api.PERSON_REGISTRY.ByPattern["rav"]
+	case 8:
+		return api.PERSON_REGISTRY.ByPattern["rb"]
+	default:
+		return nil
+	}
 }
 
 func loadContainersInCatalogsAndCUs(catalogIDs ...int) (map[int]*kmodels.Container, map[int]*models.ContentUnit, error) {
