@@ -1743,12 +1743,14 @@ func handleCollectionCCU(cp utils.ContextProvider, exec boil.Executor, id int64)
 		cusById[x.ID] = &x
 	}
 
-	data := make([]*CollectionContentUnit, len(ccus))
+	data := make([]*CollectionContentUnit, 0)
 	for i, ccu := range ccus {
-		data[i] = &CollectionContentUnit{
-			Name:        ccu.Name,
-			Position:    ccu.Position,
-			ContentUnit: cusById[ccu.ContentUnitID],
+		if cu, ok := cusById[ccu.ContentUnitID]; ok {
+			data[i] = &CollectionContentUnit{
+				Name:        ccu.Name,
+				Position:    ccu.Position,
+				ContentUnit: cu,
+			}
 		}
 	}
 
@@ -4107,7 +4109,7 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 
 		// file sha1
 		if len(f.Query) == 40 {
-			_, err := hex.DecodeString(f.Query)  // make sure it's a hex string
+			_, err := hex.DecodeString(f.Query) // make sure it's a hex string
 			if err == nil {
 				whereParts = append(whereParts, fmt.Sprintf("sha1 = '\\x%s'", f.Query))
 			}
