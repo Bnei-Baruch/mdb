@@ -1744,13 +1744,14 @@ func handleCollectionCCU(cp utils.ContextProvider, exec boil.Executor, id int64)
 	}
 
 	data := make([]*CollectionContentUnit, 0)
-	for i, ccu := range ccus {
+	for i := range ccus {
+		ccu := ccus[i]
 		if cu, ok := cusById[ccu.ContentUnitID]; ok {
-			data[i] = &CollectionContentUnit{
+			data = append(data, &CollectionContentUnit{
 				Name:        ccu.Name,
 				Position:    ccu.Position,
 				ContentUnit: cu,
-			}
+			})
 		}
 	}
 
