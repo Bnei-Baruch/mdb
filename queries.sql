@@ -1101,3 +1101,16 @@ from (
        FROM rec_tags)) as tmp
 where rownum < 6;
 
+
+SELECT
+  f.uid,
+  f.name
+FROM files f
+  INNER JOIN content_units cu ON f.content_unit_id = cu.id
+                                 AND f.name ~ '.docx?$'
+                                 AND f.language NOT IN ('zz', 'xx')
+                                 AND f.secure = 0
+                                 AND f.published IS TRUE
+                                 AND cu.secure = 0
+                                 AND cu.published IS TRUE
+                                 AND cu.type_id != 42;

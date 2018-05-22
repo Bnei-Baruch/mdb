@@ -61,13 +61,17 @@ func doExportTVShows() error {
 
 		for j := range c.R.CollectionsContentUnits {
 			row := sheet.AddRow()
-			cell := row.AddCell()
 			cu := UnitWName{ContentUnit: c.R.CollectionsContentUnits[j].R.ContentUnit}
+
+			cell := row.AddCell()
+			url := fmt.Sprintf("https://archive.kbb1.com/programs/cu/%s", cu.UID)
+			cell.SetStringFormula(fmt.Sprintf("HYPERLINK(\"%s\")", url))
+
+			cell = row.AddCell()
 			cell.Value = cu.Name()
 
 			cell = row.AddCell()
-			url := fmt.Sprintf("https://archive.kbb1.com/programs/cu/%s", cu.UID)
-			cell.SetStringFormula(fmt.Sprintf("HYPERLINK(\"%s\")", url))
+			cell.Value = cu.Description()
 		}
 
 		name := CleanSheetName(fmt.Sprintf("%s (%s)", c.Name(), c.UID))
@@ -78,7 +82,7 @@ func doExportTVShows() error {
 		}
 	}
 
-	err = out.Save("MDB_export_tagging_tvshows_rus.xlsx")
+	err = out.Save("MDB_export_tagging_tvshows.xlsx")
 	if err != nil {
 		return errors.Wrap(err, "out.Save")
 	}
