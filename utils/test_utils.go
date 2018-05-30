@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/spf13/viper"
 	log "github.com/Sirupsen/logrus"
+	"github.com/spf13/viper"
 
 	"github.com/Bnei-Baruch/mdb/migrations"
 
@@ -32,7 +32,7 @@ import (
 var UID_REGEX = regexp.MustCompile("[a-zA-z0-9]{8}")
 
 type TestDBManager struct {
-	DB *sql.DB
+	DB     *sql.DB
 	testDB string
 }
 
@@ -55,6 +55,7 @@ func (m *TestDBManager) InitTestDB() error {
 
 	// Close first connection and connect to temp database
 	db.Close()
+	fmt.Println(fmt.Sprintf(viper.GetString("test.url-template"), m.testDB))
 	db, err = sql.Open("postgres", fmt.Sprintf(viper.GetString("test.url-template"), m.testDB))
 	if err != nil {
 		return err
@@ -129,7 +130,9 @@ func (m *TestDBManager) runMigrations(db *sql.DB) error {
 			return err
 		}
 
+		fmt.Printf("running migration: %s\n", path)
 		for _, statement := range m.Up() {
+			fmt.Println(statement)
 			if _, err := db.Exec(statement); err != nil {
 				return fmt.Errorf("Unable to apply migration %s: %s\nStatement: %s\n", m.Name, err, statement)
 			}
