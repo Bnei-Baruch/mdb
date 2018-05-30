@@ -104,6 +104,7 @@ func (m *TestDBManager) initConfig() {
 
 	viper.SetConfigName("config")
 	viper.AddConfigPath("../")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Println("Could not read config, using: ", viper.ConfigFileUsed(), err.Error())
