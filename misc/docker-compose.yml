@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:9
+    restart: always
+    environment:
+      POSTGRES_DB: mdb
+    ports:
+      - 5432:5432
