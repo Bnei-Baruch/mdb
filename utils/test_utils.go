@@ -109,6 +109,8 @@ func (m *TestDBManager) initConfig() {
 		fmt.Println("Could not read config, using: ", viper.ConfigFileUsed(), err.Error())
 	}
 
+	viper.Debug()
+
 	log.SetLevel(log.ErrorLevel)
 }
 
