@@ -1077,40 +1077,48 @@ CREATE FUNCTION pg_current_xlog_insert_location()
 SELECT pg_current_wal_insert_lsn();
 $$ LANGUAGE SQL;
 
-select *
-from (
-       select
-         cu.*,
-         row_number()
-         over (
-           partition by cu.type_id
-           order by (coalesce(cu.properties ->> 'film_date', cu.created_at :: TEXT)) :: DATE DESC, cu.created_at DESC )
-           as rownum
-       from tags t
-         inner join content_units_tags cut on t.id = cut.tag_id
-         inner join content_units cu on cut.content_unit_id = cu.id and cu.secure = 0 and cu.published is true
-       where t.id in (WITH RECURSIVE rec_tags AS (
-         SELECT t.id
-         FROM tags t
-         WHERE t.uid = '1nyptSIo'
-         UNION
-         SELECT t.id
-         FROM tags t INNER JOIN rec_tags rt ON t.parent_id = rt.id
-       )
-       SELECT distinct id
-       FROM rec_tags)) as tmp
-where rownum < 6;
+
+-- all units in russian without transcriptions (for alex)
+select
+  cu.id,
+  cu.uid,
+  ct.name,
+  cu.properties ->> 'film_date' as "film_date",
+  cui.name
+from content_units cu inner join content_types ct on cu.type_id = ct.id
+  left join content_unit_i18n cui on cu.id = cui.content_unit_id and cui.language = 'ru'
+where cu.properties ->> 'original_language' = 'ru' and cu.published is true and cu.type_id != 44 and
+      cu.id not in (select distinct cu.id
+                    from content_units cu inner join files f on cu.id = f.content_unit_id and
+                                                                cu.properties ->> 'original_language' = 'ru' and
+                                                                f.type = 'text' and f.language = 'ru')
+order by (coalesce(cu.properties ->> 'film_date', cu.created_at :: text)) :: date desc, cu.created_at desc)
+
+-- add last update workflow id from send operation to unit
+-- based on parsing the file name
+SELECT DISTINCT ON (cu.id)
+  cu.id,
+  cu.uid,
+  (regexp_matches(f.name, '.*_([t|d][\d+]*)o\.mp4')) [1] AS wfid
+FROM operations o INNER JOIN files_operations fo ON o.id = fo.operation_id AND o.type_id = 4
+  INNER JOIN files f ON fo.file_id = f.id AND f.content_unit_id IS NOT NULL and f.name like '%o.mp4'
+  inner join content_units cu on f.content_unit_id = cu.id
+GROUP BY cu.id, o.id, f.name
+ORDER BY cu.id, o.id, f.name DESC;
 
 
-SELECT
-  f.uid,
-  f.name
-FROM files f
-  INNER JOIN content_units cu ON f.content_unit_id = cu.id
-                                 AND f.name ~ '.docx?$'
-                                 AND f.language NOT IN ('zz', 'xx')
-                                 AND f.secure = 0
-                                 AND f.published IS TRUE
-                                 AND cu.secure = 0
-                                 AND cu.published IS TRUE
-                                 AND cu.type_id != 42;
+select
+  f.id,
+  f.name,
+  f.content_unit_id,
+  f.type,
+  f.language,
+  f.properties ->> 'kmedia_id' as kmid,
+  f.sha1
+from files f left join files_storages fs on f.id = fs.file_id and fs.storage_id = 214
+where f.published is true
+      and f.secure = 0
+      and f.sha1 is not null
+      and f.removed_at is null
+      and fs.storage_id is null
+order by f.id;

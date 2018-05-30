@@ -362,6 +362,11 @@
 			"Rev": "3eb4713e2655cd1be805795be31b3f85b74b05fd"
 		},
 		{
+			"ImportPath": "github.com/tealeg/xlsx",
+			"Comment": "v1.0.3-56-gf36fa3b",
+			"Rev": "f36fa3be8893d528004c0938e06b65c67f69b76f"
+		},
+		{
 			"ImportPath": "github.com/ugorji/go/codec",
 			"Rev": "50189f05eaf5a0c17e5084eb8f7fb91e23699840"
 		},

@@ -10,14 +10,14 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/vattle/sqlboiler/queries"
-	"gopkg.in/nullbio/null.v6"
 )
 
 func UpdateI18ns() {
@@ -151,7 +151,6 @@ func updateUnitWorker(jobs <-chan *models.ContentUnit, wg *sync.WaitGroup) {
 			continue
 		}
 
-
 		hasRav := false
 		for i := range u.R.ContentUnitsPersons {
 			if u.R.ContentUnitsPersons[i].PersonID == 1 {
@@ -182,9 +181,9 @@ func updateUnitWorker(jobs <-chan *models.ContentUnit, wg *sync.WaitGroup) {
 
 				// create association to RAV
 				cup := models.ContentUnitsPerson{
-					PersonID: 1, // rav in mdb
+					PersonID:      1, // rav in mdb
 					ContentUnitID: u.ID,
-					RoleID: 1, // lecturer
+					RoleID:        1, // lecturer
 				}
 				cup.Insert(tx)
 
