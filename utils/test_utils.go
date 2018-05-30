@@ -132,7 +132,7 @@ func (m *TestDBManager) runMigrations(db *sql.DB) error {
 
 		fmt.Printf("running migration: %s\n", path)
 		for _, statement := range m.Up() {
-			fmt.Println(statement)
+			//fmt.Println(statement)
 			if _, err := db.Exec(statement); err != nil {
 				return fmt.Errorf("Unable to apply migration %s: %s\nStatement: %s\n", m.Name, err, statement)
 			}
