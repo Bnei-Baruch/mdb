@@ -54,7 +54,7 @@ DO $a$
 DECLARE ver integer;
 BEGIN
   SELECT current_setting('server_version_num') INTO ver;
-  IF (ver >= 90600) THEN
+  IF (ver >= 90700) THEN
     EXECUTE 'CREATE OR REPLACE FUNCTION pg_current_xlog_insert_location() RETURNS pg_lsn AS $$ SELECT pg_current_wal_insert_lsn();$$ LANGUAGE SQL;';
   END IF;
 END
