@@ -44,9 +44,9 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 
 	// Update properties for original and proxy (film_date, capture_date)
 	filmDate := metadata.CaptureDate
-	if metadata.WeekDate != nil {
-		filmDate = *metadata.WeekDate
-	}
+	//if metadata.WeekDate != nil {
+	//	filmDate = *metadata.WeekDate
+	//}
 	if metadata.FilmDate != nil {
 		filmDate = *metadata.FilmDate
 	}

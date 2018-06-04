@@ -188,7 +188,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
 	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["capture_date"], "c.Properties[\"capture_date\"]")
-	suite.Equal(metadata.WeekDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
+	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
 	suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
 	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
 
@@ -1816,9 +1816,9 @@ func (suite *MetadataProcessorSuite) someTags() []string {
 func (suite *MetadataProcessorSuite) assertFiles(metadata CITMetadata, original, proxy *models.File) {
 	capDate := metadata.CaptureDate
 	filmDate := metadata.CaptureDate
-	if metadata.WeekDate != nil {
-		filmDate = *metadata.WeekDate
-	}
+	//if metadata.WeekDate != nil {
+	//	filmDate = *metadata.WeekDate
+	//}
 	var lang string
 	if metadata.HasTranslation {
 		lang = LANG_MULTI
