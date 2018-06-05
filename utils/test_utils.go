@@ -27,7 +27,6 @@ import (
 	_ "github.com/volatiletech/sqlboiler/bdb/drivers"
 	_ "github.com/volatiletech/sqlboiler/randomize"
 	_ "github.com/volatiletech/sqlboiler/strmangle"
-	"time"
 )
 
 var UID_REGEX = regexp.MustCompile("[a-zA-z0-9]{8}")
@@ -64,8 +63,6 @@ func (m *TestDBManager) InitTestDB() error {
 
 	// Run migrations
 	m.runMigrations(db)
-
-	time.Sleep(500 * time.Millisecond)
 
 	// Setup SQLBoiler
 	m.DB = db
@@ -133,11 +130,7 @@ func (m *TestDBManager) runMigrations(db *sql.DB) error {
 			return err
 		}
 
-		fmt.Printf("running migration: %s\n", path)
 		for _, statement := range m.Up() {
-			if strings.HasSuffix(path, "dev.sql") {
-				fmt.Println(statement)
-			}
 			if _, err := db.Exec(statement); err != nil {
 				return fmt.Errorf("Unable to apply migration %s: %s\nStatement: %s\n", m.Name, err, statement)
 			}
