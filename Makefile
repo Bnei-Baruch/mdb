@@ -14,13 +14,13 @@ install:
 	@godep restore
 
 test: bindata
-	go test $(shell go list ./... | grep -v /vendor/)
+	go test $(shell go list ./... | grep -v /models/)
 
 lint:
 	@golint $(GO_FILES) || true
 
 fmt:
-	@gofmt -w $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+	@gofmt -w $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./models/*")
 
 bindata:
 	@go-bindata data/... && sed -i 's/package main/package bindata/' bindata.go && mv bindata.go ./bindata
