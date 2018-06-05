@@ -14,7 +14,7 @@ install:
 	@godep restore
 
 test: bindata
-	go test $(shell go list ./... | grep -v /models/)
+	go test -count=1 $(shell go list ./... | grep -v github.com/Bnei-Baruch/mdb/models)
 
 lint:
 	@golint $(GO_FILES) || true
