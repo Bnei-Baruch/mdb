@@ -607,6 +607,8 @@ type RBArticlesNamer struct{}
 func (n RBArticlesNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
 	names := make(map[string]string)
 
+	// TODO: skip year-number when root article (UID="rQ6sIUZK")
+
 	// source.name is expected to be "<year-number> <non-i18n title>"
 	// we strip the year-number part and transform it a little
 	leaf := path[len(path)-1]

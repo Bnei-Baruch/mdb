@@ -70,6 +70,14 @@ func SendHandler(c *gin.Context) {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
+		// recover from panics in transaction
+		defer func() {
+			if p := recover(); p != nil {
+				tx.Rollback()
+				panic(p) // re-throw panic after Rollback
+			}
+		}()
+
 		_, evnts, err := handleSend(tx, i)
 		if err != nil {
 			utils.Must(tx.Rollback())
