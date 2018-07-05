@@ -36,6 +36,8 @@ func TestParent(t *testing.T) {
 	t.Run("Storages", testStorages)
 	t.Run("TagI18ns", testTagI18ns)
 	t.Run("Tags", testTags)
+	t.Run("TwitterTweets", testTwitterTweets)
+	t.Run("TwitterUsers", testTwitterUsers)
 	t.Run("Users", testUsers)
 }
 
@@ -64,6 +66,8 @@ func TestDelete(t *testing.T) {
 	t.Run("Storages", testStoragesDelete)
 	t.Run("TagI18ns", testTagI18nsDelete)
 	t.Run("Tags", testTagsDelete)
+	t.Run("TwitterTweets", testTwitterTweetsDelete)
+	t.Run("TwitterUsers", testTwitterUsersDelete)
 	t.Run("Users", testUsersDelete)
 }
 
@@ -92,6 +96,8 @@ func TestQueryDeleteAll(t *testing.T) {
 	t.Run("Storages", testStoragesQueryDeleteAll)
 	t.Run("TagI18ns", testTagI18nsQueryDeleteAll)
 	t.Run("Tags", testTagsQueryDeleteAll)
+	t.Run("TwitterTweets", testTwitterTweetsQueryDeleteAll)
+	t.Run("TwitterUsers", testTwitterUsersQueryDeleteAll)
 	t.Run("Users", testUsersQueryDeleteAll)
 }
 
@@ -120,6 +126,8 @@ func TestSliceDeleteAll(t *testing.T) {
 	t.Run("Storages", testStoragesSliceDeleteAll)
 	t.Run("TagI18ns", testTagI18nsSliceDeleteAll)
 	t.Run("Tags", testTagsSliceDeleteAll)
+	t.Run("TwitterTweets", testTwitterTweetsSliceDeleteAll)
+	t.Run("TwitterUsers", testTwitterUsersSliceDeleteAll)
 	t.Run("Users", testUsersSliceDeleteAll)
 }
 
@@ -148,6 +156,8 @@ func TestExists(t *testing.T) {
 	t.Run("Storages", testStoragesExists)
 	t.Run("TagI18ns", testTagI18nsExists)
 	t.Run("Tags", testTagsExists)
+	t.Run("TwitterTweets", testTwitterTweetsExists)
+	t.Run("TwitterUsers", testTwitterUsersExists)
 	t.Run("Users", testUsersExists)
 }
 
@@ -176,6 +186,8 @@ func TestFind(t *testing.T) {
 	t.Run("Storages", testStoragesFind)
 	t.Run("TagI18ns", testTagI18nsFind)
 	t.Run("Tags", testTagsFind)
+	t.Run("TwitterTweets", testTwitterTweetsFind)
+	t.Run("TwitterUsers", testTwitterUsersFind)
 	t.Run("Users", testUsersFind)
 }
 
@@ -204,6 +216,8 @@ func TestBind(t *testing.T) {
 	t.Run("Storages", testStoragesBind)
 	t.Run("TagI18ns", testTagI18nsBind)
 	t.Run("Tags", testTagsBind)
+	t.Run("TwitterTweets", testTwitterTweetsBind)
+	t.Run("TwitterUsers", testTwitterUsersBind)
 	t.Run("Users", testUsersBind)
 }
 
@@ -232,6 +246,8 @@ func TestOne(t *testing.T) {
 	t.Run("Storages", testStoragesOne)
 	t.Run("TagI18ns", testTagI18nsOne)
 	t.Run("Tags", testTagsOne)
+	t.Run("TwitterTweets", testTwitterTweetsOne)
+	t.Run("TwitterUsers", testTwitterUsersOne)
 	t.Run("Users", testUsersOne)
 }
 
@@ -260,6 +276,8 @@ func TestAll(t *testing.T) {
 	t.Run("Storages", testStoragesAll)
 	t.Run("TagI18ns", testTagI18nsAll)
 	t.Run("Tags", testTagsAll)
+	t.Run("TwitterTweets", testTwitterTweetsAll)
+	t.Run("TwitterUsers", testTwitterUsersAll)
 	t.Run("Users", testUsersAll)
 }
 
@@ -288,6 +306,8 @@ func TestCount(t *testing.T) {
 	t.Run("Storages", testStoragesCount)
 	t.Run("TagI18ns", testTagI18nsCount)
 	t.Run("Tags", testTagsCount)
+	t.Run("TwitterTweets", testTwitterTweetsCount)
+	t.Run("TwitterUsers", testTwitterUsersCount)
 	t.Run("Users", testUsersCount)
 }
 
@@ -340,6 +360,10 @@ func TestInsert(t *testing.T) {
 	t.Run("TagI18ns", testTagI18nsInsertWhitelist)
 	t.Run("Tags", testTagsInsert)
 	t.Run("Tags", testTagsInsertWhitelist)
+	t.Run("TwitterTweets", testTwitterTweetsInsert)
+	t.Run("TwitterTweets", testTwitterTweetsInsertWhitelist)
+	t.Run("TwitterUsers", testTwitterUsersInsert)
+	t.Run("TwitterUsers", testTwitterUsersInsertWhitelist)
 	t.Run("Users", testUsersInsert)
 	t.Run("Users", testUsersInsertWhitelist)
 }
@@ -375,6 +399,7 @@ func TestToOne(t *testing.T) {
 	t.Run("TagI18nToTagUsingTag", testTagI18nToOneTagUsingTag)
 	t.Run("TagI18nToUserUsingUser", testTagI18nToOneUserUsingUser)
 	t.Run("TagToTagUsingParent", testTagToOneTagUsingParent)
+	t.Run("TwitterTweetToTwitterUserUsingUser", testTwitterTweetToOneTwitterUserUsingUser)
 }
 
 // TestOneToOne tests cannot be run in parallel
@@ -418,6 +443,7 @@ func TestToMany(t *testing.T) {
 	t.Run("TagToContentUnits", testTagToManyContentUnits)
 	t.Run("TagToTagI18ns", testTagToManyTagI18ns)
 	t.Run("TagToParentTags", testTagToManyParentTags)
+	t.Run("TwitterUserToUserTwitterTweets", testTwitterUserToManyUserTwitterTweets)
 	t.Run("UserToCollectionI18ns", testUserToManyCollectionI18ns)
 	t.Run("UserToContentUnitI18ns", testUserToManyContentUnitI18ns)
 	t.Run("UserToOperations", testUserToManyOperations)
@@ -457,6 +483,7 @@ func TestToOneSet(t *testing.T) {
 	t.Run("TagI18nToTagUsingTag", testTagI18nToOneSetOpTagUsingTag)
 	t.Run("TagI18nToUserUsingUser", testTagI18nToOneSetOpUserUsingUser)
 	t.Run("TagToTagUsingParent", testTagToOneSetOpTagUsingParent)
+	t.Run("TwitterTweetToTwitterUserUsingUser", testTwitterTweetToOneSetOpTwitterUserUsingUser)
 }
 
 // TestToOneRemove tests cannot be run in parallel
@@ -519,6 +546,7 @@ func TestToManyAdd(t *testing.T) {
 	t.Run("TagToContentUnits", testTagToManyAddOpContentUnits)
 	t.Run("TagToTagI18ns", testTagToManyAddOpTagI18ns)
 	t.Run("TagToParentTags", testTagToManyAddOpParentTags)
+	t.Run("TwitterUserToUserTwitterTweets", testTwitterUserToManyAddOpUserTwitterTweets)
 	t.Run("UserToCollectionI18ns", testUserToManyAddOpCollectionI18ns)
 	t.Run("UserToContentUnitI18ns", testUserToManyAddOpContentUnitI18ns)
 	t.Run("UserToOperations", testUserToManyAddOpOperations)
@@ -606,6 +634,8 @@ func TestReload(t *testing.T) {
 	t.Run("Storages", testStoragesReload)
 	t.Run("TagI18ns", testTagI18nsReload)
 	t.Run("Tags", testTagsReload)
+	t.Run("TwitterTweets", testTwitterTweetsReload)
+	t.Run("TwitterUsers", testTwitterUsersReload)
 	t.Run("Users", testUsersReload)
 }
 
@@ -634,6 +664,8 @@ func TestReloadAll(t *testing.T) {
 	t.Run("Storages", testStoragesReloadAll)
 	t.Run("TagI18ns", testTagI18nsReloadAll)
 	t.Run("Tags", testTagsReloadAll)
+	t.Run("TwitterTweets", testTwitterTweetsReloadAll)
+	t.Run("TwitterUsers", testTwitterUsersReloadAll)
 	t.Run("Users", testUsersReloadAll)
 }
 
@@ -662,6 +694,8 @@ func TestSelect(t *testing.T) {
 	t.Run("Storages", testStoragesSelect)
 	t.Run("TagI18ns", testTagI18nsSelect)
 	t.Run("Tags", testTagsSelect)
+	t.Run("TwitterTweets", testTwitterTweetsSelect)
+	t.Run("TwitterUsers", testTwitterUsersSelect)
 	t.Run("Users", testUsersSelect)
 }
 
@@ -690,6 +724,8 @@ func TestUpdate(t *testing.T) {
 	t.Run("Storages", testStoragesUpdate)
 	t.Run("TagI18ns", testTagI18nsUpdate)
 	t.Run("Tags", testTagsUpdate)
+	t.Run("TwitterTweets", testTwitterTweetsUpdate)
+	t.Run("TwitterUsers", testTwitterUsersUpdate)
 	t.Run("Users", testUsersUpdate)
 }
 
@@ -718,6 +754,8 @@ func TestSliceUpdateAll(t *testing.T) {
 	t.Run("Storages", testStoragesSliceUpdateAll)
 	t.Run("TagI18ns", testTagI18nsSliceUpdateAll)
 	t.Run("Tags", testTagsSliceUpdateAll)
+	t.Run("TwitterTweets", testTwitterTweetsSliceUpdateAll)
+	t.Run("TwitterUsers", testTwitterUsersSliceUpdateAll)
 	t.Run("Users", testUsersSliceUpdateAll)
 }
 
@@ -746,5 +784,7 @@ func TestUpsert(t *testing.T) {
 	t.Run("Storages", testStoragesUpsert)
 	t.Run("TagI18ns", testTagI18nsUpsert)
 	t.Run("Tags", testTagsUpsert)
+	t.Run("TwitterTweets", testTwitterTweetsUpsert)
+	t.Run("TwitterUsers", testTwitterUsersUpsert)
 	t.Run("Users", testUsersUpsert)
 }

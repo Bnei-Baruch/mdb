@@ -1,8 +1,17 @@
 {
 	"ImportPath": "github.com/Bnei-Baruch/mdb",
-	"GoVersion": "go1.9",
+	"GoVersion": "go1.10",
 	"GodepVersion": "v79",
 	"Deps": [
+		{
+			"ImportPath": "github.com/ChimeraCoder/anaconda",
+			"Comment": "v2.0.0-7-ga1f4899",
+			"Rev": "a1f48994eee061428eadcac94cf5fe98dbab0967"
+		},
+		{
+			"ImportPath": "github.com/ChimeraCoder/tokenbucket",
+			"Rev": "c5a927568de7aad8a58127d80bcd36ca4e71e454"
+		},
 		{
 			"ImportPath": "github.com/Knetic/govaluate",
 			"Comment": "v3.0.0-39-g9aa4983",
@@ -24,6 +33,10 @@
 		{
 			"ImportPath": "github.com/adams-sarah/test2doc/test",
 			"Rev": "da8da908883066abea518609b80da5a0031071cb"
+		},
+		{
+			"ImportPath": "github.com/azr/backoff",
+			"Rev": "53511d3c733003985b0b76f733df1f4d0095ee6a"
 		},
 		{
 			"ImportPath": "github.com/casbin/casbin",
@@ -74,6 +87,14 @@
 			"Rev": "88555645b640cc621e32f8693d7586a1aa1575f4"
 		},
 		{
+			"ImportPath": "github.com/dustin/go-jsonpointer",
+			"Rev": "ba0abeacc3dcca5b9b20f31509c46794edbc9965"
+		},
+		{
+			"ImportPath": "github.com/dustin/gojson",
+			"Rev": "2e71ec9dd5adce3b168cd0dbde03b5cc04951c30"
+		},
+		{
 			"ImportPath": "github.com/emirpasic/gods/containers",
 			"Comment": "v1.9.0-9-g8a038b0",
 			"Rev": "8a038b010338d247eee30f8b569dbba08bfb1ffa"
@@ -117,6 +138,10 @@
 			"ImportPath": "github.com/fsnotify/fsnotify",
 			"Comment": "v1.4.2-6-g4da3e2c",
 			"Rev": "4da3e2cfbabc9f751898f250b49f2439785783a1"
+		},
+		{
+			"ImportPath": "github.com/garyburd/go-oauth/oauth",
+			"Rev": "bca2e7f09a178fd36b034107a00e2323bca6a82e"
 		},
 		{
 			"ImportPath": "github.com/gin-contrib/sse",

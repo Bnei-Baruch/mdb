@@ -12,3 +12,6 @@ mdb
 **/*.apib
 bindata/bindata.go
 storage/.index
+importer/roza/analysis/
+importer/roza/data/
+importer/twitter/data/

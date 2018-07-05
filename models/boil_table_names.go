@@ -34,6 +34,8 @@ var TableNames = struct {
 	Storages                string
 	TagI18n                 string
 	Tags                    string
+	TwitterTweets           string
+	TwitterUsers            string
 	Users                   string
 }{
 	AuthorI18n:              "author_i18n",
@@ -66,5 +68,7 @@ var TableNames = struct {
 	Storages:                "storages",
 	TagI18n:                 "tag_i18n",
 	Tags:                    "tags",
+	TwitterTweets:           "twitter_tweets",
+	TwitterUsers:            "twitter_users",
 	Users:                   "users",
 }
