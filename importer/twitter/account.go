@@ -24,6 +24,8 @@ import (
 var dumps = map[string]string{
 	"Michael_Laitman": "importer/twitter/data/twitter-2018-07-04-Michael_Laitman",
 	"laitman_co_il":   "importer/twitter/data/twitter-2018-07-03-laitman_co_il",
+	"laitman":   "importer/twitter/data/twitter-2018-07-05-laitman",
+	"laitman_es":   "importer/twitter/data/twitter-2018-07-05-laitman_es",
 }
 
 func ImportDumps() {
@@ -56,35 +58,42 @@ func importDump(username, dir string) error {
 	}
 
 	for i := range tweets {
-		t := tweets[i]
-		ts, err := t.CreatedAtTime()
-		if err != nil {
-			return errors.Wrapf(err, "Tweet.CreatedAtTime(): %s %d", username, i)
+		if err := saveTweetToDB(tweets[i], user); err != nil {
+			return errors.Wrapf(err, "Save tweet to DB: %s %d", username, i)
 		}
+	}
 
-		jsonb, err := json.Marshal(t)
-		if err != nil {
-			return errors.Wrapf(err, "json.Marshal: %s %d", username, i)
-		}
+	return nil
+}
 
-		tx, err := mdb.Begin()
-		utils.Must(err)
+func saveTweetToDB(t *anaconda.Tweet, user *models.TwitterUser) error {
+	ts, err := t.CreatedAtTime()
+	if err != nil {
+		return errors.Wrapf(err, "Tweet.CreatedAtTime()")
+	}
 
-		mt := models.TwitterTweet{
-			UserID:    user.ID,
-			TwitterID: t.IdStr,
-			FullText:  t.FullText,
-			TweetAt:   ts,
-			Raw:       null.JSONFrom(jsonb),
-		}
+	jsonb, err := json.Marshal(t)
+	if err != nil {
+		return errors.Wrapf(err, "json.Marshal")
+	}
 
-		err = mt.Insert(tx)
-		if err != nil {
-			utils.Must(tx.Rollback())
-			return errors.Wrapf(err, "Insert to DB: %s %d", username, i)
-		} else {
-			utils.Must(tx.Commit())
-		}
+	tx, err := mdb.Begin()
+	utils.Must(err)
+
+	mt := models.TwitterTweet{
+		UserID:    user.ID,
+		TwitterID: t.IdStr,
+		FullText:  t.FullText,
+		TweetAt:   ts,
+		Raw:       null.JSONFrom(jsonb),
+	}
+
+	err = mt.Insert(tx)
+	if err != nil {
+		utils.Must(tx.Rollback())
+		return errors.Wrapf(err, "Insert to DB")
+	} else {
+		utils.Must(tx.Commit())
 	}
 
 	return nil
@@ -93,8 +102,7 @@ func importDump(username, dir string) error {
 func Analyze() {
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 
-	dir := "importer/twitter/data/twitter-2018-07-04-Michael_Laitman"
-	//dir := "importer/twitter/data/twitter-2018-07-03-laitman_co_il"
+	dir := dumps["laitman_es"]
 	err := cleanTwitterDump(dir)
 	utils.Must(err)
 

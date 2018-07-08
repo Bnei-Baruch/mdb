@@ -16,4 +16,13 @@ func init() {
 		},
 	}
 	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
+		Use:   "twitter-latest",
+		Short: "Import latest tweets from Twitter for registered accounts",
+		Run: func(cmd *cobra.Command, args []string) {
+			twitter.ImportLatestTweets()
+		},
+	}
+	RootCmd.AddCommand(command)
 }

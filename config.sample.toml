@@ -37,3 +37,9 @@ issuer="https://accounts.kbb1.com/auth/realms/main"
 [permissions]
 enable=true
 log=true
+
+[twitter]
+access-token=""
+access-token-secret=""
+consumer-key=""
+consumer-secret=""

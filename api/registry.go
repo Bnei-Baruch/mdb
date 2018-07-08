@@ -19,6 +19,7 @@ var (
 	AUTHOR_REGISTRY            = &AuthorRegistry{}
 	SOURCE_TYPE_REGISTRY       = &SourceTypeRegistry{}
 	MEDIA_TYPE_REGISTRY        = &MediaTypeRegistry{}
+	TWITTER_USERS_REGISTRY     = &TwitterUsersRegistry{}
 
 	ALL_LANGS = []string{
 		LANG_UNKNOWN, LANG_MULTI, LANG_ENGLISH, LANG_HEBREW, LANG_RUSSIAN, LANG_SPANISH, LANG_ITALIAN,
@@ -154,7 +155,9 @@ func InitTypeRegistries(exec boil.Executor) error {
 		PERSON_REGISTRY,
 		AUTHOR_REGISTRY,
 		SOURCE_TYPE_REGISTRY,
-		MEDIA_TYPE_REGISTRY}
+		MEDIA_TYPE_REGISTRY,
+		TWITTER_USERS_REGISTRY,
+	}
 
 	for _, x := range registries {
 		if err := x.Init(exec); err != nil {
@@ -295,6 +298,27 @@ func (r *MediaTypeRegistry) Init(exec boil.Executor) error {
 	for _, x := range ALL_MEDIA_TYPES {
 		r.ByExtension[x.Extension] = x
 		r.ByMime[x.MimeType] = x
+	}
+
+	return nil
+}
+
+type TwitterUsersRegistry struct {
+	ByUsername map[string]*models.TwitterUser
+	ByID       map[int64]*models.TwitterUser
+}
+
+func (r *TwitterUsersRegistry) Init(exec boil.Executor) error {
+	users, err := models.TwitterUsers(exec).All()
+	if err != nil {
+		return errors.Wrap(err, "Load twitter users from DB")
+	}
+
+	r.ByUsername = make(map[string]*models.TwitterUser)
+	r.ByID = make(map[int64]*models.TwitterUser)
+	for _, t := range users {
+		r.ByUsername[t.Username] = t
+		r.ByID[t.ID] = t
 	}
 
 	return nil

@@ -23,7 +23,7 @@ func Init() time.Time {
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	//log.SetLevel(log.WarnLevel)
 
-	log.Info("Starting twitter archive dump import")
+	log.Info("Starting twitter import")
 
 	log.Info("Setting up connection to MDB")
 	mdb, err = sql.Open("postgres", viper.GetString("mdb.url"))
