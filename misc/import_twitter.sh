@@ -18,4 +18,4 @@ fi
 
 echo "Errors in periodic import of twitter to MDB" | mail -s "ERROR: MDB twitter import" -r "mdb@bbdomain.org" -a ${LOG_FILE} edoshor@gmail.com
 
-find "${BASE_DIR}/logs/twitter/import_*.log" -type f -mtime +7 -exec rm -f \{};
+find "${BASE_DIR}/logs/twitter/import_*.log" -type f -mtime +7 -exec rm -rf {} \;

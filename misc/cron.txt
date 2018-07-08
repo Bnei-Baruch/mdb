@@ -1,5 +1,10 @@
 # MDB cron jobs
 
-
 # Send log warnings email to admins
 0 0 * * * root /sites/mdb/email_warnings.sh
+
+# Import storage catalog
+0 * * * * root /sites/mdb/import_storage.sh
+
+# Import storage catalog
+0/10 * * * * root /sites/mdb/import_twitter.sh
