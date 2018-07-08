@@ -32,6 +32,7 @@ func importLatestTweets() error {
 	consumerKey := viper.GetString("twitter.consumer-key")
 	consumerSecret := viper.GetString("twitter.consumer-secret")
 	twitterAPI := anaconda.NewTwitterApiWithCredentials(accessToken, accessTokenSecret, consumerKey, consumerSecret)
+	defer twitterAPI.Close()
 
 	// fetch last imported tweet ID per account
 	sinceIDs, err := getSinceIDs()
