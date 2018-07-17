@@ -7,4 +7,4 @@
 0 * * * * root /sites/mdb/import_storage.sh
 
 # Import storage catalog
-0/10 * * * * root /sites/mdb/import_twitter.sh
+*/10 * * * * root /sites/mdb/import_twitter.sh

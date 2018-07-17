@@ -8,7 +8,7 @@ DATE="$(date -d "yesterday 13:00" '+%Y-%m-%d')"
 
 LINES="$(egrep "${DATE}(.*) level=(warning|error)" /sites/mdb/logs/mdb.log)"
 
-if [ "$LINES" = "" ];then
+if [ "$LINES" = 0 ];then
 	echo "No warnings"
 	exit 0
 fi
