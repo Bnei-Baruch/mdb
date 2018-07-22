@@ -118,7 +118,7 @@ func (suite *AutonameSuite) TestLessonPartDescriber() {
 			suite.Equal("Preparation to the Lesson", i18n.Name.String, "English name")
 			break
 		case LANG_RUSSIAN:
-			suite.Equal("Подготовка к Уроку", i18n.Name.String, "Russian name")
+			suite.Equal("Подготовка к уроку", i18n.Name.String, "Russian name")
 			break
 		}
 	}
