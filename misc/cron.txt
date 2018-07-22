@@ -6,5 +6,8 @@
 # Import storage catalog
 0 * * * * root /sites/mdb/import_storage.sh
 
-# Import storage catalog
+# Import latest tweets from twitter
 */10 * * * * root /sites/mdb/import_twitter.sh
+
+# Import latest blog posts
+5 * * * * root /sites/mdb/import_blogs.sh
