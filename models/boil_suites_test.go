@@ -14,6 +14,8 @@ import "testing"
 func TestParent(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18ns)
 	t.Run("Authors", testAuthors)
+	t.Run("BlogPosts", testBlogPosts)
+	t.Run("Blogs", testBlogs)
 	t.Run("CollectionI18ns", testCollectionI18ns)
 	t.Run("Collections", testCollections)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnits)
@@ -44,6 +46,8 @@ func TestParent(t *testing.T) {
 func TestDelete(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsDelete)
 	t.Run("Authors", testAuthorsDelete)
+	t.Run("BlogPosts", testBlogPostsDelete)
+	t.Run("Blogs", testBlogsDelete)
 	t.Run("CollectionI18ns", testCollectionI18nsDelete)
 	t.Run("Collections", testCollectionsDelete)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsDelete)
@@ -74,6 +78,8 @@ func TestDelete(t *testing.T) {
 func TestQueryDeleteAll(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsQueryDeleteAll)
 	t.Run("Authors", testAuthorsQueryDeleteAll)
+	t.Run("BlogPosts", testBlogPostsQueryDeleteAll)
+	t.Run("Blogs", testBlogsQueryDeleteAll)
 	t.Run("CollectionI18ns", testCollectionI18nsQueryDeleteAll)
 	t.Run("Collections", testCollectionsQueryDeleteAll)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsQueryDeleteAll)
@@ -104,6 +110,8 @@ func TestQueryDeleteAll(t *testing.T) {
 func TestSliceDeleteAll(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsSliceDeleteAll)
 	t.Run("Authors", testAuthorsSliceDeleteAll)
+	t.Run("BlogPosts", testBlogPostsSliceDeleteAll)
+	t.Run("Blogs", testBlogsSliceDeleteAll)
 	t.Run("CollectionI18ns", testCollectionI18nsSliceDeleteAll)
 	t.Run("Collections", testCollectionsSliceDeleteAll)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsSliceDeleteAll)
@@ -134,6 +142,8 @@ func TestSliceDeleteAll(t *testing.T) {
 func TestExists(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsExists)
 	t.Run("Authors", testAuthorsExists)
+	t.Run("BlogPosts", testBlogPostsExists)
+	t.Run("Blogs", testBlogsExists)
 	t.Run("CollectionI18ns", testCollectionI18nsExists)
 	t.Run("Collections", testCollectionsExists)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsExists)
@@ -164,6 +174,8 @@ func TestExists(t *testing.T) {
 func TestFind(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsFind)
 	t.Run("Authors", testAuthorsFind)
+	t.Run("BlogPosts", testBlogPostsFind)
+	t.Run("Blogs", testBlogsFind)
 	t.Run("CollectionI18ns", testCollectionI18nsFind)
 	t.Run("Collections", testCollectionsFind)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsFind)
@@ -194,6 +206,8 @@ func TestFind(t *testing.T) {
 func TestBind(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsBind)
 	t.Run("Authors", testAuthorsBind)
+	t.Run("BlogPosts", testBlogPostsBind)
+	t.Run("Blogs", testBlogsBind)
 	t.Run("CollectionI18ns", testCollectionI18nsBind)
 	t.Run("Collections", testCollectionsBind)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsBind)
@@ -224,6 +238,8 @@ func TestBind(t *testing.T) {
 func TestOne(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsOne)
 	t.Run("Authors", testAuthorsOne)
+	t.Run("BlogPosts", testBlogPostsOne)
+	t.Run("Blogs", testBlogsOne)
 	t.Run("CollectionI18ns", testCollectionI18nsOne)
 	t.Run("Collections", testCollectionsOne)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsOne)
@@ -254,6 +270,8 @@ func TestOne(t *testing.T) {
 func TestAll(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsAll)
 	t.Run("Authors", testAuthorsAll)
+	t.Run("BlogPosts", testBlogPostsAll)
+	t.Run("Blogs", testBlogsAll)
 	t.Run("CollectionI18ns", testCollectionI18nsAll)
 	t.Run("Collections", testCollectionsAll)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsAll)
@@ -284,6 +302,8 @@ func TestAll(t *testing.T) {
 func TestCount(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsCount)
 	t.Run("Authors", testAuthorsCount)
+	t.Run("BlogPosts", testBlogPostsCount)
+	t.Run("Blogs", testBlogsCount)
 	t.Run("CollectionI18ns", testCollectionI18nsCount)
 	t.Run("Collections", testCollectionsCount)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsCount)
@@ -316,6 +336,10 @@ func TestInsert(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsInsertWhitelist)
 	t.Run("Authors", testAuthorsInsert)
 	t.Run("Authors", testAuthorsInsertWhitelist)
+	t.Run("BlogPosts", testBlogPostsInsert)
+	t.Run("BlogPosts", testBlogPostsInsertWhitelist)
+	t.Run("Blogs", testBlogsInsert)
+	t.Run("Blogs", testBlogsInsertWhitelist)
 	t.Run("CollectionI18ns", testCollectionI18nsInsert)
 	t.Run("CollectionI18ns", testCollectionI18nsInsertWhitelist)
 	t.Run("Collections", testCollectionsInsert)
@@ -372,6 +396,7 @@ func TestInsert(t *testing.T) {
 // or deadlocks can occur.
 func TestToOne(t *testing.T) {
 	t.Run("AuthorI18nToAuthorUsingAuthor", testAuthorI18nToOneAuthorUsingAuthor)
+	t.Run("BlogPostToBlogUsingBlog", testBlogPostToOneBlogUsingBlog)
 	t.Run("CollectionI18nToCollectionUsingCollection", testCollectionI18nToOneCollectionUsingCollection)
 	t.Run("CollectionI18nToUserUsingUser", testCollectionI18nToOneUserUsingUser)
 	t.Run("CollectionToContentTypeUsingType", testCollectionToOneContentTypeUsingType)
@@ -411,6 +436,7 @@ func TestOneToOne(t *testing.T) {}
 func TestToMany(t *testing.T) {
 	t.Run("AuthorToAuthorI18ns", testAuthorToManyAuthorI18ns)
 	t.Run("AuthorToSources", testAuthorToManySources)
+	t.Run("BlogToBlogPosts", testBlogToManyBlogPosts)
 	t.Run("CollectionToCollectionI18ns", testCollectionToManyCollectionI18ns)
 	t.Run("CollectionToCollectionsContentUnits", testCollectionToManyCollectionsContentUnits)
 	t.Run("ContentRoleTypeToRoleContentUnitsPersons", testContentRoleTypeToManyRoleContentUnitsPersons)
@@ -456,6 +482,7 @@ func TestToMany(t *testing.T) {
 // or deadlocks can occur.
 func TestToOneSet(t *testing.T) {
 	t.Run("AuthorI18nToAuthorUsingAuthor", testAuthorI18nToOneSetOpAuthorUsingAuthor)
+	t.Run("BlogPostToBlogUsingBlog", testBlogPostToOneSetOpBlogUsingBlog)
 	t.Run("CollectionI18nToCollectionUsingCollection", testCollectionI18nToOneSetOpCollectionUsingCollection)
 	t.Run("CollectionI18nToUserUsingUser", testCollectionI18nToOneSetOpUserUsingUser)
 	t.Run("CollectionToContentTypeUsingType", testCollectionToOneSetOpContentTypeUsingType)
@@ -514,6 +541,7 @@ func TestOneToOneRemove(t *testing.T) {}
 func TestToManyAdd(t *testing.T) {
 	t.Run("AuthorToAuthorI18ns", testAuthorToManyAddOpAuthorI18ns)
 	t.Run("AuthorToSources", testAuthorToManyAddOpSources)
+	t.Run("BlogToBlogPosts", testBlogToManyAddOpBlogPosts)
 	t.Run("CollectionToCollectionI18ns", testCollectionToManyAddOpCollectionI18ns)
 	t.Run("CollectionToCollectionsContentUnits", testCollectionToManyAddOpCollectionsContentUnits)
 	t.Run("ContentRoleTypeToRoleContentUnitsPersons", testContentRoleTypeToManyAddOpRoleContentUnitsPersons)
@@ -612,6 +640,8 @@ func TestToManyRemove(t *testing.T) {
 func TestReload(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsReload)
 	t.Run("Authors", testAuthorsReload)
+	t.Run("BlogPosts", testBlogPostsReload)
+	t.Run("Blogs", testBlogsReload)
 	t.Run("CollectionI18ns", testCollectionI18nsReload)
 	t.Run("Collections", testCollectionsReload)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsReload)
@@ -642,6 +672,8 @@ func TestReload(t *testing.T) {
 func TestReloadAll(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsReloadAll)
 	t.Run("Authors", testAuthorsReloadAll)
+	t.Run("BlogPosts", testBlogPostsReloadAll)
+	t.Run("Blogs", testBlogsReloadAll)
 	t.Run("CollectionI18ns", testCollectionI18nsReloadAll)
 	t.Run("Collections", testCollectionsReloadAll)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsReloadAll)
@@ -672,6 +704,8 @@ func TestReloadAll(t *testing.T) {
 func TestSelect(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsSelect)
 	t.Run("Authors", testAuthorsSelect)
+	t.Run("BlogPosts", testBlogPostsSelect)
+	t.Run("Blogs", testBlogsSelect)
 	t.Run("CollectionI18ns", testCollectionI18nsSelect)
 	t.Run("Collections", testCollectionsSelect)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsSelect)
@@ -702,6 +736,8 @@ func TestSelect(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsUpdate)
 	t.Run("Authors", testAuthorsUpdate)
+	t.Run("BlogPosts", testBlogPostsUpdate)
+	t.Run("Blogs", testBlogsUpdate)
 	t.Run("CollectionI18ns", testCollectionI18nsUpdate)
 	t.Run("Collections", testCollectionsUpdate)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsUpdate)
@@ -732,6 +768,8 @@ func TestUpdate(t *testing.T) {
 func TestSliceUpdateAll(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsSliceUpdateAll)
 	t.Run("Authors", testAuthorsSliceUpdateAll)
+	t.Run("BlogPosts", testBlogPostsSliceUpdateAll)
+	t.Run("Blogs", testBlogsSliceUpdateAll)
 	t.Run("CollectionI18ns", testCollectionI18nsSliceUpdateAll)
 	t.Run("Collections", testCollectionsSliceUpdateAll)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsSliceUpdateAll)
@@ -762,6 +800,8 @@ func TestSliceUpdateAll(t *testing.T) {
 func TestUpsert(t *testing.T) {
 	t.Run("AuthorI18ns", testAuthorI18nsUpsert)
 	t.Run("Authors", testAuthorsUpsert)
+	t.Run("BlogPosts", testBlogPostsUpsert)
+	t.Run("Blogs", testBlogsUpsert)
 	t.Run("CollectionI18ns", testCollectionI18nsUpsert)
 	t.Run("Collections", testCollectionsUpsert)
 	t.Run("CollectionsContentUnits", testCollectionsContentUnitsUpsert)

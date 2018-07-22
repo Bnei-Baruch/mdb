@@ -43,3 +43,8 @@ access-token=""
 access-token-secret=""
 consumer-key=""
 consumer-secret=""
+
+[wordpress.laitman-ru]
+url="https://www.laitman.ru/"
+username=""
+password=""

@@ -18,6 +18,11 @@
 			"Rev": "9aa49832a739dcd78a5542ff189fb82c3e423116"
 		},
 		{
+			"ImportPath": "github.com/PuerkitoBio/goquery",
+			"Comment": "v1.4.1",
+			"Rev": "dc2ec5c7ca4d9aae063b79b9f581dd3ea6afd2b2"
+		},
+		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.11.4-2-g1deb2db",
 			"Rev": "1deb2db2a6fff8a35532079061b903c3a25eed52"
@@ -33,6 +38,11 @@
 		{
 			"ImportPath": "github.com/adams-sarah/test2doc/test",
 			"Rev": "da8da908883066abea518609b80da5a0031071cb"
+		},
+		{
+			"ImportPath": "github.com/andybalholm/cascadia",
+			"Comment": "v1.0.0",
+			"Rev": "901648c87902174f774fac311d7f176f8647bdaa"
 		},
 		{
 			"ImportPath": "github.com/azr/backoff",
@@ -187,6 +197,10 @@
 			"Rev": "1643683e1b54a9e88ad26d98f81400c8c9d9f4f9"
 		},
 		{
+			"ImportPath": "github.com/google/go-querystring/query",
+			"Rev": "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
+		},
+		{
 			"ImportPath": "github.com/hashicorp/hcl",
 			"Rev": "392dba7d905ed5d04a5794ba89f558b27e2ba1ca"
 		},
@@ -257,6 +271,11 @@
 			"Rev": "a5cdd64afdee435007ee3e9f6ed4684af949d568"
 		},
 		{
+			"ImportPath": "github.com/mattn/go-runewidth",
+			"Comment": "v0.0.2-14-gce7b0b5",
+			"Rev": "ce7b0b5c7b45a81508558cd1dba6bb1e4ddb51bb"
+		},
+		{
 			"ImportPath": "github.com/mitchellh/mapstructure",
 			"Rev": "d0303fe809921458f417bcf828397a65db30a7e4"
 		},
@@ -296,6 +315,10 @@
 			"Rev": "eb55c82d96c77e196b269cb2ae3afda150454de7"
 		},
 		{
+			"ImportPath": "github.com/olekukonko/tablewriter",
+			"Rev": "d4647c9c7a84d847478d890b816b7d8b62b0b279"
+		},
+		{
 			"ImportPath": "github.com/pelletier/go-buffruneio",
 			"Comment": "v0.2.0",
 			"Rev": "c37440a7cf42ac63b919c752ca73a85067e05992"
@@ -322,6 +345,10 @@
 		{
 			"ImportPath": "github.com/pquerna/cachecontrol/cacheobject",
 			"Rev": "0dec1b30a0215bb68605dfc568e8855066c9202d"
+		},
+		{
+			"ImportPath": "github.com/robbiet480/go-wordpress",
+			"Rev": "3b8369ffcef39c339f0636c3b12bec8fea0701b7"
 		},
 		{
 			"ImportPath": "github.com/satori/go.uuid",
@@ -358,6 +385,10 @@
 			"Rev": "c1de95864d73a5465492829d7cb2dd422b19ac96"
 		},
 		{
+			"ImportPath": "github.com/ssor/bom",
+			"Rev": "6386211fdfcf24c0bfbdaceafd02849ed9a8a509"
+		},
+		{
 			"ImportPath": "github.com/stretchr/objx",
 			"Rev": "1a9d0bb9f541897e62256577b352fdbc1fb4fd94"
 		},
@@ -390,6 +421,11 @@
 			"ImportPath": "github.com/tealeg/xlsx",
 			"Comment": "v1.0.3-56-gf36fa3b",
 			"Rev": "f36fa3be8893d528004c0938e06b65c67f69b76f"
+		},
+		{
+			"ImportPath": "github.com/tomnomnom/linkheader",
+			"Comment": "0.1.0-11-g6c03f81",
+			"Rev": "6c03f819bd09605f1f01b6bfbc452ac1a904dd66"
 		},
 		{
 			"ImportPath": "github.com/ugorji/go/codec",
@@ -460,6 +496,14 @@
 			"Rev": "c7086645de248775cbf2373cf5ca4d2fa664b8c1"
 		},
 		{
+			"ImportPath": "golang.org/x/net/html",
+			"Rev": "c7086645de248775cbf2373cf5ca4d2fa664b8c1"
+		},
+		{
+			"ImportPath": "golang.org/x/net/html/atom",
+			"Rev": "c7086645de248775cbf2373cf5ca4d2fa664b8c1"
+		},
+		{
 			"ImportPath": "golang.org/x/oauth2",
 			"Rev": "a032972e28060ca4f5644acffae3dfc268cc09db"
 		},
@@ -527,6 +571,10 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "eb3733d160e74a9c7e442f435eb3bea458e1d19f"
+		},
+		{
+			"ImportPath": "jaytaylor.com/html2text",
+			"Rev": "57d518f124b0cf46ea2021f25a01396b3522e6fb"
 		}
 	]
 }

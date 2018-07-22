@@ -1123,3 +1123,10 @@ where f.published is true
       and fs.storage_id is null
 order by f.id;
 
+
+select distinct on (b.id)
+  b.id,
+  p.posted_at
+from blog_posts p
+  inner join blogs b on p.blog_id = b.id
+order by b.id, p.posted_at desc
