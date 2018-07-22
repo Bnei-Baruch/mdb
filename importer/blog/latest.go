@@ -103,7 +103,7 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time) error {
 				continue
 			}
 			if exist {
-				log.Errorf("Post exists %d %d. Skipping", b.ID, post.ID)
+				log.Infof("Post exists %d %d. Skipping", b.ID, post.ID)
 				skipCount++
 				continue
 			}
