@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -38,9 +39,14 @@ func NewWordpressClient(wpUrl, username, password string) (*wordpress.Client, er
 }
 
 func getJWTToken(wpUrl, username, password string) (string, error) {
+	vals := url.Values{
+		"username": []string{username},
+		"password": []string{password},
+	}
+
 	req, err := http.NewRequest(http.MethodPost,
 		fmt.Sprintf("%swp-json/jwt-auth/v1/token", wpUrl),
-		strings.NewReader(fmt.Sprintf("username=%s&password=%s", username, password)))
+		strings.NewReader(vals.Encode()))
 	if err != nil {
 		return "", errors.Wrap(err, "http.NewRequest")
 	}
