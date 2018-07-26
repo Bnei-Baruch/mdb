@@ -14,13 +14,14 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/Bnei-Baruch/mdb/models"
 )
 
 var (
 	mdb *sql.DB
+	currentBlog *models.Blog
+	allBlogs map[int64]*models.Blog
 )
-
-var blogName = "laitman-ru"
 
 func Init() time.Time {
 	var err error
@@ -29,7 +30,7 @@ func Init() time.Time {
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	//log.SetLevel(log.WarnLevel)
 
-	log.Info("Starting twitter import")
+	log.Info("Starting blog import")
 
 	log.Info("Setting up connection to MDB")
 	mdb, err = sql.Open("postgres", viper.GetString("mdb.url"))
@@ -41,6 +42,17 @@ func Init() time.Time {
 	log.Info("Initializing static data from MDB")
 	utils.Must(api.InitTypeRegistries(mdb))
 
+
+	blogs, err := models.Blogs(mdb).All()
+	utils.Must(err)
+	allBlogs = make(map[int64]*models.Blog, len(blogs))
+	for i := range blogs {
+		allBlogs[blogs[i].ID] = blogs[i]
+	}
+
+	currentBlog = allBlogs[1]
+	log.Infof("current blog is %s", currentBlog.Name)
+
 	return clock
 }
 
@@ -49,7 +61,7 @@ func Shutdown() {
 }
 
 func traverse(walkFunc filepath.WalkFunc) error {
-	baseDir := fmt.Sprintf("importer/blog/data/%s", blogName)
+	baseDir := fmt.Sprintf("importer/blog/data/%s", currentBlog.Name)
 
 	err := filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

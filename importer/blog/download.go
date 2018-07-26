@@ -27,7 +27,7 @@ func Download() {
 }
 
 func doDownload() error {
-	wpConfig := viper.GetStringMapString(fmt.Sprintf("wordpress.%s", blogName))
+	wpConfig := viper.GetStringMapString(fmt.Sprintf("wordpress.%s", currentBlog.Name))
 	client, err := NewWordpressClient(wpConfig["url"], wpConfig["username"], wpConfig["password"])
 	if err != nil {
 		return errors.Wrap(err, "NewWordpressClient")
@@ -35,33 +35,30 @@ func doDownload() error {
 
 	page := 1
 	perPage := 100
-	skipCount := 0
 	for {
-		log.Infof("Page %d [%d skipped]", page, skipCount)
+		log.Infof("Page %d", page)
 		posts, resp, err := client.Posts.List(context.Background(), &wordpress.PostListOptions{
 			ListOptions: wordpress.ListOptions{
 				Page:    page,
 				PerPage: perPage,
+				OrderBy: "id",
+				Order:   "asc",
 			},
 		})
 		if err != nil {
 			return errors.Wrapf(err, "Posts.List %d", page)
 		}
 
-		for _, post := range posts {
-			if LESSON_RE.MatchString(post.Title.Rendered) ||
-				//CLIP_RE.MatchString(post.Title.Rendered) ||
-				TWITTER_RE.MatchString(post.Title.Rendered) ||
-				DECLAMATION_RE.MatchString(post.Title.Rendered) {
-				skipCount++
-			}
-
+		ids := make([]int, len(posts))
+		for i, post := range posts {
+			ids[i] = post.ID
 			if err := saveToFile(post); err != nil {
 				log.Errorf("saveToFile %d: %s", post.ID, err.Error())
 			}
 		}
 
 		page = resp.NextPage
+		log.Infof("NextPage %d %d %d: ids: %v", page, resp.TotalPages, resp.TotalRecords, ids)
 		if page < 1 {
 			break
 		}
@@ -73,7 +70,7 @@ func doDownload() error {
 func saveToFile(post *wordpress.Post) error {
 	// create output file
 	idStr := strconv.Itoa(post.ID)
-	dir := fmt.Sprintf("importer/blog/data/%s/%s", blogName, idStr[len(idStr)-2:])
+	dir := fmt.Sprintf("importer/blog/data/%s/%s", currentBlog.Name, idStr[len(idStr)-2:])
 	if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil {
 		return errors.Wrapf(err, "os.MkdirAll %s", dir)
 	}

@@ -1032,6 +1032,23 @@ FROM content_units cu
 WHERE cu.secure = 0 AND cu.published IS TRUE AND f.id IS NULL
 ORDER BY cu.created_at;
 
+-- published Collections without published CUs
+SELECT
+  c.id,
+  c.uid,
+  ct.name,
+  c.created_at,
+  c.properties,
+  concat('http://app.mdb.bbdomain.org/admin/collections/', c.id)
+FROM collections c
+  INNER JOIN content_types ct ON c.type_id = ct.id
+  LEFT JOIN (select ccu.*
+             from collections_content_units ccu inner join content_units cu
+                 on ccu.content_unit_id = cu.id and cu.secure = 0 and cu.published is true) ccu
+    ON c.id = ccu.collection_id
+WHERE c.secure = 0 AND c.published IS TRUE AND ccu.content_unit_id IS NULL
+ORDER BY c.created_at;
+
 -- kmedia containers mapped to more than one CU
 SELECT
   properties ->> 'kmedia_id',
@@ -1123,10 +1140,4 @@ where f.published is true
       and fs.storage_id is null
 order by f.id;
 
-
-select distinct on (b.id)
-  b.id,
-  p.posted_at
-from blog_posts p
-  inner join blogs b on p.blog_id = b.id
-order by b.id, p.posted_at desc
+update collections set secure=2 where id in (5447, 5463, 5495, 5515, 5528, 5535, 5547, 5566, 5581, 5597, 5622, 5633, 5648, 5675, 5693, 5710, 5723, 5733, 5753, 5767, 5785, 5826, 5837, 5849, 5865, 6009);

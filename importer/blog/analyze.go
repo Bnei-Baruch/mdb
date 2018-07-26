@@ -19,10 +19,11 @@ import (
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
-var LESSON_RE = regexp.MustCompile("(Уроки и лекции|Утренний урок|Вечерний урок|Урок по Книге Зоар)")
-var CLIP_RE = regexp.MustCompile("клип")
-var TWITTER_RE = regexp.MustCompile("Мои мысли в Twitter")
-var DECLAMATION_RE = regexp.MustCompile("Радио-версия")
+var LESSON_RE = regexp.MustCompile("(?i)^(Уроки и лекции|Утренний урок|Вечерний урок|Урок по Книге Зоар|Lección diaria de Cabalá|Lección diaria de Cábala|Lección diaria de la Cabalá|Daily Kabbalah Lesson|Evening Zohar Lesson|שיעור הקבלה היומי|שיעור וירטואלי|שיעור זוהר|שיעורי הקבלה, סדנאות חיבור ושיחות)")
+var CLIP_RE = regexp.MustCompile("(?i)клип")
+var TWITTER_RE = regexp.MustCompile("(?i)(Мои мысли в Twitter|Mis pensamientos en Twitter|Mis pensamiento en Twitter|My Thoughts On Twitter|המחשבות שלי ב &#8211; Twitter)")
+var DECLAMATION_RE = regexp.MustCompile("(?i)^(Радио-версия|Audio Version Of The Blog|גרסת אודיו)")
+var PROGRAMS_RE = regexp.MustCompile("(?i)^(Una nueva vida|Una vida nueva|Good Environment|New Life|חיים חדשים|טעימות משיעור הקבלה היומי)")
 
 func Analyze() {
 	clock := Init()
@@ -80,6 +81,8 @@ func doAnalyze() error {
 			titleGroups["twitter"] = append(titleGroups["twitter"], title)
 		} else if DECLAMATION_RE.MatchString(title) {
 			titleGroups["declamation"] = append(titleGroups["declamation"], title)
+		} else if PROGRAMS_RE.MatchString(title) {
+			titleGroups["programs"] = append(titleGroups["programs"], title)
 		} else {
 			titleGroups["other"] = append(titleGroups["other"], title)
 		}
@@ -137,12 +140,12 @@ func doAnalyze() error {
 		log.Infof("%s\t%d", kvs[i].k, kvs[i].v)
 	}
 
-	//log.Info("\n\n\n\n\n\n\n\n\n")
-	//for k, v := range titleGroups {
-	//	log.Infof("%s\t%d", k, len(v))
-	//}
+	log.Info("\n\n\n\n\n\n\n\n\n")
+	for k, v := range titleGroups {
+		log.Infof("%s\t%d", k, len(v))
+	}
 
-	//groups := []string{"lesson", "clip", "twitter", "declamation", "other"}
+	//groups := []string{"lesson", "clip", "twitter", "declamation", "programs", "other"}
 	//for i := range groups {
 	//	titles := titleGroups[groups[i]]
 	//	sort.Slice(titles, func(i, j int) bool {
@@ -283,24 +286,19 @@ func (f *PassFilter) IsPass(*wordpress.Post) bool {
 	return true
 }
 
-type LaitmanRuFilter struct{}
+type TitleBasedFilter struct{}
 
-func (f *LaitmanRuFilter) IsPass(post *wordpress.Post) bool {
+func (f *TitleBasedFilter) IsPass(post *wordpress.Post) bool {
 	title := post.Title.Rendered
 	return !(LESSON_RE.MatchString(title) ||
-		//CLIP_RE.MatchString(post.Title.Rendered) ||
-		TWITTER_RE.MatchString(post.Title.Rendered) ||
-		DECLAMATION_RE.MatchString(post.Title.Rendered))
+		// CLIP_RE.MatchString(post.Title.Rendered) ||
+		TWITTER_RE.MatchString(title) ||
+		PROGRAMS_RE.MatchString(title) ||
+		DECLAMATION_RE.MatchString(title))
 }
 
-var BLOG_POSTS_FILTERS = map[int64]BlogPostFilter {
-	1: &LaitmanRuFilter{},
-}
+var titleBasedFilter = new(TitleBasedFilter)
 
 func getBlogPostFilter(blogID int64) BlogPostFilter {
-	if v, ok := BLOG_POSTS_FILTERS[blogID]; ok {
-		return v
-	}
-
-	return &PassFilter{}
+	return titleBasedFilter
 }

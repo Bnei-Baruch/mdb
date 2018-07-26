@@ -75,6 +75,7 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time) error {
 	page := 1
 	perPage := 100
 	skipCount := 0
+	newPosts := make([]*models.BlogPost, 0)
 	for {
 		log.Infof("Page %d [%d skipped]", page, skipCount)
 		posts, resp, err := client.Posts.List(context.Background(), &wordpress.PostListOptions{
@@ -89,11 +90,6 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time) error {
 		}
 
 		for _, post := range posts {
-			if !postFilter.IsPass(post) {
-				log.Infof("Filter %s [%d]", post.Title.Rendered, post.ID)
-				skipCount++
-				continue
-			}
 
 			exist, err := models.BlogPosts(mdb,
 				qm.Where("blog_id = ? and wp_id = ?", b.ID, post.ID)).
@@ -116,16 +112,32 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time) error {
 
 			log.Infof("Insert new post %s [%d]", post.Title.Rendered, post.ID)
 			blogPost.BlogID = b.ID
+			blogPost.Filtered = !postFilter.IsPass(post)
 			err = blogPost.Insert(mdb)
 			if err != nil {
 				log.Errorf("Insert post to DB %d %d: %s", b.ID, post.ID, err.Error())
 				continue
 			}
+
+			newPosts = append(newPosts)
 		}
 
 		page = resp.NextPage
 		if page < 1 {
 			break
+		}
+	}
+
+	// make relative links of new posts
+	err = loadLinkMap()
+	if err != nil {
+		return errors.Wrap(err, "loadLinkMap")
+	}
+
+	for i := range newPosts {
+		if err := makeRelativeLinks(newPosts[i]); err != nil {
+			log.Errorf("makeRelativeLinks %d %d: %s", b.ID, newPosts[i].ID, err.Error())
+			continue
 		}
 	}
 
