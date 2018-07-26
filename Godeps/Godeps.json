@@ -23,6 +23,15 @@
 			"Rev": "dc2ec5c7ca4d9aae063b79b9f581dd3ea6afd2b2"
 		},
 		{
+			"ImportPath": "github.com/PuerkitoBio/purell",
+			"Comment": "v1.1.0-10-g975f537",
+			"Rev": "975f53781597ed779763b7b65566e74c4004d8de"
+		},
+		{
+			"ImportPath": "github.com/PuerkitoBio/urlesc",
+			"Rev": "de5bf2ad457846296e2031421a34e2568e304e35"
+		},
+		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.11.4-2-g1deb2db",
 			"Rev": "1deb2db2a6fff8a35532079061b903c3a25eed52"
@@ -504,6 +513,10 @@
 			"Rev": "c7086645de248775cbf2373cf5ca4d2fa664b8c1"
 		},
 		{
+			"ImportPath": "golang.org/x/net/idna",
+			"Rev": "c7086645de248775cbf2373cf5ca4d2fa664b8c1"
+		},
+		{
 			"ImportPath": "golang.org/x/oauth2",
 			"Rev": "a032972e28060ca4f5644acffae3dfc268cc09db"
 		},
@@ -516,12 +529,29 @@
 			"Rev": "fb4cac33e3196ff7f507ab9b2d2a44b0142f5b5a"
 		},
 		{
+			"ImportPath": "golang.org/x/text/secure/bidirule",
+			"Comment": "v0.3.0-52-g0605a83",
+			"Rev": "0605a8320aceb4207a5fb3521281e17ec2075476"
+		},
+		{
 			"ImportPath": "golang.org/x/text/transform",
-			"Rev": "9e2f80a6ba7ed4ba13e0cd4b1f094bf916875735"
+			"Comment": "v0.3.0-52-g0605a83",
+			"Rev": "0605a8320aceb4207a5fb3521281e17ec2075476"
+		},
+		{
+			"ImportPath": "golang.org/x/text/unicode/bidi",
+			"Comment": "v0.3.0-52-g0605a83",
+			"Rev": "0605a8320aceb4207a5fb3521281e17ec2075476"
 		},
 		{
 			"ImportPath": "golang.org/x/text/unicode/norm",
-			"Rev": "9e2f80a6ba7ed4ba13e0cd4b1f094bf916875735"
+			"Comment": "v0.3.0-52-g0605a83",
+			"Rev": "0605a8320aceb4207a5fb3521281e17ec2075476"
+		},
+		{
+			"ImportPath": "golang.org/x/text/width",
+			"Comment": "v0.3.0-52-g0605a83",
+			"Rev": "0605a8320aceb4207a5fb3521281e17ec2075476"
 		},
 		{
 			"ImportPath": "gopkg.in/gin-contrib/cors.v1",
