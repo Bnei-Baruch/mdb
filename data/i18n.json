@@ -4,266 +4,304 @@
     "en": "Daily Lesson",
     "ru": "Урок",
     "es": "Lección Diaria",
-    "ua": "Урок"
+    "ua": "Урок",
+    "de": "Tägliche Lektion"
   },
   "content_type.SPECIAL_LESSON": {
     "he": "שיעור יומי",
     "en": "Daily Lesson",
     "ru": "Урок",
     "es": "Lección Diaria",
-    "ua": "Урок"
+    "ua": "Урок",
+    "de": "Besondere Lektion"
   },
   "content_type.FRIENDS_GATHERINGS": {
     "he": "ישיבות חברים",
     "en": "Gatherings of Friends",
     "ru": "Ешиват хаверим",
     "es": "Asamblea de Amigos",
-    "ua": "Єшиват Хаверім"
+    "ua": "Єшиват Хаверім",
+    "de": "Versammlungen der Freunde"
   },
   "content_type.CONGRESS": {
     "he": "כנס",
     "en": "Convention",
     "ru": "Конгресс",
     "es": "Congreso",
-    "ua": "Конгрес"
+    "ua": "Конгрес",
+    "de": "Kongress"
   },
   "content_type.VIDEO_PROGRAM": {
     "he": "תוכנית טלוויזיה",
     "en": "TV Show",
     "ru": "ТВ программа",
     "es": "Programa",
-    "ua": "ТВ Програма"
+    "ua": "ТВ Програма",
+    "de": "Videoprogramm"
   },
   "content_type.LECTURE_SERIES": {
     "he": "סדרת הרצאות",
     "en": "Lecture Series",
     "ru": "Серия лекций",
     "es": "Serie de Charlas",
-    "ua": "Серія Лекцій"
+    "ua": "Серія Лекцій",
+    "de": "Vortragsreihe"
   },
   "content_type.CHILDREN_LESSONS": {
     "he": "שיעורי ילדים",
     "en": "Children Lessons",
     "ru": "Дети уроки",
     "es": "Lección de Niños",
-    "ua": "Діти Уроки"
+    "ua": "Діти Уроки",
+    "de": "Unterrichte für Kinder"
   },
   "content_type.WOMEN_LESSONS": {
     "he": "שיעורי נשים",
     "en": "Women Lessons",
     "ru": "Женщины уроки",
     "es": "Lección de Mujeres",
-    "ua": "Жінки Уроки"
+    "ua": "Жінки Уроки",
+    "de": "Unterrichte für Frauen"
   },
   "content_type.VIRTUAL_LESSONS": {
     "he": "שיעורים וירטואלים",
     "en": "Virtual Lessons",
     "ru": "Виртуальный уроки",
     "es": "Lecciones Virtuales",
-    "ua": "Віртуальний Уроки"
+    "ua": "Віртуальний Уроки",
+    "de": "Virtuelle Lektionen"
   },
   "content_type.MEALS": {
     "he": "סעודות",
     "en": "Meals",
     "ru": "Трапезы",
     "es": "Comidas",
-    "ua": "Трапези"
+    "ua": "Трапези",
+    "de": "Mahlzeiten"
   },
   "content_type.HOLIDAY": {
     "he": "חג",
     "en": "Holiday",
     "ru": "Праздник",
     "es": "Fiestas",
-    "ua": "Свято"
+    "ua": "Свято",
+    "de": "Feiertag"
   },
   "content_type.PICNIC": {
     "he": "פיקניק",
     "en": "Picnic",
     "ru": "Пикник",
     "es": "Picnic",
-    "ua": "Пікнік"
+    "ua": "Пікнік",
+    "de": "Picknick"
   },
   "content_type.UNITY_DAY": {
     "he": "יום איחוד",
     "en": "Unity Day",
     "ru": "День народного единства",
     "es": "Día de Unión",
-    "ua": "День Народної Єдності"
+    "ua": "День Народної Єдності",
+    "de": "Unity Day"
   },
   "content_type.CLIPS": {
     "he": "קליפים",
     "en": "Clips",
     "ru": "Клипсы",
     "es": "Clips",
-    "ua": "Кліпи"
+    "ua": "Кліпи",
+    "de": "Clips"
   },
   "content_type.ARTICLES": {
     "he": "מאמרים",
     "en": "Articles",
     "ru": "Статьи",
     "es": "Artículos",
-    "ua": "Статті"
+    "ua": "Статті",
+    "de": "Artikel"
   },
   "content_type.LESSONS_SERIES": {
     "he": "סדרת שיעורים",
     "en": "Lessons Series",
     "ru": "Серия уроки",
     "es": "Serie de Lecciones",
-    "ua": "Серія Уроки"
+    "ua": "Серія Уроки",
+    "de": "Teil Nr. der Lektion"
   },
   "content_type.SONGS": {
     "he": "שירים",
     "en": "Songs",
     "ru": "песни",
     "es": "Canciones",
-    "ua": "Пісні"
+    "ua": "Пісні",
+    "de": "Lieder"
   },
   "content_type.BOOKS": {
     "he": "ספרים",
     "en": "Books",
     "ru": "книги",
     "es": "Libros",
-    "ua": "Книги"
+    "ua": "Книги",
+    "de": "Bücher"
   },
   "content_type.LESSON_PART": {
     "he": "חלק שיעור",
     "en": "Lesson Part",
     "ru": "Урок часть",
     "es": "Parte de la Lección",
-    "ua": "Урок Частина"
+    "ua": "Урок Частина",
+    "de": "Lektionsteil"
   },
   "content_type.LECTURE": {
     "he": "הרצאה",
     "en": "Lecture",
     "ru": "Лекция",
     "es": "Charla",
-    "ua": "Лекція"
+    "ua": "Лекція",
+    "de": "Lektion"
   },
   "content_type.CHILDREN_LESSON": {
     "he": "שיעור ילדים",
     "en": "Children Lesson",
     "ru": "Дети урок",
     "es": "Lección de Niños",
-    "ua": "Діти Урок"
+    "ua": "Діти Урок",
+    "de": "Unterricht für Kinder"
   },
   "content_type.WOMEN_LESSON": {
     "he": "שיעור נשים",
     "en": "Women Lesson",
     "ru": "Женщины урок",
     "es": "Lección de Mujeres",
-    "ua": "Жінки Урок"
+    "ua": "Жінки Урок",
+    "de": "Unterricht für Frauen"
   },
   "content_type.VIRTUAL_LESSON": {
     "he": "שיעור וירטואלי",
     "en": "Virtual Lesson",
     "ru": "Виртуальный урок",
     "es": "Lección Virtual",
-    "ua": "Віртуальний Урок"
+    "ua": "Віртуальний Урок",
+    "de": "Virtuelle Lektion"
   },
   "content_type.FRIENDS_GATHERING": {
     "he": "ישיבת חברים",
     "en": "Gathering of Friends",
     "ru": "Ешиват хаверим",
     "es": "Asamblea de Amigos",
-    "ua": "Єшиват Хаверім"
+    "ua": "Єшиват Хаверім",
+    "de": "Versammlung der Freunde"
   },
   "content_type.MEAL": {
     "he": "סעודה",
     "en": "Meal",
     "ru": "Трапеза",
     "es": "Comida",
-    "ua": "Трапеза"
+    "ua": "Трапеза",
+    "de": "Mahlzeit"
   },
   "content_type.VIDEO_PROGRAM_CHAPTER": {
     "he": "פרק",
     "en": "Episode",
     "ru": "Эпизод",
     "es": "Capitulo",
-    "ua": "Епізод"
+    "ua": "Епізод",
+    "de": "Teil des Programmes"
   },
   "content_type.FULL_LESSON": {
     "he": "שיעור מלא",
     "en": "Full Lesson",
     "ru": "Полный урок",
     "es": "Lección Completa",
-    "ua": "Цілий Урок"
+    "ua": "Цілий Урок",
+    "de": "Vollständige Lektion"
   },
   "content_type.ARTICLE": {
     "he": "מאמר",
     "en": "Article",
     "ru": "Статья",
     "es": "Articulo",
-    "ua": "Стаття"
+    "ua": "Стаття",
+    "de": "Artikel"
   },
   "content_type.UNKNOWN": {
     "he": "לא ידוע",
     "en": "Unknown",
     "ru": "Неизвестный",
     "es": "Desconocido",
-    "ua": "Невідомий"
+    "ua": "Невідомий",
+    "de": "Unbekannt"
   },
   "content_type.EVENT_PART": {
     "he": "חלק מאירוע",
     "en": "Event Part",
     "ru": "Событие часть",
     "es": "Parte del Evento",
-    "ua": "Подія Частина"
+    "ua": "Подія Частина",
+    "de": "Teil der Veranstaltung"
   },
   "content_type.CLIP": {
     "he": "קליפ",
     "en": "Clip",
     "ru": "Клип",
     "es": "Clip",
-    "ua": "Кліп"
+    "ua": "Кліп",
+    "de": "Clip"
   },
   "content_type.TRAINING": {
     "he": "הכשרה",
     "en": "Training",
     "ru": "Обучение",
     "es": "Entrenamiento",
-    "ua": "Навчання"
+    "ua": "Навчання",
+    "de": "Training"
   },
   "content_type.KITEI_MAKOR": {
     "he": "קטעי מקור",
     "en": "Source Excerpts",
     "ru": "Исходные выдержки",
     "es": "Extractos de Fuentes",
-    "ua": "Початкові Витяги"
+    "ua": "Початкові Витяги",
+    "de": "Fragmente von Primärquellen"
   },
   "content_type.PUBLICATION": {
     "he": "פירסום",
     "en": "Publication",
     "ru": "Публикация",
     "es": "Publicidad",
-    "ua": "Публікація"
+    "ua": "Публікація",
+    "de": "Veröffentlichung"
   },
   "content_type.LELO_MIKUD": {
     "he": "ללא קבוצת מיקוד",
     "en": "Without Focus Group",
     "ru": "Без фокус-группы",
     "es": "Editado - sin grupo de enfoque",
-    "ua": "Без Фокус-Групи"
+    "ua": "Без Фокус-Групи",
+    "de": "Bearbeitet - Ohne Fokusgruppen"
   },
   "content_type.SONG": {
     "he": "שיר",
     "en": "Song",
     "ru": "песня",
     "es": "Canción",
-    "ua": "Пісня"
+    "ua": "Пісня",
+    "de": "Lied"
   },
   "content_type.BOOK": {
     "he": "ספר",
     "en": "Book",
     "ru": "Книга",
     "es": "Libro",
-    "ua": "Книга"
+    "ua": "Книга",
+    "de": "Buch"
   },
   "content_type.BLOG_POST": {
     "he": "פוסט בבלוג",
     "en": "Blog Post",
     "ru": "Сообщение блога",
     "es": "Entrada en el blog",
-    "ua": "Публікація блогів"
+    "ua": "Публікація блогів",
+    "de": "Blogeintrag"
   },
   "autoname.lesson_by_topic_tag": {
     "he": "שיעור%s בנושא",
