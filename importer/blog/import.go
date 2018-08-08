@@ -446,7 +446,12 @@ func makeNodeSecureDomains(node *html.Node) {
 			// remove subdomains
 			s := strings.Split(pUrl.Host, ".")
 			if len(s) > 2 {
-				pUrl.Host = strings.Join(s[len(s)-2:], ".")
+				for i := range s {
+					if s[i] == "laitman" {
+						pUrl.Host = strings.Join(s[i:], ".")
+						break
+					}
+				}
 			}
 
 			node.Attr[i].Val = pUrl.String()
