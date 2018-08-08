@@ -30,10 +30,10 @@ var sneakyBustards = make([]string, 0)
 func Import() {
 	clock := Init()
 
-	for _, v := range allBlogs {
-		currentBlog = v
-		utils.Must(doImport())
-	}
+	//for _, v := range allBlogs {
+	//	currentBlog = v
+	//	utils.Must(doImport())
+	//}
 	utils.Must(makeRelativeLinksAll())
 
 	log.Infof("%d sneaky bustards", len(sneakyBustards))
@@ -227,15 +227,15 @@ func makeRelativeLinksAll() error {
 	}
 
 	for i := range posts {
-		err := makeRelativeLinks(posts[i])
+		err := cleanPost(posts[i])
 		if err != nil {
-			return errors.Wrapf(err, "makeRelativeLinks [%d]", posts[i].ID)
+			return errors.Wrapf(err, "cleanPost [%d]", posts[i].ID)
 		}
 	}
 	return nil
 }
 
-func makeRelativeLinks(post *models.BlogPost) error {
+func cleanPost(post *models.BlogPost) error {
 	ctxNode := html.Node{
 		Type:     html.ElementNode,
 		DataAtom: atom.Body,
@@ -250,6 +250,7 @@ func makeRelativeLinks(post *models.BlogPost) error {
 	var sb strings.Builder
 	for i := range nodes {
 		traverseHtmlNode(nodes[i], makeNodeRelativeLinks)
+		traverseHtmlNode(nodes[i], makeNodeSecureDomains)
 		html.Render(&sb, nodes[i])
 	}
 	post.Content = sb.String()
@@ -422,4 +423,35 @@ func (s *UrlUnShortner) Follow(url string) (string, error) {
 
 	// return last redirect hop url
 	return resp.Request.URL.String(), nil
+}
+
+func makeNodeSecureDomains(node *html.Node) {
+	for i := range node.Attr {
+		if node.Attr[i].Key == "src" {
+			pUrl, err := url.Parse(node.Attr[i].Val)
+			if err != nil {
+				log.Warnf("url.Parse: %s", err.Error())
+				break
+			}
+
+			// ignore:
+			// * non our urls
+			if !HOST_RE.MatchString(pUrl.Host) {
+				break
+			}
+
+			// make sure wer'e secure
+			pUrl.Scheme = "https"
+
+			// remove subdomains
+			s := strings.Split(pUrl.Host, ".")
+			if len(s) > 2 {
+				pUrl.Host = strings.Join(s[len(s)-2:], ".")
+			}
+
+			node.Attr[i].Val = pUrl.String()
+
+			break
+		}
+	}
 }

@@ -119,7 +119,7 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time) error {
 				continue
 			}
 
-			newPosts = append(newPosts)
+			newPosts = append(newPosts, blogPost)
 		}
 
 		page = resp.NextPage
@@ -135,8 +135,8 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time) error {
 	}
 
 	for i := range newPosts {
-		if err := makeRelativeLinks(newPosts[i]); err != nil {
-			log.Errorf("makeRelativeLinks %d %d: %s", b.ID, newPosts[i].ID, err.Error())
+		if err := cleanPost(newPosts[i]); err != nil {
+			log.Errorf("cleanPost %d %d: %s", b.ID, newPosts[i].ID, err.Error())
 			continue
 		}
 	}
