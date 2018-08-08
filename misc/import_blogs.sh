@@ -9,6 +9,8 @@ LOG_FILE="$BASE_DIR/logs/blogs/import_$TIMESTAMP.log"
 
 cd ${BASE_DIR} && ./mdb blog-latest > ${LOG_FILE} 2>&1
 
+find "${BASE_DIR}/logs/blogs" -type f -mtime +7 -exec rm -rf {} \;
+
 WARNINGS="$(egrep -c "level=(warning|error)" ${LOG_FILE})"
 
 if [ "$WARNINGS" = 0 ];then
@@ -18,4 +20,3 @@ fi
 
 echo "Errors in periodic import of blogs to MDB" | mail -s "ERROR: MDB blogs import" -r "mdb@bbdomain.org" -a ${LOG_FILE} edoshor@gmail.com
 
-find "${BASE_DIR}/logs/blogs" -type f -mtime +7 -exec rm -rf {} \;
