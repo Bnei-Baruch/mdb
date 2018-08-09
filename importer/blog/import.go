@@ -34,7 +34,7 @@ func Import() {
 	//	currentBlog = v
 	//	utils.Must(doImport())
 	//}
-	utils.Must(makeRelativeLinksAll())
+	utils.Must(cleanAllPosts())
 
 	log.Infof("%d sneaky bustards", len(sneakyBustards))
 	sort.Slice(sneakyBustards, func(i, j int) bool {
@@ -215,7 +215,7 @@ func loadLinkMap() error {
 	return nil
 }
 
-func makeRelativeLinksAll() error {
+func cleanAllPosts() error {
 	err := loadLinkMap()
 	if err != nil {
 		return errors.Wrap(err, "loadLinkMap")
@@ -427,36 +427,58 @@ func (s *UrlUnShortner) Follow(url string) (string, error) {
 
 func makeNodeSecureDomains(node *html.Node) {
 	for i := range node.Attr {
-		if node.Attr[i].Key == "src" {
-			pUrl, err := url.Parse(node.Attr[i].Val)
+		switch node.Attr[i].Key {
+		case "src":
+			sUrl, err := secureDomain(node.Attr[i].Val)
 			if err != nil {
-				log.Warnf("url.Parse: %s", err.Error())
-				break
+				log.Warnf("secureDomain: %s", err.Error())
+			} else {
+				node.Attr[i].Val = sUrl
 			}
-
-			// ignore:
-			// * non our urls
-			if !HOST_RE.MatchString(pUrl.Host) {
-				break
-			}
-
-			// make sure wer'e secure
-			pUrl.Scheme = "https"
-
-			// remove subdomains
-			s := strings.Split(pUrl.Host, ".")
-			if len(s) > 2 {
-				for i := range s {
-					if s[i] == "laitman" {
-						pUrl.Host = strings.Join(s[i:], ".")
-						break
-					}
+		case "srcset":
+			s := strings.Split(node.Attr[i].Val, ",")
+			for j := range s {
+				sj := strings.SplitN(strings.TrimSpace(s[j]), " ", 2)
+				sUrl, err := secureDomain(strings.TrimSpace(sj[0]))
+				if err != nil {
+					log.Warnf("secureDomain: %s", err.Error())
+				} else {
+					sj[0] = sUrl
 				}
+				s[j] = strings.Join(sj, " ")
 			}
-
-			node.Attr[i].Val = pUrl.String()
-
-			break
+			node.Attr[i].Val = strings.Join(s, ", ")
+		default:
+			continue
 		}
 	}
+}
+
+func secureDomain(urlVal string) (string, error) {
+	pUrl, err := url.Parse(urlVal)
+	if err != nil {
+		return "", errors.Wrap(err, "url.Parse")
+	}
+
+	// ignore:
+	// * non our urls
+	if !HOST_RE.MatchString(pUrl.Host) {
+		return urlVal, nil
+	}
+
+	// make sure wer'e secure
+	pUrl.Scheme = "https"
+
+	// remove subdomains
+	s := strings.Split(pUrl.Host, ".")
+	if len(s) > 2 {
+		for i := range s {
+			if s[i] == "laitman" {
+				pUrl.Host = strings.Join(s[i:], ".")
+				break
+			}
+		}
+	}
+
+	return pUrl.String(), nil
 }
