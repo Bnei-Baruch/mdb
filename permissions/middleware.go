@@ -40,7 +40,7 @@ type IDTokenClaims struct {
 func AuthenticationMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenVerifier, _ := c.Get("TOKEN_VERIFIER")
-		if verifier, ok := tokenVerifier.(*oidc.IDTokenVerifier); ok {
+		if verifier, ok := tokenVerifier.(*oidc.IDTokenVerifier); ok && verifier != nil {
 			// We have a proper ID Token Verifier. Game on
 
 			authHeader := strings.Split(strings.TrimSpace(c.Request.Header.Get("Authorization")), " ")
