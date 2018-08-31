@@ -439,7 +439,7 @@ func makeNodeSecureDomains(node *html.Node) {
 			s := strings.Split(node.Attr[i].Val, ",")
 			for j := range s {
 				sj := strings.SplitN(strings.TrimSpace(s[j]), " ", 2)
-				sUrl, err := secureDomain(strings.TrimSpace(sj[0]))
+				sUrl, err := secureDomain(sj[0])
 				if err != nil {
 					log.Warnf("secureDomain: %s", err.Error())
 				} else {
@@ -455,7 +455,7 @@ func makeNodeSecureDomains(node *html.Node) {
 }
 
 func secureDomain(urlVal string) (string, error) {
-	pUrl, err := url.Parse(urlVal)
+	pUrl, err := url.Parse(strings.TrimSpace(urlVal))
 	if err != nil {
 		return "", errors.Wrap(err, "url.Parse")
 	}
