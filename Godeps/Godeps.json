@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/Bnei-Baruch/mdb",
-	"GoVersion": "go1.9",
-	"GodepVersion": "v79",
+	"GoVersion": "go1.10",
+	"GodepVersion": "v80",
 	"Deps": [
 		{
 			"ImportPath": "github.com/Knetic/govaluate",
@@ -266,6 +266,10 @@
 			"Rev": "33c603157d6fd1b0ac2599bcc4a286b36479a06d"
 		},
 		{
+			"ImportPath": "github.com/nullbio/inflect",
+			"Rev": "3edb4592a77b0072b13dc3ed0669c08c266f6c73"
+		},
+		{
 			"ImportPath": "github.com/oklog/ulid",
 			"Comment": "v0.3.0-8-geb55c82",
 			"Rev": "eb55c82d96c77e196b269cb2ae3afda150454de7"
@@ -364,6 +368,21 @@
 		{
 			"ImportPath": "github.com/ugorji/go/codec",
 			"Rev": "50189f05eaf5a0c17e5084eb8f7fb91e23699840"
+		},
+		{
+			"ImportPath": "github.com/vattle/sqlboiler/boil",
+			"Comment": "v2.5.0-7-g03fcde3",
+			"Rev": "03fcde37ad1cffaa8707aff51aad81c7e5484a32"
+		},
+		{
+			"ImportPath": "github.com/vattle/sqlboiler/queries",
+			"Comment": "v2.5.0-7-g03fcde3",
+			"Rev": "03fcde37ad1cffaa8707aff51aad81c7e5484a32"
+		},
+		{
+			"ImportPath": "github.com/vattle/sqlboiler/strmangle",
+			"Comment": "v2.5.0-7-g03fcde3",
+			"Rev": "03fcde37ad1cffaa8707aff51aad81c7e5484a32"
 		},
 		{
 			"ImportPath": "github.com/volatiletech/inflect",
@@ -468,6 +487,16 @@
 			"ImportPath": "gopkg.in/go-playground/validator.v8",
 			"Comment": "v8.18.2",
 			"Rev": "5f1438d3fca68893a817e4a66806cea46a9e4ebf"
+		},
+		{
+			"ImportPath": "gopkg.in/nullbio/null.v6",
+			"Comment": "v6.3",
+			"Rev": "40264a2e6b7972d183906cf17663983c23231c82"
+		},
+		{
+			"ImportPath": "gopkg.in/nullbio/null.v6/convert",
+			"Comment": "v6.3",
+			"Rev": "40264a2e6b7972d183906cf17663983c23231c82"
 		},
 		{
 			"ImportPath": "gopkg.in/square/go-jose.v2",

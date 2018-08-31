@@ -1,0 +1,31 @@
+<style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;border-color:#aabcfe;}
+    .tg td{font-family:Arial, sans-serif;font-size:14px;padding:10px 12px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:#aabcfe;color:#669;background-color:#e8edff;}
+    .tg th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 12px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;border-color:#aabcfe;color:#039;background-color:#b9c9fe;}
+    .tg .tg-hmp3{background-color:#D2E4FC;text-align:left;vertical-align:top}
+    .tg .tg-0lax{text-align:left;vertical-align:top}
+    @media screen and (max-width: 767px) {.tg {width: auto !important;}.tg col {width: auto !important;}.tg-wrap {overflow-x: auto;-webkit-overflow-scrolling: touch;}}
+</style>
+<h1>{{.NotPublishedContentUnitsTitle}}<h1>
+<div class="tg-wrap">
+    <table class="tg">
+        <tr>
+            <th class="tg-0lax">ID</th>
+            <th class="tg-0lax">UID</th>
+            <th class="tg-0lax">TypeID</th>
+            <th class="tg-0lax">CreatedAt</th>
+            <th class="tg-0lax">Properties</th>
+            <th class="tg-0lax">Secure</th>
+        </tr>
+        {{range .ContentUnits}}
+        <tr>
+            <td class="tg-0lax">{{.ID}}</td>
+            <td class="tg-0lax">{{.UID}}</td>
+            <td class="tg-0lax">{{.TypeID}}</td>
+            <td class="tg-0lax">{{.CreatedAt}}</td>
+            <td class="tg-0lax">{{.Properties}}</td>
+            <td class="tg-0lax">{{.Secure}}</td>
+        </tr>
+        {{end}}
+    </table>
+</div>

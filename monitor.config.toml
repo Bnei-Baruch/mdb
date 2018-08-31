@@ -1,0 +1,54 @@
+[mdb]
+url="postgres://localhost/mdb?sslmode=disable&user=postgres&password=arvut123"
+
+# Configuration for monitoring agent
+[agent]
+  # Default data collection interval for all plugins
+  interval = "10s"
+
+  # Default flush interval for all plugins
+  flushInterval = "20s"
+
+###############################################################################
+#                            INPUT PLUGINS                                    #
+###############################################################################
+
+# Read metrics about cpu usage
+[[inputs.cpu]]
+  ## Whether to report per-cpu stats or not
+  percpu = true
+  ## Whether to report total system cpu stats or not
+  totalcpu = true
+  ## If true, collect raw CPU time metrics.
+  collect_cpu_time = false
+  ## If true, compute and report the sum of all non-idle CPU states.
+  report_active = true
+
+  # Read metrics about not published content units
+[[inputs.notPublishedContentUnits]]
+  mdb_url = "postgres://localhost/mdb?sslmode=disable&user=postgres&password=arvut123"
+
+###############################################################################
+#                            OUTPUT PLUGINS                                   #
+###############################################################################
+# Configuration for sending metrics to nowhere at all (discard)
+[[outputs.discard]]
+
+[[outputs.file]]
+  ## Files to write to, "stdout" is a specially handled file.
+  files = ["c:/temp/metrics.out"]
+
+  ## Data format to output.
+  ## Each data format has its own unique set of configuration options, read
+  ## more about them here:
+  ## https://github.com/influxdata/telegraf/blob/master/docs/DATA_FORMATS_OUTPUT.md
+  data_format = "json"
+
+  ## The resolution to use for the metric timestamp.  Must be a duration string
+  ## such as "1ns", "1us", "1ms", "10ms", "1s".  Durations are truncated to
+  ## the power of 10 less than the specified units.
+  json_timestamp_units = "1s"
+
+  [[outputs.alerting]]
+  emailTemplateFile="D:/go/src/github.com/Bnei-Baruch/mdb/monitor/plugins/outputs/alerting/templates/notPublishedContentUnits.html"
+  outputEmailFile="c:/temp/email.html"

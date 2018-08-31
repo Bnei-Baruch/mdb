@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/spf13/viper"
 	log "github.com/Sirupsen/logrus"
+	"github.com/spf13/viper"
 
 	"github.com/Bnei-Baruch/mdb/migrations"
 
@@ -32,7 +32,7 @@ import (
 var UID_REGEX = regexp.MustCompile("[a-zA-z0-9]{8}")
 
 type TestDBManager struct {
-	DB *sql.DB
+	DB     *sql.DB
 	testDB string
 }
 
@@ -42,16 +42,24 @@ func (m *TestDBManager) InitTestDB() error {
 
 	m.initConfig()
 
+	fmt.Printf("Config initialized %s...\n", viper.GetString("mdb.url"))
+
 	// Open connection to RDBMS
 	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("Connection opened...")
+
+	fmt.Printf("Going to create a new temporary test database %s...\n", m.testDB)
+
 	// Create a new temporary test database
 	if _, err := db.Exec("CREATE DATABASE " + m.testDB); err != nil {
 		return err
 	}
+
+	fmt.Println("Database created...")
 
 	// Close first connection and connect to temp database
 	db.Close()
@@ -60,8 +68,12 @@ func (m *TestDBManager) InitTestDB() error {
 		return err
 	}
 
+	fmt.Println("Connection opened using url template...")
+
 	// Run migrations
 	m.runMigrations(db)
+
+	fmt.Println("Connection migrations ran...")
 
 	// Setup SQLBoiler
 	m.DB = db
