@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/labstack/gommon/log"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -66,7 +67,9 @@ func getJWTToken(wpUrl, username, password string) (string, error) {
 		return "", errors.Wrap(err, "ioutil.ReadAll body")
 	}
 
-	fmt.Println(string(body))
+	if resp.StatusCode != http.StatusOK {
+		log.Warnf("wordpress.getJWTToken bad status code [%d]\n%s\n", resp.StatusCode, string(body))
+	}
 
 	var bodyJson map[string]interface{}
 	err = json.Unmarshal(body, &bodyJson)
@@ -74,5 +77,13 @@ func getJWTToken(wpUrl, username, password string) (string, error) {
 		return "", errors.Wrap(err, "json.Unmarshal")
 	}
 
-	return bodyJson["token"].(string), nil
+	if v, ok := bodyJson["token"]; ok {
+		if vv, ok := v.(string); ok {
+			return vv, nil
+		} else {
+			return "", errors.Errorf("JWT token is not a string, got: %v", v)
+		}
+	} else {
+		return "", errors.Errorf("Invalid JWT token endpoint response: %v", bodyJson)
+	}
 }
