@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/labstack/gommon/log"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/robbiet480/go-wordpress"
 	"golang.org/x/oauth2"
