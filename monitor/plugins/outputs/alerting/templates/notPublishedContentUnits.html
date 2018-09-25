@@ -19,9 +19,9 @@
         </tr>
         {{range .ContentUnits}}
         <tr>
-            <td class="tg-0lax">{{.ID}}</td>
+            <td class="tg-0lax"><a href="http://app.mdb.bbdomain.org/admin/content_units/{{.ID}}">{{.ID}}</a></td>
             <td class="tg-0lax">{{.UID}}</td>
-            <td class="tg-0lax">{{.TypeID}}</td>
+            <td class="tg-0lax">{{.TypeName}}</td>
             <td class="tg-0lax">{{.CreatedAt}}</td>
             <td class="tg-0lax">{{.Properties}}</td>
             <td class="tg-0lax">{{.Secure}}</td>

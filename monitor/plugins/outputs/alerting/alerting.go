@@ -10,12 +10,26 @@ import (
 	"net/smtp"
 	"os"
 	"strings"
+	"time"
 
-	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/monitor/interfaces"
+	"github.com/Bnei-Baruch/mdb/monitor/internal/viewModels"
 	"github.com/Bnei-Baruch/mdb/monitor/plugins/outputs"
 	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/pkg/errors"
 )
+
+// ContentUnitDecorator is an object representing the view model object.
+type ContentUnitDecorator struct {
+	ID         int64  `boil:"id" json:"id" toml:"id" yaml:"id"`
+	UID        string `boil:"uid" json:"uid" toml:"uid" yaml:"uid"`
+	TypeID     int64  `boil:"type_id" json:"type_id" toml:"type_id" yaml:"type_id"`
+	TypeName   string
+	CreatedAt  time.Time              `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	Properties map[string]interface{} `boil:"properties" json:"properties,omitempty" toml:"properties" yaml:"properties,omitempty"`
+	Secure     int16                  `boil:"secure" json:"secure" toml:"secure" yaml:"secure"`
+	Published  bool                   `boil:"published" json:"published" toml:"published" yaml:"published"`
+}
 
 type Alerting struct {
 	emailTemplateFile string
@@ -73,14 +87,30 @@ func (d *Alerting) Write(metrics []interfaces.Metric) error {
 			var fields = metric.Fields()
 			if fields != nil {
 				var totalMeals = fields["totalMeals"].(int64)
-				var meals []*models.ContentUnit
+				var meals []*viewModels.ContentUnitViewModel
 				var mealsJSON = []byte(fields["meals"].(string))
 				err := json.Unmarshal(mealsJSON, &meals)
 				utils.Must(err)
 				if totalMeals > 0 {
+					var mealsDecorators []*ContentUnitDecorator
+					for _, meal := range meals {
+						mealDecorator := new(ContentUnitDecorator)
+						mealDecorator.ID = meal.ID
+						mealDecorator.UID = meal.UID
+						mealDecorator.CreatedAt = meal.CreatedAt
+						mealDecorator.Published = meal.Published
+						mealDecorator.Secure = meal.Secure
+						mealDecorator.TypeID = meal.TypeID
+						mealDecorator.TypeName = meal.TypeName
+						err := json.Unmarshal(meal.Properties.JSON, &mealDecorator.Properties)
+						if err != nil {
+							return errors.Wrapf(err, "json.Unmarshal properties %s", meal.UID)
+						}
+						mealsDecorators = append(mealsDecorators, mealDecorator)
+					}
 					data := map[string]interface{}{
 						"NotPublishedContentUnitsTitle": "Unpublished meals",
-						"ContentUnits":                  meals,
+						"ContentUnits":                  mealsDecorators,
 					}
 					tmpl := template.Must(template.ParseFiles(d.emailTemplateFile))
 					for _, writer := range d.writers {

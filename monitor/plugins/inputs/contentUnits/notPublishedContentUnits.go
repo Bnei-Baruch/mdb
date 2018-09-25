@@ -6,9 +6,11 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/monitor/interfaces"
+	"github.com/Bnei-Baruch/mdb/monitor/internal/viewModels"
 	"github.com/Bnei-Baruch/mdb/monitor/plugins/inputs"
 	"github.com/Bnei-Baruch/mdb/utils"
 	log "github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 )
 
@@ -44,13 +46,28 @@ func (s *NotPublishedContentUnits) Gather(acc interfaces.Accumulator) error {
 	utils.Must(err)
 	totalNotPublishedContentUnits, err := models.ContentUnits(db, qm.Where("published = false")).All()
 	utils.Must(err)
-	var meals []*models.ContentUnit
-	var lessonParts []*models.ContentUnit
+	var meals []viewModels.ContentUnitViewModel
+	var lessonParts []viewModels.ContentUnitViewModel
+	types, err := models.ContentTypes(db, qm.Where("1=1")).All()
+	if err != nil {
+		return errors.Wrap(err, "Load content_types from DB")
+	}
 	for _, contentUnit := range totalNotPublishedContentUnits {
+		contentType := findContentType(types, contentUnit.TypeID)
+		contentUnitViewModel := viewModels.ContentUnitViewModel{
+			ID:         contentUnit.ID,
+			UID:        contentUnit.UID,
+			TypeID:     contentUnit.TypeID,
+			TypeName:   contentType.Name,
+			CreatedAt:  contentUnit.CreatedAt,
+			Properties: contentUnit.Properties,
+			Secure:     contentUnit.Secure,
+			Published:  contentUnit.Published,
+		}
 		if contentUnit.TypeID == 19 { // Meals
-			meals = append(meals, contentUnit)
+			meals = append(meals, contentUnitViewModel)
 		} else if contentUnit.TypeID == 11 { // Lesson parts
-			lessonParts = append(lessonParts, contentUnit)
+			lessonParts = append(lessonParts, contentUnitViewModel)
 		}
 	}
 	defer db.Close()
@@ -74,4 +91,14 @@ func init() {
 	inputs.Add("notpublishedcontentunits", func() interfaces.Input {
 		return &NotPublishedContentUnits{}
 	})
+}
+
+func findContentType(types models.ContentTypeSlice, typeID int64) *models.ContentType {
+	for _, contentType := range types {
+		if contentType.ID == typeID {
+			return contentType
+		}
+	}
+
+	return nil
 }
