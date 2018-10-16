@@ -137,8 +137,9 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time) error {
 	for i := range newPosts {
 		if err := cleanPost(newPosts[i]); err != nil {
 			log.Errorf("cleanPost %d %d: %s", b.ID, newPosts[i].ID, err.Error())
-			continue
+			//continue
 		}
+		// TBD: fire BlogPostCreateEvent
 	}
 
 	return nil

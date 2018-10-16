@@ -1,6 +1,8 @@
 package events
 
 import (
+	"fmt"
+
 	"github.com/Bnei-Baruch/mdb/models"
 )
 
@@ -238,5 +240,41 @@ func PublisherUpdateEvent(p *models.Publisher) Event {
 	return makeEvent(E_PUBLISHER_UPDATE, map[string]interface{}{
 		"id":  p.ID,
 		"uid": p.UID,
+	})
+}
+
+func BlogPostCreateEvent(p *models.BlogPost) Event {
+	return makeEvent(E_BLOG_POST_CREATE, map[string]interface{}{
+		"id": fmt.Sprintf("%d-%d", p.BlogID, p.WPID),
+	})
+}
+
+func BlogPostUpdateEvent(p *models.BlogPost) Event {
+	return makeEvent(E_BLOG_POST_UPDATE, map[string]interface{}{
+		"id": fmt.Sprintf("%d-%d", p.BlogID, p.WPID),
+	})
+}
+
+func BlogPostDeleteEvent(p *models.BlogPost) Event {
+	return makeEvent(E_BLOG_POST_DELETE, map[string]interface{}{
+		"id": fmt.Sprintf("%d-%d", p.BlogID, p.WPID),
+	})
+}
+
+func TweetCreateEvent(t *models.TwitterTweet) Event {
+	return makeEvent(E_TWEET_CREATE, map[string]interface{}{
+		"tid": t.TwitterID,
+	})
+}
+
+func TweetUpdateEvent(t *models.TwitterTweet) Event {
+	return makeEvent(E_TWEET_UPDATE, map[string]interface{}{
+		"tid": t.TwitterID,
+	})
+}
+
+func TweetDeleteEvent(t *models.TwitterTweet) Event {
+	return makeEvent(E_TWEET_DELETE, map[string]interface{}{
+		"tid": t.TwitterID,
 	})
 }
