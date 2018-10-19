@@ -1,8 +1,6 @@
 package events
 
 import (
-	"fmt"
-
 	"github.com/Bnei-Baruch/mdb/models"
 )
 
@@ -245,19 +243,22 @@ func PublisherUpdateEvent(p *models.Publisher) Event {
 
 func BlogPostCreateEvent(p *models.BlogPost) Event {
 	return makeEvent(E_BLOG_POST_CREATE, map[string]interface{}{
-		"id": fmt.Sprintf("%d-%d", p.BlogID, p.WPID),
+		"blogId": p.BlogID,
+		"wpId":   p.WPID,
 	})
 }
 
 func BlogPostUpdateEvent(p *models.BlogPost) Event {
 	return makeEvent(E_BLOG_POST_UPDATE, map[string]interface{}{
-		"id": fmt.Sprintf("%d-%d", p.BlogID, p.WPID),
+		"blogId": p.BlogID,
+		"wpId":   p.WPID,
 	})
 }
 
 func BlogPostDeleteEvent(p *models.BlogPost) Event {
 	return makeEvent(E_BLOG_POST_DELETE, map[string]interface{}{
-		"id": fmt.Sprintf("%d-%d", p.BlogID, p.WPID),
+		"blogId": p.BlogID,
+		"wpId":   p.WPID,
 	})
 }
 

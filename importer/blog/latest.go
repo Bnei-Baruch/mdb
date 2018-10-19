@@ -14,19 +14,21 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+
+	"github.com/Bnei-Baruch/mdb/events"
 )
 
 func ImportLatest() {
-	clock := Init()
+	clock, emitter := Init()
 
-	utils.Must(importLatest())
+	utils.Must(importLatest(emitter))
 
 	Shutdown()
 	log.Info("Success")
 	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
 }
 
-func importLatest() error {
+func importLatest(emitter *events.BufferedEmitter) error {
 	// load blogs
 	blogs, err := models.Blogs(mdb).All()
 	if err != nil {
@@ -52,7 +54,7 @@ func importLatest() error {
 			continue
 		}
 
-		if err := importLastFromBlog(b, lastTS); err != nil {
+		if err := importLastFromBlog(b, lastTS, emitter); err != nil {
 			log.Errorf("importLastFromBlog %s: %s", b.Name, err.Error())
 		}
 	}
@@ -60,7 +62,7 @@ func importLatest() error {
 	return nil
 }
 
-func importLastFromBlog(b *models.Blog, lastTS time.Time) error {
+func importLastFromBlog(b *models.Blog, lastTS time.Time, emitter *events.BufferedEmitter) error {
 	log.Infof("Importing latest posts from %s [%s]", b.Name, lastTS.Format(time.RFC3339))
 
 	wpConfig := viper.GetStringMapString(fmt.Sprintf("wordpress.%s", b.Name))
@@ -139,7 +141,7 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time) error {
 			log.Errorf("cleanPost %d %d: %s", b.ID, newPosts[i].ID, err.Error())
 			//continue
 		}
-		// TBD: fire BlogPostCreateEvent
+		emitter.Emit(events.BlogPostCreateEvent(newPosts[i]))
 	}
 
 	return nil

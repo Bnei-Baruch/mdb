@@ -13,17 +13,18 @@ import (
 	"github.com/volatiletech/sqlboiler/boil"
 
 	"github.com/Bnei-Baruch/mdb/api"
-	"github.com/Bnei-Baruch/mdb/utils"
+	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 var (
-	mdb *sql.DB
+	mdb         *sql.DB
 	currentBlog *models.Blog
-	allBlogs map[int64]*models.Blog
+	allBlogs    map[int64]*models.Blog
 )
 
-func Init() time.Time {
+func Init() (time.Time, *events.BufferedEmitter) {
 	var err error
 	clock := time.Now()
 
@@ -42,6 +43,9 @@ func Init() time.Time {
 	log.Info("Initializing static data from MDB")
 	utils.Must(api.InitTypeRegistries(mdb))
 
+	log.Info("Setting events handler")
+	emitter, err := events.InitEmmiter()
+	utils.Must(err)
 
 	blogs, err := models.Blogs(mdb).All()
 	utils.Must(err)
@@ -53,10 +57,11 @@ func Init() time.Time {
 	currentBlog = allBlogs[1]
 	log.Infof("current blog is %s", currentBlog.Name)
 
-	return clock
+	return clock, emitter
 }
 
 func Shutdown() {
+	events.CloseEmmiter()
 	utils.Must(mdb.Close())
 }
 

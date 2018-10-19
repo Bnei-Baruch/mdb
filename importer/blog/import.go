@@ -28,7 +28,7 @@ import (
 var sneakyBustards = make([]string, 0)
 
 func Import() {
-	clock := Init()
+	clock, _ := Init()
 
 	//for _, v := range allBlogs {
 	//	currentBlog = v
