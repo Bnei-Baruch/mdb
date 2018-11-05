@@ -17,7 +17,7 @@ import (
 )
 
 func Download() {
-	clock := Init()
+	clock, _ := Init()
 
 	utils.Must(doDownload())
 
