@@ -483,8 +483,8 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 		resp, err = handleContentUnitAddSource(c, tx, id, sourceID)
 		mustConcludeTx(tx, err)
 
-		if err == nil && resp != nil {
-			emitEvents(c, events.ContentUnitSourcesChangeEvent(resp.(*models.ContentUnit)))
+		if respCU, ok := resp.(*models.ContentUnit); ok && err == nil {
+			emitEvents(c, events.ContentUnitSourcesChangeEvent(respCU))
 		}
 	case http.MethodDelete:
 		sourceID, e := strconv.ParseInt(c.Param("sourceID"), 10, 0)
@@ -534,8 +534,8 @@ func ContentUnitTagsHandler(c *gin.Context) {
 		resp, err = handleContentUnitAddTag(c, tx, id, tagID)
 		mustConcludeTx(tx, err)
 
-		if err == nil && resp != nil {
-			emitEvents(c, events.ContentUnitTagsChangeEvent(resp.(*models.ContentUnit)))
+		if respCU, ok := resp.(*models.ContentUnit); ok && err == nil {
+			emitEvents(c, events.ContentUnitTagsChangeEvent(respCU))
 		}
 	case http.MethodDelete:
 		tagID, e := strconv.ParseInt(c.Param("tagID"), 10, 0)
@@ -630,8 +630,8 @@ func ContentUnitPublishersHandler(c *gin.Context) {
 		resp, err = handleContentUnitAddPublisher(c, tx, id, publisherID)
 		mustConcludeTx(tx, err)
 
-		if err == nil && resp != nil {
-			emitEvents(c, events.ContentUnitPublishersChangeEvent(resp.(*models.ContentUnit)))
+		if respCU, ok := resp.(*models.ContentUnit); ok && err == nil {
+			emitEvents(c, events.ContentUnitPublishersChangeEvent(respCU))
 		}
 	case http.MethodDelete:
 		publisherID, e := strconv.ParseInt(c.Param("publisherID"), 10, 0)
