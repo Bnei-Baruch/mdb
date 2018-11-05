@@ -26,7 +26,7 @@ var DECLAMATION_RE = regexp.MustCompile("(?i)^(Радио-версия|Audio Ver
 var PROGRAMS_RE = regexp.MustCompile("(?i)^(Una nueva vida|Una vida nueva|Good Environment|New Life|חיים חדשים|טעימות משיעור הקבלה היומי)")
 
 func Analyze() {
-	clock := Init()
+	clock, _ := Init()
 
 	utils.Must(doAnalyze())
 

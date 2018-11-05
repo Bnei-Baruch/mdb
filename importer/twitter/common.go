@@ -9,14 +9,15 @@ import (
 	"github.com/volatiletech/sqlboiler/boil"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 var (
-	mdb  *sql.DB
+	mdb *sql.DB
 )
 
-func Init() time.Time {
+func Init() (time.Time, *events.BufferedEmitter) {
 	var err error
 	clock := time.Now()
 
@@ -35,9 +36,14 @@ func Init() time.Time {
 	log.Info("Initializing static data from MDB")
 	utils.Must(api.InitTypeRegistries(mdb))
 
-	return clock
+	log.Info("Setting events handler")
+	emmiter, err := events.InitEmmiter()
+	utils.Must(err)
+
+	return clock, emmiter
 }
 
 func Shutdown() {
+	events.CloseEmmiter()
 	utils.Must(mdb.Close())
 }

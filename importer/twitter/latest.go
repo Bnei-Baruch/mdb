@@ -12,20 +12,22 @@ import (
 	"github.com/volatiletech/sqlboiler/queries"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/events"
+	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 func ImportLatestTweets() {
-	clock := Init()
+	clock, emitter := Init()
 
-	utils.Must(importLatestTweets())
+	utils.Must(importLatestTweets(emitter))
 
 	Shutdown()
 	log.Info("Success")
 	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
 }
 
-func importLatestTweets() error {
+func importLatestTweets(emitter *events.BufferedEmitter) error {
 	// initialize twitter api
 	accessToken := viper.GetString("twitter.access-token")
 	accessTokenSecret := viper.GetString("twitter.access-token-secret")
@@ -63,7 +65,10 @@ func importLatestTweets() error {
 					return errors.Wrapf(err, "json.Marshal")
 				}
 				log.Warn(string(jsonb))
+			} else {
+				emitter.Emit(events.TweetCreateEvent(&models.TwitterTweet{TwitterID: timeline[i].IdStr}))
 			}
+
 		}
 	}
 

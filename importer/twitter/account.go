@@ -24,12 +24,12 @@ import (
 var dumps = map[string]string{
 	"Michael_Laitman": "importer/twitter/data/twitter-2018-07-04-Michael_Laitman",
 	"laitman_co_il":   "importer/twitter/data/twitter-2018-07-03-laitman_co_il",
-	"laitman":   "importer/twitter/data/twitter-2018-07-05-laitman",
-	"laitman_es":   "importer/twitter/data/twitter-2018-07-05-laitman_es",
+	"laitman":         "importer/twitter/data/twitter-2018-07-05-laitman",
+	"laitman_es":      "importer/twitter/data/twitter-2018-07-05-laitman_es",
 }
 
 func ImportDumps() {
-	clock := Init()
+	clock, _ := Init()
 
 	for k, v := range dumps {
 		utils.Must(importDump(k, v))

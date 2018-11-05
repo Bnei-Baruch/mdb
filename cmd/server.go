@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"database/sql"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,7 +10,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/go-oidc"
-	"github.com/nats-io/go-nats-streaming"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stvp/rollbar"
@@ -50,35 +48,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	log.Info("Initializing type registries")
 	utils.Must(api.InitTypeRegistries(db))
 
-	// Setup events handlers
-	eventHandlers := make([]events.EventHandler, 0)
-	hNames := viper.GetStringSlice("events.handlers")
-	if len(hNames) > 0 {
-		for i := range hNames {
-			switch hNames[i] {
-			case "logger":
-				eventHandlers = append(eventHandlers, new(events.LoggerEventHandler))
-			case "nats":
-				log.Info("Initializing nats streaming event handler")
-				h, err := events.NewNatsStreamingEventHandler(
-					viper.GetString("nats.subject"),
-					viper.GetString("nats.cluster-id"),
-					viper.GetString("nats.client-id"),
-					stan.NatsURL(viper.GetString("nats.url")),
-					stan.PubAckWait(viper.GetDuration("nats.pub-ack-wait")),
-				)
-				if err != nil {
-					log.Errorf("Error connecting to nats streaming server: %s", err)
-				} else {
-					eventHandlers = append(eventHandlers, h)
-				}
-			default:
-				log.Warnf("Unknown event handler: %s", hNames[i])
-			}
-		}
-	}
-
-	emitter, err := events.NewBufferedEmitter(viper.GetInt("events.emitter-size"), eventHandlers...)
+	emitter, err := events.InitEmmiter()
 	utils.Must(err)
 
 	// Setup Rollbar
@@ -148,14 +118,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	}
 	log.Infof("Server exiting")
 
-	log.Infof("Closing event handlers")
-	for i := range eventHandlers {
-		if h, ok := eventHandlers[i].(io.Closer); ok {
-			if err := h.Close(); err != nil {
-				log.Fatal("Close event handler:", err)
-			}
-		}
-	}
+	events.CloseEmmiter()
 
 	if len(rollbar.Token) > 0 {
 		log.Infof("Wait for rollbar")
