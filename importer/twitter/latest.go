@@ -68,7 +68,6 @@ func importLatestTweets(emitter *events.BufferedEmitter) error {
 			} else {
 				emitter.Emit(events.TweetCreateEvent(&models.TwitterTweet{TwitterID: timeline[i].IdStr}))
 			}
-
 		}
 	}
 

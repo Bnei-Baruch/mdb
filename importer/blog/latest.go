@@ -12,10 +12,9 @@ import (
 	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
+	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-
-	"github.com/Bnei-Baruch/mdb/events"
 )
 
 func ImportLatest() {
@@ -122,6 +121,7 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time, emitter *events.Buffer
 			}
 
 			newPosts = append(newPosts, blogPost)
+			emitter.Emit(events.BlogPostCreateEvent(blogPost))
 		}
 
 		page = resp.NextPage
@@ -139,9 +139,8 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time, emitter *events.Buffer
 	for i := range newPosts {
 		if err := cleanPost(newPosts[i]); err != nil {
 			log.Errorf("cleanPost %d %d: %s", b.ID, newPosts[i].ID, err.Error())
-			//continue
+			continue
 		}
-		emitter.Emit(events.BlogPostCreateEvent(newPosts[i]))
 	}
 
 	return nil
