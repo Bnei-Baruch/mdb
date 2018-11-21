@@ -10,8 +10,7 @@ import (
 
 var eventHandlers []EventHandler
 
-func InitEmmiter() (*BufferedEmitter, error) {
-
+func InitEmitter() (*BufferedEmitter, error) {
 	// Setup events handlers
 	eventHandlers = make([]EventHandler, 0)
 	hNames := viper.GetStringSlice("events.handlers")
@@ -43,7 +42,7 @@ func InitEmmiter() (*BufferedEmitter, error) {
 	return NewBufferedEmitter(viper.GetInt("events.emitter-size"), eventHandlers...)
 }
 
-func CloseEmmiter() {
+func CloseEmitter() {
 	log.Infof("Closing event handlers")
 	for i := range eventHandlers {
 		if h, ok := eventHandlers[i].(io.Closer); ok {

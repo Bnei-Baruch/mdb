@@ -44,7 +44,7 @@ func Init() (time.Time, *events.BufferedEmitter) {
 	utils.Must(api.InitTypeRegistries(mdb))
 
 	log.Info("Setting events handler")
-	emitter, err := events.InitEmmiter()
+	emitter, err := events.InitEmitter()
 	utils.Must(err)
 
 	blogs, err := models.Blogs(mdb).All()
@@ -61,7 +61,7 @@ func Init() (time.Time, *events.BufferedEmitter) {
 }
 
 func Shutdown() {
-	events.CloseEmmiter()
+	events.CloseEmitter()
 	utils.Must(mdb.Close())
 }
 

@@ -48,7 +48,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	log.Info("Initializing type registries")
 	utils.Must(api.InitTypeRegistries(db))
 
-	emitter, err := events.InitEmmiter()
+	emitter, err := events.InitEmitter()
 	utils.Must(err)
 
 	// Setup Rollbar
@@ -118,7 +118,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	}
 	log.Infof("Server exiting")
 
-	events.CloseEmmiter()
+	events.CloseEmitter()
 
 	if len(rollbar.Token) > 0 {
 		log.Infof("Wait for rollbar")
