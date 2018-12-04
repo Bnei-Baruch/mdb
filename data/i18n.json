@@ -308,56 +308,64 @@
     "en": "Lesson%s on the topic of",
     "ru": "Урок%s на тему",
     "es": "Lección%s sobre el tema de",
-    "ua": "Урок%s на тему"
+    "ua": "Урок%s на тему",
+    "de": "Lektion zum Thema"
   },
   "autoname.lesson_preparation": {
     "he": "הכנה לשיעור",
     "en": "Preparation to the Lesson",
     "ru": "Подготовка к уроку",
     "es": "Preparación para la Lección",
-    "ua": "Підготовка до Уроку"
+    "ua": "Підготовка до Уроку",
+    "de": "Vorbereitung auf die Lektion"
   },
   "autoname.record": {
     "he": "רשומה",
     "en": "Record",
     "ru": "Записка",
     "es": "Récord",
-    "ua": "Записка"
+    "ua": "Записка",
+    "de": "Aufzeichnung"
   },
   "autoname.lfq8P1du": {
     "he": "שאלות ותשובות עם הרב ד\"ר מיכאל לייטמן",
     "en": "Questions and answers with Dr. Michael Laitman",
     "ru": "Вопросы и ответы с д-р Михаэлем Лайтманом",
     "es": "Preguntas y respuestas con Dr. Michael Laitman",
-    "ua": "Запитання та відповіді з д-ром Міхаелем Лайтманом"
+    "ua": "Запитання та відповіді з д-ром Міхаелем Лайтманом",
+    "de": "Fragen und Antworten mit Dr. Michael Laitman"
   },
   "autoname.iWPWpSNy": {
     "he": "שיחה של הרב ד\"ר מיכאל לייטמן עם נשים",
     "en": "Dr. Michael Laitman conversation with women",
     "ru": "Беседа д-р Михаэля Лайтмана с женщинами",
     "es": "Michael Laitman conversación con las mujeres",
-    "ua": "Бесіда д-ра Міхаеля Лайтмана з жінками"
+    "ua": "Бесіда д-ра Міхаеля Лайтмана з жінками",
+    "de": "Dr. Michael Laitman im Gespräch mit Frauen"
   },
   "autoname.meal": {
     "he": "דברי הרב ד\"ר מיכאל לייטמן בסעודה",
     "en": "Dr. Michael Laitman's talk at the meal",
     "ru": "Речь д-ра Михаэля Лайтмана на трапезе",
     "es": "Discurso del Rav M. Laitman en la comida",
-    "ua": "Промова д-ра Міхаеля Лайтмана на трапезі"
+    "ua": "Промова д-ра Міхаеля Лайтмана на трапезі",
+    "de": " Dr. Michael Laitmans Vortrag während der Mahlzeit"
   },
   "autoname.yh": {
     "he": "ישיבת החברים העולמית",
     "en": "Global Yeshivat Haverim",
     "ru": "Мировая ешиват хаверим",
     "es": "Reunión Mundial de Amigos",
-    "ua": "Світова Єшиват Хаверім"
+    "ua": "Світова Єшиват Хаверім",
+    "de": "Weltweite Versammlung der Freunde"
   },
   "autoname.webinar": {
     "he": "וובינר עם הרב ד\"ר מיכאל לייטמן",
     "en": "Webinar with Dr. Michael Laitman",
     "ru": "Вебинар с д-ром Михаэлем Лайтманом",
     "es": "Webinar con el Dr. Michael Laitman",
-    "ua": "Вебінар з д-ром Міхаелем Лайтманом"
+    "ua": "Вебінар з д-ром Міхаелем Лайтманом",
+    "de": "Webinar mit Dr. Michael Laitman"
   }
 }
 
