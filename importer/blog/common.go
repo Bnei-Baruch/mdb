@@ -50,7 +50,7 @@ func Init() time.Time {
 		allBlogs[blogs[i].ID] = blogs[i]
 	}
 
-	currentBlog = allBlogs[1]
+	currentBlog = allBlogs[4]
 	log.Infof("current blog is %s", currentBlog.Name)
 
 	return clock
