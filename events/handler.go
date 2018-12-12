@@ -32,7 +32,7 @@ type NatsStreamingEventHandler struct {
 	subject string
 	ch      chan *Event
 	stopCH  chan bool
-	peek    *Event
+	//peek    *Event
 }
 
 func NewNatsStreamingEventHandler(subject, clusterID, clientID string,
@@ -96,30 +96,42 @@ func (eh *NatsStreamingEventHandler) Handle(event Event) {
 
 func (eh *NatsStreamingEventHandler) run() {
 	for {
-		// async read stop channel
 		select {
 		case <-eh.stopCH:
 			return
-		default:
-		}
-
-		// publish first event in queue if we have something
-		if eh.peek != nil {
-			if err := eh.publish(eh.peek); err == nil {
-				eh.peek = nil // success , set peek to nil
-			} else {
+		case event := <-eh.ch:
+			if err := eh.publish(event); err != nil {
 				log.Errorf("nats: %s", err.Error())
 			}
 		}
-
-		// async read from queue next event to publish if we need it
-		if eh.peek == nil {
-			select {
-			case eh.peek = <-eh.ch:
-			default:
-			}
-		}
 	}
+
+	//
+	//for {
+	//	// async read stop channel
+	//	select {
+	//	case <-eh.stopCH:
+	//		return
+	//	default:
+	//	}
+	//
+	//	// publish first event in queue if we have something
+	//	if eh.peek != nil {
+	//		if err := eh.publish(eh.peek); err == nil {
+	//			eh.peek = nil // success , set peek to nil
+	//		} else {
+	//			log.Errorf("nats: %s", err.Error())
+	//		}
+	//	}
+	//
+	//	// async read from queue next event to publish if we need it
+	//	if eh.peek == nil {
+	//		select {
+	//		case eh.peek = <-eh.ch:
+	//		default:
+	//		}
+	//	}
+	//}
 }
 
 func (eh *NatsStreamingEventHandler) publish(event *Event) error {
@@ -172,9 +184,9 @@ func (eh *NatsStreamingEventHandler) drainToFile() error {
 	evnts := make([]*Event, 0)
 
 	// peek should be first if we have one
-	if eh.peek != nil {
-		evnts = append(evnts, eh.peek)
-	}
+	//if eh.peek != nil {
+	//	evnts = append(evnts, eh.peek)
+	//}
 
 	// drain channel
 	// channel is expected to be closed by now
