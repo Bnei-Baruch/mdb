@@ -297,7 +297,7 @@
   revision = "d0303fe809921458f417bcf828397a65db30a7e4"
 
 [[projects]]
-  digest = "1:eb489427d85fac6e5a7ce4d0cc9fc6d62981ee6d782e3a740cbcc4cb44d396eb"
+  digest = "1:53caa020dd4a0d34b65e725c3388e5a3b5b20b2863c6caf8c77473f3937f10d9"
   name = "github.com/nats-io/go-nats"
   packages = [
     ".",
@@ -305,17 +305,27 @@
     "util",
   ]
   pruneopts = "UT"
-  revision = "f0d9c5988d4c2a17ad466fcdffe010165c46434e"
+  revision = "13c7fc7590db68b18f2015600f8765a02d705b5d"
+  version = "v1.7.0"
 
 [[projects]]
-  digest = "1:810a24136b6c4b9a9029ec64139b46ba2955f4c2c14e5f302896260896bec91c"
+  digest = "1:cf80370e775e26aa54b8d87304244ad56e19886b422f4ede3bb4aec7ff3f83cc"
   name = "github.com/nats-io/go-nats-streaming"
   packages = [
     ".",
     "pb",
   ]
   pruneopts = "UT"
-  revision = "88fd0ce51e45a3a711b737174fd951944c91f085"
+  revision = "e15a53f85e4932540600a16b56f6c4f65f58176f"
+  version = "v0.4.0"
+
+[[projects]]
+  digest = "1:0b5d91120efc54504bc253fda90b08c4be88cd78a4023ef60019e95bb0cdc136"
+  name = "github.com/nats-io/nkeys"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1546a3320a8f195a5b5c84aef8309377c2e411d5"
+  version = "v0.0.2"
 
 [[projects]]
   digest = "1:a7c409b40c7263484cf2cdf8821f88d023e45ce59b7d8ff66eeb902399fe14d4"
