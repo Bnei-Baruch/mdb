@@ -159,7 +159,7 @@ func handleTopics(db *sql.DB) error {
 				[]string{"tag_id", "language"},
 				[]string{"label"})
 			if err != nil {
-				return errors.Wrapf(err, "Upsert tag [%s] i18n %s", tag.ID, l)
+				return errors.Wrapf(err, "Upsert tag [%d] i18n %s", tag.ID, l)
 			}
 		}
 

@@ -41,7 +41,7 @@ func importLectures(catalogID int) error {
 		qm.Where("(properties->>'kmedia_id')::int = ?", catalogID)).
 		One()
 	if err != nil {
-		return errors.Wrapf(err, "Lookup collection in mdb [kmid %s]", catalogID)
+		return errors.Wrapf(err, "Lookup collection in mdb [kmid %d]", catalogID)
 	}
 
 	stats.CatalogsProcessed.Inc(1)

@@ -108,7 +108,7 @@ func doOrganizeKiteiMakor(ktFiles []*models.File) error {
 			if len(cu.R.DerivedContentUnitDerivations) == 0 {
 				log.Infof("KT CU has no source: %d", cu.ID)
 			} else if len(cu.R.DerivedContentUnitDerivations) > 1 {
-				log.Warnf("KT CU has too many source CU %d", cu.ID, len(cu.R.DerivedContentUnitDerivations))
+				log.Warnf("KT CU %d has too many source CU %d", cu.ID, len(cu.R.DerivedContentUnitDerivations))
 			} else {
 				cud := cu.R.DerivedContentUnitDerivations[0]
 				if vv, ok := cuMap[cud.SourceID]; ok {
@@ -223,7 +223,7 @@ func createKTCU(exec boil.Executor, mainCU *models.ContentUnit, ktFiles []*model
 	ktCU.Published = true
 	err = ktCU.Update(exec, "published")
 	if err != nil {
-		return nil, errors.Wrapf(err, "Update KT CU published %d", ktCU)
+		return nil, errors.Wrapf(err, "Update KT CU published %d", ktCU.ID)
 	}
 
 	cud := &models.ContentUnitDerivation{

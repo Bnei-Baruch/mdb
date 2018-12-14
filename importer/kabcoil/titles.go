@@ -133,7 +133,7 @@ func linkToCU(link string) (*models.ContentUnit, error) {
 	if mFile.ContentUnitID.Valid {
 		err = mFile.L.LoadContentUnit(mdb, true, mFile)
 		if err != nil {
-			return nil, errors.Wrapf(err, "mFile.L.LoadContentUnit %s", mFile.ContentUnitID.Int64)
+			return nil, errors.Wrapf(err, "mFile.L.LoadContentUnit %d", mFile.ContentUnitID.Int64)
 		}
 		return mFile.R.ContentUnit, nil
 	}

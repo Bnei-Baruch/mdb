@@ -68,7 +68,7 @@ func importFlatContainer(exec boil.Executor, container *kmodels.Container, cuTyp
 			_, err := importContainerWOCollectionNewCU(exec, container, cuType)
 			return err
 		}
-		return errors.Wrapf(err, "Lookup content unit kmid %s", container.ID)
+		return errors.Wrapf(err, "Lookup content unit kmid %d", container.ID)
 	}
 
 	log.Infof("CU exists [%d] container: %s %d", unit.ID, container.Name.String, container.ID)

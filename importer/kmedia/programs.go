@@ -58,7 +58,7 @@ func importChapters() error {
 			qm.Where("(properties->>'kmedia_id')::int = ?", catalogID)).
 			One()
 		if err != nil {
-			return errors.Wrapf(err, "Lookup collection in mdb [kmid %s]", catalogID)
+			return errors.Wrapf(err, "Lookup collection in mdb [kmid %d]", catalogID)
 		}
 
 		chaptersArr := x[h["containers.ids"]]
@@ -108,7 +108,7 @@ func importChapter(exec boil.Executor, collection *models.Collection, container 
 		qm.Where("(properties->>'kmedia_id')::int = ?", container.ID),
 	).Exists()
 	if err != nil {
-		return errors.Wrapf(err, "Lookup content unit kmid %s", container.ID)
+		return errors.Wrapf(err, "Lookup content unit kmid %d", container.ID)
 	}
 
 	if exists {

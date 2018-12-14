@@ -219,7 +219,7 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 			collection.Pattern = null.NewString(pattern, pattern != "")
 			err = collection.Update(exec, "pattern")
 			if err != nil {
-				return errors.Wrapf(err, "Update collection [%s]", collection.ID)
+				return errors.Wrapf(err, "Update collection [%d]", collection.ID)
 			}
 		}
 	} else {
@@ -370,7 +370,7 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 				[]string{"source_id", "language"},
 				[]string{"name", "description"})
 			if err != nil {
-				return errors.Wrapf(err, "Upsert source [%s] i18n [%s]", source.ID, l)
+				return errors.Wrapf(err, "Upsert source [%d] i18n [%s]", source.ID, l)
 			}
 		}
 

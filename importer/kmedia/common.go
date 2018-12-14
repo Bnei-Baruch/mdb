@@ -146,7 +146,7 @@ func importContainerWCollection(exec boil.Executor, container *kmodels.Container
 			log.Infof("New CU %d %s", container.ID, container.Name.String)
 			return importContainerWCollectionNewCU(exec, container, collection, cuType)
 		}
-		return errors.Wrapf(err, "Lookup content unit kmid %s", container.ID)
+		return errors.Wrapf(err, "Lookup content unit kmid %d", container.ID)
 	}
 
 	log.Infof("CU exists [%d] container: %s %d", unit.ID, container.Name.String, container.ID)

@@ -4,6 +4,10 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -11,14 +15,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"fmt"
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"io/ioutil"
-	"regexp"
-	"sort"
 )
 
 func Compare() {
@@ -422,7 +422,6 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 			return errors.Wrapf(err, "Create rabash lesson %d", cns[i].ID)
 		}
 
-
 		err = importContainerWCollection(tx, cns[i], collection, api.CT_LESSON_PART)
 		if err != nil {
 			utils.Must(tx.Rollback())
@@ -783,7 +782,7 @@ func compareUnit(cu *models.ContentUnit, cn *kmodels.Container) error {
 
 			exists, err := models.Files(mdb, qm.Where("sha1 = ?", s)).Exists()
 			if err != nil {
-				return errors.Wrapf(err, "check File exists by sha1 %d", k)
+				return errors.Wrapf(err, "check File exists by sha1 %s", k)
 			}
 
 			if exists {
