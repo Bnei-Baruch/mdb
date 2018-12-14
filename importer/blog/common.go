@@ -1,6 +1,7 @@
 package blog
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -61,7 +62,8 @@ func Init() (time.Time, *events.BufferedEmitter) {
 }
 
 func Shutdown() {
-	events.CloseEmitter()
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	events.CloseEmitter(ctx)
 	utils.Must(mdb.Close())
 }
 

@@ -1,8 +1,10 @@
 package events
 
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/nats-io/nats-streaming-server/server"
 	"github.com/stretchr/testify/suite"
@@ -43,8 +45,12 @@ func (suite *HandlersSuite) TestNatsHandler() {
 		handler.Handle(Event{ID: fmt.Sprintf("test-event-%d", i)})
 	}
 
+	time.Sleep(20 * time.Millisecond)
+
 	// close handler (before it complete publishing all 100 events)
-	suite.Require().Nil(handler.Close())
+	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	suite.Require().Nil(handler.Close(ctx))
+	<-ctx.Done()
 
 	// drain temp file with unpublished events using another, dummy handler
 	handler2 := &NatsStreamingEventHandler{

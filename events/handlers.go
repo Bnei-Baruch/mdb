@@ -1,8 +1,10 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"os"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/nats-io/go-nats-streaming"
@@ -11,6 +13,7 @@ import (
 
 type EventHandler interface {
 	Handle(Event)
+	Close(context.Context) error
 }
 
 type LoggerEventHandler struct{}
@@ -24,6 +27,10 @@ func (eh *LoggerEventHandler) Handle(event Event) {
 	}).Info("event")
 }
 
+func (eh *LoggerEventHandler) Close(ctx context.Context) error {
+	return nil
+}
+
 const queueSize = 4096
 const nats_tmp_file = "__DO_NOT_REMOVE_nats-event-handler.tmp"
 
@@ -32,7 +39,6 @@ type NatsStreamingEventHandler struct {
 	subject string
 	ch      chan *Event
 	stopCH  chan bool
-	//peek    *Event
 }
 
 func NewNatsStreamingEventHandler(subject, clusterID, clientID string,
@@ -65,18 +71,42 @@ func NewNatsStreamingEventHandler(subject, clusterID, clientID string,
 	return eh, nil
 }
 
-func (eh *NatsStreamingEventHandler) Close() error {
+func (eh *NatsStreamingEventHandler) Handle(event Event) {
+	if len(eh.ch) < cap(eh.ch) {
+		eh.ch <- &event
+	} else {
+		log.Warnf("nats: buffer limit reached, dropping event %s", event.ID)
+	}
+}
+
+func (eh *NatsStreamingEventHandler) Close(ctx context.Context) error {
 	// whatever happens, close connection to nats (second time is noop)
 	defer eh.sc.Close()
+
+	// close channel
+	log.Infof("nats: close events channel")
+	close(eh.ch)
+
+	// poll timer until context timeout or no more messages in queue
+	log.Infof("nats: drain %d events in queue", len(eh.ch))
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if len(eh.ch) == 0 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			break
+		case <-ticker.C:
+		}
+	}
 
 	// stop runner
 	log.Infof("nats: stop runner")
 	eh.stopCH <- true
 
-	// close events channel
-	log.Infof("nats: close events channel")
-	close(eh.ch)
-
+	// drain what we have left in queue to file
 	if err := eh.drainToFile(); err != nil {
 		return errors.Wrap(err, "drain to file")
 	}
@@ -86,22 +116,16 @@ func (eh *NatsStreamingEventHandler) Close() error {
 	return eh.sc.Close()
 }
 
-func (eh *NatsStreamingEventHandler) Handle(event Event) {
-	if len(eh.ch) < cap(eh.ch) {
-		eh.ch <- &event
-	} else {
-		log.Warnf("nats: buffer limit reached, dropping event %s", event.ID)
-	}
-}
-
 func (eh *NatsStreamingEventHandler) run() {
 	for {
 		select {
 		case <-eh.stopCH:
 			return
 		case event := <-eh.ch:
-			if err := eh.publish(event); err != nil {
-				log.Errorf("nats: %s", err.Error())
+			if event != nil {
+				if err := eh.publish(event); err != nil {
+					log.Errorf("nats: publish error %s", err.Error())
+				}
 			}
 		}
 	}
