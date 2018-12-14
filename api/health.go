@@ -3,7 +3,6 @@ package api
 import (
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -20,20 +19,16 @@ func HealthCheckHandler(c *gin.Context) {
 	// Uncomment once this lib/pq PR is merged
 	// https://github.com/lib/pq/pull/737
 	//err := mdb.PingContext(ctx)
-	err := Ping(mdb, ctx)
+	err := PingDB(ctx, mdb)
+
+	if err == nil {
+		err = ctx.Err()
+	}
 
 	if err != nil {
 		c.JSON(http.StatusFailedDependency, gin.H{
 			"status": "error",
-			"error":  fmt.Sprintf("MDB ping: %s", err.Error()),
-		})
-		return
-	}
-
-	if ctx.Err() == context.DeadlineExceeded {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "error",
-			"error":  "timeout",
+			"error":  err.Error(),
 		})
 		return
 	}
@@ -41,7 +36,7 @@ func HealthCheckHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
-func Ping(db *sql.DB, ctx context.Context) error {
+func PingDB(ctx context.Context, db *sql.DB) error {
 	rows, err := db.QueryContext(ctx, "select 1")
 	if err != nil {
 		return driver.ErrBadConn // https://golang.org/pkg/database/sql/driver/#Pinger
