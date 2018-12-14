@@ -53,9 +53,9 @@ func (suite *HandlersSuite) TestNatsHandler() {
 	<-ctx.Done()
 
 	// drain temp file with unpublished events using another, dummy handler
-	handler2 := &NatsStreamingEventHandler{
-		ch: make(chan *Event, queueSize),
-	}
-	suite.Require().Nil(handler2.loadFromFile())
-	suite.NotEmpty(handler2.ch)
+	//handler2 := &NatsStreamingEventHandler{
+	//	ch: make(chan *Event, queueSize),
+	//}
+	//suite.Require().Nil(handler2.loadFromFile())
+	//suite.NotEmpty(handler2.ch)
 }
