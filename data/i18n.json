@@ -5,7 +5,8 @@
     "ru": "Урок",
     "es": "Lección Diaria",
     "ua": "Урок",
-    "de": "Tägliche Lektion"
+    "de": "Tägliche Lektion",
+    "it": "Lezione del giorno"
   },
   "content_type.SPECIAL_LESSON": {
     "he": "שיעור יומי",
@@ -13,7 +14,8 @@
     "ru": "Урок",
     "es": "Lección Diaria",
     "ua": "Урок",
-    "de": "Besondere Lektion"
+    "de": "Besondere Lektion",
+    "it": "Lezione speciale"
   },
   "content_type.FRIENDS_GATHERINGS": {
     "he": "ישיבות חברים",
@@ -21,7 +23,8 @@
     "ru": "Ешиват хаверим",
     "es": "Asamblea de Amigos",
     "ua": "Єшиват Хаверім",
-    "de": "Versammlungen der Freunde"
+    "de": "Versammlungen der Freunde",
+    "it": "Assemblea degli Amici"
   },
   "content_type.CONGRESS": {
     "he": "כנס",
@@ -29,7 +32,8 @@
     "ru": "Конгресс",
     "es": "Congreso",
     "ua": "Конгрес",
-    "de": "Kongress"
+    "de": "Kongress",
+    "it": "Congresso"
   },
   "content_type.VIDEO_PROGRAM": {
     "he": "תוכנית טלוויזיה",
@@ -37,7 +41,8 @@
     "ru": "ТВ программа",
     "es": "Programa",
     "ua": "ТВ Програма",
-    "de": "Videoprogramm"
+    "de": "Videoprogramm",
+    "it": "Programma video"
   },
   "content_type.LECTURE_SERIES": {
     "he": "סדרת הרצאות",
@@ -45,7 +50,8 @@
     "ru": "Серия лекций",
     "es": "Serie de Charlas",
     "ua": "Серія Лекцій",
-    "de": "Vortragsreihe"
+    "de": "Vortragsreihe",
+    "it": "Serie di conferenze"
   },
   "content_type.CHILDREN_LESSONS": {
     "he": "שיעורי ילדים",
@@ -53,7 +59,8 @@
     "ru": "Дети уроки",
     "es": "Lección de Niños",
     "ua": "Діти Уроки",
-    "de": "Unterrichte für Kinder"
+    "de": "Unterrichte für Kinder",
+    "it": "Lezioni per i bambini"
   },
   "content_type.WOMEN_LESSONS": {
     "he": "שיעורי נשים",
@@ -61,7 +68,8 @@
     "ru": "Женщины уроки",
     "es": "Lección de Mujeres",
     "ua": "Жінки Уроки",
-    "de": "Unterrichte für Frauen"
+    "de": "Unterrichte für Frauen",
+    "it": "Lezioni per le donne"
   },
   "content_type.VIRTUAL_LESSONS": {
     "he": "שיעורים וירטואלים",
@@ -69,7 +77,8 @@
     "ru": "Виртуальный уроки",
     "es": "Lecciones Virtuales",
     "ua": "Віртуальний Уроки",
-    "de": "Virtuelle Lektionen"
+    "de": "Virtuelle Lektionen",
+    "it": "Lezioni virtuali"
   },
   "content_type.MEALS": {
     "he": "סעודות",
@@ -77,7 +86,8 @@
     "ru": "Трапезы",
     "es": "Comidas",
     "ua": "Трапези",
-    "de": "Mahlzeiten"
+    "de": "Mahlzeiten",
+    "it": "Pasti"
   },
   "content_type.HOLIDAY": {
     "he": "חג",
@@ -85,7 +95,8 @@
     "ru": "Праздник",
     "es": "Fiestas",
     "ua": "Свято",
-    "de": "Feiertag"
+    "de": "Feiertag",
+    "it": "Festività"
   },
   "content_type.PICNIC": {
     "he": "פיקניק",
@@ -93,7 +104,8 @@
     "ru": "Пикник",
     "es": "Picnic",
     "ua": "Пікнік",
-    "de": "Picknick"
+    "de": "Picknick",
+    "it": "Picnic"
   },
   "content_type.UNITY_DAY": {
     "he": "יום איחוד",
@@ -101,7 +113,8 @@
     "ru": "День народного единства",
     "es": "Día de Unión",
     "ua": "День Народної Єдності",
-    "de": "Unity Day"
+    "de": "Unity Day",
+    "it": "Unity Day- Giorno dell’Unione"
   },
   "content_type.CLIPS": {
     "he": "קליפים",
@@ -109,7 +122,8 @@
     "ru": "Клипсы",
     "es": "Clips",
     "ua": "Кліпи",
-    "de": "Clips"
+    "de": "Clips",
+    "it": "Video brevi"
   },
   "content_type.ARTICLES": {
     "he": "מאמרים",
@@ -117,7 +131,8 @@
     "ru": "Статьи",
     "es": "Artículos",
     "ua": "Статті",
-    "de": "Artikel"
+    "de": "Artikel",
+    "it": "Articoli"
   },
   "content_type.LESSONS_SERIES": {
     "he": "סדרת שיעורים",
@@ -125,7 +140,8 @@
     "ru": "Серия уроки",
     "es": "Serie de Lecciones",
     "ua": "Серія Уроки",
-    "de": "Teil Nr. der Lektion"
+    "de": "Teil Nr. der Lektion",
+    "it": "Serie di lezioni"
   },
   "content_type.SONGS": {
     "he": "שירים",
@@ -133,7 +149,8 @@
     "ru": "песни",
     "es": "Canciones",
     "ua": "Пісні",
-    "de": "Lieder"
+    "de": "Lieder",
+    "it": "Canzoni"
   },
   "content_type.BOOKS": {
     "he": "ספרים",
@@ -141,7 +158,8 @@
     "ru": "книги",
     "es": "Libros",
     "ua": "Книги",
-    "de": "Bücher"
+    "de": "Bücher",
+    "it": "Libri"
   },
   "content_type.LESSON_PART": {
     "he": "חלק שיעור",
@@ -149,7 +167,8 @@
     "ru": "Урок часть",
     "es": "Parte de la Lección",
     "ua": "Урок Частина",
-    "de": "Lektionsteil"
+    "de": "Lektionsteil",
+    "it": "Parte dalla lezione"
   },
   "content_type.LECTURE": {
     "he": "הרצאה",
@@ -157,7 +176,8 @@
     "ru": "Лекция",
     "es": "Charla",
     "ua": "Лекція",
-    "de": "Lektion"
+    "de": "Lektion",
+    "it": "Conferenza"
   },
   "content_type.CHILDREN_LESSON": {
     "he": "שיעור ילדים",
@@ -165,7 +185,8 @@
     "ru": "Дети урок",
     "es": "Lección de Niños",
     "ua": "Діти Урок",
-    "de": "Unterricht für Kinder"
+    "de": "Unterricht für Kinder",
+    "it": "Lezione per i bambini"
   },
   "content_type.WOMEN_LESSON": {
     "he": "שיעור נשים",
@@ -173,7 +194,8 @@
     "ru": "Женщины урок",
     "es": "Lección de Mujeres",
     "ua": "Жінки Урок",
-    "de": "Unterricht für Frauen"
+    "de": "Unterricht für Frauen",
+    "it": "Lezione per le donne"
   },
   "content_type.VIRTUAL_LESSON": {
     "he": "שיעור וירטואלי",
@@ -181,7 +203,8 @@
     "ru": "Виртуальный урок",
     "es": "Lección Virtual",
     "ua": "Віртуальний Урок",
-    "de": "Virtuelle Lektion"
+    "de": "Virtuelle Lektion",
+    "it": "Lezione virtuale"
   },
   "content_type.FRIENDS_GATHERING": {
     "he": "ישיבת חברים",
@@ -189,7 +212,8 @@
     "ru": "Ешиват хаверим",
     "es": "Asamblea de Amigos",
     "ua": "Єшиват Хаверім",
-    "de": "Versammlung der Freunde"
+    "de": "Versammlung der Freunde",
+    "it": "Assemblea degli Amici"
   },
   "content_type.MEAL": {
     "he": "סעודה",
@@ -197,7 +221,8 @@
     "ru": "Трапеза",
     "es": "Comida",
     "ua": "Трапеза",
-    "de": "Mahlzeit"
+    "de": "Mahlzeit",
+    "it": "Assemblea degli Amici"
   },
   "content_type.VIDEO_PROGRAM_CHAPTER": {
     "he": "פרק",
@@ -205,7 +230,8 @@
     "ru": "Эпизод",
     "es": "Capitulo",
     "ua": "Епізод",
-    "de": "Teil des Programmes"
+    "de": "Teil des Programmes",
+    "it": "Episodio del programma video"
   },
   "content_type.FULL_LESSON": {
     "he": "שיעור מלא",
@@ -213,7 +239,8 @@
     "ru": "Полный урок",
     "es": "Lección Completa",
     "ua": "Цілий Урок",
-    "de": "Vollständige Lektion"
+    "de": "Vollständige Lektion",
+    "it": "Lezione completa"
   },
   "content_type.ARTICLE": {
     "he": "מאמר",
@@ -221,7 +248,8 @@
     "ru": "Статья",
     "es": "Articulo",
     "ua": "Стаття",
-    "de": "Artikel"
+    "de": "Artikel",
+    "it": "Articolo"
   },
   "content_type.UNKNOWN": {
     "he": "לא ידוע",
@@ -229,7 +257,8 @@
     "ru": "Неизвестный",
     "es": "Desconocido",
     "ua": "Невідомий",
-    "de": "Unbekannt"
+    "de": "Unbekannt",
+    "it": "Sconosciuto"
   },
   "content_type.EVENT_PART": {
     "he": "חלק מאירוע",
@@ -237,7 +266,8 @@
     "ru": "Событие часть",
     "es": "Parte del Evento",
     "ua": "Подія Частина",
-    "de": "Teil der Veranstaltung"
+    "de": "Teil der Veranstaltung",
+    "it": "Parte dell'evento"
   },
   "content_type.CLIP": {
     "he": "קליפ",
@@ -245,7 +275,8 @@
     "ru": "Клип",
     "es": "Clip",
     "ua": "Кліп",
-    "de": "Clip"
+    "de": "Clip",
+    "it": "Video breve"
   },
   "content_type.TRAINING": {
     "he": "הכשרה",
@@ -253,7 +284,8 @@
     "ru": "Обучение",
     "es": "Entrenamiento",
     "ua": "Навчання",
-    "de": "Training"
+    "de": "Training",
+    "it": "Formazione"
   },
   "content_type.KITEI_MAKOR": {
     "he": "קטעי מקור",
@@ -261,7 +293,8 @@
     "ru": "Исходные выдержки",
     "es": "Extractos de Fuentes",
     "ua": "Початкові Витяги",
-    "de": "Fragmente von Primärquellen"
+    "de": "Fragmente von Primärquellen",
+    "it": "Estratti dalle fonti"
   },
   "content_type.PUBLICATION": {
     "he": "פירסום",
@@ -269,7 +302,8 @@
     "ru": "Публикация",
     "es": "Publicidad",
     "ua": "Публікація",
-    "de": "Veröffentlichung"
+    "de": "Veröffentlichung",
+    "it": "Pubblicazione"
   },
   "content_type.LELO_MIKUD": {
     "he": "ללא קבוצת מיקוד",
@@ -277,7 +311,8 @@
     "ru": "Без фокус-группы",
     "es": "Editado - sin grupo de enfoque",
     "ua": "Без Фокус-Групи",
-    "de": "Bearbeitet - Ohne Fokusgruppen"
+    "de": "Bearbeitet - Ohne Fokusgruppen",
+    "it": "Senza Focus Group"
   },
   "content_type.SONG": {
     "he": "שיר",
@@ -285,7 +320,8 @@
     "ru": "песня",
     "es": "Canción",
     "ua": "Пісня",
-    "de": "Lied"
+    "de": "Lied",
+    "it": "Canzone"
   },
   "content_type.BOOK": {
     "he": "ספר",
@@ -293,7 +329,8 @@
     "ru": "Книга",
     "es": "Libro",
     "ua": "Книга",
-    "de": "Buch"
+    "de": "Buch",
+    "it": "Libro"
   },
   "content_type.BLOG_POST": {
     "he": "פוסט בבלוג",
@@ -301,7 +338,8 @@
     "ru": "Сообщение блога",
     "es": "Entrada en el blog",
     "ua": "Публікація блогів",
-    "de": "Blogeintrag"
+    "de": "Blogeintrag",
+    "it": "Post dal Blog"
   },
   "autoname.lesson_by_topic_tag": {
     "he": "שיעור%s בנושא",
@@ -309,14 +347,16 @@
     "ru": "Урок%s на тему",
     "es": "Lección%s sobre el tema de",
     "ua": "Урок%s на тему",
-    "de": "Lektion zum Thema"
+    "de": "Lektion zum Thema",
+    "it": "Lezione%s sul tema di"
   },
   "autoname.lesson_preparation": {
     "he": "הכנה לשיעור",
     "en": "Preparation to the Lesson",
     "ru": "Подготовка к уроку",
     "es": "Preparación para la Lección",
-    "ua": "Підготовка до Уроку"
+    "ua": "Підготовка до Уроку",
+    "it": "Preparazione alla lezione"
   },
   "autoname.record": {
     "he": "רשומה",
@@ -324,7 +364,8 @@
     "ru": "Записка",
     "es": "Récord",
     "ua": "Записка",
-    "de": "Aufzeichnung"
+    "de": "Aufzeichnung",
+    "it": "Record"
   },
   "autoname.lfq8P1du": {
     "he": "שאלות ותשובות עם הרב ד\"ר מיכאל לייטמן",
@@ -332,7 +373,8 @@
     "ru": "Вопросы и ответы с д-р Михаэлем Лайтманом",
     "es": "Preguntas y respuestas con Dr. Michael Laitman",
     "ua": "Запитання та відповіді з д-ром Міхаелем Лайтманом",
-    "de": "Fragen und Antworten mit Dr. Michael Laitman"
+    "de": "Fragen und Antworten mit Dr. Michael Laitman",
+    "it": "Domande e risposte con il Dr. Michael Laitman"
   },
   "autoname.iWPWpSNy": {
     "he": "שיחה של הרב ד\"ר מיכאל לייטמן עם נשים",
@@ -340,7 +382,8 @@
     "ru": "Беседа д-р Михаэля Лайтмана с женщинами",
     "es": "Michael Laitman conversación con las mujeres",
     "ua": "Бесіда д-ра Міхаеля Лайтмана з жінками",
-    "de": "Dr. Michael Laitman im Gespräch mit Frauen"
+    "de": "Dr. Michael Laitman im Gespräch mit Frauen",
+    "it": " Dr. Michael Laitman conversazione con le donne"
   },
   "autoname.meal": {
     "he": "דברי הרב ד\"ר מיכאל לייטמן בסעודה",
@@ -348,7 +391,8 @@
     "ru": "Речь д-ра Михаэля Лайтмана на трапезе",
     "es": "Discurso del Rav M. Laitman en la comida",
     "ua": "Промова д-ра Міхаеля Лайтмана на трапезі",
-    "de": " Dr. Michael Laitmans Vortrag während der Mahlzeit"
+    "de": " Dr. Michael Laitmans Vortrag während der Mahlzeit",
+    "it": "Discorso del Dr. M. Laitman durante il pasto"
   },
   "autoname.yh": {
     "he": "ישיבת החברים העולמית",
@@ -356,7 +400,8 @@
     "ru": "Мировая ешиват хаверим",
     "es": "Reunión Mundial de Amigos",
     "ua": "Світова Єшиват Хаверім",
-    "de": "Weltweite Versammlung der Freunde"
+    "de": "Weltweite Versammlung der Freunde",
+    "it": "Assemblea mondiale degli amici"
   },
   "autoname.webinar": {
     "he": "וובינר עם הרב ד\"ר מיכאל לייטמן",
@@ -364,7 +409,8 @@
     "ru": "Вебинар с д-ром Михаэлем Лайтманом",
     "es": "Webinar con el Dr. Michael Laitman",
     "ua": "Вебінар з д-ром Міхаелем Лайтманом",
-    "de": "Webinar mit Dr. Michael Laitman"
+    "de": "Webinar mit Dr. Michael Laitman",
+    "it": "Webinar con il Dr. Michael Laitman"
   }
 }
 
