@@ -73,7 +73,9 @@ func SendHandler(c *gin.Context) {
 		// recover from panics in transaction
 		defer func() {
 			if p := recover(); p != nil {
-				tx.Rollback()
+				if ex := tx.Rollback(); ex != nil {
+					log.Error("Couldn't roll back transaction")
+				}
 				panic(p) // re-throw panic after Rollback
 			}
 		}()
@@ -590,7 +592,10 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []e
 	log.Info("Updating file's properties")
 	var fileProps = make(map[string]interface{})
 	if file.Properties.Valid {
-		file.Properties.Unmarshal(&fileProps)
+		err = file.Properties.Unmarshal(&fileProps)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "Unmarshal file properties [%d]", file.ID)
+		}
 	}
 	fileProps["url"] = r.Url
 	fileProps["duration"] = r.Duration
@@ -1035,7 +1040,9 @@ func handleOperation(c *gin.Context, input interface{}, opHandler OperationHandl
 	// recover from panics in transaction
 	defer func() {
 		if p := recover(); p != nil {
-			tx.Rollback()
+			if ex := tx.Rollback(); ex != nil {
+				log.Error("Couldn't roll back transaction")
+			}
 			panic(p) // re-throw panic after Rollback
 		}
 	}()
@@ -1045,7 +1052,7 @@ func handleOperation(c *gin.Context, input interface{}, opHandler OperationHandl
 		utils.Must(tx.Commit())
 	} else {
 		utils.Must(tx.Rollback())
-		err = errors.Wrapf(err, "Handle operation")
+		err = errors.Wrapf(err, "Handle operation %s", c.HandlerName())
 	}
 
 	if err == nil {
