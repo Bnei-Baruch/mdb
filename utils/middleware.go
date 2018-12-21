@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -107,8 +108,11 @@ func ErrorHandlingMiddleware() gin.HandlerFunc {
 				switch e.Type {
 				case gin.ErrorTypePublic:
 					if e.Err != nil {
-						log.Warnf("Public error: %s", e.Error())
-						c.JSON(c.Writer.Status(), gin.H{"status": "error", "error": e.Error()})
+						errMsg := e.Error()
+						if !strings.Contains(errMsg, "oidc: token is expired ") {
+							log.Warnf("Public error: %s", errMsg)
+						}
+						c.JSON(c.Writer.Status(), gin.H{"status": "error", "error": errMsg})
 					}
 
 				case gin.ErrorTypeBind:
