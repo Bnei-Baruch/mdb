@@ -6,7 +6,7 @@ import "fmt"
 var (
 	Major      = 1
 	Minor      = 2
-	Patch      = 5
+	Patch      = 6
 	PreRelease = "" // Set this via makefile. See docs for more info on release process
 )
 
