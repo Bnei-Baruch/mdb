@@ -2985,7 +2985,7 @@ func handleContentUnitMerge(cp utils.ContextProvider, exec boil.Executor, id int
 	units, err := models.ContentUnits(exec,
 		qm.Where("secure <= ?", allowedWrite(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(cuIDs)...),
-		qm.Load("Files")).
+		qm.Load("Files", "DerivedContentUnitDerivations", "SourceContentUnitDerivations")).
 		All()
 	if err != nil {
 		return nil, nil, NewInternalError(err)
