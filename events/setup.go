@@ -1,7 +1,7 @@
 package events
 
 import (
-	"io"
+	"context"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/nats-io/go-nats-streaming"
@@ -42,13 +42,11 @@ func InitEmitter() (*BufferedEmitter, error) {
 	return NewBufferedEmitter(viper.GetInt("events.emitter-size"), eventHandlers...)
 }
 
-func CloseEmitter() {
+func CloseEmitter(ctx context.Context) {
 	log.Infof("Closing event handlers")
 	for i := range eventHandlers {
-		if h, ok := eventHandlers[i].(io.Closer); ok {
-			if err := h.Close(); err != nil {
-				log.Fatal("Close event handler:", err)
-			}
+		if err := eventHandlers[i].Close(ctx); err != nil {
+			log.Error("Close event handler:", err)
 		}
 	}
 }

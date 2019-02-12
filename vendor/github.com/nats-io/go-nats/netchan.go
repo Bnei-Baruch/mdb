@@ -1,4 +1,15 @@
-// Copyright 2013-2017 Apcera Inc. All rights reserved.
+// Copyright 2013-2018 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package nats
 
@@ -41,7 +52,7 @@ func chPublish(c *EncodedConn, chVal reflect.Value, subject string) {
 				if c.Conn.isClosed() {
 					go c.Conn.Opts.AsyncErrorCB(c.Conn, nil, e)
 				} else {
-					c.Conn.ach <- func() { c.Conn.Opts.AsyncErrorCB(c.Conn, nil, e) }
+					c.Conn.ach.push(func() { c.Conn.Opts.AsyncErrorCB(c.Conn, nil, e) })
 				}
 			}
 			return
@@ -77,7 +88,7 @@ func (c *EncodedConn) bindRecvChan(subject, queue string, channel interface{}) (
 		if err := c.Enc.Decode(m.Subject, m.Data, oPtr.Interface()); err != nil {
 			c.Conn.err = errors.New("nats: Got an error trying to unmarshal: " + err.Error())
 			if c.Conn.Opts.AsyncErrorCB != nil {
-				c.Conn.ach <- func() { c.Conn.Opts.AsyncErrorCB(c.Conn, m.Sub, c.Conn.err) }
+				c.Conn.ach.push(func() { c.Conn.Opts.AsyncErrorCB(c.Conn, m.Sub, c.Conn.err) })
 			}
 			return
 		}

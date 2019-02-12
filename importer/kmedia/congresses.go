@@ -453,37 +453,43 @@ func doNewUnit(exec boil.Executor, h map[string]int, x []string) error {
 	}
 
 	containerID := x[h["container_id"]]
-	exists, err := models.ContentUnits(exec,
-		qm.Where("(properties->>'kmedia_id')::int = ?", containerID)).Exists()
+	cnID, err := strconv.Atoi(containerID)
 	if err != nil {
-		return errors.Wrapf(err, "Check unit exists in mdb [kmid %d]", containerID)
+		return errors.Wrapf(err, "bad container_id %s", containerID)
+	}
+
+	exists, err := models.ContentUnits(exec,
+		qm.Where("(properties->>'kmedia_id')::int = ?", cnID)).Exists()
+	if err != nil {
+		return errors.Wrapf(err, "Check unit exists in mdb [kmid %d]", cnID)
 	}
 	if exists {
-		log.Infof("Unit exists [kmid %d]", containerID)
+		log.Infof("Unit exists [kmid %d]", cnID)
 		return nil
 	}
 
 	catalogID := x[h["catalog_id"]]
+	ctID, err := strconv.Atoi(catalogID)
+	if err != nil {
+		return errors.Wrapf(err, "bad catalog_id %s", catalogID)
+	}
+
 	collection, err := models.Collections(exec,
-		qm.Where("(properties->>'kmedia_id')::int = ?", catalogID),
+		qm.Where("(properties->>'kmedia_id')::int = ?", ctID),
 	).One()
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return errors.Wrapf(err, "Collection not found [kmid %d]", catalogID)
+			return errors.Wrapf(err, "Collection not found [kmid %d]", ctID)
 		} else {
-			return errors.Wrapf(err, "Load collection from mdb [kmid %d]", catalogID)
+			return errors.Wrapf(err, "Load collection from mdb [kmid %d]", ctID)
 		}
 	}
 
-	cID, err := strconv.Atoi(containerID)
-	if err != nil {
-		return errors.Wrapf(err, "bad container_id %s", containerID)
-	}
 	container, err := kmodels.Containers(kmdb,
-		qm.Where("id = ?", cID),
+		qm.Where("id = ?", cnID),
 		qm.Load("FileAssets")).One()
 	if err != nil {
-		return errors.Wrapf(err, "Lookup container %d", cID)
+		return errors.Wrapf(err, "Lookup container %d", cnID)
 	}
 
 	ccuName := strconv.Itoa(container.Position.Int)
@@ -493,18 +499,18 @@ func doNewUnit(exec boil.Executor, h map[string]int, x []string) error {
 
 	// Create import operation
 	operation, err := api.CreateOperation(exec, api.OP_IMPORT_KMEDIA,
-		api.Operation{WorkflowID: strconv.Itoa(cID)}, nil)
+		api.Operation{WorkflowID: strconv.Itoa(cnID)}, nil)
 	if err != nil {
-		return errors.Wrapf(err, "Create operation %d", cID)
+		return errors.Wrapf(err, "Create operation %d", cnID)
 	}
 	stats.OperationsCreated.Inc(1)
 
 	// import container
-	log.Infof("Processing container %d", cID)
+	log.Infof("Processing container %d", cnID)
 	stats.ContainersProcessed.Inc(1)
 	unit, err := importContainer(exec, container, collection, ct, ccuName, container.Position.Int)
 	if err != nil {
-		return errors.Wrapf(err, "Import container %d", cID)
+		return errors.Wrapf(err, "Import container %d", cnID)
 	}
 
 	// import container files
@@ -525,14 +531,14 @@ func doNewUnit(exec boil.Executor, h map[string]int, x []string) error {
 		}
 	}
 	if err != nil {
-		return errors.Wrapf(err, "Import container files %d", cID)
+		return errors.Wrapf(err, "Import container files %d", cnID)
 	}
 
 	if unit.Published {
 		collection.Published = true
 		err = unit.Update(exec, "published")
 		if err != nil {
-			return errors.Wrapf(err, "Update unit published column %d", cID)
+			return errors.Wrapf(err, "Update unit published column %d", cnID)
 		}
 	}
 
@@ -577,26 +583,30 @@ func doExistingUnit(exec boil.Executor, h map[string]int, x []string) error {
 	unitID := x[h["unit.id"]]
 	cuID, err := strconv.Atoi(unitID)
 	if err != nil {
-		return errors.Wrapf(err, "bad unit.id %s", cuID)
+		return errors.Wrapf(err, "bad unit.id %s", unitID)
 	}
 	unit, err := models.FindContentUnit(exec, int64(cuID))
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return errors.Wrapf(err, "Unit doesn't exist in mdb [%d]", unitID)
+			return errors.Wrapf(err, "Unit doesn't exist in mdb [%d]", cuID)
 		} else {
-			return errors.Wrapf(err, "Load unit from mdb [%d]", unitID)
+			return errors.Wrapf(err, "Load unit from mdb [%d]", cuID)
 		}
 	}
 
 	catalogID := x[h["catalog_id"]]
+	ctID, err := strconv.Atoi(catalogID)
+	if err != nil {
+		return errors.Wrapf(err, "bad catalog_id %s", catalogID)
+	}
 	collection, err := models.Collections(exec,
-		qm.Where("(properties->>'kmedia_id')::int = ?", catalogID),
+		qm.Where("(properties->>'kmedia_id')::int = ?", ctID),
 	).One()
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return errors.Wrapf(err, "Collection not found [kmid %d]", catalogID)
+			return errors.Wrapf(err, "Collection not found [kmid %d]", ctID)
 		} else {
-			return errors.Wrapf(err, "Load collection from mdb [kmid %d]", catalogID)
+			return errors.Wrapf(err, "Load collection from mdb [kmid %d]", ctID)
 		}
 	}
 

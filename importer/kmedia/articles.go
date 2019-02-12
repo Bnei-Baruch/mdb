@@ -311,7 +311,7 @@ func splitArticlesToPublications(publishersMap map[string]*models.Publisher) err
 
 			publisher, ok := publishersMap[pattern]
 			if !ok {
-				log.Infof("Unknown publisher %s", publisher)
+				log.Infof("Unknown publisher %s", pattern)
 				continue
 			}
 

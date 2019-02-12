@@ -666,7 +666,7 @@ func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original
 
 	oPath, err := FindFileAncestors(exec, original.ID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "lookup original ancestors %s", original.ID)
+		return nil, errors.Wrapf(err, "lookup original ancestors %d", original.ID)
 	}
 	for i := range oPath {
 		mutualAncestors.Add(oPath[i].ID)
@@ -674,7 +674,7 @@ func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original
 
 	pPath, err := FindFileAncestors(exec, proxy.ID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "lookup proxy ancestors %s", original.ID)
+		return nil, errors.Wrapf(err, "lookup proxy ancestors %d", original.ID)
 	}
 	for i := range pPath {
 		mutualAncestors.Add(pPath[i].ID)

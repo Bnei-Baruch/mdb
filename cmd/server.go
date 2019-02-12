@@ -109,20 +109,21 @@ func serverFn(cmd *cobra.Command, args []string) {
 	quit := make(chan os.Signal)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	log.Infof("Shutdown Server ...")
+	log.Infof("Shutdown server ...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server Shutdown:", err)
+		log.Error("Server Shutdown:", err)
 	}
-	log.Infof("Server exiting")
 
-	events.CloseEmitter()
+	log.Infof("Close events emitter ...")
+	events.CloseEmitter(ctx)
 
 	if len(rollbar.Token) > 0 {
-		log.Infof("Wait for rollbar")
+		log.Infof("Wait for rollbar ...")
 		rollbar.Wait()
 	}
 
+	log.Infof("Shutdown complete")
 }
