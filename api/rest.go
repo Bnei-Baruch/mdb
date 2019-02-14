@@ -483,7 +483,7 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 		resp, err = handleContentUnitAddSource(c, tx, id, sourceID)
 		mustConcludeTx(tx, err)
 
-		if respCU, ok := resp.(*models.ContentUnit); ok && err == nil {
+		if respCU, ok := resp.(*models.ContentUnit); ok && err == nil && resp != nil {
 			emitEvents(c, events.ContentUnitSourcesChangeEvent(respCU))
 		}
 	case http.MethodDelete:
@@ -534,7 +534,7 @@ func ContentUnitTagsHandler(c *gin.Context) {
 		resp, err = handleContentUnitAddTag(c, tx, id, tagID)
 		mustConcludeTx(tx, err)
 
-		if respCU, ok := resp.(*models.ContentUnit); ok && err == nil {
+		if respCU, ok := resp.(*models.ContentUnit); ok && err == nil && resp != nil {
 			emitEvents(c, events.ContentUnitTagsChangeEvent(respCU))
 		}
 	case http.MethodDelete:
@@ -579,8 +579,8 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 		resp, err = handleContentUnitAddPerson(c, tx, id, cup)
 		mustConcludeTx(tx, err)
 
-		if err == nil {
-			emitEvents(c, events.ContentUnitPersonsChangeEvent(resp.(*models.ContentUnit)))
+		if respCU, ok := resp.(*models.ContentUnit); ok && err == nil && resp != nil {
+			emitEvents(c, events.ContentUnitPersonsChangeEvent(respCU))
 		}
 	case http.MethodDelete:
 		personID, e := strconv.ParseInt(c.Param("personID"), 10, 0)
