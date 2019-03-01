@@ -258,6 +258,7 @@ func fixUnitMappings(mappings []*FileMappings) error {
 		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_KITEI_MAKOR].ID: true,
 		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_LELO_MIKUD].ID: true,
 		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_PUBLICATION].ID: true,
+		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_RESEARCH_MATERIAL].ID: true,
 	}
 	for k, v := range bySize {
 		fmt.Printf("size %d\n", k)

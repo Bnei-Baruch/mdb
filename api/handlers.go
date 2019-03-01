@@ -798,13 +798,22 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 
 	// special types logic
 	cuID := cu.ID
-	if r.InsertType == "kitei-makor" {
-		log.Infof("Kitei makor, associating to derived unit")
+	if r.InsertType == "kitei-makor" ||
+		r.InsertType == "research-material" {
+		log.Infof("%s, associating to derived unit", r.InsertType)
+
+		var ct string
+		switch r.InsertType {
+		case "kitei-makor":
+			ct = CT_KITEI_MAKOR
+		case "research-material":
+			ct = CT_RESEARCH_MATERIAL
+		}
 
 		var cudID int64
 		if len(cu.R.SourceContentUnitDerivations) > 0 {
 			for _, cud := range cu.R.SourceContentUnitDerivations {
-				if CONTENT_TYPE_REGISTRY.ByID[cud.R.Derived.TypeID].Name == CT_KITEI_MAKOR {
+				if CONTENT_TYPE_REGISTRY.ByID[cud.R.Derived.TypeID].Name == ct {
 					cudID = cud.DerivedID
 					break
 				}
@@ -813,17 +822,17 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 
 		if cudID > 0 {
 			cuID = cudID
-			log.Infof("KITEI_MAKOR derived unit exist: %d", cuID)
+			log.Infof("%s derived unit exist: %d", ct, cuID)
 		} else {
-			log.Infof("KITEI_MAKOR derived unit doesn't exists. Creating...")
-			ktCU, err := CreateContentUnit(exec, CT_KITEI_MAKOR, nil)
+			log.Infof("%s derived unit doesn't exists. Creating...", ct)
+			ktCU, err := CreateContentUnit(exec, ct, nil)
 			if err != nil {
-				return nil, nil, errors.Wrap(err, "Create KITEI_MAKOR derived unit")
+				return nil, nil, errors.Wrapf(err, "Create %s derived unit", ct)
 			}
 
 			cud := &models.ContentUnitDerivation{
 				SourceID: cu.ID,
-				Name:     CT_KITEI_MAKOR,
+				Name:     ct,
 			}
 			err = ktCU.AddDerivedContentUnitDerivations(exec, true, cud)
 			if err != nil {

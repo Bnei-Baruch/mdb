@@ -42,6 +42,7 @@ const (
 	CT_SONG                  = "SONG"
 	CT_BOOK                  = "BOOK"
 	CT_BLOG_POST             = "BLOG_POST"
+	CT_RESEARCH_MATERIAL     = "RESEARCH_MATERIAL"
 
 	// Operation Types
 	OP_CAPTURE_START = "capture_start"

@@ -77,7 +77,8 @@ func (suite *AutonameSuite) TestGenericDescriberContentUnit() {
 			if x == CT_KITEI_MAKOR ||
 				x == CT_LELO_MIKUD ||
 				x == CT_FULL_LESSON ||
-				x == CT_PUBLICATION {
+				x == CT_PUBLICATION ||
+				x == CT_RESEARCH_MATERIAL {
 				suite.Equal(metadata.FinalName, i18n.Name.String, "%s techincal name", i18n.Language)
 				suite.Len(i18ns, 3, "len(i18ns)")
 			} else {

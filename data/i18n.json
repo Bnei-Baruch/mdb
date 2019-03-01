@@ -341,6 +341,15 @@
     "de": "Blogeintrag",
     "it": "Post dal Blog"
   },
+  "content_type.RESEARCH_MATERIAL": {
+    "he": "חומרי מחקר",
+    "en": "Research Material",
+    "ru": "Материал сследования",
+    "es": "Material de investigación",
+    "ua": "Матеріал дослідження",
+    "de": "Forschungsmaterial",
+    "it": "Materiale di ricerca"
+  },
   "autoname.lesson_by_topic_tag": {
     "he": "שיעור%s בנושא",
     "en": "Lesson%s on the topic of",

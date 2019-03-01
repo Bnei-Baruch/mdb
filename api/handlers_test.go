@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -887,115 +888,125 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
-	// Do insert operation
-	input := InsertRequest{
-		Operation: Operation{
-			Station:    "Some station",
-			User:       "operator@dev.com",
-			WorkflowID: "workflow_id",
-		},
-		InsertType:     "kitei-makor",
-		ContentUnitUID: cu.UID,
-		AVFile: AVFile{
-			File: File{
-				FileName:  "kitei-makor.docx",
-				Sha1:      "012356789abcdef012356789abcdef1111111111",
-				Size:      98737,
-				CreatedAt: &Timestamp{Time: time.Now()},
-				MimeType:  MEDIA_TYPE_REGISTRY.ByExtension["docx"].MimeType,
-				Language:  LANG_HEBREW,
+	for i, iType := range []string{"kitei-makor", "research-material"} {
+		var cType string
+		switch iType {
+		case "kitei-makor":
+			cType = CT_KITEI_MAKOR
+		case "research-material":
+			cType = CT_RESEARCH_MATERIAL
+		}
+
+		// Do insert operation
+		input := InsertRequest{
+			Operation: Operation{
+				Station:    "Some station",
+				User:       "operator@dev.com",
+				WorkflowID: "workflow_id",
 			},
-		},
-		Mode: "new",
+			InsertType:     iType,
+			ContentUnitUID: cu.UID,
+			AVFile: AVFile{
+				File: File{
+					FileName:  fmt.Sprintf("%s.docx", iType),
+					Sha1:      fmt.Sprintf("012356789abcdef012356789abcdef111111111%d", i),
+					Size:      98737,
+					CreatedAt: &Timestamp{Time: time.Now()},
+					MimeType:  MEDIA_TYPE_REGISTRY.ByExtension["docx"].MimeType,
+					Language:  LANG_HEBREW,
+				},
+			},
+			Mode: "new",
+		}
+
+		op, evnts, err := handleInsert(suite.tx, input)
+		suite.Require().Nil(err)
+		suite.Require().NotEmpty(evnts)
+
+		// Check op
+		suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+		suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+		var props map[string]interface{}
+		err = op.Properties.Unmarshal(&props)
+		suite.Require().Nil(err)
+		suite.Equal(input.Operation.WorkflowID, props["workflow_id"].(string), "Operation workflow_id")
+		suite.Equal(input.InsertType, props["insert_type"].(string), "Operation insert_type")
+		suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
+
+		// Check user
+		suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+		suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+		// Check associated files
+		suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+		suite.Len(op.R.Files, 1, "Number of files")
+
+		// check inserted file
+		f := op.R.Files[0]
+		suite.Equal(input.FileName, f.Name, "File Name")
+		suite.Equal(input.Sha1, hex.EncodeToString(f.Sha1.Bytes), "File SHA1")
+		suite.Equal(input.Size, f.Size, "File Size")
+		suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File FileCreatedAt")
+		suite.Equal("text", f.Type, "File Type")
+		suite.Equal(input.MimeType, f.MimeType.String, "File MimeType")
+		suite.Equal(input.Language, f.Language.String, "File Language")
+		suite.False(f.ParentID.Valid, "File ParentID")
+		err = f.Properties.Unmarshal(&props)
+		suite.Require().Nil(err)
+		suite.Equal(input.InsertType, props["insert_type"].(string), "File insert_type")
+		suite.Nil(props["duration"], "File duration")
+
+		// check content unit association
+		suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f))
+		ktCU := f.R.ContentUnit
+		suite.Equal(cType, CONTENT_TYPE_REGISTRY.ByID[ktCU.TypeID].Name, "KT CU type")
+		suite.Require().Nil(ktCU.L.LoadDerivedContentUnitDerivations(suite.tx, true, ktCU))
+		suite.Equal(cu.ID, ktCU.R.DerivedContentUnitDerivations[0].SourceID, "KT CU source CU")
+
+		// test when KT cu exists
+		input.FileName = fmt.Sprintf("%s2.docx", iType)
+		input.Sha1 = fmt.Sprintf("012356789abcdef012356789abcdef111111112%d", i)
+
+		op2, evnts, err := handleInsert(suite.tx, input)
+		suite.Require().Nil(err)
+		suite.Require().NotEmpty(evnts)
+
+		// Check op
+		suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+		suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+		err = op.Properties.Unmarshal(&props)
+		suite.Require().Nil(err)
+		suite.Equal(input.Operation.WorkflowID, props["workflow_id"].(string), "Operation workflow_id")
+		suite.Equal(input.InsertType, props["insert_type"].(string), "Operation insert_type")
+		suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
+
+		// Check user
+		suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+		suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+		// Check associated files
+		suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+		suite.Len(op.R.Files, 1, "Number of files")
+
+		// check inserted file
+		f2 := op2.R.Files[0]
+		suite.Equal(input.FileName, f2.Name, "File Name")
+		suite.Equal(input.Sha1, hex.EncodeToString(f2.Sha1.Bytes), "File SHA1")
+		suite.Equal(input.Size, f2.Size, "File Size")
+		suite.Equal(input.CreatedAt.Time.Unix(), f2.FileCreatedAt.Time.Unix(), "File FileCreatedAt")
+		suite.Equal("text", f2.Type, "File Type")
+		suite.Equal(input.MimeType, f2.MimeType.String, "File MimeType")
+		suite.Equal(input.Language, f2.Language.String, "File Language")
+		suite.False(f2.ParentID.Valid, "File ParentID")
+		err = f.Properties.Unmarshal(&props)
+		suite.Require().Nil(err)
+		suite.Equal(input.InsertType, props["insert_type"].(string), "File insert_type")
+		suite.Nil(props["duration"], "File duration")
+
+		// check content unit association
+		suite.True(f2.ContentUnitID.Valid, "f2.ContentUnitID.Valid")
+		suite.Equal(f.ContentUnitID.Int64, f2.ContentUnitID.Int64, "f2.ContentUnitID.Int64")
 	}
-
-	op, evnts, err := handleInsert(suite.tx, input)
-	suite.Require().Nil(err)
-	suite.Require().NotEmpty(evnts)
-
-	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
-	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
-	var props map[string]interface{}
-	err = op.Properties.Unmarshal(&props)
-	suite.Require().Nil(err)
-	suite.Equal(input.Operation.WorkflowID, props["workflow_id"].(string), "Operation workflow_id")
-	suite.Equal(input.InsertType, props["insert_type"].(string), "Operation insert_type")
-	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
-
-	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
-	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
-
-	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
-	suite.Len(op.R.Files, 1, "Number of files")
-
-	// check inserted file
-	f := op.R.Files[0]
-	suite.Equal(input.FileName, f.Name, "File Name")
-	suite.Equal(input.Sha1, hex.EncodeToString(f.Sha1.Bytes), "File SHA1")
-	suite.Equal(input.Size, f.Size, "File Size")
-	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File FileCreatedAt")
-	suite.Equal("text", f.Type, "File Type")
-	suite.Equal(input.MimeType, f.MimeType.String, "File MimeType")
-	suite.Equal(input.Language, f.Language.String, "File Language")
-	suite.False(f.ParentID.Valid, "File ParentID")
-	err = f.Properties.Unmarshal(&props)
-	suite.Require().Nil(err)
-	suite.Equal(input.InsertType, props["insert_type"].(string), "File insert_type")
-	suite.Nil(props["duration"], "File duration")
-
-	// check content unit association
-	suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f))
-	ktCU := f.R.ContentUnit
-	suite.Equal(CT_KITEI_MAKOR, CONTENT_TYPE_REGISTRY.ByID[ktCU.TypeID].Name, "KT CU type")
-	suite.Require().Nil(ktCU.L.LoadDerivedContentUnitDerivations(suite.tx, true, ktCU))
-	suite.Equal(cu.ID, ktCU.R.DerivedContentUnitDerivations[0].SourceID, "KT CU source CU")
-
-	// test when KT cu exists
-	input.FileName = "kitei-makor2.docx"
-	input.Sha1 = "012356789abcdef012356789abcdef1111111112"
-
-	op2, evnts, err := handleInsert(suite.tx, input)
-	suite.Require().Nil(err)
-	suite.Require().NotEmpty(evnts)
-
-	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
-	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
-	err = op.Properties.Unmarshal(&props)
-	suite.Require().Nil(err)
-	suite.Equal(input.Operation.WorkflowID, props["workflow_id"].(string), "Operation workflow_id")
-	suite.Equal(input.InsertType, props["insert_type"].(string), "Operation insert_type")
-	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
-
-	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
-	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
-
-	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
-	suite.Len(op.R.Files, 1, "Number of files")
-
-	// check inserted file
-	f2 := op2.R.Files[0]
-	suite.Equal(input.FileName, f2.Name, "File Name")
-	suite.Equal(input.Sha1, hex.EncodeToString(f2.Sha1.Bytes), "File SHA1")
-	suite.Equal(input.Size, f2.Size, "File Size")
-	suite.Equal(input.CreatedAt.Time.Unix(), f2.FileCreatedAt.Time.Unix(), "File FileCreatedAt")
-	suite.Equal("text", f2.Type, "File Type")
-	suite.Equal(input.MimeType, f2.MimeType.String, "File MimeType")
-	suite.Equal(input.Language, f2.Language.String, "File Language")
-	suite.False(f2.ParentID.Valid, "File ParentID")
-	err = f.Properties.Unmarshal(&props)
-	suite.Require().Nil(err)
-	suite.Equal(input.InsertType, props["insert_type"].(string), "File insert_type")
-	suite.Nil(props["duration"], "File duration")
-
-	// check content unit association
-	suite.True(f2.ContentUnitID.Valid, "f2.ContentUnitID.Valid")
-	suite.Equal(f.ContentUnitID.Int64, f2.ContentUnitID.Int64, "f2.ContentUnitID.Int64")
 }
 
 func (suite *HandlersSuite) TestHandleInsertPublication() {
