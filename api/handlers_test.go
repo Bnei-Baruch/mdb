@@ -847,6 +847,11 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	// check content unit association
 	suite.True(f.ContentUnitID.Valid, "File ContentUnitID.Valid")
 	suite.Equal(cu.ID, f.ContentUnitID.Int64, "File ContentUnitID.Int64")
+	err = cu.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = cu.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(int(input.AVFile.Duration), int(props["duration"].(float64)), "CU duration")
 
 	// test with parent file
 	pfi := File{

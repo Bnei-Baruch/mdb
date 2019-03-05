@@ -915,6 +915,25 @@ FROM content_units cu
 		}
 	}
 
+	// Set unit duration if not already set
+	// This is here for units not created via send operation of some trimmed file.
+	if r.AVFile.Duration > 0 {
+		cu, err := models.ContentUnits(exec,
+			qm.Where("id = ?", cuID),
+			qm.Load("Files")).One()
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "Refresh CU [%d] from DB", cuID)
+		}
+
+		if len(cu.R.Files) == 1 {
+			err = UpdateContentUnitProperties(exec, cu, map[string]interface{}{"duration": int(r.AVFile.Duration)})
+			if err != nil {
+				return nil, nil, errors.Wrapf(err, "Update CU properties [%d]", cuID)
+			}
+			evnts = append(evnts, events.ContentUnitUpdateEvent(cu))
+		}
+	}
+
 	log.Info("Associating files to operation")
 	return operation, evnts, operation.AddFiles(exec, false, opFiles...)
 }
