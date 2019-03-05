@@ -118,6 +118,7 @@ const (
 	LANG_LATVIAN    = "lv"
 	LANG_SLOVAK     = "sk"
 	LANG_CZECH      = "cs"
+	LANG_AMHARIC    = "am"
 	LANG_MULTI      = "zz"
 	LANG_UNKNOWN    = "xx"
 )
