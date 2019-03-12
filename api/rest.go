@@ -3025,8 +3025,11 @@ func handleContentUnitMerge(cp utils.ContextProvider, exec boil.Executor, id int
 			return nil, nil, NewInternalError(err)
 		}
 		for i := range cu.R.DerivedContentUnitDerivations {
-			evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(
-				cu.R.DerivedContentUnitDerivations[i].R.Source))
+			sourceCU, err := cu.R.DerivedContentUnitDerivations[i].Source(exec).One()
+			if err != nil {
+				return nil, nil, NewInternalError(err)
+			}
+			evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(sourceCU))
 		}
 
 		err = cu.R.SourceContentUnitDerivations.UpdateAll(exec, models.M{"source_id": unit.ID})
