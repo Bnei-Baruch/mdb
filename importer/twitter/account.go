@@ -88,10 +88,10 @@ func saveTweetToDB(t *anaconda.Tweet, user *models.TwitterUser) error {
 		Raw:       null.JSONFrom(jsonb),
 	}
 
-	err = mt.Insert(tx)
+	err = mt.Upsert(tx, true, []string{"twitter_id"}, []string{"full_text", "tweet_at", "raw"})
 	if err != nil {
 		utils.Must(tx.Rollback())
-		return errors.Wrapf(err, "Insert to DB")
+		return errors.Wrapf(err, "Upsert to DB")
 	} else {
 		utils.Must(tx.Commit())
 	}
