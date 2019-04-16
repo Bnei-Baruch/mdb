@@ -82,7 +82,7 @@ func (suite *AutonameSuite) TestGenericDescriberContentUnit() {
 				suite.Equal(metadata.FinalName, i18n.Name.String, "%s techincal name", i18n.Language)
 				suite.Len(i18ns, 3, "len(i18ns)")
 			} else {
-				suite.Len(i18ns, 7, "len(i18ns)")
+				suite.Len(i18ns, 8, "len(i18ns)")
 				suite.NotEmpty(i18n.Name.String, "%s name empty", i18n.Language)
 				suite.NotEqual(metadata.FinalName, i18n.Name.String, "%s name", i18n.Language)
 			}
