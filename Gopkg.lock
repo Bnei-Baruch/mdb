@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  digest = "1:fc894c6c55d06771db751a0f3946a37b3cb6a8703bee3b7146f9db7c08d6196d"
+  name = "github.com/360EntSecGroup-Skylar/excelize"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "dea7ba0ec43a4c29a6642d02b6edc73b8b0369f0"
+  version = "v1.4.1"
+
+[[projects]]
   digest = "1:6ced43623bff391cfae02d432d89aa25009f253dd1d939ee11a60e24f5d4d0d9"
   name = "github.com/ChimeraCoder/anaconda"
   packages = ["."]
@@ -65,6 +73,14 @@
   ]
   pruneopts = "UT"
   revision = "da8da908883066abea518609b80da5a0031071cb"
+
+[[projects]]
+  digest = "1:786e862ec180708b60ee670723e3edd969fd4309e7b1c315cd7de058ac62a011"
+  name = "github.com/agnivade/levenshtein"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "51b298ff305e72cfd29166dccc3f9878e82f9fdc"
+  version = "v1.0.2"
 
 [[projects]]
   digest = "1:66b3310cf22cdc96c35ef84ede4f7b9b370971c4025f394c89a2638729653b11"
@@ -345,6 +361,14 @@
   revision = "d0303fe809921458f417bcf828397a65db30a7e4"
 
 [[projects]]
+  branch = "master"
+  digest = "1:84bd7f8a2e0bcd53ddc33c3b47c34c1fe340c8632cbe928f7f8ae10ec6ecdd62"
+  name = "github.com/mohae/deepcopy"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c48cc78d482608239f6c4c92a4abd87eb8761c90"
+
+[[projects]]
   digest = "1:c8345cd0f623a01cd4f64c3e9a6af2cd90ee118a775cb6fb3ae939e680ec272b"
   name = "github.com/nats-io/gnatsd"
   packages = [
@@ -564,13 +588,6 @@
   revision = "3eb4713e2655cd1be805795be31b3f85b74b05fd"
 
 [[projects]]
-  digest = "1:f6d7308e75683979d39359de8ad04d3ae449212020bb6f126b2bf60d4dfb32ed"
-  name = "github.com/tealeg/xlsx"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "f36fa3be8893d528004c0938e06b65c67f69b76f"
-
-[[projects]]
   digest = "1:b251d4413ad3bfa05ef552c851221f022eae7294981014b857ec72f04abc30c4"
   name = "github.com/tomnomnom/linkheader"
   packages = ["."]
@@ -773,10 +790,12 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/360EntSecGroup-Skylar/excelize",
     "github.com/ChimeraCoder/anaconda",
     "github.com/PuerkitoBio/purell",
     "github.com/Sirupsen/logrus",
     "github.com/adams-sarah/test2doc/test",
+    "github.com/agnivade/levenshtein",
     "github.com/casbin/casbin",
     "github.com/casbin/casbin/model",
     "github.com/casbin/casbin/persist",
@@ -796,7 +815,6 @@
     "github.com/stretchr/testify",
     "github.com/stretchr/testify/suite",
     "github.com/stvp/rollbar",
-    "github.com/tealeg/xlsx",
     "github.com/tomnomnom/linkheader",
     "github.com/volatiletech/sqlboiler/bdb",
     "github.com/volatiletech/sqlboiler/bdb/drivers",

@@ -5,9 +5,9 @@ import (
 	"sort"
 	"time"
 
+	"github.com/360EntSecGroup-Skylar/excelize"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/tealeg/xlsx"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
@@ -47,12 +47,14 @@ func doExportTVShows() error {
 		return collections[i].Name() < collections[j].Name()
 	})
 
-	out := xlsx.NewFile()
+	out := excelize.NewFile()
 
 	for i := range collections {
 		c := collections[i]
 
-		sheet := &xlsx.Sheet{}
+		name := CleanSheetName(fmt.Sprintf("%s (%s)", c.Name(), c.UID))
+		log.Infof("%s", name)
+		out.NewSheet(name)
 
 		// sort units by position
 		sort.Slice(c.R.CollectionsContentUnits, func(i, j int) bool {
@@ -60,31 +62,28 @@ func doExportTVShows() error {
 		})
 
 		for j := range c.R.CollectionsContentUnits {
-			row := sheet.AddRow()
 			cu := UnitWName{ContentUnit: c.R.CollectionsContentUnits[j].R.ContentUnit}
 
-			cell := row.AddCell()
 			url := fmt.Sprintf("https://archive.kbb1.com/programs/cu/%s", cu.UID)
-			cell.SetStringFormula(fmt.Sprintf("HYPERLINK(\"%s\")", url))
+			err = out.SetCellHyperLink(name, fmt.Sprintf("A%d", j+1), url, "External")
+			if err != nil {
+				return errors.Wrapf(err, "out.SetCellHyperLink A%d %s", j+1, url)
+			}
 
-			cell = row.AddCell()
-			cell.Value = cu.Name()
-
-			cell = row.AddCell()
-			cell.Value = cu.Description()
-		}
-
-		name := CleanSheetName(fmt.Sprintf("%s (%s)", c.Name(), c.UID))
-		log.Infof("%s", name)
-		sheet, err = out.AppendSheet(*sheet, name)
-		if err != nil {
-			return errors.Wrapf(err, "out.AddSheet %d", i)
+			err = out.SetCellStr(name, fmt.Sprintf("B%d", j+1), cu.Name())
+			if err != nil {
+				return errors.Wrapf(err, "out.SetCellStr B%d %s", j+1, cu.Name())
+			}
+			err = out.SetCellStr(name, fmt.Sprintf("C%d", j+1), cu.Description())
+			if err != nil {
+				return errors.Wrapf(err, "out.SetCellStr C%d %s", j+1, cu.Description())
+			}
 		}
 	}
 
-	err = out.Save("MDB_export_tagging_tvshows.xlsx")
+	err = out.SaveAs("MDB_export_tagging_tvshows.xlsx")
 	if err != nil {
-		return errors.Wrap(err, "out.Save")
+		return errors.Wrap(err, "out.SaveAs")
 	}
 
 	return nil
