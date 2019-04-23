@@ -65,19 +65,9 @@ func doExportTVShows() error {
 			cu := UnitWName{ContentUnit: c.R.CollectionsContentUnits[j].R.ContentUnit}
 
 			url := fmt.Sprintf("https://archive.kbb1.com/programs/cu/%s", cu.UID)
-			err = out.SetCellHyperLink(name, fmt.Sprintf("A%d", j+1), url, "External")
-			if err != nil {
-				return errors.Wrapf(err, "out.SetCellHyperLink A%d %s", j+1, url)
-			}
-
-			err = out.SetCellStr(name, fmt.Sprintf("B%d", j+1), cu.Name())
-			if err != nil {
-				return errors.Wrapf(err, "out.SetCellStr B%d %s", j+1, cu.Name())
-			}
-			err = out.SetCellStr(name, fmt.Sprintf("C%d", j+1), cu.Description())
-			if err != nil {
-				return errors.Wrapf(err, "out.SetCellStr C%d %s", j+1, cu.Description())
-			}
+			out.SetCellHyperLink(name, fmt.Sprintf("A%d", j+1), url, "External")
+			out.SetCellStr(name, fmt.Sprintf("B%d", j+1), cu.Name())
+			out.SetCellStr(name, fmt.Sprintf("C%d", j+1), cu.Description())
 		}
 	}
 

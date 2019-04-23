@@ -49,14 +49,9 @@ func doImportTitles(path string) error {
 	wCU := 0
 	woCU := 0
 
-	for index, name := range xlFile.GetSheetMap() {
-		rows, err := xlFile.GetRows(name)
-		if err != nil {
-			return errors.Wrapf(err, "xlFile.GetRows [%d] %s", index, name)
-		}
-
+	for _, name := range xlFile.GetSheetMap() {
+		rows := xlFile.GetRows(name)
 		titles := make([]*UnitTitle, 0)
-
 		for rIdx, row := range rows {
 			if len(row) < 2 {
 				continue
