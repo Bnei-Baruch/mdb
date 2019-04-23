@@ -100,6 +100,7 @@ type (
 		CaptureSource string `json:"capture_source"`
 		CollectionUID string `json:"collection_uid"`
 		Part          string `json:"part"`
+		LabelID       string `json:"label_id"`
 	}
 
 	DemuxRequest struct {
@@ -163,6 +164,14 @@ type (
 		MaybeFile
 		OriginalSha1 string `json:"original_sha1" binding:"omitempty,len=40,hexadecimal"`
 		Message      string `json:"message" binding:"omitempty"`
+	}
+
+	JoinRequest struct {
+		Operation
+		OriginalShas []string `json:"original_shas" binding:"required,len=40,hexadecimal"`
+		ProxyShas    []string `json:"proxy_shas" binding:"required,len=40,hexadecimal"`
+		Original     AVFile   `json:"original"`
+		Proxy        AVFile   `json:"proxy"`
 	}
 
 	// REST

@@ -123,6 +123,7 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 		CaptureSource: "mltcap",
 		CollectionUID: "abcdefgh",
 		Part:          "part",
+		LabelID:       "label",
 	}
 
 	op, evnts, err := handleCaptureStop(suite.tx, input)
@@ -139,6 +140,7 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 	suite.Equal(input.CollectionUID, props["collection_uid"], "properties: collection_uid")
 	suite.Equal(input.Part, props["part"], "properties: part")
 
+
 	// Check user
 	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
@@ -152,7 +154,10 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 	suite.Equal(input.Size, f.Size, "File: Size")
 	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File: FileCreatedAt")
 	suite.Equal(parent.ID, f.ParentID.Int64, "File Parent.ID")
-	suite.False(f.Properties.Valid, "properties")
+
+	err = f.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.LabelID, props["label_id"], "file properties: label_id")
 }
 
 func (suite *HandlersSuite) TestHandleDemux() {
