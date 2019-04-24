@@ -160,6 +160,15 @@ func TranscodeHandler(c *gin.Context) {
 	}
 }
 
+// Join multiple files sequentially
+func JoinHandler(c *gin.Context) {
+	log.Info(OP_JOIN)
+	var i JoinRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleJoin)
+	}
+}
+
 // This endpoint is used in the trim admin workflow
 // We need this for the "fix" / "update" content unit flow.
 // When a trim from capture is made to fix some unit on capture files
@@ -303,7 +312,11 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 	}
 
 	log.Info("Creating file")
-	file, err := CreateFile(exec, parent, r.File, nil)
+	fProps := make(map[string]interface{})
+	if r.LabelID != "" {
+		fProps["label_id"] = r.LabelID
+	}
+	file, err := CreateFile(exec, parent, r.File, fProps)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1049,6 +1062,62 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 
 	log.Info("Associating files to operation")
 	return operation, nil, operation.AddFiles(exec, false, opFiles...)
+}
+
+func handleJoin(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
+	r := input.(JoinRequest)
+
+	// Fetch input files
+	inOriginals := make([]*models.File, 0)
+	for i := range r.OriginalShas {
+		f, _, err := FindFileBySHA1(exec, r.OriginalShas[i])
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "Original number %d, sha1 %s", i+1, r.OriginalShas[i])
+		}
+		inOriginals = append(inOriginals, f)
+	}
+
+	inProxies := make([]*models.File, 0)
+	for i := range r.ProxyShas {
+		f, _, err := FindFileBySHA1(exec, r.ProxyShas[i])
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "Proxy number %d, sha1 %s", i+1, r.ProxyShas[i])
+		}
+		inProxies = append(inProxies, f)
+	}
+
+	log.Info("Creating operation")
+	props := map[string]interface{}{
+		"original_shas": r.OriginalShas,
+		"proxy_shas": r.ProxyShas,
+	}
+	operation, err := CreateOperation(exec, OP_JOIN, r.Operation, props)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	log.Info("Creating joined original")
+	props = map[string]interface{}{
+		"duration": r.Original.Duration,
+	}
+	original, err := CreateFile(exec, nil, r.Original.File, props)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	log.Info("Creating joined proxy")
+	props = map[string]interface{}{
+		"duration": r.Proxy.Duration,
+	}
+	proxy, err := CreateFile(exec, nil, r.Proxy.File, props)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	log.Info("Associating files to operation")
+	allFiles := append(inOriginals, inProxies...)
+	allFiles = append(allFiles, original, proxy)
+	return operation, nil, operation.AddFiles(exec, false, allFiles...)
 }
 
 // Helpers

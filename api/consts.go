@@ -56,6 +56,7 @@ const (
 	OP_SIRTUTIM      = "sirtutim"
 	OP_INSERT        = "insert"
 	OP_TRANSCODE     = "transcode"
+	OP_JOIN          = "join"
 
 	// Source Types
 	SRC_COLLECTION = "COLLECTION"
