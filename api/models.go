@@ -168,8 +168,8 @@ type (
 
 	JoinRequest struct {
 		Operation
-		OriginalShas []string `json:"original_shas" binding:"required,len=40,hexadecimal"`
-		ProxyShas    []string `json:"proxy_shas" binding:"required,len=40,hexadecimal"`
+		OriginalShas []string `json:"original_shas" binding:"required,dive,len=40,hexadecimal"`
+		ProxyShas    []string `json:"proxy_shas" binding:"required,dive,len=40,hexadecimal"`
 		Original     AVFile   `json:"original"`
 		Proxy        AVFile   `json:"proxy"`
 	}

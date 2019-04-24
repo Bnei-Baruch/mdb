@@ -412,6 +412,49 @@ func (suite *DocsSuite) Test911TranscodeHandlerError() {
 	suite.assertJsonOK(resp)
 }
 
+func (suite *DocsSuite) Test92JoinHandler() {
+	input := JoinRequest{
+		Operation: Operation{
+			Station:    "Join station",
+			User:       "operator@dev.com",
+			WorkflowID: "d12356789",
+		},
+		OriginalShas:  []string{"0987654321fedcba0987654321fedcba09876543"},
+		ProxyShas:     []string{"0987654321fedcba0987654321fedcba87654321"},
+		Original: AVFile{
+			File: File{
+				FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_o_trim.mp4",
+				Sha1:      "0987654321fedcba0987654321fedcba11111113",
+				Size:      19800,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				Type:      "type",
+				SubType:   "subtype",
+				MimeType:  "mime_type",
+				Language:  LANG_MULTI,
+			},
+			Duration: 871,
+		},
+		Proxy: AVFile{
+			File: File{
+				FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_p_trim.mp4",
+				Sha1:      "0987654321fedcba0987654321fedcba22222223",
+				Size:      694,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				Type:      "type",
+				SubType:   "subtype",
+				MimeType:  "mime_type",
+				Language:  LANG_HEBREW,
+			},
+			Duration: 871,
+		},
+	}
+
+	resp, err := suite.testOperation(OP_JOIN, input)
+	suite.Require().Nil(err)
+	suite.assertJsonOK(resp)
+}
+
+
 func (suite *DocsSuite) testOperation(name string, input interface{}) (*http.Response, error) {
 	b := new(bytes.Buffer)
 	err := json.NewEncoder(b).Encode(input)
