@@ -1087,13 +1087,17 @@ func handleJoin(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	}
 
 	log.Info("Creating operation")
-	operation, err := CreateOperation(exec, OP_JOIN, r.Operation, nil)
+	props := map[string]interface{}{
+		"original_shas": r.OriginalShas,
+		"proxy_shas": r.ProxyShas,
+	}
+	operation, err := CreateOperation(exec, OP_JOIN, r.Operation, props)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	log.Info("Creating joined original")
-	props := map[string]interface{}{
+	props = map[string]interface{}{
 		"duration": r.Original.Duration,
 	}
 	original, err := CreateFile(exec, nil, r.Original.File, props)
