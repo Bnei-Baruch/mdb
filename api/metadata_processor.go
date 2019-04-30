@@ -107,7 +107,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 	}
 
 	if metadata.LabelID.Valid {
-		props["label_id"] = metadata.LabelID.String
+		props["label_id"] = metadata.LabelID.Int
 	}
 	if metadata.Number.Valid {
 		props["number"] = metadata.Number.Int

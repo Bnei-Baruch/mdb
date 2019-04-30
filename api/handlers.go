@@ -313,8 +313,8 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 
 	log.Info("Creating file")
 	fProps := make(map[string]interface{})
-	if r.LabelID != "" {
-		fProps["label_id"] = r.LabelID
+	if r.LabelID.Valid {
+		fProps["label_id"] = r.LabelID.Int
 	}
 	file, err := CreateFile(exec, parent, r.File, fProps)
 	if err != nil {

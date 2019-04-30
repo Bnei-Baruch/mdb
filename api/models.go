@@ -75,7 +75,7 @@ type (
 		Episode        null.String       `json:"episode"`
 		PartType       null.Int          `json:"part_type"`
 		Major          *CITMetadataMajor `json:"major" binding:"omitempty"`
-		LabelID        null.String       `json:"label_id"`
+		LabelID        null.Int          `json:"label_id"`
 		FilmDate       *Date             `json:"film_date"`
 		UnitToFixUID   null.String       `json:"fix_unit_uid" binding:"omitempty,len=8"`
 	}
@@ -97,10 +97,10 @@ type (
 	CaptureStopRequest struct {
 		Operation
 		File
-		CaptureSource string `json:"capture_source"`
-		CollectionUID string `json:"collection_uid"`
-		Part          string `json:"part"`
-		LabelID       string `json:"label_id"`
+		CaptureSource string   `json:"capture_source"`
+		CollectionUID string   `json:"collection_uid"`
+		Part          string   `json:"part"`
+		LabelID       null.Int `json:"label_id"`
 	}
 
 	DemuxRequest struct {

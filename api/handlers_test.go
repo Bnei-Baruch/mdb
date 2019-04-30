@@ -123,7 +123,7 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 		CaptureSource: "mltcap",
 		CollectionUID: "abcdefgh",
 		Part:          "part",
-		LabelID:       "label",
+		LabelID:       null.IntFrom(123),
 	}
 
 	op, evnts, err := handleCaptureStop(suite.tx, input)
@@ -157,7 +157,7 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 
 	err = f.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
-	suite.Equal(input.LabelID, props["label_id"], "file properties: label_id")
+	suite.Equal(input.LabelID.Int, int(props["label_id"].(float64)), "file properties: label_id")
 }
 
 func (suite *HandlersSuite) TestHandleDemux() {

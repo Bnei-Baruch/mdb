@@ -1,6 +1,7 @@
 package dgima
 
 import (
+	"strconv"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -36,9 +37,15 @@ func doImport() error {
 			continue
 		}
 
-		err = api.UpdateFileProperties(mdb, f, map[string]interface{}{"label_id": records[i][1]})
+		labelID, err := strconv.Atoi(records[i][1])
 		if err != nil {
-			log.Errorf("UpdateFileProperties err %s [%s] => %s", err.Error(), records[i][0], records[i][1])
+			log.Warnf("labelID parse error %s: %s", err.Error(), records[i][1])
+			continue
+		}
+
+		err = api.UpdateFileProperties(mdb, f, map[string]interface{}{"label_id": labelID})
+		if err != nil {
+			log.Errorf("UpdateFileProperties err %s: %v", err.Error(), records[i])
 		}
 	}
 
