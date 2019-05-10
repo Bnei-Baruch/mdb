@@ -140,7 +140,6 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 	suite.Equal(input.CollectionUID, props["collection_uid"], "properties: collection_uid")
 	suite.Equal(input.Part, props["part"], "properties: part")
 
-
 	// Check user
 	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
@@ -1142,6 +1141,85 @@ func (suite *HandlersSuite) TestHandleInsertPublication() {
 	suite.Equal(f.ContentUnitID.Int64, f2.ContentUnitID.Int64, "f2.ContentUnitID.Int64")
 }
 
+func (suite *HandlersSuite) TestHandleInsertDeclamation() {
+	// Do insert operation
+	input := InsertRequest{
+		Operation: Operation{
+			Station:    "Some station",
+			User:       "operator@dev.com",
+			WorkflowID: "workflow_id",
+		},
+		InsertType: "declamation",
+		AVFile: AVFile{
+			File: File{
+				FileName:  "declamation.mp3",
+				Sha1:      "012356789abcdef012356789abcdef1111111112",
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				MimeType:  MEDIA_TYPE_REGISTRY.ByExtension["mp3"].MimeType,
+				Language:  LANG_RUSSIAN,
+			},
+			Duration:  987.6,
+		},
+		Mode: "new",
+		Metadata: &CITMetadata{
+			ContentType: CT_BLOG_POST,
+			FinalName:   "final_name",
+			CaptureDate: Date{time.Now()},
+			Language:    LANG_RUSSIAN,
+			Lecturer:    "norav",
+		},
+	}
+
+	op, evnts, err := handleInsert(suite.tx, input)
+	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
+
+	// Check op
+	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	var props map[string]interface{}
+	err = op.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Operation.WorkflowID, props["workflow_id"].(string), "Operation workflow_id")
+	suite.Equal(input.InsertType, props["insert_type"].(string), "Operation insert_type")
+	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 1, "Number of files")
+
+	// check inserted file
+	f := op.R.Files[0]
+	suite.Equal(input.FileName, f.Name, "File Name")
+	suite.Equal(input.Sha1, hex.EncodeToString(f.Sha1.Bytes), "File SHA1")
+	suite.Equal(input.Size, f.Size, "File Size")
+	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File FileCreatedAt")
+	suite.Equal("audio", f.Type, "File Type")
+	suite.Equal(input.MimeType, f.MimeType.String, "File MimeType")
+	suite.Equal(input.Language, f.Language.String, "File Language")
+	suite.False(f.ParentID.Valid, "File ParentID")
+	err = f.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.InsertType, props["insert_type"].(string), "File insert_type")
+	suite.Equal(input.AVFile.Duration, props["duration"], "File duration")
+
+	// check content unit association
+	suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f))
+	cu := f.R.ContentUnit
+	suite.Equal(CT_BLOG_POST, CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name, "CU type")
+	suite.Require().True(cu.Properties.Valid)
+	err = cu.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "cu.Properties[\"capture_date\"]")
+	suite.Equal(StdLang(input.Metadata.Language), props["original_language"], "cu.Properties[\"original_language\"]")
+	suite.Equal(int(input.AVFile.Duration), int(props["duration"].(float64)), "cu.Properties[\"duration\"]")
+}
+
 func (suite *HandlersSuite) TestHandleInsertUpdateMode() {
 	// Create dummy content unit
 	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
@@ -1499,9 +1577,9 @@ func (suite *HandlersSuite) TestHandleJoin() {
 	// create dummy input files
 
 	inOriginals := make([]string, 3)
-	for i:=0; i<len(inOriginals);i++ {
+	for i := 0; i < len(inOriginals); i++ {
 		fi := File{
-			FileName:  fmt.Sprintf("dummy original file %d",i+1),
+			FileName:  fmt.Sprintf("dummy original file %d", i+1),
 			CreatedAt: &Timestamp{time.Now()},
 			Sha1:      utils.RandomSHA1(),
 			Size:      math.MaxInt64,
@@ -1512,9 +1590,9 @@ func (suite *HandlersSuite) TestHandleJoin() {
 	}
 
 	inProxies := make([]string, 3)
-	for i:=0; i<len(inProxies);i++ {
+	for i := 0; i < len(inProxies); i++ {
 		fi := File{
-			FileName:  fmt.Sprintf("dummy proxy file %d",i+1),
+			FileName:  fmt.Sprintf("dummy proxy file %d", i+1),
 			CreatedAt: &Timestamp{time.Now()},
 			Sha1:      utils.RandomSHA1(),
 			Size:      math.MaxInt64,

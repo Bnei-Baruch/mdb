@@ -357,7 +357,7 @@ func (suite *DocsSuite) Test9InsertHandler() {
 			Station: "Insert station",
 			User:    "111operator@dev.com",
 		},
-		InsertType:     "akladot",
+		InsertType:     "declamation",
 		ContentUnitUID: cu.UID,
 		AVFile: AVFile{
 			File: File{
@@ -370,6 +370,13 @@ func (suite *DocsSuite) Test9InsertHandler() {
 		},
 		ParentSha1: "0987654321fedcba0987654321fedcba11111111",
 		Mode:       "new",
+		Metadata: &CITMetadata{
+			FilmDate: &Date{time.Now()},
+			ContentType:    CT_BLOG_POST,
+			FinalName:      "final_name",
+			Language:       "rus",
+			Lecturer:       "norav",
+		},
 	}
 
 	resp, err := suite.testOperation(OP_INSERT, input)
