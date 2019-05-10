@@ -85,7 +85,7 @@ func (d GenericDescriber) DescribeContentUnit(exec boil.Executor,
 	if ct == CT_KITEI_MAKOR ||
 		ct == CT_LELO_MIKUD ||
 		ct == CT_FULL_LESSON ||
-		ct == CT_PUBLICATION  ||
+		ct == CT_PUBLICATION ||
 		ct == CT_RESEARCH_MATERIAL {
 
 		// Keep technical name for these guys
@@ -270,6 +270,7 @@ var CUDescribers = map[string]ContentUnitDescriber{
 	CT_VIDEO_PROGRAM_CHAPTER: new(VideoProgramChapterDescriber),
 	CT_MEAL:                  &FixedKeyDescriber{Key: "autoname.meal"},
 	CT_FRIENDS_GATHERING:     &FixedKeyDescriber{Key: "autoname.yh"},
+	CT_BLOG_POST:             &FixedKeyDescriber{Key: "autoname.declamation"},
 }
 
 var CDescribers = map[string]CollectionDescriber{}

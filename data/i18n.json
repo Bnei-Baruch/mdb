@@ -468,5 +468,15 @@
     "de": "Webinar mit Dr. Michael Laitman",
     "it": "Webinar con il Dr. Michael Laitman",
     "tr": "Dr. Michael Laitman ile Webinar"
+  },
+  "autoname.declamation": {
+    "he": "הבלוג של רב ד\"ר מיכאל לייטמן – גרסת אודיו",
+    "en": "Dr. Michael Laitman Blog - Audio Version",
+    "ru": "Радио-версия блога д-ра Михаэля Лайтмана",
+    "es": "Blog de Rav M. Laitman - Versión Audio",
+    "ua": "Радіо-версія блогу д-ра Міхаеля Лайтмана",
+    "de": "Die Radio-Version dem Blog Dr. Michael Laitman",
+    "it": "Blog di Dr. Michael Laitman - Versione audio",
+    "tr": "Michael Laitman Blog - Ses Sürümü"
   }
 }
