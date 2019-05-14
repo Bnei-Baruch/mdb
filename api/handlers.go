@@ -27,7 +27,7 @@ func CaptureStartHandler(c *gin.Context) {
 	log.Info(OP_CAPTURE_START)
 	var i CaptureStartRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleCaptureStart)
+		handleOperation(c, i, handleCaptureStart, nil)
 	}
 }
 
@@ -37,7 +37,7 @@ func CaptureStopHandler(c *gin.Context) {
 	log.Info(OP_CAPTURE_STOP)
 	var i CaptureStopRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleCaptureStop)
+		handleOperation(c, i, handleCaptureStop, nil)
 	}
 }
 
@@ -46,7 +46,7 @@ func DemuxHandler(c *gin.Context) {
 	log.Info(OP_DEMUX)
 	var i DemuxRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleDemux)
+		handleOperation(c, i, handleDemux, nil)
 	}
 }
 
@@ -55,7 +55,7 @@ func TrimHandler(c *gin.Context) {
 	log.Info(OP_TRIM)
 	var i TrimRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleTrim)
+		handleOperation(c, i, handleTrim, nil)
 	}
 }
 
@@ -64,45 +64,7 @@ func SendHandler(c *gin.Context) {
 	log.Info(OP_SEND)
 	var i SendRequest
 	if c.BindJSON(&i) == nil {
-		// we skip using the generic handleOperation to return some data to caller
-
-		mdb := c.MustGet("MDB").(*sql.DB)
-		tx, err := mdb.Begin()
-		utils.Must(err)
-
-		// recover from panics in transaction
-		defer func() {
-			if p := recover(); p != nil {
-				if ex := tx.Rollback(); ex != nil {
-					log.Error("Couldn't roll back transaction")
-				}
-				panic(p) // re-throw panic after Rollback
-			}
-		}()
-
-		_, evnts, err := handleSend(tx, i)
-		if err != nil {
-			utils.Must(tx.Rollback())
-			err = errors.Wrapf(err, "Handle operation")
-			NewInternalError(err).Abort(c)
-			return
-		}
-
-		utils.Must(tx.Commit())
-
-		// fetch newly created content unit
-		original, _, _ := FindFileBySHA1(mdb, i.Original.Sha1)
-		cu, err := models.FindContentUnit(mdb, original.ContentUnitID.Int64)
-		if err != nil {
-			err = errors.Wrapf(err, "Lookup content unit")
-		}
-
-		if err == nil {
-			emitEvents(c, evnts...)
-			c.JSON(http.StatusOK, cu)
-		} else {
-			NewInternalError(err).Abort(c)
-		}
+		handleOperation(c, i, handleSend, sendResultRenderer)
 	}
 }
 
@@ -111,7 +73,7 @@ func ConvertHandler(c *gin.Context) {
 	log.Info(OP_CONVERT)
 	var i ConvertRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleConvert)
+		handleOperation(c, i, handleConvert, nil)
 	}
 }
 
@@ -120,7 +82,7 @@ func UploadHandler(c *gin.Context) {
 	log.Info(OP_UPLOAD)
 	var i UploadRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleUpload)
+		handleOperation(c, i, handleUpload, nil)
 	}
 }
 
@@ -129,7 +91,7 @@ func SirtutimHandler(c *gin.Context) {
 	log.Info(OP_SIRTUTIM)
 	var i SirtutimRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleSirtutim)
+		handleOperation(c, i, handleSirtutim, nil)
 	}
 }
 
@@ -138,7 +100,7 @@ func InsertHandler(c *gin.Context) {
 	log.Info(OP_INSERT)
 	var i InsertRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleInsert)
+		handleOperation(c, i, handleInsert, insertResultRenderer)
 	}
 }
 
@@ -149,12 +111,12 @@ func TranscodeHandler(c *gin.Context) {
 	var i TranscodeRequest
 	if c.BindJSON(&i) == nil {
 		if i.Message != "" {
-			handleOperation(c, i, handleTranscode)
+			handleOperation(c, i, handleTranscode, nil)
 		} else {
 			if err := binding.Validator.ValidateStruct(i.AsFile()); err != nil {
 				c.AbortWithError(400, err).SetType(gin.ErrorTypeBind)
 			} else {
-				handleOperation(c, i, handleTranscode)
+				handleOperation(c, i, handleTranscode, nil)
 			}
 		}
 	}
@@ -165,7 +127,7 @@ func JoinHandler(c *gin.Context) {
 	log.Info(OP_JOIN)
 	var i JoinRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleJoin)
+		handleOperation(c, i, handleJoin, nil)
 	}
 }
 
@@ -497,6 +459,18 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	}
 
 	return operation, evnts, nil
+}
+
+func sendResultRenderer(c *gin.Context, exec boil.Executor, input interface{}, op *models.Operation) error {
+	i := input.(SendRequest)
+	original, _, _ := FindFileBySHA1(exec, i.Original.Sha1)
+	cu, err := models.FindContentUnit(exec, original.ContentUnitID.Int64)
+	if err != nil {
+		return errors.Wrapf(err, "Lookup content unit")
+	}
+
+	c.JSON(http.StatusOK, cu)
+	return nil
 }
 
 func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
@@ -928,7 +902,7 @@ FROM content_units cu
 			}
 
 			cu, err = CreateContentUnit(exec, CT_BLOG_POST, map[string]interface{}{
-				"film_date": filmDate,
+				"film_date":         filmDate,
 				"original_language": StdLang(r.Metadata.Language),
 			})
 			if err != nil {
@@ -937,7 +911,7 @@ FROM content_units cu
 			cuID = cu.ID
 
 			log.Infof("Describing content unit [%d]", cu.ID)
-			err = DescribeContentUnit(exec, cu, CITMetadata{ContentType:CT_BLOG_POST})
+			err = DescribeContentUnit(exec, cu, CITMetadata{ContentType: CT_BLOG_POST})
 			if err != nil {
 				log.Errorf("Error describing content unit: %s", err.Error())
 			}
@@ -990,6 +964,24 @@ FROM content_units cu
 
 	log.Info("Associating files to operation")
 	return operation, evnts, operation.AddFiles(exec, false, opFiles...)
+}
+
+func insertResultRenderer(c *gin.Context, exec boil.Executor, input interface{}, op *models.Operation) error {
+	i := input.(InsertRequest)
+
+	if i.InsertType != "declamation" {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		return nil
+	}
+
+	f, _, _ := FindFileBySHA1(exec, i.Sha1)
+	cu, err := models.FindContentUnit(exec, f.ContentUnitID.Int64)
+	if err != nil {
+		return errors.Wrapf(err, "Lookup content unit")
+	}
+
+	c.JSON(http.StatusOK, cu)
+	return nil
 }
 
 func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
@@ -1130,7 +1122,7 @@ func handleJoin(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	log.Info("Creating operation")
 	props := map[string]interface{}{
 		"original_shas": r.OriginalShas,
-		"proxy_shas": r.ProxyShas,
+		"proxy_shas":    r.ProxyShas,
 	}
 	operation, err := CreateOperation(exec, OP_JOIN, r.Operation, props)
 	if err != nil {
@@ -1163,16 +1155,23 @@ func handleJoin(exec boil.Executor, input interface{}) (*models.Operation, []eve
 
 // Helpers
 
-type OperationHandler func(boil.Executor, interface{}) (*models.Operation, []events.Event, error)
+type OpHandlerFunc func(boil.Executor, interface{}) (*models.Operation, []events.Event, error)
+type OpResponseRenderFunc func(*gin.Context, boil.Executor, interface{}, *models.Operation) error
+
+func defaultResultRenderer(c *gin.Context, exec boil.Executor, input interface{}, op *models.Operation) error {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	return nil
+}
 
 // Generic operation handler.
 // 	* Manage DB transactions
 // 	* Call operation logic handler
+//  * Handle errors
+//  * Emit events
 // 	* Render JSON response
-func handleOperation(c *gin.Context, input interface{}, opHandler OperationHandler) {
+func handleOperation(c *gin.Context, input interface{}, opHandler OpHandlerFunc, resFunc OpResponseRenderFunc) {
 	mdb := c.MustGet("MDB").(*sql.DB)
 	tx, err := mdb.Begin()
-	//tx, err := boil.Begin()
 	utils.Must(err)
 
 	// recover from panics in transaction
@@ -1185,17 +1184,26 @@ func handleOperation(c *gin.Context, input interface{}, opHandler OperationHandl
 		}
 	}()
 
-	_, evnts, err := opHandler(tx, input)
+	// call handler and conclude transaction
+	op, evnts, err := opHandler(tx, input)
 	if err == nil {
 		utils.Must(tx.Commit())
 	} else {
 		utils.Must(tx.Rollback())
 	}
 
+	// on success, emit events and call renderer
 	if err == nil {
 		emitEvents(c, evnts...)
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	} else {
+
+		if resFunc == nil {
+			resFunc = defaultResultRenderer
+		}
+		err = resFunc(c, mdb, input, op)
+	}
+
+	// handle errors
+	if err != nil {
 		switch err.(type) {
 		case FileNotFound:
 			NewBadRequestError(err).Abort(c)

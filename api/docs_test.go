@@ -357,7 +357,7 @@ func (suite *DocsSuite) Test9InsertHandler() {
 			Station: "Insert station",
 			User:    "111operator@dev.com",
 		},
-		InsertType:     "declamation",
+		InsertType:     "akladot",
 		ContentUnitUID: cu.UID,
 		AVFile: AVFile{
 			File: File{
@@ -370,13 +370,6 @@ func (suite *DocsSuite) Test9InsertHandler() {
 		},
 		ParentSha1: "0987654321fedcba0987654321fedcba11111111",
 		Mode:       "new",
-		Metadata: &CITMetadata{
-			FilmDate: &Date{time.Now()},
-			ContentType:    CT_BLOG_POST,
-			FinalName:      "final_name",
-			Language:       "rus",
-			Lecturer:       "norav",
-		},
 	}
 
 	resp, err := suite.testOperation(OP_INSERT, input)
@@ -384,7 +377,48 @@ func (suite *DocsSuite) Test9InsertHandler() {
 	suite.assertJsonOK(resp)
 }
 
-func (suite *DocsSuite) Test91TranscodeHandler() {
+func (suite *DocsSuite) Test91InsertHandlerNewUnit() {
+	input := InsertRequest{
+		Operation: Operation{
+			Station: "Insert station",
+			User:    "111operator@dev.com",
+		},
+		InsertType: "declamation",
+		AVFile: AVFile{
+			File: File{
+				FileName:  "rus_o_norav_2016-09-14_declamation.mp3",
+				Sha1:      "0987654321fedcba0987654321fedcba09875555",
+				Size:      19837,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				Language:  LANG_HEBREW,
+			},
+		},
+		Mode: "new",
+		Metadata: &CITMetadata{
+			FilmDate:    &Date{time.Now()},
+			ContentType: CT_BLOG_POST,
+			FinalName:   "final_name",
+			Language:    "rus",
+			Lecturer:    "norav",
+		},
+	}
+
+	resp, err := suite.testOperation(OP_INSERT, input)
+	suite.Require().Nil(err)
+
+	suite.Equal(http.StatusOK, resp.StatusCode, "HTTP status")
+	suite.Equal("application/json; charset=utf-8", resp.Header.Get("Content-Type"), "HTTP Content-Type")
+
+	var body map[string]interface{}
+	defer resp.Body.Close()
+	err = json.NewDecoder(resp.Body).Decode(&body)
+	suite.Require().Nil(err)
+	suite.NotNil(body["id"])
+	suite.NotNil(body["uid"])
+	suite.Nil(body["errors"], "HTTP body.errors")
+}
+
+func (suite *DocsSuite) Test92TranscodeHandler() {
 	input := TranscodeRequest{
 		Operation: Operation{
 			Station: "Insert station",
@@ -404,7 +438,7 @@ func (suite *DocsSuite) Test91TranscodeHandler() {
 	suite.assertJsonOK(resp)
 }
 
-func (suite *DocsSuite) Test911TranscodeHandlerError() {
+func (suite *DocsSuite) Test922TranscodeHandlerError() {
 	input := TranscodeRequest{
 		Operation: Operation{
 			Station: "Insert station",
@@ -419,15 +453,15 @@ func (suite *DocsSuite) Test911TranscodeHandlerError() {
 	suite.assertJsonOK(resp)
 }
 
-func (suite *DocsSuite) Test92JoinHandler() {
+func (suite *DocsSuite) Test93JoinHandler() {
 	input := JoinRequest{
 		Operation: Operation{
 			Station:    "Join station",
 			User:       "operator@dev.com",
 			WorkflowID: "d12356789",
 		},
-		OriginalShas:  []string{"0987654321fedcba0987654321fedcba09876543"},
-		ProxyShas:     []string{"0987654321fedcba0987654321fedcba87654321"},
+		OriginalShas: []string{"0987654321fedcba0987654321fedcba09876543"},
+		ProxyShas:    []string{"0987654321fedcba0987654321fedcba87654321"},
 		Original: AVFile{
 			File: File{
 				FileName:  "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_o_trim.mp4",
@@ -460,7 +494,6 @@ func (suite *DocsSuite) Test92JoinHandler() {
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
-
 
 func (suite *DocsSuite) testOperation(name string, input interface{}) (*http.Response, error) {
 	b := new(bytes.Buffer)
