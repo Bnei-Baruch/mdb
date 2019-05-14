@@ -718,15 +718,22 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 		opFiles = append(opFiles, oldFile)
 	}
 
-	log.Infof("Lookup content unit by uid %s", r.ContentUnitUID)
-	cu, err := models.ContentUnits(exec,
-		qm.Where("uid = ?", r.ContentUnitUID),
-		qm.Load("SourceContentUnitDerivations", "SourceContentUnitDerivations.Derived"),
-	).One()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Fetch unit from mdb")
+	// Content Unit to whom which the inserted file should belong to
+	// In case the unit already exists, we lookup in DB with UID.
+	// In case we're to create a new unit, we do so below based on CITMetadata.
+	var cu *models.ContentUnit
+
+	if r.ContentUnitUID != "" {
+		log.Infof("Lookup content unit by uid %s", r.ContentUnitUID)
+		cu, err = models.ContentUnits(exec,
+			qm.Where("uid = ?", r.ContentUnitUID),
+			qm.Load("SourceContentUnitDerivations", "SourceContentUnitDerivations.Derived"),
+		).One()
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Fetch unit from mdb")
+		}
+		log.Infof("Found content unit %d", cu.ID)
 	}
-	log.Infof("Found content unit %d", cu.ID)
 
 	var parent *models.File
 	if r.ParentSha1 != "" {
@@ -809,8 +816,12 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 
 	opFiles = append(opFiles, file)
 
+	var cuID int64
+	if cu != nil {
+		cuID = cu.ID
+	}
+
 	// special types logic
-	cuID := cu.ID
 	if r.InsertType == "kitei-makor" ||
 		r.InsertType == "research-material" {
 		log.Infof("%s, associating to derived unit", r.InsertType)
@@ -902,6 +913,35 @@ FROM content_units cu
 
 			cuID = pCU.ID
 		}
+	} else if r.InsertType == "declamation" {
+		if r.Mode == "rename" {
+			log.Info("declamation, skipping new content unit creation on rename")
+		} else {
+			log.Info("declamation, creating new content unit")
+			if r.Metadata == nil {
+				return nil, nil, NewBadRequestError(errors.New("Metadata is required"))
+			}
+
+			filmDate := r.Metadata.CaptureDate
+			if r.Metadata.FilmDate != nil {
+				filmDate = *r.Metadata.FilmDate
+			}
+
+			cu, err = CreateContentUnit(exec, CT_BLOG_POST, map[string]interface{}{
+				"film_date": filmDate,
+				"original_language": StdLang(r.Metadata.Language),
+			})
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "Create declamation content unit")
+			}
+			cuID = cu.ID
+
+			log.Infof("Describing content unit [%d]", cu.ID)
+			err = DescribeContentUnit(exec, cu, CITMetadata{ContentType:CT_BLOG_POST})
+			if err != nil {
+				log.Errorf("Error describing content unit: %s", err.Error())
+			}
+		}
 	}
 
 	log.Infof("Associating file [%d] to content_unit [%d]", file.ID, cuID)
@@ -911,6 +951,7 @@ FROM content_units cu
 		return nil, nil, errors.Wrap(err, "Save file.content_unit_id to DB")
 	}
 
+	// TODO: shouldn't we move this up and emit events for new content units as well ?
 	evnts := make([]events.Event, 0)
 
 	// remove oldFile in update mode and collect events
@@ -1149,7 +1190,6 @@ func handleOperation(c *gin.Context, input interface{}, opHandler OperationHandl
 		utils.Must(tx.Commit())
 	} else {
 		utils.Must(tx.Rollback())
-		err = errors.Wrapf(err, "Handle operation %s", c.HandlerName())
 	}
 
 	if err == nil {
@@ -1159,7 +1199,10 @@ func handleOperation(c *gin.Context, input interface{}, opHandler OperationHandl
 		switch err.(type) {
 		case FileNotFound:
 			NewBadRequestError(err).Abort(c)
+		case *HttpError:
+			err.(*HttpError).Abort(c)
 		default:
+			err = errors.Wrapf(err, "Handle operation %s", c.HandlerName())
 			NewInternalError(err).Abort(c)
 		}
 	}
