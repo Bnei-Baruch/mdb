@@ -265,12 +265,41 @@ func (d VideoProgramChapterDescriber) DescribeContentUnit(exec boil.Executor,
 	return makeCUI18ns(cu.ID, names), nil
 }
 
+type BlogPostDescriber struct{}
+
+func (d BlogPostDescriber) DescribeContentUnit(exec boil.Executor,
+	cu *models.ContentUnit,
+	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
+
+	names, err := GetI18ns("autoname.declamation")
+	if err != nil {
+		return nil, errors.Wrap(err, "Get I18ns")
+	}
+
+	var props map[string]interface{}
+	if cu.Properties.Valid {
+		if err := json.Unmarshal(cu.Properties.JSON, &props); err != nil {
+			log.Errorf("json.Unmarshal cu properties [%d]: %v", cu.ID, err)
+		} else {
+			if lang, ok := props["original_language"]; ok {
+				for k, v := range names {
+					if lang18n, err := T(fmt.Sprintf("lang.%s", lang.(string)), k); err == nil {
+						names[k] = fmt.Sprintf("%s (%s)", v, lang18n)
+					}
+				}
+			}
+		}
+	}
+
+	return makeCUI18ns(cu.ID, names), nil
+}
+
 var CUDescribers = map[string]ContentUnitDescriber{
 	CT_LESSON_PART:           new(LessonPartDescriber),
 	CT_VIDEO_PROGRAM_CHAPTER: new(VideoProgramChapterDescriber),
+	CT_BLOG_POST:             new(BlogPostDescriber),
 	CT_MEAL:                  &FixedKeyDescriber{Key: "autoname.meal"},
 	CT_FRIENDS_GATHERING:     &FixedKeyDescriber{Key: "autoname.yh"},
-	CT_BLOG_POST:             &FixedKeyDescriber{Key: "autoname.declamation"},
 }
 
 var CDescribers = map[string]CollectionDescriber{}

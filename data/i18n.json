@@ -389,6 +389,326 @@
     "it": "Materiale di ricerca",
     "tr": "Araştırma Materyali"
   },
+  "lang.en": {
+    "es": "Ingles",
+    "he": "אנגלית",
+    "en": "English",
+    "ru": "Английский",
+    "de": "Englisch",
+    "ua": "Англійська",
+    "it": "English",
+    "tr": "English"
+  },
+  "lang.he": {
+    "es": "Hebreo",
+    "he": "עברית",
+    "en": "Hebrew",
+    "ru": "Иврит",
+    "de": "Hebräisch",
+    "ua": "Іврит",
+    "it": "Hebrew",
+    "tr": "Hebrew"
+  },
+  "lang.ru": {
+    "es": "Ruso",
+    "he": "רוסית",
+    "en": "Russian",
+    "ru": "Русский",
+    "de": "Russisch",
+    "ua": "Російська",
+    "it": "Russian",
+    "tr": "Russian"
+  },
+  "lang.es": {
+    "es": "Español",
+    "he": "ספרדית",
+    "en": "Spanish",
+    "ru": "Испанский",
+    "de": "Spanisch",
+    "ua": "Іспанська",
+    "it": "Spanish",
+    "tr": "Spanish"
+  },
+  "lang.it": {
+    "es": "Italiano",
+    "he": "איטלקית",
+    "en": "Italian",
+    "ru": "Итальянский",
+    "de": "Italienisch",
+    "ua": "Італійська",
+    "it": "Italian",
+    "tr": "Italian"
+  },
+  "lang.de": {
+    "es": "Alemán",
+    "he": "גרמנית",
+    "en": "German",
+    "ru": "Немецкий",
+    "de": "Deutsch",
+    "ua": "Німецька",
+    "it": "German",
+    "tr": "German"
+  },
+  "lang.nl": {
+    "es": "Holandés",
+    "he": "הולנדית",
+    "en": "Dutch",
+    "ru": "Голландский",
+    "de": "Niederländisch",
+    "ua": "Голландська",
+    "it": "Dutch",
+    "tr": "Dutch"
+  },
+  "lang.fr": {
+    "es": "Francés",
+    "he": "צרפתית",
+    "en": "French",
+    "ru": "Французский",
+    "de": "Französisch",
+    "ua": "Французька",
+    "it": "French",
+    "tr": "French"
+  },
+  "lang.pt": {
+    "es": "Portugués",
+    "he": "פורטוגזית",
+    "en": "Portuguese",
+    "ru": "Португальский",
+    "de": "Portugiesisch",
+    "ua": "Португальська",
+    "it": "Portuguese",
+    "tr": "Portuguese"
+  },
+  "lang.tr": {
+    "es": "Turco",
+    "he": "טורקית",
+    "en": "Turkish",
+    "ru": "Турецкий",
+    "de": "Türkisch",
+    "ua": "Турецька",
+    "it": "Turkish",
+    "tr": "Türkçe"
+  },
+  "lang.pl": {
+    "es": "Polaco",
+    "he": "פולנית",
+    "en": "Polish",
+    "ru": "Польский",
+    "de": "Polnisch",
+    "ua": "Польська",
+    "it": "Polish",
+    "tr": "Polish"
+  },
+  "lang.ar": {
+    "es": "Árabe",
+    "he": "ערבית",
+    "en": "Arabic",
+    "ru": "Арабский",
+    "de": "Arabisch",
+    "ua": "Арабська",
+    "it": "Arabic",
+    "tr": "Arabic"
+  },
+  "lang.hu": {
+    "es": "Húngaro",
+    "he": "הונגרית",
+    "en": "Hungarian",
+    "ru": "Венгерский",
+    "de": "Ungarisch",
+    "ua": "Угорська",
+    "it": "Hungarian",
+    "tr": "Hungarian"
+  },
+  "lang.fi": {
+    "es": "Finlandés",
+    "he": "פינית",
+    "en": "Finnish",
+    "ru": "Финский",
+    "de": "Finnisch",
+    "ua": "Фінська",
+    "it": "Finnish",
+    "tr": "Finnish"
+  },
+  "lang.lt": {
+    "es": "Lituano",
+    "he": "ליטאית",
+    "en": "Lithuanian",
+    "ru": "Литовский",
+    "de": "Litauisch",
+    "ua": "Литовська",
+    "it": "Lithuanian",
+    "tr": "Lithuanian"
+  },
+  "lang.ja": {
+    "es": "Japonés",
+    "he": "יפנית",
+    "en": "Japanese",
+    "ru": "Японский",
+    "de": "Japanisch",
+    "ua": "Японська",
+    "it": "Japanese",
+    "tr": "Japanese"
+  },
+  "lang.bg": {
+    "es": "Búlgaro",
+    "he": "בולגרית",
+    "en": "Bulgarian",
+    "ru": "Болгарский",
+    "de": "Bulgarisch",
+    "ua": "Болгарська",
+    "it": "Bulgarian",
+    "tr": "Bulgarian"
+  },
+  "lang.ka": {
+    "es": "Georgiano",
+    "he": "גרוזינית",
+    "en": "Georgian",
+    "ru": "Грузинский",
+    "de": "Georgisch",
+    "ua": "Грузинська",
+    "it": "Georgian",
+    "tr": "Georgian"
+  },
+  "lang.no": {
+    "es": "Noruego",
+    "he": "נורווגית",
+    "en": "Norwegian",
+    "ru": "Норвежский",
+    "de": "Norwegisch",
+    "ua": "Норвезька",
+    "it": "Norwegian",
+    "tr": "Norwegian"
+  },
+  "lang.sv": {
+    "es": "Sueco",
+    "he": "שבדית",
+    "en": "Swedish",
+    "ru": "Шведский",
+    "de": "Schwedisch",
+    "ua": "Шведська",
+    "it": "Swedish",
+    "tr": "Swedish"
+  },
+  "lang.hr": {
+    "es": "Croata",
+    "he": "קרואטית",
+    "en": "Croatian",
+    "ru": "Хорватский",
+    "de": "Kroatisch",
+    "ua": "Хорватська",
+    "it": "Croatian",
+    "tr": "Croatian"
+  },
+  "lang.zh": {
+    "es": "Chino",
+    "he": "סינית",
+    "en": "Chinese",
+    "ru": "Китайский",
+    "de": "Chinesisch",
+    "ua": "Китайська",
+    "it": "Chinese",
+    "tr": "Chinese"
+  },
+  "lang.fa": {
+    "es": "Persa",
+    "he": "פרסית",
+    "en": "Persian",
+    "ru": "Персидский",
+    "de": "Persisch",
+    "ua": "Персидська",
+    "it": "Persian",
+    "tr": "Persian"
+  },
+  "lang.ro": {
+    "es": "Rumano",
+    "he": "רומנית",
+    "en": "Romanian",
+    "ru": "Румынский",
+    "de": "Rumänisch",
+    "ua": "Румунська",
+    "it": "Romanian",
+    "tr": "Romanian"
+  },
+  "lang.hi": {
+    "es": "Hindi",
+    "he": "הינדי",
+    "en": "Hindi",
+    "ru": "Индийский",
+    "de": "Indisch",
+    "ua": "Індійська",
+    "it": "Hindi",
+    "tr": "Hindi"
+  },
+  "lang.ua": {
+    "es": "Ucraniano",
+    "he": "אוקראינית",
+    "en": "Ukrainian",
+    "ru": "Украинский",
+    "de": "Ukrainisch",
+    "ua": "Українська",
+    "it": "Ukrainian",
+    "tr": "Ukrainian"
+  },
+  "lang.mk": {
+    "es": "Macedonio",
+    "he": "מקדונית",
+    "en": "Macedonian",
+    "ru": "Македонский",
+    "de": "Mazedonisch",
+    "ua": "Македонська",
+    "it": "Macedonian",
+    "tr": "Macedonian"
+  },
+  "lang.sl": {
+    "es": "Esloveno",
+    "he": "סלובנית",
+    "en": "Slovenian",
+    "ru": "Словенский",
+    "de": "Slowenisch",
+    "ua": "Словенська",
+    "it": "Slovenian",
+    "tr": "Slovenian"
+  },
+  "lang.lv": {
+    "es": "Letón",
+    "he": "לטבית",
+    "en": "Latvian",
+    "ru": "Латышский",
+    "de": "Lettisch",
+    "ua": "Латвійська",
+    "it": "Latvian",
+    "tr": "Latvian"
+  },
+  "lang.sk": {
+    "es": "eslovaco",
+    "he": "סלובקית",
+    "en": "Slovak",
+    "ru": "Словацкий",
+    "de": "Slowakisch",
+    "ua": "Словацька",
+    "it": "Slovak",
+    "tr": "Slovak"
+  },
+  "lang.cs": {
+    "es": "Checo",
+    "he": "צ'כית",
+    "en": "Czech",
+    "ru": "Чешский",
+    "de": "Tschechisch",
+    "ua": "Чеська",
+    "it": "Czech",
+    "tr": "Czech"
+  },
+  "lang.am": {
+    "es": "Amárico",
+    "he": "אמהרית",
+    "en": "Amharic",
+    "ru": "Амхарский",
+    "de": "Amharisch",
+    "ua": "Амхарський",
+    "it": "Amarica",
+    "tr": "Amharic"
+  },
   "autoname.lesson_by_topic_tag": {
     "he": "שיעור%s בנושא",
     "en": "Lesson%s on the topic of",

@@ -184,6 +184,29 @@ func (suite *AutonameSuite) TestEventPartDescriber() {
 	}
 }
 
+func (suite *AutonameSuite) TestBlogPostDescriber() {
+	cu, err := CreateContentUnit(suite.tx, CT_BLOG_POST, map[string]interface{}{"original_language": "ru"})
+	suite.Require().Nil(err)
+
+	metadata := CITMetadata{}
+	describer := new(BlogPostDescriber)
+	i18ns, err := describer.DescribeContentUnit(suite.tx, cu, metadata)
+	suite.Require().Nil(err)
+	suite.NotEmpty(i18ns, "i18ns.empty")
+	for _, i18n := range i18ns {
+		switch i18n.Language {
+		case LANG_HEBREW:
+			suite.Equal("הבלוג של רב ד\"ר מיכאל לייטמן – גרסת אודיו (רוסית)", i18n.Name.String, "Hebrew name")
+		case LANG_ENGLISH:
+			suite.Equal("Dr. Michael Laitman Blog - Audio Version (Russian)", i18n.Name.String, "English name")
+		case LANG_RUSSIAN:
+			suite.Equal("Радио-версия блога д-ра Михаэля Лайтмана (Русский)", i18n.Name.String, "Russian name")
+		case LANG_SPANISH:
+			suite.Equal("Blog de Rav M. Laitman - Versión Audio (Ruso)", i18n.Name.String, "Spanish name")
+		}
+	}
+}
+
 func (suite *AutonameSuite) TestDescribeCollection() {
 	c, err := CreateCollection(suite.tx, CT_UNKNOWN, nil)
 	suite.Require().Nil(err)
