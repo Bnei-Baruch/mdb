@@ -40,7 +40,15 @@ func Compare() {
 	missing, err := missingContainers()
 	utils.Must(err)
 
-	utils.Must(importMissingContainers(missing))
+	declamations := map[string][]*kmodels.Container{
+		"7": missing["7"],
+	}
+
+	dumpMissingContainers(declamations)
+	//dumpMissingContainers(missing)
+
+	utils.Must(importMissingContainers(declamations))
+	//utils.Must(importMissingContainers(missing))
 
 	stats.dump()
 
@@ -311,6 +319,16 @@ func missingContainers() (map[string][]*kmodels.Container, error) {
 	}
 
 	return missing, nil
+}
+
+func dumpMissingContainers(missing map[string][]*kmodels.Container) {
+	log.Info("Here comes missing containers")
+	for k, v := range missing {
+		log.Infof("\n\ntype %s [%d]:", k, len(v))
+		for i := range v {
+			log.Infof("%d\t%s\t%s", v[i].ID, v[i].Filmdate.Time, v[i].Name.String)
+		}
+	}
 }
 
 func importMissingContainers(missing map[string][]*kmodels.Container) error {
