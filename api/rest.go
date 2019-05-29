@@ -461,12 +461,10 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 		return
 	}
 
-	var err *HttpError
-	var resp interface{}
-
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetContentUnitSources(c, c.MustGet("MDB").(*sql.DB), id)
+		resp, err := handleGetContentUnitSources(c, c.MustGet("MDB").(*sql.DB), id)
+		concludeRequest(c, resp, err)
 	case http.MethodPost:
 		var body map[string]int64
 		if c.BindJSON(&body) != nil {
@@ -475,36 +473,35 @@ func ContentUnitSourcesHandler(c *gin.Context) {
 
 		sourceID, ok := body["sourceID"]
 		if !ok {
-			err = NewBadRequestError(errors.Wrap(e, "No sourceID given"))
-			break
+			NewBadRequestError(errors.Wrap(e, "No sourceID given")).Abort(c)
+			return
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitAddSource(c, tx, id, sourceID)
+		resp, err := handleContentUnitAddSource(c, tx, id, sourceID)
 		mustConcludeTx(tx, err)
 
 		if err == nil && resp != nil {
-			if respCU, ok := resp.(*models.ContentUnit); ok {
-				emitEvents(c, events.ContentUnitSourcesChangeEvent(respCU))
-			}
+			emitEvents(c, events.ContentUnitSourcesChangeEvent(resp))
 		}
+
+		concludeRequest(c, resp, err)
 	case http.MethodDelete:
 		sourceID, e := strconv.ParseInt(c.Param("sourceID"), 10, 0)
 		if e != nil {
-			err = NewBadRequestError(errors.Wrap(e, "sourceID expects int64"))
-			break
+			NewBadRequestError(errors.Wrap(e, "sourceID expects int64")).Abort(c)
+			return
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitRemoveSource(c, tx, id, sourceID)
+		resp, err := handleContentUnitRemoveSource(c, tx, id, sourceID)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
-			emitEvents(c, events.ContentUnitSourcesChangeEvent(resp.(*models.ContentUnit)))
+			emitEvents(c, events.ContentUnitSourcesChangeEvent(resp))
 		}
+		concludeRequest(c, resp, err)
 	}
-
-	concludeRequest(c, resp, err)
 }
 
 func ContentUnitTagsHandler(c *gin.Context) {
@@ -514,12 +511,10 @@ func ContentUnitTagsHandler(c *gin.Context) {
 		return
 	}
 
-	var err *HttpError
-	var resp interface{}
-
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetContentUnitTags(c, c.MustGet("MDB").(*sql.DB), id)
+		resp, err := handleGetContentUnitTags(c, c.MustGet("MDB").(*sql.DB), id)
+		concludeRequest(c, resp, err)
 	case http.MethodPost:
 		var body map[string]int64
 		if c.BindJSON(&body) != nil {
@@ -528,36 +523,36 @@ func ContentUnitTagsHandler(c *gin.Context) {
 
 		tagID, ok := body["tagID"]
 		if !ok {
-			err = NewBadRequestError(errors.Wrap(e, "No tagID given"))
-			break
+			NewBadRequestError(errors.Wrap(e, "No tagID given")).Abort(c)
+			return
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitAddTag(c, tx, id, tagID)
+		resp, err := handleContentUnitAddTag(c, tx, id, tagID)
 		mustConcludeTx(tx, err)
 
 		if err == nil && resp != nil {
-			if respCU, ok := resp.(*models.ContentUnit); ok {
-				emitEvents(c, events.ContentUnitTagsChangeEvent(respCU))
-			}
+			emitEvents(c, events.ContentUnitTagsChangeEvent(resp))
 		}
+
+		concludeRequest(c, resp, err)
 	case http.MethodDelete:
 		tagID, e := strconv.ParseInt(c.Param("tagID"), 10, 0)
 		if e != nil {
-			err = NewBadRequestError(errors.Wrap(e, "tagID expects int64"))
-			break
+			NewBadRequestError(errors.Wrap(e, "tagID expects int64")).Abort(c)
+			return
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitRemoveTag(c, tx, id, tagID)
+		resp, err := handleContentUnitRemoveTag(c, tx, id, tagID)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
-			emitEvents(c, events.ContentUnitTagsChangeEvent(resp.(*models.ContentUnit)))
+			emitEvents(c, events.ContentUnitTagsChangeEvent(resp))
 		}
-	}
 
-	concludeRequest(c, resp, err)
+		concludeRequest(c, resp, err)
+	}
 }
 
 func ContentUnitPersonsHandler(c *gin.Context) {
@@ -567,12 +562,10 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 		return
 	}
 
-	var err *HttpError
-	var resp interface{}
-
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		resp, err = handleGetContentUnitPersons(c, c.MustGet("MDB").(*sql.DB), id)
+		resp, err := handleGetContentUnitPersons(c, c.MustGet("MDB").(*sql.DB), id)
+		concludeRequest(c, resp, err)
 	case http.MethodPost:
 		var cup models.ContentUnitsPerson
 		if c.BindJSON(&cup) != nil {
@@ -580,31 +573,31 @@ func ContentUnitPersonsHandler(c *gin.Context) {
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitAddPerson(c, tx, id, cup)
+		resp, err := handleContentUnitAddPerson(c, tx, id, cup)
 		mustConcludeTx(tx, err)
 
 		if err == nil && resp != nil {
-			if respCU, ok := resp.(*models.ContentUnit); ok {
-				emitEvents(c, events.ContentUnitPersonsChangeEvent(respCU))
-			}
+			emitEvents(c, events.ContentUnitPersonsChangeEvent(resp))
 		}
+
+		concludeRequest(c, resp, err)
 	case http.MethodDelete:
 		personID, e := strconv.ParseInt(c.Param("personID"), 10, 0)
 		if e != nil {
-			err = NewBadRequestError(errors.Wrap(e, "personID expects int64"))
-			break
+			NewBadRequestError(errors.Wrap(e, "personID expects int64")).Abort(c)
+			return
 		}
 
 		tx := mustBeginTx(c)
-		resp, err = handleContentUnitRemovePerson(c, tx, id, personID)
+		resp, err := handleContentUnitRemovePerson(c, tx, id, personID)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
-			emitEvents(c, events.ContentUnitPersonsChangeEvent(resp.(*models.ContentUnit)))
+			emitEvents(c, events.ContentUnitPersonsChangeEvent(resp))
 		}
-	}
 
-	concludeRequest(c, resp, err)
+		concludeRequest(c, resp, err)
+	}
 }
 
 func ContentUnitPublishersHandler(c *gin.Context) {
