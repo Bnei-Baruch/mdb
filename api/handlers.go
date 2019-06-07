@@ -1210,7 +1210,7 @@ func handleOperation(c *gin.Context, input interface{}, opHandler OpHandlerFunc,
 		case *HttpError:
 			err.(*HttpError).Abort(c)
 		default:
-			err = errors.Wrapf(err, "Handle operation %s", c.HandlerName())
+			err = errors.WithMessagef(err, "Handle operation %s", c.HandlerName())
 			NewInternalError(err).Abort(c)
 		}
 	}
