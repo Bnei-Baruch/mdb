@@ -1,6 +1,7 @@
 package kmedia
 
 import (
+	"github.com/Bnei-Baruch/mdb/common"
 	"runtime/debug"
 	"time"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -50,7 +50,7 @@ func importLectures(catalogID int) error {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		if err = importContainerWCollection(tx, catalog.R.Containers[i], collection, api.CT_LECTURE); err != nil {
+		if err = importContainerWCollection(tx, catalog.R.Containers[i], collection, common.CT_LECTURE); err != nil {
 			utils.Must(tx.Rollback())
 			stats.TxRolledBack.Inc(1)
 			log.Error(err)

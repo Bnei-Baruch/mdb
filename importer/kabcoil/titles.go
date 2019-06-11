@@ -11,7 +11,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -142,7 +142,7 @@ func linkToCU(link string) (*models.ContentUnit, error) {
 func updateCU(ut *UnitTitle) error {
 	i18n := models.ContentUnitI18n{
 		ContentUnitID: ut.cu.ID,
-		Language:      api.LANG_HEBREW,
+		Language:      common.LANG_HEBREW,
 		Name:          null.StringFrom(ut.Name),
 		Description:   null.StringFrom(ut.Description),
 	}

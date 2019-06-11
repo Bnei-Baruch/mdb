@@ -13,7 +13,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -24,13 +24,13 @@ const (
 
 var (
 	LANGS = [7]string{
-		api.LANG_ENGLISH,
-		api.LANG_HEBREW,
-		api.LANG_RUSSIAN,
-		api.LANG_SPANISH,
-		api.LANG_GERMAN,
-		api.LANG_UKRAINIAN,
-		api.LANG_CHINESE,
+		common.LANG_ENGLISH,
+		common.LANG_HEBREW,
+		common.LANG_RUSSIAN,
+		common.LANG_SPANISH,
+		common.LANG_GERMAN,
+		common.LANG_UKRAINIAN,
+		common.LANG_CHINESE,
 	}
 )
 
@@ -51,7 +51,7 @@ func ImportTVShows() {
 	boil.SetDB(mdb)
 	//boil.DebugMode = true
 
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
 	utils.Must(handleTVShows(mdb))
 
@@ -98,7 +98,7 @@ func handleTVShows(db *sql.DB) error {
 
 func doTVShow(exec boil.Executor, header map[string]int, record []string) error {
 	// Get or create TV Show
-	ctID := api.CONTENT_TYPE_REGISTRY.ByName[api.CT_VIDEO_PROGRAM].ID
+	ctID := common.CONTENT_TYPE_REGISTRY.ByName[common.CT_VIDEO_PROGRAM].ID
 	show, err := models.Collections(exec,
 		qm.Where("type_id = ? AND (properties->>'kmedia_id')::int = ?", ctID, record[header["kmedia_id"]])).
 		One()
@@ -128,7 +128,7 @@ func doTVShow(exec boil.Executor, header map[string]int, record []string) error 
 	props["active"] = strings.ToLower(strings.TrimSpace(record[header["active"]])) == "v"
 	dl := record[header["language"]]
 	if dl != "" {
-		if l, ok := api.LANG_MAP[dl]; ok {
+		if l, ok := common.LANG_MAP[dl]; ok {
 			props["default_language"] = l
 		}
 	}

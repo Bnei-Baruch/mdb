@@ -19,6 +19,7 @@ import (
 	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -62,7 +63,7 @@ func Init() time.Time {
 	//defer kmdb.Close()
 
 	log.Info("Initializing static data from MDB")
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
 	log.Info("Initializing static data from Kmedia")
 	kmediaLessonCT, err = kmodels.ContentTypes(kmdb, qm.Where("name = ?", "Lesson")).One()
@@ -95,7 +96,7 @@ func importContainerWOCollectionNewCU(exec boil.Executor, container *kmodels.Con
 	}
 
 	// Create import operation
-	operation, err := api.CreateOperation(exec, api.OP_IMPORT_KMEDIA,
+	operation, err := api.CreateOperation(exec, common.OP_IMPORT_KMEDIA,
 		api.Operation{WorkflowID: strconv.Itoa(container.ID)}, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Create operation %d", container.ID)
@@ -156,9 +157,9 @@ func importContainerWCollection(exec boil.Executor, container *kmodels.Container
 		return errors.Wrapf(err, "Import container %d", container.ID)
 	}
 
-	if cuType != api.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
+	if cuType != common.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
 		log.Infof("Overriding CU Type to %s", cuType)
-		unit.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[cuType].ID
+		unit.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[cuType].ID
 		err = unit.Update(exec, "type_id")
 		if err != nil {
 			return errors.Wrapf(err, "Update CU type %d", unit.ID)
@@ -175,7 +176,7 @@ func importContainerWCollectionNewCU(exec boil.Executor, container *kmodels.Cont
 	}
 
 	// Create import operation
-	operation, err := api.CreateOperation(exec, api.OP_IMPORT_KMEDIA,
+	operation, err := api.CreateOperation(exec, common.OP_IMPORT_KMEDIA,
 		api.Operation{WorkflowID: strconv.Itoa(container.ID)}, nil)
 	if err != nil {
 		return errors.Wrapf(err, "Create operation %d", container.ID)
@@ -232,8 +233,8 @@ func importContainer(exec boil.Executor,
 	unit, err := models.ContentUnits(exec, qm.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One()
 	if err == nil {
 		stats.ContentUnitsUpdated.Inc(1)
-		if contentType != "" && contentType != api.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
-			log.Warnf("Different CU type %d %s != %s", unit.ID, api.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name, contentType)
+		if contentType != "" && contentType != common.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
+			log.Warnf("Different CU type %d %s != %s", unit.ID, common.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name, contentType)
 		}
 	} else {
 		if err == sql.ErrNoRows {
@@ -290,7 +291,7 @@ func importContainer(exec boil.Executor,
 			hasI18n = true
 			cui18n := models.ContentUnitI18n{
 				ContentUnitID: unit.ID,
-				Language:      api.LANG_MAP[d.LangID.String],
+				Language:      common.LANG_MAP[d.LangID.String],
 				Name:          d.ContainerDesc,
 				Description:   d.Descr,
 			}
@@ -306,7 +307,7 @@ func importContainer(exec boil.Executor,
 
 	// no i18n - use container name
 	if !hasI18n && container.Name.Valid {
-		for _, lang := range []string{api.LANG_ENGLISH, api.LANG_HEBREW, api.LANG_RUSSIAN, api.LANG_SPANISH} {
+		for _, lang := range []string{common.LANG_ENGLISH, common.LANG_HEBREW, common.LANG_RUSSIAN, common.LANG_SPANISH} {
 			cui18n := models.ContentUnitI18n{
 				ContentUnitID: unit.ID,
 				Language:      lang,
@@ -508,7 +509,7 @@ func importFileAsset(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *mod
 
 	// Media types
 	if fileAsset.AssetType.Valid {
-		if mt, ok := api.MEDIA_TYPE_REGISTRY.ByExtension[strings.ToLower(fileAsset.AssetType.String)]; ok {
+		if mt, ok := common.MEDIA_TYPE_REGISTRY.ByExtension[strings.ToLower(fileAsset.AssetType.String)]; ok {
 			file.Type = mt.Type
 			file.SubType = mt.SubType
 			file.MimeType = null.NewString(mt.MimeType, mt.MimeType != "")
@@ -521,7 +522,7 @@ func importFileAsset(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *mod
 
 	// Language
 	if fileAsset.LangID.Valid {
-		l := api.LANG_MAP[fileAsset.LangID.String]
+		l := common.LANG_MAP[fileAsset.LangID.String]
 		file.Language = null.NewString(l, l != "")
 	}
 
@@ -687,19 +688,19 @@ func initCatalogTagsMappings() (map[int]*models.Tag, error) {
 
 func mapSecure(kmVal int) int16 {
 	if kmVal == 0 {
-		return api.SEC_PUBLIC
+		return common.SEC_PUBLIC
 	} else if kmVal < 4 {
-		return api.SEC_SENSITIVE
+		return common.SEC_SENSITIVE
 	}
-	return api.SEC_PRIVATE
+	return common.SEC_PRIVATE
 }
 
 func mapPerson(kmID int) *models.Person {
 	switch kmID {
 	case 1:
-		return api.PERSON_REGISTRY.ByPattern["rav"]
+		return common.PERSON_REGISTRY.ByPattern["rav"]
 	case 8:
-		return api.PERSON_REGISTRY.ByPattern["rb"]
+		return common.PERSON_REGISTRY.ByPattern["rb"]
 	default:
 		return nil
 	}

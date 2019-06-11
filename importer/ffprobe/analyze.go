@@ -3,7 +3,6 @@ package ffprobe
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/api"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
@@ -53,8 +53,8 @@ var BITRATE_RE = regexp.MustCompile("(?i)^(24k|96k|128k|hd)$")
 
 func init() {
 	i := 0
-	keys := make([]string, len(api.LANG_MAP) -1)
-	for k := range api.LANG_MAP {
+	keys := make([]string, len(common.LANG_MAP)-1)
+	for k := range common.LANG_MAP {
 		if k == "" {
 			continue
 		}
@@ -67,7 +67,7 @@ func init() {
 func (af *AugmentedFile) NormalizedName() string {
 	name := af.Name
 
-	if idx := strings.LastIndex(name, "."); idx>0 {
+	if idx := strings.LastIndex(name, "."); idx > 0 {
 		name = name[:idx]
 	}
 
@@ -83,8 +83,8 @@ func (af *AugmentedFile) NormalizedName() string {
 		}
 	}
 
-	name = strings.Join(parts,"_")
-	return strings.Replace(name, "_br","", -1)
+	name = strings.Join(parts, "_")
+	return strings.Replace(name, "_br", "", -1)
 }
 
 func Analyze() {
@@ -208,12 +208,12 @@ func compareWithMDB(ffpData map[string]*FFPData) error {
 			}
 		}
 
-		if len(wClip) >0 && len(woClip) >0 {
+		if len(wClip) > 0 && len(woClip) > 0 {
 			log.Infof("CU [%d] has mixed patterns: %d clips %d wo clips", cuID, len(wClip), len(woClip))
-			for i:= range wClip {
+			for i := range wClip {
 				log.Infof("%s", wClip[i])
 			}
-			for i:= range woClip {
+			for i := range woClip {
 				log.Infof("%s", woClip[i])
 			}
 		}

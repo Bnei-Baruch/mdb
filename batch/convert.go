@@ -19,7 +19,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -60,11 +60,11 @@ func PrepareFilesForConvert() {
 	//boil.DebugMode = true
 
 	log.Info("Initializing static data from MDB")
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
-	MT_MP4 = api.MEDIA_TYPE_REGISTRY.ByExtension["mp4"].MimeType
-	MT_WMV = api.MEDIA_TYPE_REGISTRY.ByExtension["wmv"].MimeType
-	MT_FLV = api.MEDIA_TYPE_REGISTRY.ByExtension["flv"].MimeType
+	MT_MP4 = common.MEDIA_TYPE_REGISTRY.ByExtension["mp4"].MimeType
+	MT_WMV = common.MEDIA_TYPE_REGISTRY.ByExtension["wmv"].MimeType
+	MT_FLV = common.MEDIA_TYPE_REGISTRY.ByExtension["flv"].MimeType
 
 	log.Info("Loading video files")
 	files, err := models.Files(mdb, qm.Where("type=?", "video")).All()

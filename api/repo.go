@@ -15,6 +15,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -127,7 +128,7 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 	}
 
 	operation := models.Operation{
-		TypeID:  OPERATION_TYPE_REGISTRY.ByName[name].ID,
+		TypeID:  common.OPERATION_TYPE_REGISTRY.ByName[name].ID,
 		UID:     uid,
 		Station: null.StringFrom(o.Station),
 	}
@@ -165,7 +166,7 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 func FindUpChainOperation(exec boil.Executor, fileID int64, opType string) (*models.Operation, error) {
 	var op models.Operation
 
-	opTypeID := OPERATION_TYPE_REGISTRY.ByName[opType].ID
+	opTypeID := common.OPERATION_TYPE_REGISTRY.ByName[opType].ID
 
 	err := queries.Raw(exec, UPCHAIN_OPERATION_SQL, fileID, opTypeID).Bind(&op)
 	if err != nil {
@@ -180,7 +181,7 @@ func FindUpChainOperation(exec boil.Executor, fileID int64, opType string) (*mod
 }
 
 func CreateCollection(exec boil.Executor, contentType string, properties map[string]interface{}) (*models.Collection, error) {
-	ct, ok := CONTENT_TYPE_REGISTRY.ByName[contentType]
+	ct, ok := common.CONTENT_TYPE_REGISTRY.ByName[contentType]
 	if !ok {
 		return nil, errors.Errorf("Unknown content type %s", contentType)
 	}
@@ -258,7 +259,7 @@ func FindCollectionByCaptureID(exec boil.Executor, cid interface{}) (*models.Col
 }
 
 func CreateContentUnit(exec boil.Executor, contentType string, properties map[string]interface{}) (*models.ContentUnit, error) {
-	ct, ok := CONTENT_TYPE_REGISTRY.ByName[contentType]
+	ct, ok := common.CONTENT_TYPE_REGISTRY.ByName[contentType]
 	if !ok {
 		return nil, errors.Errorf("Unknown content type %s", contentType)
 	}
@@ -409,7 +410,7 @@ func makeFile(parent *models.File, f File, properties map[string]interface{}) (*
 	var mdbLang = ""
 	if f.Language != "" {
 		mdbLang = StdLang(f.Language)
-		if mdbLang == LANG_UNKNOWN && f.Language != LANG_UNKNOWN {
+		if mdbLang == common.LANG_UNKNOWN && f.Language != common.LANG_UNKNOWN {
 			return nil, errors.Errorf("Unknown language %s", f.Language)
 		}
 	}
@@ -429,7 +430,7 @@ func makeFile(parent *models.File, f File, properties map[string]interface{}) (*
 
 		// Try to complement missing type and subtype
 		if file.Type == "" && file.SubType == "" {
-			if mt, ok := MEDIA_TYPE_REGISTRY.ByMime[strings.ToLower(f.MimeType)]; ok {
+			if mt, ok := common.MEDIA_TYPE_REGISTRY.ByMime[strings.ToLower(f.MimeType)]; ok {
 				file.Type = mt.Type
 				file.SubType = mt.SubType
 			}
@@ -766,16 +767,16 @@ func FindTagPath(exec boil.Executor, id int64) ([]*models.Tag, error) {
 func StdLang(lang string) string {
 	switch len(lang) {
 	case 2:
-		if l := strings.ToLower(lang); KNOWN_LANGS.MatchString(l) {
+		if l := strings.ToLower(lang); common.KNOWN_LANGS.MatchString(l) {
 			return l
 		}
 	case 3:
-		if l, ok := LANG_MAP[strings.ToUpper(lang)]; ok {
+		if l, ok := common.LANG_MAP[strings.ToUpper(lang)]; ok {
 			return l
 		}
 	}
 
-	return LANG_UNKNOWN
+	return common.LANG_UNKNOWN
 }
 
 type UIDChecker interface {

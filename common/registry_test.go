@@ -1,9 +1,10 @@
-package api
+package common
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 

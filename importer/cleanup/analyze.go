@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -48,7 +48,8 @@ func doAnalyze() error {
 		cus, err := models.ContentUnits(mdb,
 			qm.Offset(s),
 			qm.Limit(pageSize),
-			qm.Load("Files")).
+			qm.Load("Files"),
+			qm.Load("ContentUnitI18ns")).
 			All()
 		if err != nil {
 			return errors.Wrapf(err, "Load content units page %d", page)
@@ -63,7 +64,7 @@ func doAnalyze() error {
 }
 
 func findClipsOutsideClip(cuMap map[int64]*CUAnalysis) error {
-	clipCT := api.CONTENT_TYPE_REGISTRY.ByName[api.CT_CLIP].ID
+	clipCT := common.CONTENT_TYPE_REGISTRY.ByName[common.CT_CLIP].ID
 	clipRE := regexp.MustCompile("clip")
 	lessonOrProgramRE := regexp.MustCompile("_(lesson|program)_")
 
@@ -88,10 +89,11 @@ func findClipsOutsideClip(cuMap map[int64]*CUAnalysis) error {
 
 	log.Infof("%d units has unexpected clips in them", len(alerts))
 	out := excelize.NewFile()
-	out.SetCellStr("Sheet1", "A1", "Content Unit")
-	out.SetCellStr("Sheet1", "B1", "Type")
-	out.SetCellStr("Sheet1", "C1", "Full Files")
-	out.SetCellStr("Sheet1", "D1", "Clip Files")
+	out.SetCellStr("Sheet1", "A1", "ID")
+	out.SetCellStr("Sheet1", "B1", "Name")
+	out.SetCellStr("Sheet1", "C1", "Type")
+	out.SetCellStr("Sheet1", "D1", "Full Files")
+	out.SetCellStr("Sheet1", "E1", "Clip Files")
 
 	row := 1
 	for _, cu := range alerts {
@@ -102,12 +104,12 @@ func findClipsOutsideClip(cuMap map[int64]*CUAnalysis) error {
 		row++
 
 		url := fmt.Sprintf("http://app.mdb.bbdomain.org/admin/content_units/%d", cu.ID)
+
 		out.SetCellStr("Sheet1", fmt.Sprintf("A%d", row), fmt.Sprintf("%d", cu.ID))
 		out.SetCellHyperLink("Sheet1", fmt.Sprintf("A%d", row), url, "External")
-		out.SetCellStr("Sheet1", fmt.Sprintf("B%d", row), api.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name)
-		out.SetCellInt("Sheet1", fmt.Sprintf("C%d", row), len(cu.noClipFiles))
-		out.SetCellInt("Sheet1", fmt.Sprintf("D%d", row), len(cu.clipFiles))
-
+		out.SetCellStr("Sheet1", fmt.Sprintf("C%d", row), common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name)
+		out.SetCellInt("Sheet1", fmt.Sprintf("D%d", row), len(cu.noClipFiles))
+		out.SetCellInt("Sheet1", fmt.Sprintf("E%d", row), len(cu.clipFiles))
 
 		//fileStrings := make([])
 		//xlRow.AddCell().SetString(strings.Join("\n"))

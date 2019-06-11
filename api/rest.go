@@ -19,6 +19,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/permissions"
@@ -52,14 +53,14 @@ func CollectionsListHandler(c *gin.Context) {
 			return
 		}
 
-		if _, ok := CONTENT_TYPE_REGISTRY.ByID[collection.TypeID]; !ok {
+		if _, ok := common.CONTENT_TYPE_REGISTRY.ByID[collection.TypeID]; !ok {
 			err := errors.Errorf("Unknown content type %d", collection.TypeID)
 			NewBadRequestError(err).Abort(c)
 			return
 		}
 
 		for _, x := range collection.I18n {
-			if StdLang(x.Language) == LANG_UNKNOWN {
+			if StdLang(x.Language) == common.LANG_UNKNOWN {
 				err := errors.Errorf("Unknown language %s", x.Language)
 				NewBadRequestError(err).Abort(c)
 				return
@@ -131,7 +132,7 @@ func CollectionI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == LANG_UNKNOWN {
+		if StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -246,14 +247,14 @@ func ContentUnitsListHandler(c *gin.Context) {
 			return
 		}
 
-		if _, ok := CONTENT_TYPE_REGISTRY.ByID[unit.TypeID]; !ok {
+		if _, ok := common.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID]; !ok {
 			err := errors.Errorf("Unknown content type %d", unit.TypeID)
 			NewBadRequestError(err).Abort(c)
 			return
 		}
 
 		for _, x := range unit.I18n {
-			if StdLang(x.Language) == LANG_UNKNOWN {
+			if StdLang(x.Language) == common.LANG_UNKNOWN {
 				err := errors.Errorf("Unknown language %s", x.Language)
 				NewBadRequestError(err).Abort(c)
 				return
@@ -317,7 +318,7 @@ func ContentUnitI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == LANG_UNKNOWN {
+		if StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -792,7 +793,7 @@ func FilesWithOperationsTreeHandler(c *gin.Context) {
 
 func OperationsListHandler(c *gin.Context) {
 	// check permissions
-	if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+	if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 		NewForbiddenError().Abort(c)
 		return
 	}
@@ -808,7 +809,7 @@ func OperationsListHandler(c *gin.Context) {
 
 func OperationItemHandler(c *gin.Context) {
 	// check permissions
-	if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+	if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 		NewForbiddenError().Abort(c)
 		return
 	}
@@ -825,7 +826,7 @@ func OperationItemHandler(c *gin.Context) {
 
 func OperationFilesHandler(c *gin.Context) {
 	// check permissions
-	if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+	if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 		NewForbiddenError().Abort(c)
 		return
 	}
@@ -841,7 +842,7 @@ func OperationFilesHandler(c *gin.Context) {
 }
 
 func AuthorsHandler(c *gin.Context) {
-	if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+	if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 		NewForbiddenError().Abort(c)
 		return
 	}
@@ -884,7 +885,7 @@ func SourcesHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -906,14 +907,14 @@ func SourcesHandler(c *gin.Context) {
 				return
 			}
 
-			if _, ok := SOURCE_TYPE_REGISTRY.ByID[r.Source.TypeID]; !ok {
+			if _, ok := common.SOURCE_TYPE_REGISTRY.ByID[r.Source.TypeID]; !ok {
 				err := errors.Errorf("Unknown source type %d", r.Source.TypeID)
 				NewBadRequestError(err).Abort(c)
 				return
 			}
 
 			for _, x := range r.Source.I18n {
-				if StdLang(x.Language) == LANG_UNKNOWN {
+				if StdLang(x.Language) == common.LANG_UNKNOWN {
 					err := errors.Errorf("Unknown language %s", x.Language)
 					NewBadRequestError(err).Abort(c)
 					return
@@ -944,7 +945,7 @@ func SourceHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -993,7 +994,7 @@ func SourceI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == LANG_UNKNOWN {
+		if StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -1015,7 +1016,7 @@ func TagsHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -1038,7 +1039,7 @@ func TagsHandler(c *gin.Context) {
 			}
 
 			for _, x := range t.I18n {
-				if StdLang(x.Language) == LANG_UNKNOWN {
+				if StdLang(x.Language) == common.LANG_UNKNOWN {
 					NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 					return
 				}
@@ -1068,7 +1069,7 @@ func TagHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -1117,7 +1118,7 @@ func TagI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == LANG_UNKNOWN {
+		if StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -1140,7 +1141,7 @@ func PersonsListHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -1163,7 +1164,7 @@ func PersonsListHandler(c *gin.Context) {
 		}
 
 		for _, x := range person.I18n {
-			if StdLang(x.Language) == LANG_UNKNOWN {
+			if StdLang(x.Language) == common.LANG_UNKNOWN {
 				err := errors.Errorf("Unknown language %s", x.Language)
 				NewBadRequestError(err).Abort(c)
 				return
@@ -1194,7 +1195,7 @@ func PersonHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -1254,7 +1255,7 @@ func PersonI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == LANG_UNKNOWN {
+		if StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -1277,7 +1278,7 @@ func PublishersHandler(c *gin.Context) {
 
 	switch c.Request.Method {
 	case http.MethodGet, "":
-		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -1300,7 +1301,7 @@ func PublishersHandler(c *gin.Context) {
 		}
 
 		for _, x := range publisher.I18n {
-			if StdLang(x.Language) == LANG_UNKNOWN {
+			if StdLang(x.Language) == common.LANG_UNKNOWN {
 				err := errors.Errorf("Unknown language %s", x.Language)
 				NewBadRequestError(err).Abort(c)
 				return
@@ -1330,7 +1331,7 @@ func PublisherHandler(c *gin.Context) {
 	var resp interface{}
 
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -1379,7 +1380,7 @@ func PublisherI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == LANG_UNKNOWN {
+		if StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -1397,7 +1398,7 @@ func PublisherI18nHandler(c *gin.Context) {
 }
 
 func StoragesHandler(c *gin.Context) {
-	if !can(c, secureToPermission(SEC_PUBLIC), PERM_READ) {
+	if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
 		NewForbiddenError().Abort(c)
 		return
 	}
@@ -1484,7 +1485,7 @@ func handleCollectionsList(cp utils.ContextProvider, exec boil.Executor, r Colle
 
 func handleCreateCollection(cp utils.ContextProvider, exec boil.Executor, c Collection) (*Collection, *HttpError) {
 	// check object level permissions
-	if !can(cp, secureToPermission(c.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(c.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -1498,7 +1499,7 @@ func handleCreateCollection(cp utils.ContextProvider, exec boil.Executor, c Coll
 	}
 
 	// create collection in DB
-	ct := CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name
+	ct := common.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name
 	collection, err := CreateCollection(exec, ct, props)
 	if err != nil {
 		return nil, NewInternalError(err)
@@ -1529,7 +1530,7 @@ func handleGetCollection(cp utils.ContextProvider, exec boil.Executor, id int64)
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(collection.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(collection.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -1554,7 +1555,7 @@ func handleUpdateCollection(cp utils.ContextProvider, exec boil.Executor, c *Par
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(collection.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(collection.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -1595,7 +1596,7 @@ func handleDeleteCollection(cp utils.ContextProvider, exec boil.Executor, id int
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(collection.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(collection.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -1624,7 +1625,7 @@ func handleUpdateCollectionI18n(cp utils.ContextProvider, exec boil.Executor, id
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(collection.Secure), PERM_I18N_WRITE) {
+	if !can(cp, secureToPermission(collection.Secure), common.PERM_I18N_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -1665,7 +1666,7 @@ func handleCollectionActivate(cp utils.ContextProvider, exec boil.Executor, id i
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(collection.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(collection.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -1705,7 +1706,7 @@ func handleCollectionCCU(cp utils.ContextProvider, exec boil.Executor, id int64)
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(collection.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(collection.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -1768,7 +1769,7 @@ func handleCollectionAddCCU(cp utils.ContextProvider, exec boil.Executor, id int
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(c.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(c.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -1823,7 +1824,7 @@ func handleCollectionUpdateCCU(cp utils.ContextProvider, exec boil.Executor, id 
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(c.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(c.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -1859,7 +1860,7 @@ func handleCollectionRemoveCCU(cp utils.ContextProvider, exec boil.Executor, id 
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(c.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(c.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -1993,7 +1994,7 @@ func handleGetContentUnit(cp utils.ContextProvider, exec boil.Executor, id int64
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2009,7 +2010,7 @@ func handleGetContentUnit(cp utils.ContextProvider, exec boil.Executor, id int64
 
 func handleCreateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu ContentUnit) (*ContentUnit, *HttpError) {
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2023,7 +2024,7 @@ func handleCreateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu Co
 	}
 
 	// create content_unit in DB
-	ct := CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
+	ct := common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
 	unit, err := CreateContentUnit(exec, ct, props)
 	if err != nil {
 		return nil, NewInternalError(err)
@@ -2051,7 +2052,7 @@ func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *P
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2087,7 +2088,7 @@ func handleUpdateContentUnitI18n(cp utils.ContextProvider, exec boil.Executor, i
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_I18N_WRITE) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_I18N_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2128,7 +2129,7 @@ func handleContentUnitFiles(cp utils.ContextProvider, exec boil.Executor, id int
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2159,7 +2160,7 @@ func handleContentUnitAddFiles(cp utils.ContextProvider, exec boil.Executor, id 
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_WRITE) {
 		return nil, nil, NewForbiddenError()
 	}
 
@@ -2243,7 +2244,7 @@ func handleContentUnitCCU(cp utils.ContextProvider, exec boil.Executor, id int64
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2302,7 +2303,7 @@ func handleContentUnitCUD(cp utils.ContextProvider, exec boil.Executor, id int64
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2360,7 +2361,7 @@ func handleContentUnitAddCUD(cp utils.ContextProvider, exec boil.Executor, id in
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2403,7 +2404,7 @@ func handleContentUnitUpdateCUD(cp utils.ContextProvider, exec boil.Executor, id
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2436,7 +2437,7 @@ func handleContentUnitRemoveCUD(cp utils.ContextProvider, exec boil.Executor, id
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2468,7 +2469,7 @@ func handleContentUnitOrigins(cp utils.ContextProvider, exec boil.Executor, id i
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2530,7 +2531,7 @@ func handleGetContentUnitSources(cp utils.ContextProvider, exec boil.Executor, i
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2558,7 +2559,7 @@ func handleContentUnitAddSource(cp utils.ContextProvider, exec boil.Executor, id
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_METADATA_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2603,7 +2604,7 @@ func handleContentUnitRemoveSource(cp utils.ContextProvider, exec boil.Executor,
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_METADATA_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2639,7 +2640,7 @@ func handleGetContentUnitTags(cp utils.ContextProvider, exec boil.Executor, id i
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2667,7 +2668,7 @@ func handleContentUnitAddTag(cp utils.ContextProvider, exec boil.Executor, id in
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_METADATA_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2712,7 +2713,7 @@ func handleContentUnitRemoveTag(cp utils.ContextProvider, exec boil.Executor, id
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_METADATA_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2750,7 +2751,7 @@ func handleGetContentUnitPersons(cp utils.ContextProvider, exec boil.Executor, i
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2778,7 +2779,7 @@ func handleContentUnitAddPerson(cp utils.ContextProvider, exec boil.Executor, id
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_METADATA_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2834,7 +2835,7 @@ func handleContentUnitRemovePerson(cp utils.ContextProvider, exec boil.Executor,
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_METADATA_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2870,7 +2871,7 @@ func handleGetContentUnitPublishers(cp utils.ContextProvider, exec boil.Executor
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2898,7 +2899,7 @@ func handleContentUnitAddPublisher(cp utils.ContextProvider, exec boil.Executor,
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_METADATA_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2943,7 +2944,7 @@ func handleContentUnitRemovePublisher(cp utils.ContextProvider, exec boil.Execut
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(cu.Secure), PERM_METADATA_WRITE) {
+	if !can(cp, secureToPermission(cu.Secure), common.PERM_METADATA_WRITE) {
 		return nil, NewForbiddenError()
 	}
 
@@ -2975,7 +2976,7 @@ func handleContentUnitMerge(cp utils.ContextProvider, exec boil.Executor, id int
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(unit.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(unit.Secure), common.PERM_WRITE) {
 		return nil, nil, NewForbiddenError()
 	}
 
@@ -3137,7 +3138,7 @@ func handleGetFile(cp utils.ContextProvider, exec boil.Executor, id int64) (*MFi
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(file.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(file.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -3155,7 +3156,7 @@ func handleUpdateFile(cp utils.ContextProvider, exec boil.Executor, f *PartialFi
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(file.Secure), PERM_WRITE) {
+	if !can(cp, secureToPermission(file.Secure), common.PERM_WRITE) {
 		return nil, nil, NewForbiddenError()
 	}
 
@@ -3228,7 +3229,7 @@ func handleFileStorages(cp utils.ContextProvider, exec boil.Executor, id int64) 
 	}
 
 	// check object level permissions
-	if !can(cp, secureToPermission(file.Secure), PERM_READ) {
+	if !can(cp, secureToPermission(file.Secure), common.PERM_READ) {
 		return nil, NewForbiddenError()
 	}
 
@@ -4244,7 +4245,7 @@ func appendContentTypesFilterMods(mods *[]qm.QueryMod, f ContentTypesFilter) err
 
 	a := make([]interface{}, len(f.ContentTypes))
 	for i, x := range f.ContentTypes {
-		ct, ok := CONTENT_TYPE_REGISTRY.ByName[strings.ToUpper(x)]
+		ct, ok := common.CONTENT_TYPE_REGISTRY.ByName[strings.ToUpper(x)]
 		if ok {
 			a[i] = ct.ID
 		} else {
@@ -4264,7 +4265,7 @@ func appendSecureFilterMods(mods *[]qm.QueryMod, f SecureFilter) error {
 
 	a := make([]interface{}, len(f.Levels))
 	for i, x := range f.Levels {
-		if x == SEC_PUBLIC || x == SEC_SENSITIVE || x == SEC_PRIVATE {
+		if x == common.SEC_PUBLIC || x == common.SEC_SENSITIVE || x == common.SEC_PRIVATE {
 			a[i] = x
 		} else {
 			return errors.Errorf("Unknown security level: %d", x)
@@ -4291,7 +4292,7 @@ func appendOperationTypesFilterMods(mods *[]qm.QueryMod, f OperationTypesFilter)
 
 	a := make([]interface{}, len(f.OperationTypes))
 	for i, x := range f.OperationTypes {
-		ot, ok := OPERATION_TYPE_REGISTRY.ByName[strings.ToLower(x)]
+		ot, ok := common.OPERATION_TYPE_REGISTRY.ByName[strings.ToLower(x)]
 		if ok {
 			a[i] = ot.ID
 		} else {
@@ -4315,7 +4316,7 @@ func appendSourcesFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SourcesF
 	// fetch source ids by authors
 	if !utils.IsEmpty(f.Authors) {
 		for _, x := range f.Authors {
-			if _, ok := AUTHOR_REGISTRY.ByCode[strings.ToLower(x)]; !ok {
+			if _, ok := common.AUTHOR_REGISTRY.ByCode[strings.ToLower(x)]; !ok {
 				return NewBadRequestError(errors.Errorf("Unknown author: %s", x))
 			}
 		}
@@ -4454,7 +4455,7 @@ func can(cp utils.ContextProvider, obj string, act string) bool {
 		//log.Infof("Subject is %s %s with roles %v", claims.Sub, claims.Name, sub)
 	} else {
 		// bypass hack for workflow insert station
-		if act == PERM_READ && cp.(*gin.Context).ClientIP() == "146.185.60.45" {
+		if act == common.PERM_READ && cp.(*gin.Context).ClientIP() == "146.185.60.45" {
 			log.Info("Workflow Insert station read")
 			return true
 		}
@@ -4489,9 +4490,9 @@ func isAdmin(cp utils.ContextProvider) bool {
 
 func secureToPermission(secure int16) string {
 	switch secure {
-	case SEC_PRIVATE:
+	case common.SEC_PRIVATE:
 		return "data_private"
-	case SEC_SENSITIVE:
+	case common.SEC_SENSITIVE:
 		return "data_sensitive"
 	default:
 		return "data_public"
@@ -4499,20 +4500,20 @@ func secureToPermission(secure int16) string {
 }
 
 func allowedRead(cp utils.ContextProvider) int16 {
-	return allowedSecure(cp, PERM_READ)
+	return allowedSecure(cp, common.PERM_READ)
 }
 
 func allowedWrite(cp utils.ContextProvider) int16 {
-	return allowedSecure(cp, PERM_WRITE)
+	return allowedSecure(cp, common.PERM_WRITE)
 }
 
 func allowedSecure(cp utils.ContextProvider, act string) int16 {
-	if can(cp, secureToPermission(SEC_PRIVATE), act) {
-		return SEC_PRIVATE
-	} else if can(cp, secureToPermission(SEC_SENSITIVE), act) {
-		return SEC_SENSITIVE
-	} else if can(cp, secureToPermission(SEC_PUBLIC), act) {
-		return SEC_PUBLIC
+	if can(cp, secureToPermission(common.SEC_PRIVATE), act) {
+		return common.SEC_PRIVATE
+	} else if can(cp, secureToPermission(common.SEC_SENSITIVE), act) {
+		return common.SEC_SENSITIVE
+	} else if can(cp, secureToPermission(common.SEC_PUBLIC), act) {
+		return common.SEC_PUBLIC
 	}
 
 	if ginCtx, ok := cp.(*gin.Context); ok {
@@ -4521,13 +4522,13 @@ func allowedSecure(cp utils.ContextProvider, act string) int16 {
 		// workflow insert station
 		if clientIP == "146.185.60.45" {
 			//log.Info("Workflow Insert station secure level")
-			return SEC_PRIVATE
+			return common.SEC_PRIVATE
 		}
 
 		// internal network (hopefully MDB-CIT [aka rename])
 		if strings.HasPrefix(clientIP, "10.") {
 			//log.Infof("Internal network secure level: %s", clientIP)
-			return SEC_PRIVATE
+			return common.SEC_PRIVATE
 		}
 	}
 

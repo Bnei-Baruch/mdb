@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -27,7 +27,7 @@ func ExportTVShows() {
 
 func doExportTVShows() error {
 	cs, err := models.Collections(mdb,
-		qm.Where("type_id = ?", api.CONTENT_TYPE_REGISTRY.ByName[api.CT_VIDEO_PROGRAM].ID),
+		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_VIDEO_PROGRAM].ID),
 		qm.Load("CollectionsContentUnits",
 			"CollectionsContentUnits.ContentUnit",
 			"CollectionsContentUnits.ContentUnit.ContentUnitI18ns",
@@ -38,9 +38,9 @@ func doExportTVShows() error {
 	}
 
 	log.Infof("%d TV Shows in MDB", len(cs))
-	collections := make([]*CollectionWName, len(cs))
+	collections := make([]*common.CollectionWName, len(cs))
 	for i := range cs {
-		collections[i] = &CollectionWName{Collection: cs[i]}
+		collections[i] = &common.CollectionWName{Collection: cs[i]}
 	}
 
 	sort.Slice(collections, func(i, j int) bool {
@@ -62,7 +62,7 @@ func doExportTVShows() error {
 		})
 
 		for j := range c.R.CollectionsContentUnits {
-			cu := UnitWName{ContentUnit: c.R.CollectionsContentUnits[j].R.ContentUnit}
+			cu := common.UnitWName{ContentUnit: c.R.CollectionsContentUnits[j].R.ContentUnit}
 
 			url := fmt.Sprintf("https://archive.kbb1.com/programs/cu/%s", cu.UID)
 			out.SetCellHyperLink(name, fmt.Sprintf("A%d", j+1), url, "External")

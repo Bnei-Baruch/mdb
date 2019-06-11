@@ -16,6 +16,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -73,10 +74,10 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 	// Update language of original.
 	// TODO: What about proxy !?
 	if metadata.HasTranslation {
-		original.Language = null.StringFrom(LANG_MULTI)
+		original.Language = null.StringFrom(common.LANG_MULTI)
 	} else {
 		l := StdLang(metadata.Language)
-		if l == LANG_UNKNOWN {
+		if l == common.LANG_UNKNOWN {
 			log.Warnf("Unknown language in metadata %s", metadata.Language)
 		}
 		original.Language = null.StringFrom(l)
@@ -118,7 +119,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 
 	if isUpdate {
 		// content_type
-		if ctVal, ok := CONTENT_TYPE_REGISTRY.ByName[ct]; !ok {
+		if ctVal, ok := common.CONTENT_TYPE_REGISTRY.ByName[ct]; !ok {
 			return nil, errors.Errorf("Unknown content type %s", ct)
 		} else if ctVal.ID != cu.TypeID {
 			// update unit's content type
@@ -256,12 +257,12 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 	}
 
 	// Handle persons ...
-	if strings.ToLower(metadata.Lecturer) == P_RAV {
+	if strings.ToLower(metadata.Lecturer) == common.P_RAV {
 		log.Info("Associating unit to rav")
 		cup := &models.ContentUnitsPerson{
 			ContentUnitID: cu.ID,
-			PersonID:      PERSON_REGISTRY.ByPattern[P_RAV].ID,
-			RoleID:        CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID,
+			PersonID:      common.PERSON_REGISTRY.ByPattern[common.P_RAV].ID,
+			RoleID:        common.CONTENT_ROLE_TYPE_REGISTRY.ByName[common.CR_LECTURER].ID,
 		}
 
 		// upsert make sure we either have such relation or insert a new one
@@ -273,7 +274,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		// in update mode, if norav so we remove relation to rav (if any)
 		cup := &models.ContentUnitsPerson{
 			ContentUnitID: cu.ID,
-			PersonID:      PERSON_REGISTRY.ByPattern[P_RAV].ID,
+			PersonID:      common.PERSON_REGISTRY.ByPattern[common.P_RAV].ID,
 		}
 		err = cup.Delete(exec)
 		if err != nil {
@@ -313,13 +314,13 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		return evnts, nil
 	}
 
-	if ct == CT_LESSON_PART || ct == CT_FULL_LESSON {
+	if ct == common.CT_LESSON_PART || ct == common.CT_FULL_LESSON {
 		log.Info("Lesson reconciliation")
 
 		// Reconcile or create new
 		// Reconciliation is done by looking up the operation chain of original to capture_stop.
 		// There we have a property of saying the capture_id of the full lesson capture.
-		captureStop, err := FindUpChainOperation(exec, original.ID, OP_CAPTURE_STOP)
+		captureStop, err := FindUpChainOperation(exec, original.ID, common.OP_CAPTURE_STOP)
 		if err != nil {
 			if ex, ok := err.(UpChainOperationNotFound); ok {
 				log.Warnf("capture_stop operation not found for original: %s", ex.Error())
@@ -338,9 +339,9 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 				log.Infof("Reconcile by capture_id %s", captureID)
 				var cct string
 				if metadata.WeekDate == nil {
-					cct = CT_DAILY_LESSON
+					cct = common.CT_DAILY_LESSON
 				} else {
-					cct = CT_SPECIAL_LESSON
+					cct = common.CT_SPECIAL_LESSON
 				}
 
 				// Keep this property on the collection for other parts to find it
@@ -365,12 +366,12 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 						return nil, err
 					}
 					evnts = append(evnts, events.CollectionCreateEvent(c))
-				} else if ct == CT_FULL_LESSON {
+				} else if ct == common.CT_FULL_LESSON {
 					// Update collection properties to those of full lesson
 					log.Info("Full lesson, overriding collection properties")
-					if c.TypeID != CONTENT_TYPE_REGISTRY.ByName[cct].ID {
+					if c.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[cct].ID {
 						log.Infof("Full lesson, content_type changed to %s", cct)
-						c.TypeID = CONTENT_TYPE_REGISTRY.ByName[cct].ID
+						c.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[cct].ID
 						err = c.Update(exec, "type_id")
 						if err != nil {
 							return nil, errors.Wrap(err, "Update collection type in DB")
@@ -495,21 +496,21 @@ func associateUnitToCollection(exec boil.Executor, cu *models.ContentUnit, c *mo
 		ContentUnitID: cu.ID,
 	}
 
-	switch CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name {
-	case CT_FULL_LESSON:
-		if c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID ||
-			c.TypeID == CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID {
+	switch common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name {
+	case common.CT_FULL_LESSON:
+		if c.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID ||
+			c.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SPECIAL_LESSON].ID {
 			ccu.Name = "full"
 		} else if metadata.Number.Valid {
 			ccu.Name = strconv.Itoa(metadata.Number.Int)
 		}
 		break
-	case CT_LESSON_PART:
+	case common.CT_LESSON_PART:
 		if metadata.Part.Valid {
 			ccu.Name = strconv.Itoa(metadata.Part.Int)
 		}
 		break
-	case CT_VIDEO_PROGRAM_CHAPTER:
+	case common.CT_VIDEO_PROGRAM_CHAPTER:
 		if metadata.Episode.Valid {
 			ccu.Name = metadata.Episode.String
 		}
@@ -522,8 +523,8 @@ func associateUnitToCollection(exec boil.Executor, cu *models.ContentUnit, c *mo
 		// first 3 event part types are lesson, YH and meal, we skip them.
 		if metadata.PartType.Valid && metadata.PartType.Int > 2 {
 			idx := metadata.PartType.Int - 3
-			if idx < len(MISC_EVENT_PART_TYPES) {
-				ccu.Name = MISC_EVENT_PART_TYPES[idx] + ccu.Name
+			if idx < len(common.MISC_EVENT_PART_TYPES) {
+				ccu.Name = common.MISC_EVENT_PART_TYPES[idx] + ccu.Name
 			} else {
 				log.Warnf("Unknown event part type: %d", metadata.PartType.Int)
 			}
@@ -602,7 +603,7 @@ func derivedToMain(exec boil.Executor, metadata CITMetadata, cu *models.ContentU
 		part = metadata.Part.Int
 	}
 
-	mainCT, ok := CONTENT_TYPE_REGISTRY.ByName[metadata.ContentType]
+	mainCT, ok := common.CONTENT_TYPE_REGISTRY.ByName[metadata.ContentType]
 	if !ok {
 		return 0, errors.Errorf("Unknown content type %s", metadata.ContentType)
 	}
@@ -695,8 +696,8 @@ FROM files f
 WHERE f.content_unit_id = $2 AND NOT f.id = ANY($3) 
 `
 	err = queries.Raw(exec, q, pq.Array([]int64{
-		OPERATION_TYPE_REGISTRY.ByName[OP_TRIM].ID,
-		OPERATION_TYPE_REGISTRY.ByName[OP_CONVERT].ID,
+		common.OPERATION_TYPE_REGISTRY.ByName[common.OP_TRIM].ID,
+		common.OPERATION_TYPE_REGISTRY.ByName[common.OP_CONVERT].ID,
 	}), unit.ID, pq.Array(ancestorsIDs)).QueryRow().Scan(&fIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetch file IDs to remove")

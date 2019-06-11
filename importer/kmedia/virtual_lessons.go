@@ -15,6 +15,7 @@ import (
 	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -93,7 +94,7 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 		utils.Must(err)
 
 		// Create import operation
-		operation, err := api.CreateOperation(tx, api.OP_IMPORT_KMEDIA,
+		operation, err := api.CreateOperation(tx, common.OP_IMPORT_KMEDIA,
 			api.Operation{WorkflowID: strconv.Itoa(vl.ID)}, nil)
 		if err != nil {
 			utils.Must(tx.Rollback())
@@ -121,7 +122,7 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 
 			// Create or update MDB content_unit
 			unit, err = importContainer(tx, container, collection,
-				api.CT_LESSON_PART, strconv.Itoa(container.Position.Int), container.Position.Int)
+				common.CT_LESSON_PART, strconv.Itoa(container.Position.Int), container.Position.Int)
 			if err != nil {
 				log.Error(err)
 				debug.PrintStack()
@@ -180,7 +181,7 @@ func importVirtualLesson(exec boil.Executor, vl *kmodels.VirtualLesson) (*models
 			// Create new collection
 			collection = &models.Collection{
 				UID:    utils.GenerateUID(8),
-				TypeID: api.CONTENT_TYPE_REGISTRY.ByName[api.CT_DAILY_LESSON].ID,
+				TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID,
 			}
 			err = collection.Insert(exec)
 			if err != nil {
@@ -193,9 +194,9 @@ func importVirtualLesson(exec boil.Executor, vl *kmodels.VirtualLesson) (*models
 	}
 
 	if vl.FilmDate.Time.Weekday() == 6 {
-		collection.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[api.CT_SPECIAL_LESSON].ID
+		collection.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SPECIAL_LESSON].ID
 	} else {
-		collection.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[api.CT_DAILY_LESSON].ID
+		collection.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID
 	}
 
 	var props = make(map[string]interface{})
