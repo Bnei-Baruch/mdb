@@ -241,6 +241,10 @@ func UpdateCollectionProperties(exec boil.Executor, collection *models.Collectio
 	return nil
 }
 
+func FindCollectionByUID(exec boil.Executor, uid string) (*models.Collection, error) {
+	return models.Collections(exec, qm.Where("uid = ?", uid)).One()
+}
+
 func FindCollectionByCaptureID(exec boil.Executor, cid interface{}) (*models.Collection, error) {
 	var c models.Collection
 

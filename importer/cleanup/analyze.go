@@ -2,6 +2,7 @@ package cleanup
 
 import (
 	"fmt"
+	"github.com/Bnei-Baruch/mdb/api"
 	"regexp"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
+const CLIP_COLLECTION_UID = ""
+
 func Analyze() {
 	clock, _ := Init()
 
@@ -25,16 +28,70 @@ func Analyze() {
 	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
 }
 
+func Import() {
+	clock, _ := Init()
+
+	utils.Must(doImport())
+
+	Shutdown()
+	log.Info("Success")
+	log.Infof("Total run time: %s", time.Now().Sub(clock).String())
+}
+
 type CUAnalysis struct {
-	*models.ContentUnit
+	*common.UnitWName
 	clipFiles   []*models.File
 	noClipFiles []*models.File
 }
 
 func doAnalyze() error {
+	cuMap, err := loadUnits()
+	if err != nil {
+		return errors.WithMessage(err, "load CUs")
+	}
+
+	alerts, err := findClipsOutsideClip(cuMap)
+	if err != nil {
+		return errors.WithMessage(err, "find alerts")
+	}
+
+	err = dumpExcel(alerts)
+	if err != nil {
+		return errors.WithMessage(err, "dump excel")
+	}
+
+	return nil
+}
+
+func doImport() error {
+	cuMap, err := loadUnits()
+	if err != nil {
+		return errors.WithMessage(err, "load CUs")
+	}
+
+	alerts, err := findClipsOutsideClip(cuMap)
+	if err != nil {
+		return errors.WithMessage(err, "find alerts")
+	}
+
+	c, err := api.FindCollectionByUID(mdb, CLIP_COLLECTION_UID)
+	if err != nil {
+		return errors.WithMessage(err, "find clips collection")
+	}
+
+	for k, v := range alerts {
+		if err := doImportAlert(v, c); err != nil {
+			return errors.WithMessage(err, fmt.Sprintf("import alert cu [%d]", k))
+		}
+	}
+
+	return err
+}
+
+func loadUnits() (map[int64]*CUAnalysis, error) {
 	cuCount, err := models.ContentUnits(mdb).Count()
 	if err != nil {
-		return errors.Wrapf(err, "Load content units count")
+		return nil, errors.Wrapf(err, "Load content units count")
 	}
 	log.Infof("MDB has %d content units", cuCount)
 
@@ -52,18 +109,18 @@ func doAnalyze() error {
 			qm.Load("ContentUnitI18ns")).
 			All()
 		if err != nil {
-			return errors.Wrapf(err, "Load content units page %d", page)
+			return nil, errors.Wrapf(err, "Load content units page %d", page)
 		}
 		for i := range cus {
-			cuMap[cus[i].ID] = &CUAnalysis{ContentUnit: cus[i]}
+			cuMap[cus[i].ID] = &CUAnalysis{UnitWName: &common.UnitWName{ContentUnit: cus[i]}}
 		}
 		page++
 	}
 
-	return findClipsOutsideClip(cuMap)
+	return cuMap, nil
 }
 
-func findClipsOutsideClip(cuMap map[int64]*CUAnalysis) error {
+func findClipsOutsideClip(cuMap map[int64]*CUAnalysis) (map[int64]*CUAnalysis, error) {
 	clipCT := common.CONTENT_TYPE_REGISTRY.ByName[common.CT_CLIP].ID
 	clipRE := regexp.MustCompile("clip")
 	lessonOrProgramRE := regexp.MustCompile("_(lesson|program)_")
@@ -87,7 +144,12 @@ func findClipsOutsideClip(cuMap map[int64]*CUAnalysis) error {
 		}
 	}
 
+	return alerts, nil
+}
+
+func dumpExcel(alerts map[int64]*CUAnalysis) error {
 	log.Infof("%d units has unexpected clips in them", len(alerts))
+
 	out := excelize.NewFile()
 	out.SetCellStr("Sheet1", "A1", "ID")
 	out.SetCellStr("Sheet1", "B1", "Name")
@@ -104,31 +166,29 @@ func findClipsOutsideClip(cuMap map[int64]*CUAnalysis) error {
 		row++
 
 		url := fmt.Sprintf("http://app.mdb.bbdomain.org/admin/content_units/%d", cu.ID)
-
 		out.SetCellStr("Sheet1", fmt.Sprintf("A%d", row), fmt.Sprintf("%d", cu.ID))
 		out.SetCellHyperLink("Sheet1", fmt.Sprintf("A%d", row), url, "External")
+		out.SetCellStr("Sheet1", fmt.Sprintf("B%d", row), cu.Name())
 		out.SetCellStr("Sheet1", fmt.Sprintf("C%d", row), common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name)
 		out.SetCellInt("Sheet1", fmt.Sprintf("D%d", row), len(cu.noClipFiles))
 		out.SetCellInt("Sheet1", fmt.Sprintf("E%d", row), len(cu.clipFiles))
-
-		//fileStrings := make([])
-		//xlRow.AddCell().SetString(strings.Join("\n"))
-
-		//log.Infof("%d\t%s\t%d\t%d",
-		//	cu.ID, api.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name, len(cu.noClipFiles), len(cu.clipFiles))
-		//for i := range cu.clipFiles {
-		//	f := cu.clipFiles[i]
-		//	log.Infof("\t%d\t%s", f.ID, f.Name)
-		//}
-		//
-		//f := cu.noClipFiles[0]
-		//log.Infof("\t\t%d\t%s", f.ID, f.Name)
 	}
 
 	err := out.SaveAs("organize_clips.xlsx")
 	if err != nil {
 		return errors.Wrap(err, "out.SaveAs")
 	}
+
+	return nil
+}
+
+func doImportAlert(cu *CUAnalysis, clipsCollection *models.Collection) error {
+	// group clip files by name stripped from language and extension
+
+	// for each group, create a new, sensitive, derived unit
+	// associate the files with that unit
+	// associate the unit with the clips collection
+
 
 	return nil
 }
