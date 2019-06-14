@@ -904,7 +904,7 @@ FROM content_units cu
 
 			cu, err = CreateContentUnit(exec, common.CT_BLOG_POST, map[string]interface{}{
 				"film_date":         filmDate,
-				"original_language": StdLang(r.Metadata.Language),
+				"original_language": common.StdLang(r.Metadata.Language),
 			})
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "Create declamation content unit")

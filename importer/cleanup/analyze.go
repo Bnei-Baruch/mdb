@@ -2,21 +2,24 @@ package cleanup
 
 import (
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/api"
 	"regexp"
+	"runtime/debug"
 	"time"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
+	"github.com/Bnei-Baruch/mdb/importer"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
-const CLIP_COLLECTION_UID = ""
+const CLIP_COLLECTION_UID = "MISCCLIP"
 
 func Analyze() {
 	clock, _ := Init()
@@ -81,7 +84,7 @@ func doImport() error {
 
 	for k, v := range alerts {
 		if err := doImportAlert(v, c); err != nil {
-			return errors.WithMessage(err, fmt.Sprintf("import alert cu [%d]", k))
+			return errors.WithMessagef(err, "import alert cu [%d]", k)
 		}
 	}
 
@@ -184,11 +187,129 @@ func dumpExcel(alerts map[int64]*CUAnalysis) error {
 
 func doImportAlert(cu *CUAnalysis, clipsCollection *models.Collection) error {
 	// group clip files by name stripped from language and extension
+	fileGroups := make(map[string][]*models.File)
+	for i := range cu.clipFiles {
+		k := importer.NormalizedFileName(cu.clipFiles[i].Name)
+		fileGroups[k] = append(fileGroups[k], cu.clipFiles[i])
+	}
+	log.Infof("CU [%d] has %d clips file groups", cu.ID, len(fileGroups))
 
 	// for each group, create a new, sensitive, derived unit
 	// associate the files with that unit
 	// associate the unit with the clips collection
+	for k, v := range fileGroups {
+		log.Infof("\t%s\t%d", k, len(v))
 
+		filmDates := make(map[string]int)
+		langs := make(map[string]int)
+		for i := range v {
+			line := importer.ParseLine(v[i].Name)
+
+			if line.Language == "" {
+				log.Warnf("Empty language, [%d] %s", v[i].ID, v[i].Name)
+			}
+			langs[line.Language]++
+
+			if line.FilmDate == "" {
+				log.Warnf("Empty film_date, [%d] %s", v[i].ID, v[i].Name)
+			}
+			filmDates[line.FilmDate]++
+		}
+
+		props := make(map[string]interface{})
+
+		if len(filmDates) != 1 {
+			log.Warnf("Unexpected number of film_date %d", len(filmDates))
+			props["film_date"] = "1970-01-01"
+		} else {
+			for k := range filmDates {
+				props["film_date"] = k
+				break
+			}
+		}
+
+		if len(langs) == 0 {
+			log.Warn("No languages")
+		} else if len(langs) == 1 {
+			for k := range langs {
+				props["original_language"] = common.StdLang(k)
+				break
+			}
+		} else {
+			props["original_language"] = common.LANG_UNKNOWN
+		}
+
+		tx, err := mdb.Begin()
+		utils.Must(err)
+
+		clipCU, err := api.CreateContentUnit(tx, common.CT_CLIP, props)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			log.Error(err)
+			debug.PrintStack()
+			continue
+		}
+		log.Infof("New CU ID is %d", clipCU.ID)
+
+		clipCU.Secure = common.SEC_SENSITIVE
+		err = clipCU.Update(tx, "secure")
+		if err != nil {
+			utils.Must(tx.Rollback())
+			log.Error(err)
+			debug.PrintStack()
+			continue
+		}
+
+		i18ns := make([]*models.ContentUnitI18n, 0)
+		//for k, v := range names {
+		for _, lang := range [...]string{common.LANG_HEBREW, common.LANG_ENGLISH, common.LANG_RUSSIAN, common.LANG_SPANISH} {
+			i18n := &models.ContentUnitI18n{
+				ContentUnitID: clipCU.ID,
+				Language:      lang,
+				Name:          null.StringFrom(k),
+			}
+			i18ns = append(i18ns, i18n)
+		}
+		err = clipCU.AddContentUnitI18ns(tx, true, i18ns...)
+		if err != nil {
+			return errors.Wrap(err, "Save to DB")
+		}
+
+		err = clipCU.AddFiles(tx, false, v...)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			log.Error(err)
+			debug.PrintStack()
+			continue
+		}
+
+		cud := &models.ContentUnitDerivation{
+			SourceID: cu.ID,
+			Name:     k,
+		}
+		err = clipCU.AddDerivedContentUnitDerivations(tx, true, cud)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			log.Error(err)
+			debug.PrintStack()
+			continue
+		}
+
+		ccu := &models.CollectionsContentUnit{
+			CollectionID:  clipsCollection.ID,
+			ContentUnitID: clipCU.ID,
+		}
+
+		err = clipsCollection.AddCollectionsContentUnits(tx, true, ccu)
+		if err != nil {
+			utils.Must(tx.Rollback())
+			log.Error(err)
+			debug.PrintStack()
+			continue
+		}
+
+		utils.Must(tx.Commit())
+	}
 
 	return nil
 }

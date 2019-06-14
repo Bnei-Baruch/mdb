@@ -55,7 +55,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 	props := map[string]interface{}{
 		"capture_date":      metadata.CaptureDate,
 		"film_date":         filmDate,
-		"original_language": StdLang(metadata.Language),
+		"original_language": common.StdLang(metadata.Language),
 	}
 	log.Infof("Updating files properties: %v", props)
 	err := UpdateFileProperties(exec, original, props)
@@ -76,7 +76,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 	if metadata.HasTranslation {
 		original.Language = null.StringFrom(common.LANG_MULTI)
 	} else {
-		l := StdLang(metadata.Language)
+		l := common.StdLang(metadata.Language)
 		if l == common.LANG_UNKNOWN {
 			log.Warnf("Unknown language in metadata %s", metadata.Language)
 		}

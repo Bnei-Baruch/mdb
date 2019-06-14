@@ -263,7 +263,7 @@ func importContainer(exec boil.Executor,
 	}
 	props["kmedia_id"] = container.ID
 	if container.LangID.Valid {
-		props["original_language"] = api.StdLang(container.LangID.String)
+		props["original_language"] = common.StdLang(container.LangID.String)
 	}
 	if container.Filmdate.Valid {
 		props["film_date"] = container.Filmdate.Time.Format("2006-01-02")

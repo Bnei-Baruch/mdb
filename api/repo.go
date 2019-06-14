@@ -413,7 +413,7 @@ func makeFile(parent *models.File, f File, properties map[string]interface{}) (*
 	// Standardize and validate language
 	var mdbLang = ""
 	if f.Language != "" {
-		mdbLang = StdLang(f.Language)
+		mdbLang = common.StdLang(f.Language)
 		if mdbLang == common.LANG_UNKNOWN && f.Language != common.LANG_UNKNOWN {
 			return nil, errors.Errorf("Unknown language %s", f.Language)
 		}
@@ -762,25 +762,6 @@ func FindTagPath(exec boil.Executor, id int64) ([]*models.Tag, error) {
 	}
 
 	return ancestors, nil
-}
-
-// Return standard language or LANG_UNKNOWN
-//
-// 	if len(lang) = 2 we assume it's an MDB language code and check KNOWN_LANGS.
-// 	if len(lang) = 3 we assume it's a workflow / kmedia lang code and check LANG_MAP.
-func StdLang(lang string) string {
-	switch len(lang) {
-	case 2:
-		if l := strings.ToLower(lang); common.KNOWN_LANGS.MatchString(l) {
-			return l
-		}
-	case 3:
-		if l, ok := common.LANG_MAP[strings.ToUpper(lang)]; ok {
-			return l
-		}
-	}
-
-	return common.LANG_UNKNOWN
 }
 
 type UIDChecker interface {

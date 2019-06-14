@@ -2,19 +2,17 @@ package ffprobe
 
 import (
 	"encoding/hex"
-	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/Bnei-Baruch/mdb/models"
 	log "github.com/Sirupsen/logrus"
 	"github.com/agnivade/levenshtein"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"github.com/Bnei-Baruch/mdb/common"
+	"github.com/Bnei-Baruch/mdb/importer"
+	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
@@ -45,46 +43,6 @@ func (d *FFPData) ToMap() map[string]interface{} {
 type AugmentedFile struct {
 	*models.File
 	*FFPData
-}
-
-var LANG_RE *regexp.Regexp
-var OT_RE = regexp.MustCompile("(?i)^[ot]$")
-var BITRATE_RE = regexp.MustCompile("(?i)^(24k|96k|128k|hd)$")
-
-func init() {
-	i := 0
-	keys := make([]string, len(common.LANG_MAP)-1)
-	for k := range common.LANG_MAP {
-		if k == "" {
-			continue
-		}
-		keys[i] = k
-		i++
-	}
-	LANG_RE = regexp.MustCompile(fmt.Sprintf("(?i)^(%s)$", strings.Join(keys, "|")))
-}
-
-func (af *AugmentedFile) NormalizedName() string {
-	name := af.Name
-
-	if idx := strings.LastIndex(name, "."); idx > 0 {
-		name = name[:idx]
-	}
-
-	parts := strings.Split(name, "_")
-	for i := range parts {
-		part := strings.TrimSpace(parts[i])
-		if OT_RE.MatchString(part) {
-			parts[i] = "ot"
-		} else if BITRATE_RE.MatchString(part) {
-			parts[i] = "br"
-		} else if LANG_RE.MatchString(part) {
-			parts[i] = "lang"
-		}
-	}
-
-	name = strings.Join(parts, "_")
-	return strings.Replace(name, "_br", "", -1)
 }
 
 func Analyze() {
@@ -184,7 +142,7 @@ func compareWithMDB(ffpData map[string]*FFPData) error {
 
 		filesByPattern := make(map[string][]*AugmentedFile)
 		for i := range augFiles {
-			k := augFiles[i].NormalizedName()
+			k := importer.NormalizedFileName(augFiles[i].Name)
 			v, ok := filesByPattern[k]
 			if !ok {
 				v = make([]*AugmentedFile, 0)

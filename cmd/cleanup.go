@@ -15,4 +15,13 @@ func init() {
 		},
 	}
 	RootCmd.AddCommand(command)
+
+	command = &cobra.Command{
+		Use:   "cleanup-import",
+		Short: "Split clips from non clip content units",
+		Run: func(cmd *cobra.Command, args []string) {
+			cleanup.Import()
+		},
+	}
+	RootCmd.AddCommand(command)
 }

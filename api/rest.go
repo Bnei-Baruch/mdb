@@ -60,7 +60,7 @@ func CollectionsListHandler(c *gin.Context) {
 		}
 
 		for _, x := range collection.I18n {
-			if StdLang(x.Language) == common.LANG_UNKNOWN {
+			if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 				err := errors.Errorf("Unknown language %s", x.Language)
 				NewBadRequestError(err).Abort(c)
 				return
@@ -132,7 +132,7 @@ func CollectionI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == common.LANG_UNKNOWN {
+		if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -254,7 +254,7 @@ func ContentUnitsListHandler(c *gin.Context) {
 		}
 
 		for _, x := range unit.I18n {
-			if StdLang(x.Language) == common.LANG_UNKNOWN {
+			if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 				err := errors.Errorf("Unknown language %s", x.Language)
 				NewBadRequestError(err).Abort(c)
 				return
@@ -318,7 +318,7 @@ func ContentUnitI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == common.LANG_UNKNOWN {
+		if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -914,7 +914,7 @@ func SourcesHandler(c *gin.Context) {
 			}
 
 			for _, x := range r.Source.I18n {
-				if StdLang(x.Language) == common.LANG_UNKNOWN {
+				if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 					err := errors.Errorf("Unknown language %s", x.Language)
 					NewBadRequestError(err).Abort(c)
 					return
@@ -994,7 +994,7 @@ func SourceI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == common.LANG_UNKNOWN {
+		if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -1039,7 +1039,7 @@ func TagsHandler(c *gin.Context) {
 			}
 
 			for _, x := range t.I18n {
-				if StdLang(x.Language) == common.LANG_UNKNOWN {
+				if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 					NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 					return
 				}
@@ -1118,7 +1118,7 @@ func TagI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == common.LANG_UNKNOWN {
+		if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -1164,7 +1164,7 @@ func PersonsListHandler(c *gin.Context) {
 		}
 
 		for _, x := range person.I18n {
-			if StdLang(x.Language) == common.LANG_UNKNOWN {
+			if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 				err := errors.Errorf("Unknown language %s", x.Language)
 				NewBadRequestError(err).Abort(c)
 				return
@@ -1255,7 +1255,7 @@ func PersonI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == common.LANG_UNKNOWN {
+		if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}
@@ -1301,7 +1301,7 @@ func PublishersHandler(c *gin.Context) {
 		}
 
 		for _, x := range publisher.I18n {
-			if StdLang(x.Language) == common.LANG_UNKNOWN {
+			if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 				err := errors.Errorf("Unknown language %s", x.Language)
 				NewBadRequestError(err).Abort(c)
 				return
@@ -1380,7 +1380,7 @@ func PublisherI18nHandler(c *gin.Context) {
 		return
 	}
 	for _, x := range i18ns {
-		if StdLang(x.Language) == common.LANG_UNKNOWN {
+		if common.StdLang(x.Language) == common.LANG_UNKNOWN {
 			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
 			return
 		}

@@ -320,7 +320,7 @@ func splitArticlesToPublications(publishersMap map[string]*models.Publisher) err
 			utils.Must(err)
 
 			pCU, err := api.CreateContentUnit(tx, common.CT_PUBLICATION, map[string]interface{}{
-				"original_language": api.StdLang(f.Language.String),
+				"original_language": common.StdLang(f.Language.String),
 			})
 			if err != nil {
 				utils.Must(tx.Rollback())
