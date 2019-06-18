@@ -133,13 +133,19 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 		Station: null.StringFrom(o.Station),
 	}
 
-	// Lookup user, skip if doesn't exist
+	// Lookup user, create new if missing
 	user, err := models.Users(exec, qm.Where("email=?", o.User)).One()
 	if err == nil {
 		operation.UserID = null.Int64From(user.ID)
 	} else {
 		if err == sql.ErrNoRows {
-			log.Debugf("Unknown User [%s]. Skipping.", o.User)
+			log.Debugf("Unknown User [%s]. Creating new.", o.User)
+			user = &models.User{
+				Email: o.User,
+			}
+			if err := user.Insert(exec); err != nil {
+				return nil, errors.Wrap(err, "Create new user")
+			}
 		} else {
 			return nil, errors.Wrap(err, "Check user exists")
 		}

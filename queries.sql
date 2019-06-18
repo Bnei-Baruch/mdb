@@ -1169,6 +1169,15 @@ WHERE c.secure = 0
   AND ccu.content_unit_id IS NULL
 ORDER BY c.created_at;
 
+-- Unpublished CU's with published files
+SELECT cu.id, cu.uid, ct.name, cu.created_at, cu.properties
+FROM content_units cu
+         INNER JOIN content_types ct ON cu.type_id = ct.id
+         LEFT JOIN files f ON cu.id = f.content_unit_id AND f.published IS TRUE
+WHERE cu.published IS FALSE
+  AND f.id IS NOT NULL
+ORDER BY cu.created_at;
+
 -- kmedia containers mapped to more than one CU
 SELECT properties ->> 'kmedia_id', array_agg(DISTINCT id)
 FROM content_units

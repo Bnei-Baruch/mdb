@@ -1217,7 +1217,7 @@ func (suite *HandlersSuite) TestHandleInsertDeclamation() {
 	err = cu.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
 	suite.Equal(input.Metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "cu.Properties[\"capture_date\"]")
-	suite.Equal(StdLang(input.Metadata.Language), props["original_language"], "cu.Properties[\"original_language\"]")
+	suite.Equal(common.StdLang(input.Metadata.Language), props["original_language"], "cu.Properties[\"original_language\"]")
 	suite.Equal(int(input.AVFile.Duration), int(props["duration"].(float64)), "cu.Properties[\"duration\"]")
 }
 
