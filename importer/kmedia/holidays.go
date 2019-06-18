@@ -2,6 +2,7 @@ package kmedia
 
 import (
 	"encoding/json"
+	"github.com/Bnei-Baruch/mdb/common"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -10,18 +11,18 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/hebcal"
+	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 )
 
 var knownKMContentTypes = map[int]string{
-	1: api.CT_VIDEO_PROGRAM_CHAPTER,
-	4: api.CT_LESSON_PART,
-	5: api.CT_LECTURE,
-	16: api.CT_FRIENDS_GATHERING,
-	17: api.CT_VIRTUAL_LESSON,
-	18: api.CT_MEAL,
+	1:  common.CT_VIDEO_PROGRAM_CHAPTER,
+	4:  common.CT_LESSON_PART,
+	5:  common.CT_LECTURE,
+	16: common.CT_FRIENDS_GATHERING,
+	17: common.CT_VIRTUAL_LESSON,
+	18: common.CT_MEAL,
 }
 
 type HolidayCollection struct {
@@ -157,7 +158,7 @@ func loadAndImportMissingHolidayCollections() (map[int]*models.Collection, error
 	}
 
 	cs, err := models.Collections(mdb,
-		qm.Where("type_id = ?", api.CONTENT_TYPE_REGISTRY.ByName[api.CT_HOLIDAY].ID)).
+		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_HOLIDAY].ID)).
 		All()
 	if err != nil {
 		return nil, errors.Wrap(err, "Load collections")
@@ -197,7 +198,7 @@ func loadAndImportMissingHolidayCollections() (map[int]*models.Collection, error
 			"end_date":    end,
 		}
 		log.Infof("Create collection %v", props)
-		c, err := api.CreateCollection(mdb, api.CT_HOLIDAY, props)
+		c, err := api.CreateCollection(mdb, common.CT_HOLIDAY, props)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Create collection %v", props)
 		}
@@ -213,7 +214,7 @@ func loadAndImportMissingHolidayCollections() (map[int]*models.Collection, error
 			if d.Name.Valid && d.Name.String != "" {
 				ci18n := models.CollectionI18n{
 					CollectionID: c.ID,
-					Language:     api.LANG_MAP[d.LangID.String],
+					Language:     common.LANG_MAP[d.LangID.String],
 					Name:         d.Name,
 				}
 				err = ci18n.Upsert(mdb,
@@ -244,7 +245,7 @@ func importHolidaysContainers(csMAp map[int]*models.Collection) error {
 		cu, ok := cuMap[cnID]
 		if ok {
 			// update - for tags
-			cu, err = importContainer(tx, cn, nil, api.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name, "", 0)
+			cu, err = importContainer(tx, cn, nil, common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name, "", 0)
 			if err != nil {
 				utils.Must(tx.Rollback())
 				return errors.Wrapf(err, "Import existing container %d", cnID)

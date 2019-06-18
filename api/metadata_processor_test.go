@@ -15,6 +15,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -27,7 +28,7 @@ type MetadataProcessorSuite struct {
 
 func (suite *MetadataProcessorSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(suite.DB))
+	suite.Require().Nil(common.InitTypeRegistries(suite.DB))
 }
 
 func (suite *MetadataProcessorSuite) TearDownSuite() {
@@ -59,11 +60,11 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	// send kitei makor of part 1
 
 	metadata := CITMetadata{
-		ContentType:    CT_LESSON_PART,
+		ContentType:    common.CT_LESSON_PART,
 		AutoName:       "auto_name",
 		FinalName:      "final_name",
 		CaptureDate:    Date{time.Now()},
-		Language:       LANG_HEBREW,
+		Language:       common.LANG_HEBREW,
 		HasTranslation: true,
 		Lecturer:       "rav",
 		Number:         null.IntFrom(1),
@@ -101,7 +102,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	err = ccu.L.LoadCollection(suite.tx, true, ccu)
 	suite.Require().Nil(err)
 	c := ccu.R.Collection
-	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	var props map[string]interface{}
 	err = json.Unmarshal(c.Properties.JSON, &props)
@@ -145,7 +146,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	}
 
 	// process full
-	metadata.ContentType = CT_FULL_LESSON
+	metadata.ContentType = common.CT_FULL_LESSON
 	metadata.Part = null.NewInt(0, false)
 	metadata.Sources = nil
 	metadata.Tags = nil
@@ -183,7 +184,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Require().NotNil(evnts)
 	err = c.Reload(suite.tx)
 	suite.Require().Nil(err)
-	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SPECIAL_LESSON].ID, c.TypeID, "c.TypeID")
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
@@ -193,7 +194,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
 
 	// process kitei makor for part 1
-	metadata.ContentType = CT_LESSON_PART
+	metadata.ContentType = common.CT_LESSON_PART
 	metadata.Part = null.IntFrom(1)
 	metadata.ArtifactType = null.StringFrom("kitei_makor")
 	metadata.WeekDate = nil
@@ -234,7 +235,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	// no changes to collection
 	err = c.Reload(suite.tx)
 	suite.Require().Nil(err)
-	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_SPECIAL_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SPECIAL_LESSON].ID, c.TypeID, "c.TypeID")
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
@@ -253,11 +254,11 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	// send lelo mikud of all parts
 
 	metadata := CITMetadata{
-		ContentType:    CT_LESSON_PART,
+		ContentType:    common.CT_LESSON_PART,
 		AutoName:       "auto_name",
 		FinalName:      "final_name",
 		CaptureDate:    Date{time.Now()},
-		Language:       LANG_HEBREW,
+		Language:       common.LANG_HEBREW,
 		HasTranslation: true,
 		Lecturer:       "rav",
 		Number:         null.IntFrom(1),
@@ -295,7 +296,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	err = ccu.L.LoadCollection(suite.tx, true, ccu)
 	suite.Require().Nil(err)
 	c := ccu.R.Collection
-	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	var props map[string]interface{}
 	err = json.Unmarshal(c.Properties.JSON, &props)
@@ -339,7 +340,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	}
 
 	// process full
-	metadata.ContentType = CT_FULL_LESSON
+	metadata.ContentType = common.CT_FULL_LESSON
 	metadata.Part = null.NewInt(0, false)
 	metadata.Sources = nil
 	metadata.Tags = nil
@@ -372,7 +373,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 
 	// process kitei makor for all parts
 	for i := 0; i < 4; i++ {
-		metadata.ContentType = CT_LESSON_PART
+		metadata.ContentType = common.CT_LESSON_PART
 		metadata.Part = null.IntFrom(i)
 		metadata.ArtifactType = null.StringFrom("kitei_makor")
 		metadata.WeekDate = nil
@@ -413,7 +414,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		// no changes to collection
 		err = c.Reload(suite.tx)
 		suite.Require().Nil(err)
-		suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
+		suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
 		suite.True(c.Properties.Valid, "c.Properties.Valid")
 		err = json.Unmarshal(c.Properties.JSON, &props)
 		suite.Require().Nil(err)
@@ -425,7 +426,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 
 	// process lelo mikud for all parts
 	for i := 0; i < 4; i++ {
-		metadata.ContentType = CT_LESSON_PART
+		metadata.ContentType = common.CT_LESSON_PART
 		metadata.Part = null.IntFrom(i)
 		metadata.ArtifactType = null.StringFrom("lelo_mikud")
 		metadata.WeekDate = nil
@@ -466,7 +467,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		// no changes to collection
 		err = c.Reload(suite.tx)
 		suite.Require().Nil(err)
-		suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
+		suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
 		suite.True(c.Properties.Valid, "c.Properties.Valid")
 		err = json.Unmarshal(c.Properties.JSON, &props)
 		suite.Require().Nil(err)
@@ -484,11 +485,11 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	// send part 1
 
 	metadata := CITMetadata{
-		ContentType:    CT_LESSON_PART,
+		ContentType:    common.CT_LESSON_PART,
 		AutoName:       "auto_name",
 		FinalName:      "final_name",
 		CaptureDate:    Date{time.Now()},
-		Language:       LANG_HEBREW,
+		Language:       common.LANG_HEBREW,
 		HasTranslation: true,
 		Lecturer:       "rav",
 		Number:         null.IntFrom(1),
@@ -575,7 +576,7 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	err = ccu.L.LoadCollection(suite.tx, true, ccu)
 	suite.Require().Nil(err)
 	c := ccu.R.Collection
-	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
+	suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
 	suite.True(c.Properties.Valid, "c.Properties.Valid")
 	err = json.Unmarshal(c.Properties.JSON, &props)
 	suite.Require().Nil(err)
@@ -590,15 +591,15 @@ func (suite *MetadataProcessorSuite) TestVideoProgram() {
 	tf := suite.simulateSimpleChain()
 	original, proxy := tf.Original, tf.Proxy
 
-	c, err := CreateCollection(suite.tx, CT_VIDEO_PROGRAM, nil)
+	c, err := CreateCollection(suite.tx, common.CT_VIDEO_PROGRAM, nil)
 	suite.Require().Nil(err)
 
 	metadata := CITMetadata{
-		ContentType:    CT_VIDEO_PROGRAM_CHAPTER,
+		ContentType:    common.CT_VIDEO_PROGRAM_CHAPTER,
 		AutoName:       "auto_name",
 		FinalName:      "final_name",
 		CaptureDate:    Date{time.Now()},
-		Language:       LANG_HEBREW,
+		Language:       common.LANG_HEBREW,
 		HasTranslation: false,
 		Lecturer:       "norav",
 		CollectionUID:  null.StringFrom(c.UID),
@@ -635,10 +636,10 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 	tf := suite.simulateSimpleChain()
 	original, proxy := tf.Original, tf.Proxy
 
-	EVENT_TYPES := [...]string{CT_CONGRESS, CT_HOLIDAY, CT_PICNIC, CT_UNITY_DAY}
-	EVENT_PART_TYPES := [...]string{CT_FRIENDS_GATHERING, CT_MEAL,
-		CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART,
-		CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART, CT_EVENT_PART}
+	EVENT_TYPES := [...]string{common.CT_CONGRESS, common.CT_HOLIDAY, common.CT_PICNIC, common.CT_UNITY_DAY}
+	EVENT_PART_TYPES := [...]string{common.CT_FRIENDS_GATHERING, common.CT_MEAL,
+		common.CT_EVENT_PART, common.CT_EVENT_PART, common.CT_EVENT_PART, common.CT_EVENT_PART,
+		common.CT_EVENT_PART, common.CT_EVENT_PART, common.CT_EVENT_PART, common.CT_EVENT_PART}
 
 	for _, eventType := range EVENT_TYPES {
 		c, err := CreateCollection(suite.tx, eventType, nil)
@@ -650,7 +651,7 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 				AutoName:       "auto_name",
 				FinalName:      "final_name",
 				CaptureDate:    Date{time.Now()},
-				Language:       LANG_HEBREW,
+				Language:       common.LANG_HEBREW,
 				HasTranslation: true,
 				CollectionUID:  null.StringFrom(c.UID),
 				Number:         null.IntFrom(i + 1),
@@ -691,7 +692,7 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 			if i < 3 {
 				suite.Equal(strconv.Itoa(metadata.Number.Int), ccu.Name, "ccu.Name")
 			} else {
-				suite.Equal(MISC_EVENT_PART_TYPES[i-3]+strconv.Itoa(metadata.Number.Int),
+				suite.Equal(common.MISC_EVENT_PART_TYPES[i-3]+strconv.Itoa(metadata.Number.Int),
 					ccu.Name, "ccu.Name")
 			}
 			suite.Equal(i, ccu.Position, "ccu.Position")
@@ -702,7 +703,7 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	chain := suite.simulateLessonChain()
 
-	eventType := CT_CONGRESS
+	eventType := common.CT_CONGRESS
 	eventCollection, err := CreateCollection(suite.tx, eventType, nil)
 	suite.Require().Nil(err)
 
@@ -710,11 +711,11 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	// send full
 
 	metadata := CITMetadata{
-		ContentType:    CT_LESSON_PART,
+		ContentType:    common.CT_LESSON_PART,
 		AutoName:       "auto_name",
 		FinalName:      "final_name",
 		CaptureDate:    Date{time.Now()},
-		Language:       LANG_HEBREW,
+		Language:       common.LANG_HEBREW,
 		HasTranslation: true,
 		Lecturer:       "rav",
 		CollectionUID:  null.StringFrom(eventCollection.UID),
@@ -752,13 +753,13 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 		ccu := cu.R.CollectionsContentUnits[i]
 		err = ccu.L.LoadCollection(suite.tx, true, ccu)
 		suite.Require().Nil(err)
-		switch CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
-		case CT_DAILY_LESSON:
+		switch common.CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
+		case common.CT_DAILY_LESSON:
 			lccu = ccu
 		case eventType:
 			eccu = ccu
 		default:
-			suite.FailNow("ccu.collection type %s", CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
+			suite.FailNow("ccu.collection type %s", common.CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
 		}
 	}
 
@@ -766,7 +767,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	suite.Equal("0", lccu.Name, "lccu.Name")
 	suite.Equal(0, lccu.Position, "lccu.Position")
 	lessonCollection := lccu.R.Collection
-	suite.Equal(CONTENT_TYPE_REGISTRY.ByName[CT_DAILY_LESSON].ID, lessonCollection.TypeID, "c.TypeID")
+	suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID, lessonCollection.TypeID, "c.TypeID")
 	suite.True(lessonCollection.Properties.Valid, "c.Properties.Valid")
 	var props map[string]interface{}
 	err = json.Unmarshal(lessonCollection.Properties.JSON, &props)
@@ -814,13 +815,13 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 			ccu := cu.R.CollectionsContentUnits[j]
 			err = ccu.L.LoadCollection(suite.tx, true, ccu)
 			suite.Require().Nil(err)
-			switch CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
-			case CT_DAILY_LESSON:
+			switch common.CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
+			case common.CT_DAILY_LESSON:
 				lccu = ccu
 			case eventType:
 				eccu = ccu
 			default:
-				suite.FailNow("ccu.collection type %s", CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
+				suite.FailNow("ccu.collection type %s", common.CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
 			}
 		}
 
@@ -835,7 +836,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	}
 
 	// process full
-	metadata.ContentType = CT_FULL_LESSON
+	metadata.ContentType = common.CT_FULL_LESSON
 	metadata.Part = null.NewInt(0, false)
 	metadata.Sources = nil
 	metadata.Tags = nil
@@ -869,13 +870,13 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 		ccu := cu.R.CollectionsContentUnits[j]
 		err = ccu.L.LoadCollection(suite.tx, true, ccu)
 		suite.Require().Nil(err)
-		switch CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
-		case CT_DAILY_LESSON:
+		switch common.CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
+		case common.CT_DAILY_LESSON:
 			lccu = ccu
 		case eventType:
 			eccu = ccu
 		default:
-			suite.FailNow("ccu.collection type %s", CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
+			suite.FailNow("ccu.collection type %s", common.CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name)
 		}
 	}
 
@@ -900,11 +901,11 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	// send lelo mikud of all parts
 
 	metadata := CITMetadata{
-		ContentType:    CT_LESSON_PART,
+		ContentType:    common.CT_LESSON_PART,
 		AutoName:       "auto_name",
 		FinalName:      "final_name",
 		CaptureDate:    Date{time.Now()},
-		Language:       LANG_HEBREW,
+		Language:       common.LANG_HEBREW,
 		HasTranslation: true,
 		Lecturer:       "rav",
 		Number:         null.IntFrom(1),
@@ -932,7 +933,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	}
 
 	// process full
-	metadata.ContentType = CT_FULL_LESSON
+	metadata.ContentType = common.CT_FULL_LESSON
 	metadata.Part = null.NewInt(0, false)
 	metadata.Sources = nil
 	metadata.Tags = nil
@@ -944,7 +945,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 
 	// process kitei makor for all parts
 	for i := 0; i < 4; i++ {
-		metadata.ContentType = CT_LESSON_PART
+		metadata.ContentType = common.CT_LESSON_PART
 		metadata.Part = null.IntFrom(i)
 		metadata.ArtifactType = null.StringFrom("kitei_makor")
 		metadata.WeekDate = nil
@@ -957,7 +958,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 
 	// process lelo mikud for all parts
 	for i := 0; i < 4; i++ {
-		metadata.ContentType = CT_LESSON_PART
+		metadata.ContentType = common.CT_LESSON_PART
 		metadata.Part = null.IntFrom(i)
 		metadata.ArtifactType = null.StringFrom("lelo_mikud")
 		metadata.WeekDate = nil
@@ -976,11 +977,11 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	suite.Require().Nil(err)
 
 	metadata.UnitToFixUID = null.StringFrom(cu.UID)
-	metadata.ContentType = CT_CLIP
+	metadata.ContentType = common.CT_CLIP
 	metadata.ArtifactType = null.NewString("", false)
 	metadata.AutoName = "auto_name_update"
 	metadata.FinalName = "final_name_update"
-	metadata.Language = LANG_ENGLISH
+	metadata.Language = common.LANG_ENGLISH
 	metadata.HasTranslation = false
 	metadata.Lecturer = "norav"
 	metadata.Sources = suite.someSources()
@@ -1047,7 +1048,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 			Sha1:      CS_SHA1,
 			Size:      98737,
 			CreatedAt: &Timestamp{Time: time.Now()},
-			Language:  LANG_HEBREW,
+			Language:  common.LANG_HEBREW,
 		},
 		CaptureSource: "mltcap",
 		CollectionUID: "c12356789",
@@ -1181,7 +1182,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			Sha1:      CS_SHA1[4],
 			Size:      98737,
 			CreatedAt: &Timestamp{Time: time.Now()},
-			Language:  LANG_MULTI,
+			Language:  common.LANG_MULTI,
 		},
 		CaptureSource: "mltbackup",
 		CollectionUID: "c12356789",
@@ -1202,7 +1203,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 				Sha1:      CS_SHA1[i],
 				Size:      int64(i),
 				CreatedAt: &Timestamp{Time: time.Now()},
-				Language:  LANG_MULTI,
+				Language:  common.LANG_MULTI,
 			},
 			CaptureSource: "mltcap",
 			CollectionUID: "c12356789",
@@ -1452,7 +1453,7 @@ func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]Tri
 			Sha1:      CS_SHA1[0],
 			Size:      98737,
 			CreatedAt: &Timestamp{Time: time.Now()},
-			Language:  LANG_MULTI,
+			Language:  common.LANG_MULTI,
 		},
 		CaptureSource: "mltbackup",
 		CollectionUID: "c12356789",
@@ -1471,7 +1472,7 @@ func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]Tri
 			Sha1:      CS_SHA1[1],
 			Size:      int64(1),
 			CreatedAt: &Timestamp{Time: time.Now()},
-			Language:  LANG_MULTI,
+			Language:  common.LANG_MULTI,
 		},
 		CaptureSource: "mltcap",
 		CollectionUID: "c12356789",
@@ -1706,8 +1707,8 @@ func (suite *MetadataProcessorSuite) simulateConvertUpload(original *models.File
 	files := make(map[string]*models.File)
 
 	originalSha1 := hex.EncodeToString(original.Sha1.Bytes)
-	for _, lang := range ALL_LANGS {
-		if lang == LANG_UNKNOWN || lang == LANG_MULTI {
+	for _, lang := range common.ALL_LANGS {
+		if lang == common.LANG_UNKNOWN || lang == common.LANG_MULTI {
 			continue
 		}
 
@@ -1821,7 +1822,7 @@ func (suite *MetadataProcessorSuite) assertFiles(metadata CITMetadata, original,
 	//}
 	var lang string
 	if metadata.HasTranslation {
-		lang = LANG_MULTI
+		lang = common.LANG_MULTI
 	} else {
 		lang = StdLang(metadata.Language)
 	}
@@ -1860,7 +1861,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	}
 
 	// properties
-	suite.Equal(cu.TypeID, CONTENT_TYPE_REGISTRY.ByName[ct].ID, "cu.type_id")
+	suite.Equal(cu.TypeID, common.CONTENT_TYPE_REGISTRY.ByName[ct].ID, "cu.type_id")
 
 	capDate := metadata.CaptureDate
 	filmDate := metadata.CaptureDate
@@ -1942,8 +1943,8 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	if metadata.Lecturer == "rav" {
 		suite.Require().Len(cu.R.ContentUnitsPersons, 1, "cu.R.ContentUnitsPersons Length")
 		cup := cu.R.ContentUnitsPersons[0]
-		suite.Equal(PERSON_REGISTRY.ByPattern[P_RAV].ID, cup.PersonID, "cup.PersonID")
-		suite.Equal(CONTENT_ROLE_TYPE_REGISTRY.ByName[CR_LECTURER].ID, cup.RoleID, "cup.PersonID")
+		suite.Equal(common.PERSON_REGISTRY.ByPattern[common.P_RAV].ID, cup.PersonID, "cup.PersonID")
+		suite.Equal(common.CONTENT_ROLE_TYPE_REGISTRY.ByName[common.CR_LECTURER].ID, cup.RoleID, "cup.PersonID")
 	} else {
 		suite.Empty(cu.R.ContentUnitsPersons, "Empty cu.R.ContentUnitsPersons")
 	}

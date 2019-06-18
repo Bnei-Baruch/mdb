@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -21,7 +22,7 @@ type AutonameSuite struct {
 
 func (suite *AutonameSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(suite.DB))
+	suite.Require().Nil(common.InitTypeRegistries(suite.DB))
 }
 
 func (suite *AutonameSuite) TearDownSuite() {
@@ -49,8 +50,8 @@ func (suite *AutonameSuite) TestGenericDescriberCollection() {
 	describer := new(GenericDescriber)
 	c := new(models.Collection)
 
-	for _, x := range ALL_CONTENT_TYPES {
-		c.TypeID = CONTENT_TYPE_REGISTRY.ByName[x].ID
+	for _, x := range common.ALL_CONTENT_TYPES {
+		c.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[x].ID
 		names, err := GetI18ns(fmt.Sprintf("content_type.%s", x))
 		suite.Require().Nil(err)
 		i18ns, err := describer.DescribeCollection(c)
@@ -66,19 +67,19 @@ func (suite *AutonameSuite) TestGenericDescriberContentUnit() {
 	describer := new(GenericDescriber)
 	cu := new(models.ContentUnit)
 
-	for _, x := range ALL_CONTENT_TYPES {
+	for _, x := range common.ALL_CONTENT_TYPES {
 		metadata := CITMetadata{
 			FinalName: "final_name",
 		}
-		cu.TypeID = CONTENT_TYPE_REGISTRY.ByName[x].ID
+		cu.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[x].ID
 		i18ns, err := describer.DescribeContentUnit(suite.tx, cu, metadata)
 		suite.Require().Nil(err)
 		for _, i18n := range i18ns {
-			if x == CT_KITEI_MAKOR ||
-				x == CT_LELO_MIKUD ||
-				x == CT_FULL_LESSON ||
-				x == CT_PUBLICATION ||
-				x == CT_RESEARCH_MATERIAL {
+			if x == common.CT_KITEI_MAKOR ||
+				x == common.CT_LELO_MIKUD ||
+				x == common.CT_FULL_LESSON ||
+				x == common.CT_PUBLICATION ||
+				x == common.CT_RESEARCH_MATERIAL {
 				suite.Equal(metadata.FinalName, i18n.Name.String, "%s techincal name", i18n.Language)
 				suite.Len(i18ns, 3, "len(i18ns)")
 			} else {
@@ -91,15 +92,15 @@ func (suite *AutonameSuite) TestGenericDescriberContentUnit() {
 }
 
 func (suite *AutonameSuite) TestLessonPartDescriber() {
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
 	metadata := CITMetadata{
-		ContentType:    CT_LESSON_PART,
+		ContentType:    common.CT_LESSON_PART,
 		AutoName:       "auto_name",
 		FinalName:      "final_name",
 		CaptureDate:    Date{time.Now()},
-		Language:       LANG_HEBREW,
+		Language:       common.LANG_HEBREW,
 		HasTranslation: true,
 		Lecturer:       "rav",
 		Number:         null.IntFrom(1),
@@ -112,13 +113,13 @@ func (suite *AutonameSuite) TestLessonPartDescriber() {
 	suite.NotEmpty(i18ns, "i18ns.empty")
 	for _, i18n := range i18ns {
 		switch i18n.Language {
-		case LANG_HEBREW:
+		case common.LANG_HEBREW:
 			suite.Equal("הכנה לשיעור", i18n.Name.String, "Hebrew name")
 			break
-		case LANG_ENGLISH:
+		case common.LANG_ENGLISH:
 			suite.Equal("Preparation to the Lesson", i18n.Name.String, "English name")
 			break
-		case LANG_RUSSIAN:
+		case common.LANG_RUSSIAN:
 			suite.Equal("Подготовка к уроку", i18n.Name.String, "Russian name")
 			break
 		}
@@ -132,38 +133,38 @@ func (suite *AutonameSuite) TestLessonPartDescriber() {
 	suite.NotEmpty(i18ns, "i18ns.empty")
 	for _, i18n := range i18ns {
 		switch i18n.Language {
-		case LANG_HEBREW:
+		case common.LANG_HEBREW:
 			suite.Equal("הכנה לשיעור 2", i18n.Name.String, "Hebrew name")
-		case LANG_ENGLISH:
+		case common.LANG_ENGLISH:
 			suite.Equal("Preparation to the Lesson 2", i18n.Name.String, "English name")
 		}
 	}
 }
 
 func (suite *AutonameSuite) TestEventPartDescriber() {
-	c, err := CreateCollection(suite.tx, CT_CONGRESS, nil)
+	c, err := CreateCollection(suite.tx, common.CT_CONGRESS, nil)
 	suite.Require().Nil(err)
 	err = c.AddCollectionI18ns(suite.tx, true,
 		&models.CollectionI18n{
-			Language: LANG_HEBREW,
+			Language: common.LANG_HEBREW,
 			Name:     null.StringFrom("כנס"),
 		},
 		&models.CollectionI18n{
-			Language: LANG_ENGLISH,
+			Language: common.LANG_ENGLISH,
 			Name:     null.StringFrom("Convention"),
 		})
 	suite.Require().Nil(err)
 
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
 	metadata := CITMetadata{
 		CollectionUID:  null.StringFrom(c.UID),
-		ContentType:    CT_LESSON_PART,
+		ContentType:    common.CT_LESSON_PART,
 		AutoName:       "auto_name",
 		FinalName:      "final_name",
 		CaptureDate:    Date{time.Now()},
-		Language:       LANG_HEBREW,
+		Language:       common.LANG_HEBREW,
 		HasTranslation: true,
 		Lecturer:       "rav",
 		Number:         null.IntFrom(3),
@@ -176,16 +177,16 @@ func (suite *AutonameSuite) TestEventPartDescriber() {
 	suite.NotEmpty(i18ns, "i18ns.empty")
 	for _, i18n := range i18ns {
 		switch i18n.Language {
-		case LANG_HEBREW:
+		case common.LANG_HEBREW:
 			suite.Equal("כנס. הכנה לשיעור 3", i18n.Name.String, "Hebrew name")
-		case LANG_ENGLISH:
+		case common.LANG_ENGLISH:
 			suite.Equal("Convention. Preparation to the Lesson 3", i18n.Name.String, "English name")
 		}
 	}
 }
 
 func (suite *AutonameSuite) TestBlogPostDescriber() {
-	cu, err := CreateContentUnit(suite.tx, CT_BLOG_POST, map[string]interface{}{"original_language": "ru"})
+	cu, err := CreateContentUnit(suite.tx, common.CT_BLOG_POST, map[string]interface{}{"original_language": "ru"})
 	suite.Require().Nil(err)
 
 	metadata := CITMetadata{}
@@ -195,20 +196,20 @@ func (suite *AutonameSuite) TestBlogPostDescriber() {
 	suite.NotEmpty(i18ns, "i18ns.empty")
 	for _, i18n := range i18ns {
 		switch i18n.Language {
-		case LANG_HEBREW:
+		case common.LANG_HEBREW:
 			suite.Equal("הבלוג של רב ד\"ר מיכאל לייטמן – גרסת אודיו (רוסית)", i18n.Name.String, "Hebrew name")
-		case LANG_ENGLISH:
+		case common.LANG_ENGLISH:
 			suite.Equal("Dr. Michael Laitman Blog - Audio Version (Russian)", i18n.Name.String, "English name")
-		case LANG_RUSSIAN:
+		case common.LANG_RUSSIAN:
 			suite.Equal("Радио-версия блога д-ра Михаэля Лайтмана (Русский)", i18n.Name.String, "Russian name")
-		case LANG_SPANISH:
+		case common.LANG_SPANISH:
 			suite.Equal("Blog de Rav M. Laitman - Versión Audio (Ruso)", i18n.Name.String, "Spanish name")
 		}
 	}
 }
 
 func (suite *AutonameSuite) TestDescribeCollection() {
-	c, err := CreateCollection(suite.tx, CT_UNKNOWN, nil)
+	c, err := CreateCollection(suite.tx, common.CT_UNKNOWN, nil)
 	suite.Require().Nil(err)
 
 	err = DescribeCollection(suite.tx, c)
@@ -231,11 +232,11 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	author.R.AuthorI18ns = make(models.AuthorI18nSlice, 0)
 	author.R.AuthorI18ns = append(author.R.AuthorI18ns,
 		&models.AuthorI18n{
-			Language: LANG_HEBREW,
+			Language: common.LANG_HEBREW,
 			Name:     null.StringFrom("author"),
 		},
 		&models.AuthorI18n{
-			Language: LANG_ENGLISH,
+			Language: common.LANG_ENGLISH,
 			Name:     null.StringFrom("author"),
 		},
 	)
@@ -247,7 +248,7 @@ func (suite *AutonameSuite) TestSourceNamers() {
 		s.R.SourceI18ns = make(models.SourceI18nSlice, 0)
 		s.R.SourceI18ns = append(s.R.SourceI18ns,
 			&models.SourceI18n{
-				Language: LANG_HEBREW,
+				Language: common.LANG_HEBREW,
 				Name:     null.StringFrom(fmt.Sprintf("source %d", i)),
 			})
 		path[i-1] = s
@@ -258,14 +259,14 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	names, err := namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
-	name := names[LANG_HEBREW]
+	name := names[common.LANG_HEBREW]
 	suite.Equal("author. source 1. source 2. source 3. source 4", name, "name")
 
 	namer = new(PrefaceNamer)
 	names, err = namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
-	name = names[LANG_HEBREW]
+	name = names[common.LANG_HEBREW]
 	suite.Equal("author. source 4", name, "name")
 
 	namer = new(LettersNamer)
@@ -273,7 +274,7 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	names, err = namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
-	name = names[LANG_HEBREW]
+	name = names[common.LANG_HEBREW]
 	suite.Equal("author. source 4", name, "name")
 	path[len(path)-1].R.SourceI18ns[0].Name = null.StringFrom("source 4")
 
@@ -282,7 +283,7 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	names, err = namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
-	name = names[LANG_HEBREW]
+	name = names[common.LANG_HEBREW]
 	suite.Equal("author. רשומה 137. source 4", name, "name")
 
 	namer = new(RBArticlesNamer)
@@ -290,7 +291,7 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	names, err = namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
-	name = names[LANG_HEBREW]
+	name = names[common.LANG_HEBREW]
 	suite.Equal("author. source 4. 1-2 (1984)", name, "name")
 
 	namer = new(ShamatiNamer)
@@ -298,7 +299,7 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	names, err = namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
-	name = names[LANG_HEBREW]
+	name = names[common.LANG_HEBREW]
 	suite.Equal("author. source 1, טו. source 4", name, "name")
 
 	path[1].R.SourceI18ns[0].Description = null.StringFrom("source 2 description")
@@ -306,6 +307,6 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	names, err = namer.GetName(author, path)
 	suite.Require().Nil(err)
 	suite.Len(names, 1, "len(names)")
-	name = names[LANG_HEBREW]
+	name = names[common.LANG_HEBREW]
 	suite.Equal("source 1. source 3. source 4", name, "name")
 }

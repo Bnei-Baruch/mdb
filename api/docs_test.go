@@ -14,6 +14,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/permissions"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -34,7 +35,7 @@ func Vars(req *http.Request) map[string]string {
 
 func (suite *DocsSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(suite.DB))
+	suite.Require().Nil(common.InitTypeRegistries(suite.DB))
 	//suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
 
 	enforcer, err := permissions.NewEnforcer()
@@ -79,7 +80,7 @@ func (suite *DocsSuite) Test1CaptureStartHandler() {
 		CollectionUID: "abcdefgh",
 	}
 
-	resp, err := suite.testOperation(OP_CAPTURE_START, input)
+	resp, err := suite.testOperation(common.OP_CAPTURE_START, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
@@ -99,14 +100,14 @@ func (suite *DocsSuite) Test2CaptureStopHandler() {
 			Type:      "type",
 			SubType:   "subtype",
 			MimeType:  "mime_type",
-			Language:  LANG_MULTI,
+			Language:  common.LANG_MULTI,
 		},
 		CaptureSource: "mltcap",
 		CollectionUID: "abcdefgh",
 		Part:          "part",
 	}
 
-	resp, err := suite.testOperation(OP_CAPTURE_STOP, input)
+	resp, err := suite.testOperation(common.OP_CAPTURE_STOP, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
@@ -128,7 +129,7 @@ func (suite *DocsSuite) Test3DemuxHandler() {
 				Type:      "type",
 				SubType:   "subtype",
 				MimeType:  "mime_type",
-				Language:  LANG_MULTI,
+				Language:  common.LANG_MULTI,
 			},
 			Duration: 892.1900,
 		},
@@ -141,13 +142,13 @@ func (suite *DocsSuite) Test3DemuxHandler() {
 				Type:      "type",
 				SubType:   "subtype",
 				MimeType:  "mime_type",
-				Language:  LANG_HEBREW,
+				Language:  common.LANG_HEBREW,
 			},
 			Duration: 892.1900,
 		},
 	}
 
-	resp, err := suite.testOperation(OP_DEMUX, input)
+	resp, err := suite.testOperation(common.OP_DEMUX, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
@@ -171,7 +172,7 @@ func (suite *DocsSuite) Test4TrimHandler() {
 				Type:      "type",
 				SubType:   "subtype",
 				MimeType:  "mime_type",
-				Language:  LANG_MULTI,
+				Language:  common.LANG_MULTI,
 			},
 			Duration: 871,
 		},
@@ -184,7 +185,7 @@ func (suite *DocsSuite) Test4TrimHandler() {
 				Type:      "type",
 				SubType:   "subtype",
 				MimeType:  "mime_type",
-				Language:  LANG_HEBREW,
+				Language:  common.LANG_HEBREW,
 			},
 			Duration: 871,
 		},
@@ -192,7 +193,7 @@ func (suite *DocsSuite) Test4TrimHandler() {
 		Out: []float64{10.50, 207.31},
 	}
 
-	resp, err := suite.testOperation(OP_TRIM, input)
+	resp, err := suite.testOperation(common.OP_TRIM, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
@@ -213,7 +214,7 @@ func (suite *DocsSuite) Test5SendHandler() {
 			FileName: "heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson_rename_p.mp4",
 		},
 		Metadata: CITMetadata{
-			ContentType:    CT_LESSON_PART,
+			ContentType:    common.CT_LESSON_PART,
 			FinalName:      "final_name",
 			AutoName:       "auto_name",
 			ManualName:     "manual_name",
@@ -230,7 +231,7 @@ func (suite *DocsSuite) Test5SendHandler() {
 		},
 	}
 
-	resp, err := suite.testOperation(OP_SEND, input)
+	resp, err := suite.testOperation(common.OP_SEND, input)
 	suite.Require().Nil(err)
 
 	suite.Equal(http.StatusOK, resp.StatusCode, "HTTP status")
@@ -262,7 +263,7 @@ func (suite *DocsSuite) Test6ConvertHandler() {
 					Type:      "type",
 					SubType:   "subtype",
 					MimeType:  "mime_type",
-					Language:  LANG_HEBREW,
+					Language:  common.LANG_HEBREW,
 				},
 				Duration: 871,
 			},
@@ -275,7 +276,7 @@ func (suite *DocsSuite) Test6ConvertHandler() {
 					Type:      "type",
 					SubType:   "subtype",
 					MimeType:  "mime_type",
-					Language:  LANG_ENGLISH,
+					Language:  common.LANG_ENGLISH,
 				},
 				Duration: 871,
 			},
@@ -288,14 +289,14 @@ func (suite *DocsSuite) Test6ConvertHandler() {
 					Type:      "type",
 					SubType:   "subtype",
 					MimeType:  "mime_type",
-					Language:  LANG_RUSSIAN,
+					Language:  common.LANG_RUSSIAN,
 				},
 				Duration: 871,
 			},
 		},
 	}
 
-	resp, err := suite.testOperation(OP_CONVERT, input)
+	resp, err := suite.testOperation(common.OP_CONVERT, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
@@ -318,7 +319,7 @@ func (suite *DocsSuite) Test7UploadHandler() {
 		Url: "https://example.com/heb_o_rav_rb-1990-02-kishalon_2016-09-14_lesson.mp4",
 	}
 
-	resp, err := suite.testOperation(OP_UPLOAD, input)
+	resp, err := suite.testOperation(common.OP_UPLOAD, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
@@ -334,12 +335,12 @@ func (suite *DocsSuite) Test8SirtutimHandler() {
 			Sha1:      "0987654321fedcba0987654321fedcba09876544",
 			Size:      19837,
 			CreatedAt: &Timestamp{Time: time.Now()},
-			Language:  LANG_HEBREW,
+			Language:  common.LANG_HEBREW,
 		},
 		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
 	}
 
-	resp, err := suite.testOperation(OP_SIRTUTIM, input)
+	resp, err := suite.testOperation(common.OP_SIRTUTIM, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
@@ -347,7 +348,7 @@ func (suite *DocsSuite) Test8SirtutimHandler() {
 func (suite *DocsSuite) Test9InsertHandler() {
 	tx, err := suite.DB.Begin()
 	suite.Require().Nil(err)
-	cu, err := CreateContentUnit(tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 	err = tx.Commit()
 	suite.Require().Nil(err)
@@ -365,14 +366,14 @@ func (suite *DocsSuite) Test9InsertHandler() {
 				Sha1:      "0987654321fedcba0987654321fedcba09876555",
 				Size:      19837,
 				CreatedAt: &Timestamp{Time: time.Now()},
-				Language:  LANG_HEBREW,
+				Language:  common.LANG_HEBREW,
 			},
 		},
 		ParentSha1: "0987654321fedcba0987654321fedcba11111111",
 		Mode:       "new",
 	}
 
-	resp, err := suite.testOperation(OP_INSERT, input)
+	resp, err := suite.testOperation(common.OP_INSERT, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
@@ -390,20 +391,20 @@ func (suite *DocsSuite) Test91InsertHandlerNewUnit() {
 				Sha1:      "0987654321fedcba0987654321fedcba09875555",
 				Size:      19837,
 				CreatedAt: &Timestamp{Time: time.Now()},
-				Language:  LANG_HEBREW,
+				Language:  common.LANG_HEBREW,
 			},
 		},
 		Mode: "new",
 		Metadata: &CITMetadata{
 			FilmDate:    &Date{time.Now()},
-			ContentType: CT_BLOG_POST,
+			ContentType: common.CT_BLOG_POST,
 			FinalName:   "final_name",
 			Language:    "rus",
 			Lecturer:    "norav",
 		},
 	}
 
-	resp, err := suite.testOperation(OP_INSERT, input)
+	resp, err := suite.testOperation(common.OP_INSERT, input)
 	suite.Require().Nil(err)
 
 	suite.Equal(http.StatusOK, resp.StatusCode, "HTTP status")
@@ -433,7 +434,7 @@ func (suite *DocsSuite) Test92TranscodeHandler() {
 		},
 	}
 
-	resp, err := suite.testOperation(OP_TRANSCODE, input)
+	resp, err := suite.testOperation(common.OP_TRANSCODE, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
@@ -448,7 +449,7 @@ func (suite *DocsSuite) Test922TranscodeHandlerError() {
 		Message:      "Some transcoding error message",
 	}
 
-	resp, err := suite.testOperation(OP_TRANSCODE, input)
+	resp, err := suite.testOperation(common.OP_TRANSCODE, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }
@@ -471,7 +472,7 @@ func (suite *DocsSuite) Test93JoinHandler() {
 				Type:      "type",
 				SubType:   "subtype",
 				MimeType:  "mime_type",
-				Language:  LANG_MULTI,
+				Language:  common.LANG_MULTI,
 			},
 			Duration: 871,
 		},
@@ -484,13 +485,13 @@ func (suite *DocsSuite) Test93JoinHandler() {
 				Type:      "type",
 				SubType:   "subtype",
 				MimeType:  "mime_type",
-				Language:  LANG_HEBREW,
+				Language:  common.LANG_HEBREW,
 			},
 			Duration: 871,
 		},
 	}
 
-	resp, err := suite.testOperation(OP_JOIN, input)
+	resp, err := suite.testOperation(common.OP_JOIN, input)
 	suite.Require().Nil(err)
 	suite.assertJsonOK(resp)
 }

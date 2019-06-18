@@ -18,6 +18,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/permissions"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -46,7 +47,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	boil.DebugMode = viper.GetString("server.mode") == "debug"
 
 	log.Info("Initializing type registries")
-	utils.Must(api.InitTypeRegistries(db))
+	utils.Must(common.InitTypeRegistries(db))
 
 	emitter, err := events.InitEmitter()
 	utils.Must(err)

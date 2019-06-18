@@ -16,6 +16,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -38,7 +39,7 @@ func OrganizeKiteiMakor() {
 	//boil.DebugMode = true
 
 	log.Info("Initializing static data from MDB")
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
 	log.Info("Loading kitei-makor files")
 	ktFiles, err := models.Files(mdb,
@@ -99,7 +100,7 @@ func doOrganizeKiteiMakor(ktFiles []*models.File) error {
 		// so follow link from either end.
 		// 1. if KT CU doesn't exist then create it and link it
 		// 2. move all 'kitei-makor' files into KT CU
-		if api.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name == api.CT_KITEI_MAKOR {
+		if common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name == common.CT_KITEI_MAKOR {
 			err := cu.L.LoadDerivedContentUnitDerivations(mdb, true, cu)
 			if err != nil {
 				return errors.Wrapf(err, "Load Source CUs for %d", cu.ID)
@@ -215,7 +216,7 @@ func createKTCU(exec boil.Executor, mainCU *models.ContentUnit, ktFiles []*model
 		log.Infof("mainCU %d duration invalid", mainCU.ID)
 	}
 
-	ktCU, err := api.CreateContentUnit(exec, api.CT_KITEI_MAKOR, props)
+	ktCU, err := api.CreateContentUnit(exec, common.CT_KITEI_MAKOR, props)
 	if err != nil {
 		return nil, errors.Wrap(err, "Create KT CU")
 	}
@@ -228,7 +229,7 @@ func createKTCU(exec boil.Executor, mainCU *models.ContentUnit, ktFiles []*model
 
 	cud := &models.ContentUnitDerivation{
 		SourceID: mainCU.ID,
-		Name:     api.CT_KITEI_MAKOR,
+		Name:     common.CT_KITEI_MAKOR,
 	}
 	err = ktCU.AddDerivedContentUnitDerivations(exec, true, cud)
 	if err != nil {

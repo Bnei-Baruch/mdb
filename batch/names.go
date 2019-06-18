@@ -2,6 +2,7 @@ package batch
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"runtime/debug"
@@ -13,13 +14,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/boil"
-
-	"encoding/json"
-	"github.com/Bnei-Baruch/mdb/api"
-	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
+
+	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
+	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 var mdb *sql.DB
@@ -47,7 +48,7 @@ func RenameUnits() {
 	//boil.DebugMode = true
 
 	log.Info("Initializing static data from MDB")
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
 	log.Info("Loading all units")
 	units, err := models.ContentUnits(mdb,
@@ -96,13 +97,13 @@ func namesUnitWorker(jobs <-chan *models.ContentUnit, results chan UnitNames, wg
 		for i := range cu.R.CollectionsContentUnits {
 			ccu := cu.R.CollectionsContentUnits[i]
 			c := ccu.R.Collection
-			ct := api.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name
-			if ct == api.CT_CONGRESS ||
-				ct == api.CT_HOLIDAY ||
-				ct == api.CT_UNITY_DAY ||
-				ct == api.CT_PICNIC ||
-				ct == api.CT_VIDEO_PROGRAM ||
-				ct == api.CT_VIRTUAL_LESSONS {
+			ct := common.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name
+			if ct == common.CT_CONGRESS ||
+				ct == common.CT_HOLIDAY ||
+				ct == common.CT_UNITY_DAY ||
+				ct == common.CT_PICNIC ||
+				ct == common.CT_VIDEO_PROGRAM ||
+				ct == common.CT_VIRTUAL_LESSONS {
 				metadata.CollectionUID = null.StringFrom(c.UID)
 
 				if c.Properties.Valid {
@@ -155,7 +156,7 @@ func namesWriter(results <-chan UnitNames, done chan bool) {
 	defer f.Close()
 	log.Infof("Report file: %s", f.Name())
 
-	_, err = fmt.Fprintf(f, "ID\t%s\n", strings.Join(api.ALL_LANGS, "\t"))
+	_, err = fmt.Fprintf(f, "ID\t%s\n", strings.Join(common.ALL_LANGS, "\t"))
 	utils.Must(err)
 
 	for un := range results {
@@ -164,9 +165,9 @@ func namesWriter(results <-chan UnitNames, done chan bool) {
 			continue
 		}
 
-		values := make([]string, len(api.ALL_LANGS)+1)
+		values := make([]string, len(common.ALL_LANGS)+1)
 		values[0] = strconv.FormatInt(un.UnitID, 10)
-		for i, language := range api.ALL_LANGS {
+		for i, language := range common.ALL_LANGS {
 			if name, ok := un.Names[language]; ok {
 				values[i+1] = name
 			} else {

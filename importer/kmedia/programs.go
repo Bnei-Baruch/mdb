@@ -2,6 +2,7 @@ package kmedia
 
 import (
 	"database/sql"
+	"github.com/Bnei-Baruch/mdb/common"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -131,7 +132,7 @@ func importChapterNewUnit(exec boil.Executor, collection *models.Collection, con
 	}
 
 	// Create import operation
-	operation, err := api.CreateOperation(exec, api.OP_IMPORT_KMEDIA,
+	operation, err := api.CreateOperation(exec, common.OP_IMPORT_KMEDIA,
 		api.Operation{WorkflowID: strconv.Itoa(container.ID)}, nil)
 	if err != nil {
 		return errors.Wrapf(err, "Create operation %d", container.ID)
@@ -140,7 +141,7 @@ func importChapterNewUnit(exec boil.Executor, collection *models.Collection, con
 
 	// import container
 	ccuName := strconv.Itoa(container.Position.Int)
-	unit, err := importContainer(exec, container, collection, api.CT_VIDEO_PROGRAM_CHAPTER,
+	unit, err := importContainer(exec, container, collection, common.CT_VIDEO_PROGRAM_CHAPTER,
 		ccuName, container.Position.Int)
 	if err != nil {
 		return errors.Wrapf(err, "Import container %d", container.ID)

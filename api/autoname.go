@@ -13,6 +13,7 @@ import (
 	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/bindata"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -81,18 +82,18 @@ func (d GenericDescriber) DescribeContentUnit(exec boil.Executor,
 	cu *models.ContentUnit,
 	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
 
-	ct := CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
-	if ct == CT_KITEI_MAKOR ||
-		ct == CT_LELO_MIKUD ||
-		ct == CT_FULL_LESSON ||
-		ct == CT_PUBLICATION ||
-		ct == CT_RESEARCH_MATERIAL {
+	ct := common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
+	if ct == common.CT_KITEI_MAKOR ||
+		ct == common.CT_LELO_MIKUD ||
+		ct == common.CT_FULL_LESSON ||
+		ct == common.CT_PUBLICATION ||
+		ct == common.CT_RESEARCH_MATERIAL {
 
 		// Keep technical name for these guys
 		names := map[string]string{
-			LANG_HEBREW:  metadata.FinalName,
-			LANG_ENGLISH: metadata.FinalName,
-			LANG_RUSSIAN: metadata.FinalName,
+			common.LANG_HEBREW:  metadata.FinalName,
+			common.LANG_ENGLISH: metadata.FinalName,
+			common.LANG_RUSSIAN: metadata.FinalName,
 		}
 
 		return makeCUI18ns(cu.ID, names), nil
@@ -104,7 +105,7 @@ func (d GenericDescriber) DescribeContentUnit(exec boil.Executor,
 }
 
 func (d GenericDescriber) DescribeCollection(c *models.Collection) ([]*models.CollectionI18n, error) {
-	i18nKey := fmt.Sprintf("content_type.%s", CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name)
+	i18nKey := fmt.Sprintf("content_type.%s", common.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name)
 	names, err := GetI18ns(i18nKey)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Get I18ns")
@@ -194,7 +195,7 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 				}
 			} else {
 				// give name by content unit type
-				ct := CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
+				ct := common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
 				names, err = GetI18ns(fmt.Sprintf("content_type.%s", ct))
 				if err != nil {
 					return nil, errors.Wrap(err, "Get I18ns")
@@ -211,9 +212,9 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 
 	// make sure major languages has something
 	genericNames := map[string]string{
-		LANG_HEBREW:  metadata.FinalName,
-		LANG_ENGLISH: metadata.FinalName,
-		LANG_RUSSIAN: metadata.FinalName,
+		common.LANG_HEBREW:  metadata.FinalName,
+		common.LANG_ENGLISH: metadata.FinalName,
+		common.LANG_RUSSIAN: metadata.FinalName,
 	}
 	names = mergeMaps(genericNames, names)
 
@@ -254,7 +255,7 @@ func (d VideoProgramChapterDescriber) DescribeContentUnit(exec boil.Executor,
 	}
 
 	var names = make(map[string]string)
-	for _, language := range ALL_LANGS {
+	for _, language := range common.ALL_LANGS {
 		i18n := getCollectionI18n(collection, language)
 		if i18n == nil {
 			continue
@@ -295,11 +296,11 @@ func (d BlogPostDescriber) DescribeContentUnit(exec boil.Executor,
 }
 
 var CUDescribers = map[string]ContentUnitDescriber{
-	CT_LESSON_PART:           new(LessonPartDescriber),
-	CT_VIDEO_PROGRAM_CHAPTER: new(VideoProgramChapterDescriber),
-	CT_BLOG_POST:             new(BlogPostDescriber),
-	CT_MEAL:                  &FixedKeyDescriber{Key: "autoname.meal"},
-	CT_FRIENDS_GATHERING:     &FixedKeyDescriber{Key: "autoname.yh"},
+	common.CT_LESSON_PART:           new(LessonPartDescriber),
+	common.CT_VIDEO_PROGRAM_CHAPTER: new(VideoProgramChapterDescriber),
+	common.CT_BLOG_POST:             new(BlogPostDescriber),
+	common.CT_MEAL:                  &FixedKeyDescriber{Key: "autoname.meal"},
+	common.CT_FRIENDS_GATHERING:     &FixedKeyDescriber{Key: "autoname.yh"},
 }
 
 var CDescribers = map[string]CollectionDescriber{}
@@ -318,9 +319,9 @@ func (d EventPartDescriber) DescribeContentUnit(exec boil.Executor,
 	}
 
 	var names map[string]string
-	ct := CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
+	ct := common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name
 	switch ct {
-	case CT_LESSON_PART, CT_FULL_LESSON:
+	case common.CT_LESSON_PART, common.CT_FULL_LESSON:
 		cuI18ns, err := new(LessonPartDescriber).DescribeContentUnit(exec, cu, metadata)
 		if err != nil {
 			return nil, err
@@ -374,10 +375,10 @@ func GetCUDescriber(exec boil.Executor, cu *models.ContentUnit, metadata CITMeta
 		if collection.UID == "VwCQ0OBq" {
 			describer = &FixedKeyDescriber{Key: "autoname.webinar"}
 		} else {
-			ct := CONTENT_TYPE_REGISTRY.ByID[collection.TypeID].Name
+			ct := common.CONTENT_TYPE_REGISTRY.ByID[collection.TypeID].Name
 
 			// Events
-			if ct == CT_CONGRESS || ct == CT_HOLIDAY || ct == CT_UNITY_DAY || ct == CT_PICNIC {
+			if ct == common.CT_CONGRESS || ct == common.CT_HOLIDAY || ct == common.CT_UNITY_DAY || ct == common.CT_PICNIC {
 				describer = new(EventPartDescriber)
 			}
 		}
@@ -387,7 +388,7 @@ func GetCUDescriber(exec boil.Executor, cu *models.ContentUnit, metadata CITMeta
 	// use describer based on CU type
 	if describer == nil {
 		var ok bool
-		describer, ok = CUDescribers[CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name]
+		describer, ok = CUDescribers[common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name]
 		if !ok {
 			describer = GenericDescriber{}
 		}
@@ -418,7 +419,7 @@ func DescribeContentUnit(exec boil.Executor, cu *models.ContentUnit, metadata CI
 }
 
 func DescribeCollection(exec boil.Executor, c *models.Collection) error {
-	describer, ok := CDescribers[CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name]
+	describer, ok := CDescribers[common.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name]
 	if !ok {
 		describer = GenericDescriber{}
 	}
@@ -514,7 +515,7 @@ type PlainNamer struct{}
 // <author>, <path...>
 func (n PlainNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
 	names := make(map[string]string)
-	for _, language := range ALL_LANGS {
+	for _, language := range common.ALL_LANGS {
 		vals := make([]string, 0)
 
 		// author name
@@ -549,7 +550,7 @@ type PrefaceNamer struct{}
 // <author>. <leaf node in path>
 func (n PrefaceNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
 	names := make(map[string]string)
-	for _, language := range ALL_LANGS {
+	for _, language := range common.ALL_LANGS {
 		vals := make([]string, 0)
 
 		// author name
@@ -652,7 +653,7 @@ func (n RBArticlesNamer) GetName(author *models.Author, path []*models.Source) (
 	}
 	suffix := fmt.Sprintf("%s (%s)", num, year)
 
-	for _, language := range ALL_LANGS {
+	for _, language := range common.ALL_LANGS {
 		vals := make([]string, 0)
 
 		// author name
@@ -692,7 +693,7 @@ func (n ShamatiNamer) GetName(author *models.Author, path []*models.Source) (map
 		return nil, errors.Wrapf(err, "Bad source.name %s", pLast.Name)
 	}
 
-	for _, language := range ALL_LANGS {
+	for _, language := range common.ALL_LANGS {
 		vals := make([]string, 0)
 
 		// author name
@@ -709,7 +710,7 @@ func (n ShamatiNamer) GetName(author *models.Author, path []*models.Source) (map
 		}
 
 		// article number cleaned and maybe hebrew letters numbering
-		if language == LANG_HEBREW {
+		if language == common.LANG_HEBREW {
 			vals = append(vals, fmt.Sprintf("%s, %s", p0.Name.String, utils.NumToHebrew(uint16(num))))
 		} else {
 			vals = append(vals, fmt.Sprintf("%s, %d", p0.Name.String, num))
@@ -733,7 +734,7 @@ type ZoharNamer struct{}
 // <path[0]>,  <path[2:]>
 func (n ZoharNamer) GetName(author *models.Author, path []*models.Source) (map[string]string, error) {
 	names := make(map[string]string)
-	for _, language := range ALL_LANGS {
+	for _, language := range common.ALL_LANGS {
 		vals := make([]string, 0)
 
 		// sources path names
@@ -834,7 +835,7 @@ func nameByTagUID(exec boil.Executor, uid string, cNumber *int) (map[string]stri
 			}
 		}
 	} else {
-		for _, language := range ALL_LANGS {
+		for _, language := range common.ALL_LANGS {
 			i18n := getTagI18n(t, language)
 			if i18n != nil && i18n.Label.Valid {
 				names[language] = i18n.Label.String

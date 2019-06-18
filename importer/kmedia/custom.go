@@ -3,6 +3,7 @@ package kmedia
 import (
 	"database/sql"
 	"encoding/json"
+	"github.com/Bnei-Baruch/mdb/common"
 	"runtime/debug"
 	"strconv"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -75,151 +75,151 @@ func getImportSettings(idx int) *ImportSettings {
 		759 <= i && i <= 772,
 		790 <= i && i <= 840,
 		971 <= i && i <= 975:
-		return &ImportSettings{CT: api.CT_LESSON_PART}
+		return &ImportSettings{CT: common.CT_LESSON_PART}
 	case i == 600:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"o06JwHkK"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"o06JwHkK"}}
 	case i == 601:
-		return &ImportSettings{CT: api.CT_CLIP, CollectionUIDs: []string{"iNQzqlKk"}}
+		return &ImportSettings{CT: common.CT_CLIP, CollectionUIDs: []string{"iNQzqlKk"}}
 	case i == 602:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"iNQzqlKk"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"iNQzqlKk"}}
 	case i == 603:
-		return &ImportSettings{CT: api.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"iNQzqlKk"}}
+		return &ImportSettings{CT: common.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"iNQzqlKk"}}
 	case i == 604:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"tns8a19k"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"tns8a19k"}}
 	case i == 605:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"48mAodgk"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"48mAodgk"}}
 	case i == 606:
-		return &ImportSettings{CT: api.CT_CLIP, CollectionUIDs: []string{"LRD8aEXh"}}
+		return &ImportSettings{CT: common.CT_CLIP, CollectionUIDs: []string{"LRD8aEXh"}}
 	case i == 607:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"y11bttvS"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"y11bttvS"}}
 	case i == 608:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"jRGTUnhf"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"jRGTUnhf"}}
 	case i == 609:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"dONrFRuT"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"dONrFRuT"}}
 	case i == 610:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"PSyY0wcr"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"PSyY0wcr"}}
 	case i == 611:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"ShcTNcKD"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"ShcTNcKD"}}
 	case 612 <= i && i <= 614:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"egGmzRy6"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"egGmzRy6"}}
 	case i == 615:
-		return &ImportSettings{CT: api.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"jDqE3wjq"}}
+		return &ImportSettings{CT: common.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"jDqE3wjq"}}
 	case 616 <= i && i <= 619:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"egGmzRy6"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"egGmzRy6"}}
 	case i == 620:
-		return &ImportSettings{CT: api.CT_CLIP}
+		return &ImportSettings{CT: common.CT_CLIP}
 	case i == 621:
-		return &ImportSettings{CT: api.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"5KNIGkeP"}}
+		return &ImportSettings{CT: common.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"5KNIGkeP"}}
 	case i == 624:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"TGPflh11"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"TGPflh11"}}
 	case i == 625:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"KtD5ALuS"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"KtD5ALuS"}}
 	case 627 <= i && i <= 630:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"3dNYLvrq"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"3dNYLvrq"}}
 	case i == 631:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"E66uiftK"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"E66uiftK"}}
 	case i == 633:
-		return &ImportSettings{CT: api.CT_CLIP, CollectionUIDs: []string{"VSmQzPFg"}}
+		return &ImportSettings{CT: common.CT_CLIP, CollectionUIDs: []string{"VSmQzPFg"}}
 	case i == 634:
-		return &ImportSettings{CT: api.CT_MEAL, CollectionUIDs: []string{"16tQIHD7"}}
+		return &ImportSettings{CT: common.CT_MEAL, CollectionUIDs: []string{"16tQIHD7"}}
 	case 635 <= i && i <= 636:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"CGCZpSC8"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"CGCZpSC8"}}
 	case 638 <= i && i <= 641:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"phnhxbPu"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"phnhxbPu"}}
 	case i == 642:
-		return &ImportSettings{CT: api.CT_EVENT_PART, SubCT: "EREV_TARBUT", CollectionUIDs: []string{"phnhxbPu"}}
+		return &ImportSettings{CT: common.CT_EVENT_PART, SubCT: "EREV_TARBUT", CollectionUIDs: []string{"phnhxbPu"}}
 	case i == 643:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"ooOga3GM"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"ooOga3GM"}}
 	case i == 644:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"WWxzJL4R"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"WWxzJL4R"}}
 	case i == 645:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"km84LtML"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"km84LtML"}}
 	case i == 646:
-		return &ImportSettings{CT: api.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"km84LtML"}}
+		return &ImportSettings{CT: common.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"km84LtML"}}
 	case i == 647:
-		return &ImportSettings{CT: api.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"off8IvGD"}}
+		return &ImportSettings{CT: common.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"off8IvGD"}}
 	case i == 648:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"off8IvGD"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"off8IvGD"}}
 	case i == 649:
-		return &ImportSettings{CT: api.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"off8IvGD"}}
+		return &ImportSettings{CT: common.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"off8IvGD"}}
 	case i == 650:
-		return &ImportSettings{CT: api.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"ks245xT9"}}
+		return &ImportSettings{CT: common.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"ks245xT9"}}
 	case i == 651:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"off8IvGD"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"off8IvGD"}}
 	case i == 652:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"pKT8Ytcd"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"pKT8Ytcd"}}
 	case i == 654:
-		return &ImportSettings{CT: api.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"98XMWsYU"}}
+		return &ImportSettings{CT: common.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"98XMWsYU"}}
 	case i == 655:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"98XMWsYU"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"98XMWsYU"}}
 	case i == 656:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"WUexJyuq"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"WUexJyuq"}}
 	case i == 657:
-		return &ImportSettings{CT: api.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"WUexJyuq"}}
+		return &ImportSettings{CT: common.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"WUexJyuq"}}
 	case i == 659:
-		return &ImportSettings{CT: api.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"g0CSoUru", "TDu5WjB7"}}
+		return &ImportSettings{CT: common.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"g0CSoUru", "TDu5WjB7"}}
 	case i == 660:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"g0CSoUru", "TDu5WjB7"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"g0CSoUru", "TDu5WjB7"}}
 	case i == 661:
-		return &ImportSettings{CT: api.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"gQwX8atP", "TDu5WjB7"}}
+		return &ImportSettings{CT: common.CT_EVENT_PART, SubCT: "EVENT", CollectionUIDs: []string{"gQwX8atP", "TDu5WjB7"}}
 	case i == 663:
-		return &ImportSettings{CT: api.CT_LECTURE, CollectionUIDs: []string{"mv36UoEE"}}
+		return &ImportSettings{CT: common.CT_LECTURE, CollectionUIDs: []string{"mv36UoEE"}}
 	case i == 664:
-		return &ImportSettings{CT: api.CT_VIDEO_PROGRAM_CHAPTER, CollectionUIDs: []string{"KkZ63W0r", "YvPmFc3Z"}}
+		return &ImportSettings{CT: common.CT_VIDEO_PROGRAM_CHAPTER, CollectionUIDs: []string{"KkZ63W0r", "YvPmFc3Z"}}
 	case 665 <= i && i <= 667:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"gHf0tWkr"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"gHf0tWkr"}}
 	case 668 <= i && i <= 672:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"Cc36c1Cj"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"Cc36c1Cj"}}
 	case 673 <= i && i <= 674:
-		return &ImportSettings{CT: api.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"Cc36c1Cj"}}
+		return &ImportSettings{CT: common.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"Cc36c1Cj"}}
 	case i == 675:
-		return &ImportSettings{CT: api.CT_WOMEN_LESSON, CollectionUIDs: []string{"sUA9vBdk"}}
+		return &ImportSettings{CT: common.CT_WOMEN_LESSON, CollectionUIDs: []string{"sUA9vBdk"}}
 	case 676 <= i && i <= 679:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"IfrZxKQV"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"IfrZxKQV"}}
 	case 680 <= i && i <= 681:
-		return &ImportSettings{CT: api.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"IfrZxKQV"}}
+		return &ImportSettings{CT: common.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"IfrZxKQV"}}
 	case 682 <= i && i <= 685:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"jVMINyzi"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"jVMINyzi"}}
 	case i == 686:
-		return &ImportSettings{CT: api.CT_WOMEN_LESSON, CollectionUIDs: []string{"jVMINyzi"}}
+		return &ImportSettings{CT: common.CT_WOMEN_LESSON, CollectionUIDs: []string{"jVMINyzi"}}
 	case 687 <= i && i <= 688:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"dC3GuoJO"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"dC3GuoJO"}}
 	case i == 689:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"uH1rc4V8"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"uH1rc4V8"}}
 	case i == 690:
-		return &ImportSettings{CT: api.CT_MEAL, CollectionUIDs: []string{"4TK3vbwB"}}
+		return &ImportSettings{CT: common.CT_MEAL, CollectionUIDs: []string{"4TK3vbwB"}}
 	case 691 <= i && i <= 694:
-		return &ImportSettings{CT: api.CT_TRAINING, CollectionUIDs: []string{"4TK3vbwB"}}
+		return &ImportSettings{CT: common.CT_TRAINING, CollectionUIDs: []string{"4TK3vbwB"}}
 	case 695 <= i && i <= 696:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"4TK3vbwB"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"4TK3vbwB"}}
 	case i == 697:
-		return &ImportSettings{CT: api.CT_CLIP, CollectionUIDs: []string{"4TK3vbwB"}}
+		return &ImportSettings{CT: common.CT_CLIP, CollectionUIDs: []string{"4TK3vbwB"}}
 	case 698 <= i && i <= 704:
-		return &ImportSettings{CT: api.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"NvzsYWBk"}}
+		return &ImportSettings{CT: common.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"NvzsYWBk"}}
 	case 705 <= i && i <= 710:
-		return &ImportSettings{CT: api.CT_MEAL, CollectionUIDs: []string{"NvzsYWBk"}}
+		return &ImportSettings{CT: common.CT_MEAL, CollectionUIDs: []string{"NvzsYWBk"}}
 	case 711 <= i && i <= 713:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"PMVJaXHs"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"PMVJaXHs"}}
 	case 714 <= i && i <= 716:
-		return &ImportSettings{CT: api.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"PMVJaXHs"}}
+		return &ImportSettings{CT: common.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"PMVJaXHs"}}
 	case i == 717:
-		return &ImportSettings{CT: api.CT_CLIP, CollectionUIDs: []string{"YKXIJQQ5"}}
+		return &ImportSettings{CT: common.CT_CLIP, CollectionUIDs: []string{"YKXIJQQ5"}}
 	case i == 718:
-		return &ImportSettings{CT: api.CT_LESSON_PART, CollectionUIDs: []string{"sAeBdIME", "o8QveYwt"}}
+		return &ImportSettings{CT: common.CT_LESSON_PART, CollectionUIDs: []string{"sAeBdIME", "o8QveYwt"}}
 	case 719 <= i && i <= 721:
-		return &ImportSettings{CT: api.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"ujshviDc"}}
+		return &ImportSettings{CT: common.CT_FRIENDS_GATHERING, CollectionUIDs: []string{"ujshviDc"}}
 	case i == 722:
-		return &ImportSettings{CT: api.CT_MEAL, CollectionUIDs: []string{"Q7gbBk7g"}}
+		return &ImportSettings{CT: common.CT_MEAL, CollectionUIDs: []string{"Q7gbBk7g"}}
 	case 773 <= i && i <= 788:
-		return &ImportSettings{CT: api.CT_WOMEN_LESSON}
+		return &ImportSettings{CT: common.CT_WOMEN_LESSON}
 	case i == 789:
-		return &ImportSettings{CT: api.CT_VIDEO_PROGRAM_CHAPTER, CollectionUIDs: []string{"ZJZVhI9z"}}
+		return &ImportSettings{CT: common.CT_VIDEO_PROGRAM_CHAPTER, CollectionUIDs: []string{"ZJZVhI9z"}}
 	case 841 <= i && i <= 880:
-		return &ImportSettings{CT: api.CT_MEAL}
+		return &ImportSettings{CT: common.CT_MEAL}
 	case i == 970:
-		return &ImportSettings{CT: api.CT_MEAL}
+		return &ImportSettings{CT: common.CT_MEAL}
 	case i == 976:
-		return &ImportSettings{CT: api.CT_VIDEO_PROGRAM_CHAPTER, CollectionUIDs: []string{"jSPXwGwQ"}}
+		return &ImportSettings{CT: common.CT_VIDEO_PROGRAM_CHAPTER, CollectionUIDs: []string{"jSPXwGwQ"}}
 	default:
 		return nil
 	}
@@ -316,7 +316,7 @@ func importNewCUBySettings(exec boil.Executor, settings *ImportSettings) error {
 		log.Infof("Associating %d %s to %s: [cu,c]=[%d,%d]", cn.ID, cn.Name.String, c.UID, cu.ID, c.ID)
 
 		ccuName := strconv.Itoa(cn.Position.Int)
-		if settings.CT == api.CT_EVENT_PART {
+		if settings.CT == common.CT_EVENT_PART {
 			ccuName = settings.SubCT + ccuName
 		}
 

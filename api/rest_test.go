@@ -8,15 +8,16 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/casbin/casbin"
 	"github.com/stretchr/testify/suite"
 	"github.com/volatiletech/sqlboiler/boil"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/permissions"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/casbin/casbin"
 )
 
 type RestSuite struct {
@@ -27,7 +28,7 @@ type RestSuite struct {
 
 func (suite *RestSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(suite.DB))
+	suite.Require().Nil(common.InitTypeRegistries(suite.DB))
 }
 
 func (suite *RestSuite) TearDownSuite() {
@@ -397,14 +398,14 @@ func createDummyCollections(exec boil.Executor, n int) []*models.Collection {
 		j := n - i - 1
 		collections[j] = &models.Collection{
 			UID:    utils.GenerateUID(8),
-			TypeID: CONTENT_TYPE_REGISTRY.ByName[ALL_CONTENT_TYPES[rand.Intn(len(ALL_CONTENT_TYPES))]].ID,
+			TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.ALL_CONTENT_TYPES[rand.Intn(len(common.ALL_CONTENT_TYPES))]].ID,
 		}
 		utils.Must(collections[j].Insert(exec))
 
 		i18ns := []*models.CollectionI18n{
-			{Language: LANG_HEBREW, Name: null.StringFrom("name")},
-			{Language: LANG_ENGLISH, Name: null.StringFrom("name")},
-			{Language: LANG_RUSSIAN, Name: null.StringFrom("name")},
+			{Language: common.LANG_HEBREW, Name: null.StringFrom("name")},
+			{Language: common.LANG_ENGLISH, Name: null.StringFrom("name")},
+			{Language: common.LANG_RUSSIAN, Name: null.StringFrom("name")},
 		}
 		collections[j].AddCollectionI18ns(exec, true, i18ns...)
 	}
@@ -418,14 +419,14 @@ func createDummyContentUnits(exec boil.Executor, n int) []*models.ContentUnit {
 		j := n - i - 1
 		units[j] = &models.ContentUnit{
 			UID:    utils.GenerateUID(8),
-			TypeID: CONTENT_TYPE_REGISTRY.ByName[ALL_CONTENT_TYPES[rand.Intn(len(ALL_CONTENT_TYPES))]].ID,
+			TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.ALL_CONTENT_TYPES[rand.Intn(len(common.ALL_CONTENT_TYPES))]].ID,
 		}
 		utils.Must(units[j].Insert(exec))
 
 		i18ns := []*models.ContentUnitI18n{
-			{Language: LANG_HEBREW, Name: null.StringFrom("name")},
-			{Language: LANG_ENGLISH, Name: null.StringFrom("name")},
-			{Language: LANG_RUSSIAN, Name: null.StringFrom("name")},
+			{Language: common.LANG_HEBREW, Name: null.StringFrom("name")},
+			{Language: common.LANG_ENGLISH, Name: null.StringFrom("name")},
+			{Language: common.LANG_RUSSIAN, Name: null.StringFrom("name")},
 		}
 		units[j].AddContentUnitI18ns(exec, true, i18ns...)
 	}
@@ -461,8 +462,8 @@ func createDummyOperations(exec boil.Executor, n int) []*models.Operation {
 			UID:     utils.GenerateUID(8),
 			Station: null.StringFrom(fmt.Sprintf("station_%d", j)),
 			UserID:  null.Int64From(1),
-			TypeID: OPERATION_TYPE_REGISTRY.
-				ByName[ALL_OPERATION_TYPES[rand.Intn(len(ALL_OPERATION_TYPES))]].ID,
+			TypeID: common.OPERATION_TYPE_REGISTRY.
+				ByName[common.ALL_OPERATION_TYPES[rand.Intn(len(common.ALL_OPERATION_TYPES))]].ID,
 		}
 		utils.Must(operations[j].Insert(exec))
 	}

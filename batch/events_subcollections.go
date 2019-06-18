@@ -2,6 +2,8 @@ package batch
 
 import (
 	"database/sql"
+	"encoding/json"
+	"strconv"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -10,11 +12,10 @@ import (
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"strconv"
 )
 
 func EventsSubcollections() {
@@ -35,7 +36,7 @@ func EventsSubcollections() {
 	//boil.DebugMode = true
 
 	log.Info("Initializing static data from MDB")
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
 	utils.Must(doEventsSubcollections([]int64{10999, 11091, 11273}))
 
@@ -107,7 +108,7 @@ func doEventsSubcollections(cIDs []int64) error {
 
 			for _, f := range cu.R.Files {
 				if f.Type == "video" {
-					op, err := api.FindUpChainOperation(boil.GetDB(), f.ID, api.OP_CAPTURE_STOP)
+					op, err := api.FindUpChainOperation(boil.GetDB(), f.ID, common.OP_CAPTURE_STOP)
 					if err != nil {
 						return errors.Wrapf(err, "find upchain op for file %d", f.ID)
 					}
@@ -163,9 +164,9 @@ func doEventsSubcollections(cIDs []int64) error {
 				return errors.Wrapf(err, "time.Parse cu %d capture_date %s", cu.ID, props["capture_date"])
 			}
 
-			cct := api.CT_DAILY_LESSON
+			cct := common.CT_DAILY_LESSON
 			if captureDate.Weekday() == time.Saturday {
-				cct = api.CT_SPECIAL_LESSON
+				cct = common.CT_SPECIAL_LESSON
 			}
 
 			tx, err := boil.GetDB().(*sql.DB).Begin()
@@ -187,7 +188,7 @@ func doEventsSubcollections(cIDs []int64) error {
 			for _, cu := range v {
 				var name string
 				for _, i18n := range cu.R.ContentUnitI18ns {
-					if i18n.Language == api.LANG_HEBREW {
+					if i18n.Language == common.LANG_HEBREW {
 						name = i18n.Name.String
 						break
 					}

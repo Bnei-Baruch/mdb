@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/Bnei-Baruch/mdb/common"
 	"io/ioutil"
 	"runtime/debug"
 	"sync"
@@ -58,7 +59,7 @@ func MapUnits() {
 	defer kmdb.Close()
 
 	log.Info("Initializing static data from MDB")
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
 	log.Info("Initializing static data from Kmedia")
 	kmediaLessonCT, err = kmodels.ContentTypes(kmdb, qm.Where("name = ?", "Lesson")).One()
@@ -255,10 +256,10 @@ func fixUnitMappings(mappings []*FileMappings) error {
 	tx, err := mdb.Begin()
 	utils.Must(err)
 	unexpectedCT := map[int64]bool{
-		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_KITEI_MAKOR].ID: true,
-		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_LELO_MIKUD].ID: true,
-		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_PUBLICATION].ID: true,
-		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_RESEARCH_MATERIAL].ID: true,
+		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_KITEI_MAKOR].ID:       true,
+		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LELO_MIKUD].ID:        true,
+		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_PUBLICATION].ID:       true,
+		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_RESEARCH_MATERIAL].ID: true,
 	}
 	for k, v := range bySize {
 		fmt.Printf("size %d\n", k)
@@ -270,7 +271,7 @@ func fixUnitMappings(mappings []*FileMappings) error {
 					return errors.Wrapf(err, "Load CU from DB %d", mcuid)
 				}
 				if _, ok := unexpectedCT[u.TypeID]; ok {
-					fmt.Printf("!!!%s!!! [%d]\n", api.CONTENT_TYPE_REGISTRY.ByID[u.TypeID].Name, mcuid)
+					fmt.Printf("!!!%s!!! [%d]\n", common.CONTENT_TYPE_REGISTRY.ByID[u.TypeID].Name, mcuid)
 				} else {
 					// check if mapping changed before updating
 					if u.Properties.Valid {

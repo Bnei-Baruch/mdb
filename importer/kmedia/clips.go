@@ -9,6 +9,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -163,7 +164,7 @@ func ImportClips() {
 func loadAndImportMissingClipsCollections() (map[int]*models.Collection, error) {
 
 	cs, err := models.Collections(mdb,
-		qm.Where("type_id = ?", api.CONTENT_TYPE_REGISTRY.ByName[api.CT_CLIPS].ID)).
+		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_CLIPS].ID)).
 		All()
 	if err != nil {
 		return nil, errors.Wrap(err, "Load collections")
@@ -195,7 +196,7 @@ func loadAndImportMissingClipsCollections() (map[int]*models.Collection, error) 
 			"kmedia_id": kmID,
 		}
 		log.Infof("Create collection %v", props)
-		c, err := api.CreateCollection(mdb, api.CT_CLIPS, props)
+		c, err := api.CreateCollection(mdb, common.CT_CLIPS, props)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Create collection %v", props)
 		}
@@ -211,7 +212,7 @@ func loadAndImportMissingClipsCollections() (map[int]*models.Collection, error) 
 			if d.Name.Valid && d.Name.String != "" {
 				ci18n := models.CollectionI18n{
 					CollectionID: c.ID,
-					Language:     api.LANG_MAP[d.LangID.String],
+					Language:     common.LANG_MAP[d.LangID.String],
 					Name:         d.Name,
 				}
 				err = ci18n.Upsert(mdb,
@@ -244,14 +245,14 @@ func importClipsContainers(csMap map[int]*models.Collection) error {
 		cu, ok := cuMap[cnID]
 		if ok {
 			// update - for tags
-			cu, err = importContainer(tx, cn, nil, api.CT_CLIP, "", 0)
+			cu, err = importContainer(tx, cn, nil, common.CT_CLIP, "", 0)
 			if err != nil {
 				utils.Must(tx.Rollback())
 				return errors.Wrapf(err, "Import existing container %d", cnID)
 			}
 
-			if api.CT_CLIP != api.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name {
-				cu.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[api.CT_CLIP].ID
+			if common.CT_CLIP != common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name {
+				cu.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[common.CT_CLIP].ID
 				err = cu.Update(tx, "type_id")
 				if err != nil {
 					utils.Must(tx.Rollback())
@@ -260,7 +261,7 @@ func importClipsContainers(csMap map[int]*models.Collection) error {
 			}
 		} else {
 			// create - CU doesn't exist
-			cu, err = importContainerWOCollectionNewCU(tx, cn, api.CT_CLIP)
+			cu, err = importContainerWOCollectionNewCU(tx, cn, common.CT_CLIP)
 			if err != nil {
 				utils.Must(tx.Rollback())
 				return errors.Wrapf(err, "Import new container %d", cnID)

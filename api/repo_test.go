@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -22,7 +23,7 @@ type RepoSuite struct {
 
 func (suite *RepoSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(suite.DB))
+	suite.Require().Nil(common.InitTypeRegistries(suite.DB))
 }
 
 func (suite *RepoSuite) TearDownSuite() {
@@ -52,11 +53,11 @@ func (suite *RepoSuite) TestCreateOperation() {
 		Station: "station",
 		User:    "operator@dev.com",
 	}
-	op, err := CreateOperation(suite.tx, OP_CAPTURE_START, o, nil)
+	op, err := CreateOperation(suite.tx, common.OP_CAPTURE_START, o, nil)
 	suite.Require().Nil(err)
 	suite.Require().Nil(op.Reload(suite.tx))
 
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_START].ID, op.TypeID, "TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_CAPTURE_START].ID, op.TypeID, "TypeID")
 	suite.Regexp(utils.UID_REGEX, op.UID, "UID")
 	suite.True(op.Station.Valid, "Station.Valid")
 	suite.Equal(o.Station, op.Station.String, "Station.String")
@@ -65,7 +66,7 @@ func (suite *RepoSuite) TestCreateOperation() {
 
 	// test with unknown user
 	o.User = "unknown@example.com"
-	op, err = CreateOperation(suite.tx, OP_CAPTURE_START, o, nil)
+	op, err = CreateOperation(suite.tx, common.OP_CAPTURE_START, o, nil)
 	suite.Require().Nil(err)
 	suite.Require().Nil(op.Reload(suite.tx))
 	suite.False(op.UserID.Valid)
@@ -73,7 +74,7 @@ func (suite *RepoSuite) TestCreateOperation() {
 
 	// test with workflow_id
 	o.WorkflowID = "workflow_id"
-	op, err = CreateOperation(suite.tx, OP_CAPTURE_START, o, nil)
+	op, err = CreateOperation(suite.tx, common.OP_CAPTURE_START, o, nil)
 	suite.Require().Nil(err)
 	suite.Require().Nil(op.Reload(suite.tx))
 
@@ -85,7 +86,7 @@ func (suite *RepoSuite) TestCreateOperation() {
 
 	// test with custom props
 	customProps := suite.getCustomProps()
-	op, err = CreateOperation(suite.tx, OP_CAPTURE_START, o, customProps)
+	op, err = CreateOperation(suite.tx, common.OP_CAPTURE_START, o, customProps)
 	suite.Require().Nil(err)
 	suite.Require().Nil(op.Reload(suite.tx))
 
@@ -119,7 +120,7 @@ func (suite *RepoSuite) TestCreateFile() {
 	suite.False(file.Language.Valid, "Language.Valid")
 	suite.False(file.ParentID.Valid, "ParentID.Valid")
 	suite.False(file.Published, "Published")
-	suite.Equal(SEC_PUBLIC, file.Secure, "Secure")
+	suite.Equal(common.SEC_PUBLIC, file.Secure, "Secure")
 	suite.False(file.RemovedAt.Valid, "RemovedAt")
 
 	// test with optional attributes
@@ -131,9 +132,9 @@ func (suite *RepoSuite) TestCreateFile() {
 		Type:      "type",
 		SubType:   "subtype",
 		MimeType:  "mimetype",
-		Language:  LANG_RUSSIAN,
+		Language:  common.LANG_RUSSIAN,
 	}
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 	err = file.SetContentUnit(suite.tx, false, cu)
 	suite.Require().Nil(err)
@@ -185,15 +186,15 @@ func (suite *RepoSuite) TestCreateFile() {
 		CreatedAt: &Timestamp{time.Now()},
 		Sha1:      "012356789abcdef012356789abcdef1111111111",
 		Size:      math.MaxInt64,
-		MimeType:  ALL_MEDIA_TYPES[0].MimeType,
+		MimeType:  common.ALL_MEDIA_TYPES[0].MimeType,
 	}
 	file5, err := CreateFile(suite.tx, nil, f5, nil)
 	suite.Require().Nil(err)
 	suite.Require().Nil(file.Reload(suite.tx))
-	suite.Equal(ALL_MEDIA_TYPES[0].Type, file5.Type, "file5.Type")
-	suite.Equal(ALL_MEDIA_TYPES[0].SubType, file5.SubType, "file5.SubType")
+	suite.Equal(common.ALL_MEDIA_TYPES[0].Type, file5.Type, "file5.Type")
+	suite.Equal(common.ALL_MEDIA_TYPES[0].SubType, file5.SubType, "file5.SubType")
 	suite.True(file5.MimeType.Valid, "file5.MimeType.Valid")
-	suite.Equal(ALL_MEDIA_TYPES[0].MimeType, file5.MimeType.String, "file5.MimeType.String")
+	suite.Equal(common.ALL_MEDIA_TYPES[0].MimeType, file5.MimeType.String, "file5.MimeType.String")
 }
 
 func (suite *RepoSuite) TestPublishFile() {
@@ -205,11 +206,11 @@ func (suite *RepoSuite) TestPublishFile() {
 	}
 	file, err := CreateFile(suite.tx, nil, f, nil)
 	suite.Require().Nil(err)
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 	err = file.SetContentUnit(suite.tx, false, cu)
 	suite.Require().Nil(err)
-	c, err := CreateCollection(suite.tx, CT_DAILY_LESSON, nil)
+	c, err := CreateCollection(suite.tx, common.CT_DAILY_LESSON, nil)
 	suite.Require().Nil(err)
 	err = c.AddCollectionsContentUnits(suite.tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID})
 	suite.Require().Nil(err)
@@ -238,13 +239,13 @@ func (suite *RepoSuite) TestRemoveFile() {
 	suite.Require().Nil(err)
 	file.Published = true
 	suite.Require().Nil(file.Update(suite.tx, "published"))
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 	cu.Published = true
 	suite.Require().Nil(cu.Update(suite.tx, "published"))
 	err = file.SetContentUnit(suite.tx, false, cu)
 	suite.Require().Nil(err)
-	c, err := CreateCollection(suite.tx, CT_DAILY_LESSON, nil)
+	c, err := CreateCollection(suite.tx, common.CT_DAILY_LESSON, nil)
 	suite.Require().Nil(err)
 	c.Published = true
 	suite.Require().Nil(c.Update(suite.tx, "published"))

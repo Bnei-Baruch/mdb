@@ -3,6 +3,7 @@ package kmedia
 import (
 	"database/sql"
 	"fmt"
+	"github.com/Bnei-Baruch/mdb/common"
 	"io/ioutil"
 	"runtime/debug"
 	"sort"
@@ -355,7 +356,7 @@ func importNewCongresses(congresses map[int]*Congress) error {
 			if err == sql.ErrNoRows {
 				// create new congress
 				log.Infof("Create new collection for %s %s [%d]", congress.Country, congress.StartDate, kmid)
-				collection, err = api.CreateCollection(mdb, api.CT_CONGRESS, map[string]interface{}{
+				collection, err = api.CreateCollection(mdb, common.CT_CONGRESS, map[string]interface{}{
 					"kmedia_id":  kmid,
 					"active":     false,
 					"country":    congress.Country,
@@ -377,7 +378,7 @@ func importNewCongresses(congresses map[int]*Congress) error {
 					if d.Name.Valid && d.Name.String != "" {
 						ci18n := models.CollectionI18n{
 							CollectionID: collection.ID,
-							Language:     api.LANG_MAP[d.LangID.String],
+							Language:     common.LANG_MAP[d.LangID.String],
 							Name:         d.Name,
 						}
 						err = ci18n.Upsert(mdb,
@@ -493,12 +494,12 @@ func doNewUnit(exec boil.Executor, h map[string]int, x []string) error {
 	}
 
 	ccuName := strconv.Itoa(container.Position.Int)
-	if ct == api.CT_EVENT_PART {
+	if ct == common.CT_EVENT_PART {
 		ccuName = x[h["event_part_type"]] + ccuName
 	}
 
 	// Create import operation
-	operation, err := api.CreateOperation(exec, api.OP_IMPORT_KMEDIA,
+	operation, err := api.CreateOperation(exec, common.OP_IMPORT_KMEDIA,
 		api.Operation{WorkflowID: strconv.Itoa(cnID)}, nil)
 	if err != nil {
 		return errors.Wrapf(err, "Create operation %d", cnID)

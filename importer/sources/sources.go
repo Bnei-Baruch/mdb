@@ -15,7 +15,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -28,13 +28,13 @@ const (
 
 var (
 	LANGS = [7]string{
-		api.LANG_ENGLISH,
-		api.LANG_HEBREW,
-		api.LANG_RUSSIAN,
-		api.LANG_GERMAN,
-		api.LANG_SPANISH,
-		api.LANG_TURKISH,
-		api.LANG_UKRAINIAN,
+		common.LANG_ENGLISH,
+		common.LANG_HEBREW,
+		common.LANG_RUSSIAN,
+		common.LANG_GERMAN,
+		common.LANG_SPANISH,
+		common.LANG_TURKISH,
+		common.LANG_UKRAINIAN,
 	}
 )
 
@@ -55,7 +55,7 @@ func ImportSources() {
 	boil.SetDB(mdb)
 	//boil.DebugMode = true
 
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
 	utils.Must(handleAuthors(mdb))
 	utils.Must(handleCollections(mdb))
@@ -229,7 +229,7 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 				UID:     utils.GenerateUID(8),
 				Name:    name,
 				Pattern: null.NewString(pattern, pattern != ""),
-				TypeID:  api.SOURCE_TYPE_REGISTRY.ByName[api.SRC_COLLECTION].ID,
+				TypeID:  common.SOURCE_TYPE_REGISTRY.ByName[common.SRC_COLLECTION].ID,
 			}
 			err = author.AddSources(exec, true, collection)
 			if err != nil {
@@ -295,7 +295,7 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 		}
 
 		xType := x[h["type"]]
-		sType, ok := api.SOURCE_TYPE_REGISTRY.ByName[xType]
+		sType, ok := common.SOURCE_TYPE_REGISTRY.ByName[xType]
 		if !ok {
 			return errors.Errorf("Unknown source type at row %d: %s", i+1, xType)
 		}

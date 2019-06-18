@@ -2,6 +2,7 @@ package kmedia
 
 import (
 	"database/sql"
+	"github.com/Bnei-Baruch/mdb/common"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
-	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -46,7 +46,7 @@ func UpdateI18ns() {
 	defer kmdb.Close()
 
 	log.Info("Initializing static data from MDB")
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
 	log.Info("Updating content units")
 	utils.Must(doUnits())
@@ -254,7 +254,7 @@ func updateCollectionWorker(jobs <-chan *models.Collection, wg *sync.WaitGroup) 
 			if d.Name.Valid && d.Name.String != "" {
 				ci18n := models.CollectionI18n{
 					CollectionID: u.ID,
-					Language:     api.LANG_MAP[d.LangID.String],
+					Language:     common.LANG_MAP[d.LangID.String],
 					Name:         d.Name,
 				}
 				err = ci18n.Upsert(tx,

@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/queries"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -46,7 +46,7 @@ func importLatestTweets(emitter *events.BufferedEmitter) error {
 	for k, v := range sinceIDs {
 		log.Infof("Fetching user timeline for [%s, %s]", k, v)
 
-		user := api.TWITTER_USERS_REGISTRY.ByUsername[k]
+		user := common.TWITTER_USERS_REGISTRY.ByUsername[k]
 		timeline, err := twitterAPI.GetUserTimeline(url.Values{
 			"user_id":  []string{user.AccountID},
 			"since_id": []string{v},

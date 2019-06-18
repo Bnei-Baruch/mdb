@@ -2,19 +2,20 @@ package kmedia
 
 import (
 	"encoding/json"
+	"runtime/debug"
 	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"gopkg.in/volatiletech/null.v6"
-	"runtime/debug"
 )
 
 var ArticlesCatalogs = []int{
@@ -86,7 +87,7 @@ func ImportArticles() {
 func loadAndImportMissingArticlesCollections() (map[int]*models.Collection, error) {
 
 	cs, err := models.Collections(mdb,
-		qm.Where("type_id = ?", api.CONTENT_TYPE_REGISTRY.ByName[api.CT_ARTICLES].ID)).
+		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_ARTICLES].ID)).
 		All()
 	if err != nil {
 		return nil, errors.Wrap(err, "Load collections")
@@ -118,7 +119,7 @@ func loadAndImportMissingArticlesCollections() (map[int]*models.Collection, erro
 			"kmedia_id": kmID,
 		}
 		log.Infof("Create collection %v", props)
-		c, err := api.CreateCollection(mdb, api.CT_ARTICLES, props)
+		c, err := api.CreateCollection(mdb, common.CT_ARTICLES, props)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Create collection %v", props)
 		}
@@ -134,7 +135,7 @@ func loadAndImportMissingArticlesCollections() (map[int]*models.Collection, erro
 			if d.Name.Valid && d.Name.String != "" {
 				ci18n := models.CollectionI18n{
 					CollectionID: c.ID,
-					Language:     api.LANG_MAP[d.LangID.String],
+					Language:     common.LANG_MAP[d.LangID.String],
 					Name:         d.Name,
 				}
 				err = ci18n.Upsert(mdb,
@@ -171,7 +172,7 @@ func importArticlesContainers(csMap map[int]*models.Collection) error {
 			continue
 		} else {
 			// create - CU doesn't exist
-			cu, err = importContainerWOCollectionNewCU(tx, cn, api.CT_ARTICLE)
+			cu, err = importContainerWOCollectionNewCU(tx, cn, common.CT_ARTICLE)
 			if err != nil {
 				utils.Must(tx.Rollback())
 				return errors.Wrapf(err, "Import new container %d", cnID)
@@ -257,7 +258,7 @@ func createMissingPublishers() (map[string]*models.Publisher, error) {
 				return nil, errors.Wrapf(err, "save publisher %s", pattern)
 			}
 
-			for _, lang := range [...]string{api.LANG_HEBREW, api.LANG_RUSSIAN, api.LANG_ENGLISH, api.LANG_SPANISH} {
+			for _, lang := range [...]string{common.LANG_HEBREW, common.LANG_RUSSIAN, common.LANG_ENGLISH, common.LANG_SPANISH} {
 				pI18n := models.PublisherI18n{
 					PublisherID: p.ID,
 					Language:    lang,
@@ -281,7 +282,7 @@ func createMissingPublishers() (map[string]*models.Publisher, error) {
 
 func splitArticlesToPublications(publishersMap map[string]*models.Publisher) error {
 	cus, err := models.ContentUnits(mdb,
-		qm.Where("type_id = ?", api.CONTENT_TYPE_REGISTRY.ByName[api.CT_ARTICLE].ID),
+		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_ARTICLE].ID),
 		qm.Load("Files")).
 		All()
 	if err != nil {
@@ -318,8 +319,8 @@ func splitArticlesToPublications(publishersMap map[string]*models.Publisher) err
 			tx, err := mdb.Begin()
 			utils.Must(err)
 
-			pCU, err := api.CreateContentUnit(tx, api.CT_PUBLICATION, map[string]interface{}{
-				"original_language": api.StdLang(f.Language.String),
+			pCU, err := api.CreateContentUnit(tx, common.CT_PUBLICATION, map[string]interface{}{
+				"original_language": common.StdLang(f.Language.String),
 			})
 			if err != nil {
 				utils.Must(tx.Rollback())
@@ -347,7 +348,7 @@ func splitArticlesToPublications(publishersMap map[string]*models.Publisher) err
 
 			cud := &models.ContentUnitDerivation{
 				SourceID: cu.ID,
-				Name:     api.CT_PUBLICATION,
+				Name:     common.CT_PUBLICATION,
 			}
 			err = pCU.AddDerivedContentUnitDerivations(tx, true, cud)
 			if err != nil {

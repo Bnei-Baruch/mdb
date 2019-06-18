@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/boil"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
@@ -39,7 +39,7 @@ func Init() time.Time {
 	utils.Must(kmdb.Ping())
 
 	log.Info("Initializing static data from MDB")
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
 	return clock
 }

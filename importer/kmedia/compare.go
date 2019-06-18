@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/Bnei-Baruch/mdb/common"
 	"io/ioutil"
 	"regexp"
 	"sort"
@@ -340,7 +341,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		utils.Must(err)
 
 		stats.ContainersProcessed.Inc(1)
-		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_CLIP)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], common.CT_CLIP)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import clip %d", cns[i].ID)
@@ -355,7 +356,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		utils.Must(err)
 
 		stats.ContainersProcessed.Inc(1)
-		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_SONG)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], common.CT_SONG)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import song %d", cns[i].ID)
@@ -370,7 +371,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		utils.Must(err)
 
 		stats.ContainersProcessed.Inc(1)
-		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_LECTURE)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], common.CT_LECTURE)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import lecture %d", cns[i].ID)
@@ -385,7 +386,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		utils.Must(err)
 
 		stats.ContainersProcessed.Inc(1)
-		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_BOOK)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], common.CT_BOOK)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import book %d", cns[i].ID)
@@ -400,7 +401,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		utils.Must(err)
 
 		stats.ContainersProcessed.Inc(1)
-		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_BLOG_POST)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], common.CT_BLOG_POST)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import declamation %d", cns[i].ID)
@@ -416,7 +417,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		err = importContainerWCollection(tx, cns[i], collection, api.CT_UNKNOWN)
+		err = importContainerWCollection(tx, cns[i], collection, common.CT_UNKNOWN)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import text %d", cns[i].ID)
@@ -430,9 +431,9 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		collection, err = api.CreateCollection(tx, api.CT_DAILY_LESSON, map[string]interface{}{
+		collection, err = api.CreateCollection(tx, common.CT_DAILY_LESSON, map[string]interface{}{
 			"film_date":         "1970-01-01",
-			"original_language": api.LANG_HEBREW,
+			"original_language": common.LANG_HEBREW,
 			"kmedia_rabash":     true,
 		})
 		if err != nil {
@@ -440,7 +441,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 			return errors.Wrapf(err, "Create rabash lesson %d", cns[i].ID)
 		}
 
-		err = importContainerWCollection(tx, cns[i], collection, api.CT_LESSON_PART)
+		err = importContainerWCollection(tx, cns[i], collection, common.CT_LESSON_PART)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import rabash %d", cns[i].ID)
@@ -455,7 +456,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		utils.Must(err)
 
 		stats.ContainersProcessed.Inc(1)
-		_, err = importContainerWOCollectionNewCU(tx, cns[i], api.CT_FRIENDS_GATHERING)
+		_, err = importContainerWOCollectionNewCU(tx, cns[i], common.CT_FRIENDS_GATHERING)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import YH %d", cns[i].ID)
@@ -471,7 +472,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		err = importContainerWCollection(tx, cns[i], collection, api.CT_CLIP)
+		err = importContainerWCollection(tx, cns[i], collection, common.CT_CLIP)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import maamar %d", cns[i].ID)
@@ -487,7 +488,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		err = importContainerWCollection(tx, cns[i], collection, api.CT_CLIP)
+		err = importContainerWCollection(tx, cns[i], collection, common.CT_CLIP)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import hodaot %d", cns[i].ID)
@@ -503,7 +504,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		err = importContainerWCollection(tx, cns[i], collection, api.CT_CLIP)
+		err = importContainerWCollection(tx, cns[i], collection, common.CT_CLIP)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import lesson summary %d", cns[i].ID)
@@ -519,7 +520,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		err = importContainerWCollection(tx, cns[i], collection, api.CT_VIDEO_PROGRAM_CHAPTER)
+		err = importContainerWCollection(tx, cns[i], collection, common.CT_VIDEO_PROGRAM_CHAPTER)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import ulpan ivrit %d", cns[i].ID)
@@ -535,7 +536,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		err = importContainerWCollection(tx, cns[i], collection, api.CT_UNKNOWN)
+		err = importContainerWCollection(tx, cns[i], collection, common.CT_UNKNOWN)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import website %d", cns[i].ID)
@@ -551,7 +552,7 @@ func importMissingContainers(missing map[string][]*kmodels.Container) error {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 
-		err = importContainerWCollection(mdb, cns[i], collection, api.CT_UNKNOWN)
+		err = importContainerWCollection(mdb, cns[i], collection, common.CT_UNKNOWN)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Import misc %d", cns[i].ID)
@@ -570,13 +571,13 @@ func compareCollection(c *models.Collection) error {
 
 	kmid := int(props["kmedia_id"].(float64))
 
-	isLesson := api.CONTENT_TYPE_REGISTRY.ByName[api.CT_DAILY_LESSON].ID == c.TypeID ||
-		api.CONTENT_TYPE_REGISTRY.ByName[api.CT_SPECIAL_LESSON].ID == c.TypeID
+	isLesson := common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID == c.TypeID ||
+		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SPECIAL_LESSON].ID == c.TypeID
 
 	// lessons are compared to virtual lesson all others are compared to catalog
 	var containers []*kmodels.Container
 	if isLesson {
-		log.Infof("Compare collection %d [%s] to virtual_lesson %d", c.ID, api.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name, kmid)
+		log.Infof("Compare collection %d [%s] to virtual_lesson %d", c.ID, common.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name, kmid)
 
 		vl, err := kmodels.VirtualLessons(kmdb,
 			qm.Where("id=?", kmid),
@@ -592,7 +593,7 @@ func compareCollection(c *models.Collection) error {
 		log.Infof("Virtual Lesson %d %s", kmid, vl.FilmDate.Time.Format("2006-01-02"))
 		containers = vl.R.Containers
 	} else {
-		log.Infof("Compare collection %d [%s] to catalog %d", c.ID, api.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name, kmid)
+		log.Infof("Compare collection %d [%s] to catalog %d", c.ID, common.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name, kmid)
 
 		catalog, err := kmodels.Catalogs(kmdb,
 			qm.Where("id=?", kmid),
@@ -672,12 +673,12 @@ func compareCollection(c *models.Collection) error {
 			}
 		} else {
 			// CU of full lesson (backup) is not expected to be in kmedia DB
-			if api.CONTENT_TYPE_REGISTRY.ByName[api.CT_FULL_LESSON].ID == cu.TypeID &&
-				(api.CONTENT_TYPE_REGISTRY.ByName[api.CT_DAILY_LESSON].ID == c.TypeID ||
-					api.CONTENT_TYPE_REGISTRY.ByName[api.CT_SPECIAL_LESSON].ID == c.TypeID) {
+			if common.CONTENT_TYPE_REGISTRY.ByName[common.CT_FULL_LESSON].ID == cu.TypeID &&
+				(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID == c.TypeID ||
+					common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SPECIAL_LESSON].ID == c.TypeID) {
 				continue
 			} else {
-				log.Infof("CU exists only in MDB %d [%s]", cu.ID, api.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name)
+				log.Infof("CU exists only in MDB %d [%s]", cu.ID, common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name)
 			}
 		}
 	}

@@ -2,6 +2,7 @@ package kmedia
 
 import (
 	"encoding/json"
+	"github.com/Bnei-Baruch/mdb/common"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -75,7 +76,7 @@ func ImportVLs() {
 func loadAndImportMissingVLCollections() (map[int]*models.Collection, error) {
 
 	cs, err := models.Collections(mdb,
-		qm.Where("type_id = ?", api.CONTENT_TYPE_REGISTRY.ByName[api.CT_VIRTUAL_LESSONS].ID)).
+		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_VIRTUAL_LESSONS].ID)).
 		All()
 	if err != nil {
 		return nil, errors.Wrap(err, "Load collections")
@@ -108,7 +109,7 @@ func loadAndImportMissingVLCollections() (map[int]*models.Collection, error) {
 			"active": false,
 		}
 		log.Infof("Create collection %v", props)
-		c, err := api.CreateCollection(mdb, api.CT_VIRTUAL_LESSONS, props)
+		c, err := api.CreateCollection(mdb, common.CT_VIRTUAL_LESSONS, props)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Create collection %v", props)
 		}
@@ -124,7 +125,7 @@ func loadAndImportMissingVLCollections() (map[int]*models.Collection, error) {
 			if d.Name.Valid && d.Name.String != "" {
 				ci18n := models.CollectionI18n{
 					CollectionID: c.ID,
-					Language:     api.LANG_MAP[d.LangID.String],
+					Language:     common.LANG_MAP[d.LangID.String],
 					Name:         d.Name,
 				}
 				err = ci18n.Upsert(mdb,
@@ -157,14 +158,14 @@ func importVLsContainers(csMap map[int]*models.Collection) error {
 		cu, ok := cuMap[cnID]
 		if ok {
 			// update - for tags
-			cu, err = importContainer(tx, cn, nil, api.CT_VIRTUAL_LESSON, "", 0)
+			cu, err = importContainer(tx, cn, nil, common.CT_VIRTUAL_LESSON, "", 0)
 			if err != nil {
 				utils.Must(tx.Rollback())
 				return errors.Wrapf(err, "Import existing container %d", cnID)
 			}
 
-			if api.CT_VIRTUAL_LESSON != api.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name {
-				cu.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[api.CT_VIRTUAL_LESSON].ID
+			if common.CT_VIRTUAL_LESSON != common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name {
+				cu.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[common.CT_VIRTUAL_LESSON].ID
 				err = cu.Update(tx, "type_id")
 				if err != nil {
 					utils.Must(tx.Rollback())
@@ -174,7 +175,7 @@ func importVLsContainers(csMap map[int]*models.Collection) error {
 		} else {
 			if _, ok := knownKMContentTypes[cn.ContentTypeID.Int]; ok {
 				// create - CU doesn't exist
-				cu, err = importContainerWOCollectionNewCU(tx, cn, api.CT_VIRTUAL_LESSON)
+				cu, err = importContainerWOCollectionNewCU(tx, cn, common.CT_VIRTUAL_LESSON)
 				if err != nil {
 					utils.Must(tx.Rollback())
 					return errors.Wrapf(err, "Import new container %d", cnID)
