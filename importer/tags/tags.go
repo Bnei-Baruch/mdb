@@ -13,7 +13,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -24,11 +24,11 @@ const (
 
 var mappings map[int]int64
 var LANGS = [5]string{
-	api.LANG_ENGLISH,
-	api.LANG_HEBREW,
-	api.LANG_RUSSIAN,
-	api.LANG_SPANISH,
-	api.LANG_UKRAINIAN,
+	common.LANG_ENGLISH,
+	common.LANG_HEBREW,
+	common.LANG_RUSSIAN,
+	common.LANG_SPANISH,
+	common.LANG_UKRAINIAN,
 }
 
 func ImportTags() {

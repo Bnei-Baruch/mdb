@@ -10,7 +10,7 @@ import (
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -20,8 +20,8 @@ func ImportFlatCatalogs() {
 	clock := Init()
 
 	stats = NewImportStatistics()
-	utils.Must(importFlatCatalog(120, api.CT_FRIENDS_GATHERING))
-	utils.Must(importFlatCatalog(4791, api.CT_MEAL))
+	utils.Must(importFlatCatalog(120, common.CT_FRIENDS_GATHERING))
+	utils.Must(importFlatCatalog(4791, common.CT_MEAL))
 	stats.dump()
 
 	Shutdown()
@@ -77,9 +77,9 @@ func importFlatContainer(exec boil.Executor, container *kmodels.Container, cuTyp
 		return errors.Wrapf(err, "Import container %d", container.ID)
 	}
 
-	if cuType != api.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
+	if cuType != common.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
 		log.Infof("Overriding CU Type to %s", cuType)
-		unit.TypeID = api.CONTENT_TYPE_REGISTRY.ByName[cuType].ID
+		unit.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[cuType].ID
 		err = unit.Update(exec, "type_id")
 		if err != nil {
 			return errors.Wrapf(err, "Update CU type %d", unit.ID)

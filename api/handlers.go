@@ -17,6 +17,7 @@ import (
 	"gopkg.in/gin-gonic/gin.v1/binding"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -24,7 +25,7 @@ import (
 
 // Start capture of AV file, i.e. morning lesson, tv program, etc...
 func CaptureStartHandler(c *gin.Context) {
-	log.Info(OP_CAPTURE_START)
+	log.Info(common.OP_CAPTURE_START)
 	var i CaptureStartRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleCaptureStart, nil)
@@ -34,7 +35,7 @@ func CaptureStartHandler(c *gin.Context) {
 // Stop capture of AV file, ending a matching capture_start event.
 // This is the first time a physical file is created in the studio.
 func CaptureStopHandler(c *gin.Context) {
-	log.Info(OP_CAPTURE_STOP)
+	log.Info(common.OP_CAPTURE_STOP)
 	var i CaptureStopRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleCaptureStop, nil)
@@ -43,7 +44,7 @@ func CaptureStopHandler(c *gin.Context) {
 
 // Demux manifest file to original and low resolution proxy
 func DemuxHandler(c *gin.Context) {
-	log.Info(OP_DEMUX)
+	log.Info(common.OP_DEMUX)
 	var i DemuxRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleDemux, nil)
@@ -52,7 +53,7 @@ func DemuxHandler(c *gin.Context) {
 
 // Trim demuxed files at certain points
 func TrimHandler(c *gin.Context) {
-	log.Info(OP_TRIM)
+	log.Info(common.OP_TRIM)
 	var i TrimRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleTrim, nil)
@@ -61,7 +62,7 @@ func TrimHandler(c *gin.Context) {
 
 // Final files sent from studio
 func SendHandler(c *gin.Context) {
-	log.Info(OP_SEND)
+	log.Info(common.OP_SEND)
 	var i SendRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleSend, sendResultRenderer)
@@ -70,7 +71,7 @@ func SendHandler(c *gin.Context) {
 
 // Files converted to low resolution web formats, language splitting, etc...
 func ConvertHandler(c *gin.Context) {
-	log.Info(OP_CONVERT)
+	log.Info(common.OP_CONVERT)
 	var i ConvertRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleConvert, nil)
@@ -79,7 +80,7 @@ func ConvertHandler(c *gin.Context) {
 
 // File uploaded to a public accessible URL
 func UploadHandler(c *gin.Context) {
-	log.Info(OP_UPLOAD)
+	log.Info(common.OP_UPLOAD)
 	var i UploadRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleUpload, nil)
@@ -88,7 +89,7 @@ func UploadHandler(c *gin.Context) {
 
 // Sirtutim archive file generated
 func SirtutimHandler(c *gin.Context) {
-	log.Info(OP_SIRTUTIM)
+	log.Info(common.OP_SIRTUTIM)
 	var i SirtutimRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleSirtutim, nil)
@@ -97,7 +98,7 @@ func SirtutimHandler(c *gin.Context) {
 
 // Insert new file to archive
 func InsertHandler(c *gin.Context) {
-	log.Info(OP_INSERT)
+	log.Info(common.OP_INSERT)
 	var i InsertRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleInsert, insertResultRenderer)
@@ -106,7 +107,7 @@ func InsertHandler(c *gin.Context) {
 
 // A file in archive has been transcoded
 func TranscodeHandler(c *gin.Context) {
-	log.Info(OP_TRANSCODE)
+	log.Info(common.OP_TRANSCODE)
 
 	var i TranscodeRequest
 	if c.BindJSON(&i) == nil {
@@ -124,7 +125,7 @@ func TranscodeHandler(c *gin.Context) {
 
 // Join multiple files sequentially
 func JoinHandler(c *gin.Context) {
-	log.Info(OP_JOIN)
+	log.Info(common.OP_JOIN)
 	var i JoinRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleJoin, nil)
@@ -170,7 +171,7 @@ func DescendantUnitsHandler(c *gin.Context) {
 	err = queries.Raw(mdb, q, f.ID, pq.Array([]int64{
 		//CONTENT_TYPE_REGISTRY.ByName[CT_KITEI_MAKOR].ID,  // created in workflow
 		//CONTENT_TYPE_REGISTRY.ByName[CT_LELO_MIKUD].ID,   // created in workflow
-		CONTENT_TYPE_REGISTRY.ByName[CT_PUBLICATION].ID,
+		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_PUBLICATION].ID,
 	})).QueryRow().Scan(&cuIDs)
 	if err != nil {
 		NewInternalError(err).Abort(c)
@@ -220,7 +221,7 @@ func handleCaptureStart(exec boil.Executor, input interface{}) (*models.Operatio
 		"capture_source": r.CaptureSource,
 		"collection_uid": r.CollectionUID,
 	}
-	operation, err := CreateOperation(exec, OP_CAPTURE_START, r.Operation, props)
+	operation, err := CreateOperation(exec, common.OP_CAPTURE_START, r.Operation, props)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -246,7 +247,7 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 		"collection_uid": r.CollectionUID, // $LID = backup capture id when lesson, capture_id when program (part=false)
 		"part":           r.Part,
 	}
-	operation, err := CreateOperation(exec, OP_CAPTURE_STOP, r.Operation, props)
+	operation, err := CreateOperation(exec, common.OP_CAPTURE_STOP, r.Operation, props)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -258,7 +259,7 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 		`SELECT file_id FROM files_operations
 		 INNER JOIN operations ON operation_id = id
 		 WHERE type_id=$1 AND properties -> 'workflow_id' ? $2`,
-		OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_START].ID,
+		common.OPERATION_TYPE_REGISTRY.ByName[common.OP_CAPTURE_START].ID,
 		r.Operation.WorkflowID).
 		QueryRow().
 		Scan(&parentID)
@@ -299,7 +300,7 @@ func handleDemux(exec boil.Executor, input interface{}) (*models.Operation, []ev
 	props := map[string]interface{}{
 		"capture_source": r.CaptureSource,
 	}
-	operation, err := CreateOperation(exec, OP_DEMUX, r.Operation, props)
+	operation, err := CreateOperation(exec, common.OP_DEMUX, r.Operation, props)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -348,7 +349,7 @@ func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, []eve
 		"in":             r.In,
 		"out":            r.Out,
 	}
-	operation, err := CreateOperation(exec, OP_TRIM, r.Operation, props)
+	operation, err := CreateOperation(exec, common.OP_TRIM, r.Operation, props)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -435,7 +436,7 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	if err = json.Unmarshal(b, &props); err != nil {
 		return nil, nil, errors.Wrap(err, "json Unmarshal")
 	}
-	operation, err := CreateOperation(exec, OP_SEND, r.Operation, props)
+	operation, err := CreateOperation(exec, common.OP_SEND, r.Operation, props)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Create operation")
 	}
@@ -487,7 +488,7 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []
 	}
 
 	log.Info("Creating operation")
-	operation, err := CreateOperation(exec, OP_CONVERT, r.Operation, nil)
+	operation, err := CreateOperation(exec, common.OP_CONVERT, r.Operation, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -561,7 +562,7 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []e
 	r := input.(UploadRequest)
 
 	log.Info("Creating operation")
-	operation, err := CreateOperation(exec, OP_UPLOAD, r.Operation, nil)
+	operation, err := CreateOperation(exec, common.OP_UPLOAD, r.Operation, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -612,7 +613,7 @@ func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, [
 	r := input.(SirtutimRequest)
 
 	log.Info("Creating operation")
-	operation, err := CreateOperation(exec, OP_SIRTUTIM, r.Operation, nil)
+	operation, err := CreateOperation(exec, common.OP_SIRTUTIM, r.Operation, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -729,7 +730,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 		"insert_type": r.InsertType,
 		"mode":        r.Mode,
 	}
-	operation, err := CreateOperation(exec, OP_INSERT, r.Operation, props)
+	operation, err := CreateOperation(exec, common.OP_INSERT, r.Operation, props)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -803,15 +804,15 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 		var ct string
 		switch r.InsertType {
 		case "kitei-makor":
-			ct = CT_KITEI_MAKOR
+			ct = common.CT_KITEI_MAKOR
 		case "research-material":
-			ct = CT_RESEARCH_MATERIAL
+			ct = common.CT_RESEARCH_MATERIAL
 		}
 
 		var cudID int64
 		if len(cu.R.SourceContentUnitDerivations) > 0 {
 			for _, cud := range cu.R.SourceContentUnitDerivations {
-				if CONTENT_TYPE_REGISTRY.ByID[cud.R.Derived.TypeID].Name == ct {
+				if common.CONTENT_TYPE_REGISTRY.ByID[cud.R.Derived.TypeID].Name == ct {
 					cudID = cud.DerivedID
 					break
 				}
@@ -852,7 +853,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 FROM content_units cu
   INNER JOIN content_unit_derivations cud ON cu.id = cud.derived_id AND cud.source_id = $1 AND cu.type_id = $2
   INNER JOIN content_units_publishers cup ON cud.derived_id = cup.content_unit_id AND cup.publisher_id = $3`,
-			cu.ID, CONTENT_TYPE_REGISTRY.ByName[CT_PUBLICATION].ID, publisher.ID).
+			cu.ID, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_PUBLICATION].ID, publisher.ID).
 			QueryRow().
 			Scan(&cudID)
 		if err != nil && err != sql.ErrNoRows {
@@ -864,7 +865,7 @@ FROM content_units cu
 			log.Infof("PUBLICATION derived unit exist: %d", cuID)
 		} else {
 			log.Infof("PUBLICATION derived unit doesn't exists. Creating...")
-			pCU, err := CreateContentUnit(exec, CT_PUBLICATION, map[string]interface{}{
+			pCU, err := CreateContentUnit(exec, common.CT_PUBLICATION, map[string]interface{}{
 				"original_language": file.Language.String,
 			})
 			if err != nil {
@@ -878,7 +879,7 @@ FROM content_units cu
 
 			cud := &models.ContentUnitDerivation{
 				SourceID: cu.ID,
-				Name:     CT_PUBLICATION,
+				Name:     common.CT_PUBLICATION,
 			}
 			err = pCU.AddDerivedContentUnitDerivations(exec, true, cud)
 			if err != nil {
@@ -901,9 +902,9 @@ FROM content_units cu
 				filmDate = *r.Metadata.FilmDate
 			}
 
-			cu, err = CreateContentUnit(exec, CT_BLOG_POST, map[string]interface{}{
+			cu, err = CreateContentUnit(exec, common.CT_BLOG_POST, map[string]interface{}{
 				"film_date":         filmDate,
-				"original_language": StdLang(r.Metadata.Language),
+				"original_language": common.StdLang(r.Metadata.Language),
 			})
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "Create declamation content unit")
@@ -911,7 +912,7 @@ FROM content_units cu
 			cuID = cu.ID
 
 			log.Infof("Describing content unit [%d]", cu.ID)
-			err = DescribeContentUnit(exec, cu, CITMetadata{ContentType: CT_BLOG_POST})
+			err = DescribeContentUnit(exec, cu, CITMetadata{ContentType: common.CT_BLOG_POST})
 			if err != nil {
 				log.Errorf("Error describing content unit: %s", err.Error())
 			}
@@ -995,7 +996,7 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 			"message": r.Message,
 		}
 
-		operation, err := CreateOperation(exec, OP_TRANSCODE, r.Operation, opProps)
+		operation, err := CreateOperation(exec, common.OP_TRANSCODE, r.Operation, opProps)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1016,7 +1017,7 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 	}
 
 	log.Info("Creating operation")
-	operation, err := CreateOperation(exec, OP_TRANSCODE, r.Operation, nil)
+	operation, err := CreateOperation(exec, common.OP_TRANSCODE, r.Operation, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1028,7 +1029,7 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 	}
 
 	log.Info("Creating file")
-	mt := MEDIA_TYPE_REGISTRY.ByExtension["mp4"]
+	mt := common.MEDIA_TYPE_REGISTRY.ByExtension["mp4"]
 	r.MaybeFile.Type = mt.Type
 	r.MaybeFile.MimeType = mt.MimeType
 
@@ -1124,7 +1125,7 @@ func handleJoin(exec boil.Executor, input interface{}) (*models.Operation, []eve
 		"original_shas": r.OriginalShas,
 		"proxy_shas":    r.ProxyShas,
 	}
-	operation, err := CreateOperation(exec, OP_JOIN, r.Operation, props)
+	operation, err := CreateOperation(exec, common.OP_JOIN, r.Operation, props)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1210,7 +1211,7 @@ func handleOperation(c *gin.Context, input interface{}, opHandler OpHandlerFunc,
 		case *HttpError:
 			err.(*HttpError).Abort(c)
 		default:
-			err = errors.Wrapf(err, "Handle operation %s", c.HandlerName())
+			err = errors.WithMessagef(err, "Handle operation %s", c.HandlerName())
 			NewInternalError(err).Abort(c)
 		}
 	}

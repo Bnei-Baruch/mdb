@@ -5,12 +5,12 @@ import (
 	"sort"
 	"time"
 
+	"github.com/360EntSecGroup-Skylar/excelize"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/tealeg/xlsx"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -27,7 +27,7 @@ func ExportTVShows() {
 
 func doExportTVShows() error {
 	cs, err := models.Collections(mdb,
-		qm.Where("type_id = ?", api.CONTENT_TYPE_REGISTRY.ByName[api.CT_VIDEO_PROGRAM].ID),
+		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_VIDEO_PROGRAM].ID),
 		qm.Load("CollectionsContentUnits",
 			"CollectionsContentUnits.ContentUnit",
 			"CollectionsContentUnits.ContentUnit.ContentUnitI18ns",
@@ -38,21 +38,23 @@ func doExportTVShows() error {
 	}
 
 	log.Infof("%d TV Shows in MDB", len(cs))
-	collections := make([]*CollectionWName, len(cs))
+	collections := make([]*common.CollectionWName, len(cs))
 	for i := range cs {
-		collections[i] = &CollectionWName{Collection: cs[i]}
+		collections[i] = &common.CollectionWName{Collection: cs[i]}
 	}
 
 	sort.Slice(collections, func(i, j int) bool {
 		return collections[i].Name() < collections[j].Name()
 	})
 
-	out := xlsx.NewFile()
+	out := excelize.NewFile()
 
 	for i := range collections {
 		c := collections[i]
 
-		sheet := &xlsx.Sheet{}
+		name := CleanSheetName(fmt.Sprintf("%s (%s)", c.Name(), c.UID))
+		log.Infof("%s", name)
+		out.NewSheet(name)
 
 		// sort units by position
 		sort.Slice(c.R.CollectionsContentUnits, func(i, j int) bool {
@@ -60,31 +62,18 @@ func doExportTVShows() error {
 		})
 
 		for j := range c.R.CollectionsContentUnits {
-			row := sheet.AddRow()
-			cu := UnitWName{ContentUnit: c.R.CollectionsContentUnits[j].R.ContentUnit}
+			cu := common.UnitWName{ContentUnit: c.R.CollectionsContentUnits[j].R.ContentUnit}
 
-			cell := row.AddCell()
 			url := fmt.Sprintf("https://archive.kbb1.com/programs/cu/%s", cu.UID)
-			cell.SetStringFormula(fmt.Sprintf("HYPERLINK(\"%s\")", url))
-
-			cell = row.AddCell()
-			cell.Value = cu.Name()
-
-			cell = row.AddCell()
-			cell.Value = cu.Description()
-		}
-
-		name := CleanSheetName(fmt.Sprintf("%s (%s)", c.Name(), c.UID))
-		log.Infof("%s", name)
-		sheet, err = out.AppendSheet(*sheet, name)
-		if err != nil {
-			return errors.Wrapf(err, "out.AddSheet %d", i)
+			out.SetCellHyperLink(name, fmt.Sprintf("A%d", j+1), url, "External")
+			out.SetCellStr(name, fmt.Sprintf("B%d", j+1), cu.Name())
+			out.SetCellStr(name, fmt.Sprintf("C%d", j+1), cu.Description())
 		}
 	}
 
-	err = out.Save("MDB_export_tagging_tvshows.xlsx")
+	err = out.SaveAs("MDB_export_tagging_tvshows.xlsx")
 	if err != nil {
-		return errors.Wrap(err, "out.Save")
+		return errors.Wrap(err, "out.SaveAs")
 	}
 
 	return nil

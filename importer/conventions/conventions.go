@@ -12,7 +12,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries"
 	"gopkg.in/volatiletech/null.v6"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -23,10 +23,10 @@ const (
 
 var (
 	LANGS = [4]string{
-		api.LANG_ENGLISH,
-		api.LANG_HEBREW,
-		api.LANG_RUSSIAN,
-		api.LANG_SPANISH,
+		common.LANG_ENGLISH,
+		common.LANG_HEBREW,
+		common.LANG_RUSSIAN,
+		common.LANG_SPANISH,
 	}
 )
 
@@ -47,7 +47,7 @@ func ImportConvetions() {
 	boil.SetDB(mdb)
 	//boil.DebugMode = true
 
-	utils.Must(api.InitTypeRegistries(mdb))
+	utils.Must(common.InitTypeRegistries(mdb))
 
 	utils.Must(handleConventions(mdb))
 
@@ -94,7 +94,7 @@ func handleConventions(db *sql.DB) error {
 
 func doConvention(exec boil.Executor, header map[string]int, record []string) error {
 	// Get or create convention
-	ctID := api.CONTENT_TYPE_REGISTRY.ByName[api.CT_CONGRESS].ID
+	ctID := common.CONTENT_TYPE_REGISTRY.ByName[common.CT_CONGRESS].ID
 	var convention models.Collection
 	err := queries.Raw(exec,
 		`select * from collections where type_id=$1 and properties -> 'pattern' ? $2 limit 1`,

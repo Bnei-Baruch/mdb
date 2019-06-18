@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/volatiletech/null.v6"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -24,7 +25,7 @@ type HandlersSuite struct {
 
 func (suite *HandlersSuite) SetupSuite() {
 	suite.Require().Nil(suite.InitTestDB())
-	suite.Require().Nil(InitTypeRegistries(suite.DB))
+	suite.Require().Nil(common.InitTypeRegistries(suite.DB))
 }
 
 func (suite *HandlersSuite) TearDownSuite() {
@@ -65,7 +66,7 @@ func (suite *HandlersSuite) TestHandleCaptureStart() {
 	suite.Require().Nil(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_START].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_CAPTURE_START].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
@@ -118,7 +119,7 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 			Type:      "type",
 			SubType:   "subtype",
 			MimeType:  "mime_type",
-			Language:  LANG_MULTI,
+			Language:  common.LANG_MULTI,
 		},
 		CaptureSource: "mltcap",
 		CollectionUID: "abcdefgh",
@@ -130,7 +131,7 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 	suite.Require().Nil(err)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_CAPTURE_STOP].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_CAPTURE_STOP].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
@@ -203,7 +204,7 @@ func (suite *HandlersSuite) TestHandleDemux() {
 	suite.Require().Nil(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_DEMUX].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_DEMUX].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
@@ -303,7 +304,7 @@ func (suite *HandlersSuite) TestHandleTrim() {
 	suite.Require().Nil(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_TRIM].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_TRIM].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
@@ -390,7 +391,7 @@ func (suite *HandlersSuite) TestHandleSend() {
 			FileName: "proxy_renamed.mp4",
 		},
 		Metadata: CITMetadata{
-			ContentType: CT_LESSON_PART,
+			ContentType: common.CT_LESSON_PART,
 		},
 	}
 
@@ -399,7 +400,7 @@ func (suite *HandlersSuite) TestHandleSend() {
 	suite.Require().NotEmpty(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_SEND].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_SEND].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
@@ -457,7 +458,7 @@ func (suite *HandlersSuite) TestHandleConvert() {
 					Type:      "type1",
 					SubType:   "subtype1",
 					MimeType:  "mime_type1",
-					Language:  LANG_HEBREW,
+					Language:  common.LANG_HEBREW,
 				},
 				Duration: 871,
 			},
@@ -470,7 +471,7 @@ func (suite *HandlersSuite) TestHandleConvert() {
 					Type:      "type2",
 					SubType:   "subtype2",
 					MimeType:  "mime_type2",
-					Language:  LANG_ENGLISH,
+					Language:  common.LANG_ENGLISH,
 				},
 				Duration: 871,
 			},
@@ -483,7 +484,7 @@ func (suite *HandlersSuite) TestHandleConvert() {
 					Type:      "type3",
 					SubType:   "subtype3",
 					MimeType:  "mime_type3",
-					Language:  LANG_RUSSIAN,
+					Language:  common.LANG_RUSSIAN,
 				},
 				Duration: 871,
 			},
@@ -496,7 +497,7 @@ func (suite *HandlersSuite) TestHandleConvert() {
 					Type:      "type3",
 					SubType:   "subtype3",
 					MimeType:  "mime_type3",
-					Language:  LANG_RUSSIAN,
+					Language:  common.LANG_RUSSIAN,
 				},
 				Duration: 871,
 			},
@@ -508,7 +509,7 @@ func (suite *HandlersSuite) TestHandleConvert() {
 	suite.Require().Empty(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_CONVERT].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_CONVERT].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	suite.False(op.Properties.Valid, "Operation properties")
 
@@ -566,7 +567,7 @@ func (suite *HandlersSuite) TestHandleConvert() {
 				Type:      "type1",
 				SubType:   "subtype1",
 				MimeType:  "mime_type1",
-				Language:  LANG_HEBREW,
+				Language:  common.LANG_HEBREW,
 			},
 			Duration: 871,
 		},
@@ -625,7 +626,7 @@ func (suite *HandlersSuite) TestHandleUpload() {
 	suite.Require().NotEmpty(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_UPLOAD].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_UPLOAD].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	suite.False(op.Properties.Valid, "Operation properties")
 
@@ -640,7 +641,7 @@ func (suite *HandlersSuite) TestHandleUpload() {
 	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File.FileCreatedAt")
 	suite.False(f.ParentID.Valid, "File.ParentID")
 	suite.True(f.Published, "File.Published")
-	suite.Equal(SEC_PUBLIC, f.Secure, "File.Secure")
+	suite.Equal(common.SEC_PUBLIC, f.Secure, "File.Secure")
 	var props map[string]interface{}
 	err = f.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
@@ -656,11 +657,11 @@ func (suite *HandlersSuite) TestHandleUpload() {
 	}
 	file, err := CreateFile(suite.tx, nil, f2, nil)
 	suite.Require().Nil(err)
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 	err = file.SetContentUnit(suite.tx, false, cu)
 	suite.Require().Nil(err)
-	c, err := CreateCollection(suite.tx, CT_DAILY_LESSON, nil)
+	c, err := CreateCollection(suite.tx, common.CT_DAILY_LESSON, nil)
 	suite.Require().Nil(err)
 	err = c.AddCollectionsContentUnits(suite.tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID})
 	suite.Require().Nil(err)
@@ -682,7 +683,7 @@ func (suite *HandlersSuite) TestHandleUpload() {
 	suite.Require().NotEmpty(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_UPLOAD].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_UPLOAD].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	suite.False(op.Properties.Valid, "Operation properties")
 
@@ -697,7 +698,7 @@ func (suite *HandlersSuite) TestHandleUpload() {
 	suite.Equal(input.CreatedAt.Time.Unix(), f.FileCreatedAt.Time.Unix(), "File.FileCreatedAt")
 	suite.False(f.ParentID.Valid, "File.ParentID")
 	suite.True(f.Published, "File.Published")
-	suite.Equal(SEC_PUBLIC, f.Secure, "File.Secure")
+	suite.Equal(common.SEC_PUBLIC, f.Secure, "File.Secure")
 	err = f.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
 	suite.Equal(input.Url, props["url"], "file props: url")
@@ -724,7 +725,7 @@ func (suite *HandlersSuite) TestHandleSirtutim() {
 	suite.Require().Nil(err)
 
 	// Create dummy content unit
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
 	// associate original and content unit
@@ -752,7 +753,7 @@ func (suite *HandlersSuite) TestHandleSirtutim() {
 	suite.Require().Nil(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_SIRTUTIM].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_SIRTUTIM].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	suite.False(op.Properties.Valid, "properties.Valid")
 
@@ -785,7 +786,7 @@ func (suite *HandlersSuite) TestHandleSirtutim() {
 
 func (suite *HandlersSuite) TestHandleInsert() {
 	// Create dummy content unit
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
 	// Do insert operation
@@ -804,7 +805,7 @@ func (suite *HandlersSuite) TestHandleInsert() {
 				Size:      98737,
 				CreatedAt: &Timestamp{Time: time.Now()},
 				MimeType:  "application/msword",
-				Language:  LANG_HEBREW,
+				Language:  common.LANG_HEBREW,
 			},
 			Duration: 123.4,
 		},
@@ -816,7 +817,7 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	suite.Require().NotEmpty(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_INSERT].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
@@ -884,7 +885,7 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	suite.Equal(parent.ID, f.ParentID.Int64, "File ParentID.Int64")
 
 	// test when file already exists
-	cu2, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu2, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 	input.ContentUnitUID = cu2.UID
 
@@ -894,16 +895,16 @@ func (suite *HandlersSuite) TestHandleInsert() {
 
 func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 	// Create dummy content unit
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
 	for i, iType := range []string{"kitei-makor", "research-material"} {
 		var cType string
 		switch iType {
 		case "kitei-makor":
-			cType = CT_KITEI_MAKOR
+			cType = common.CT_KITEI_MAKOR
 		case "research-material":
-			cType = CT_RESEARCH_MATERIAL
+			cType = common.CT_RESEARCH_MATERIAL
 		}
 
 		// Do insert operation
@@ -921,8 +922,8 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 					Sha1:      fmt.Sprintf("012356789abcdef012356789abcdef111111111%d", i),
 					Size:      98737,
 					CreatedAt: &Timestamp{Time: time.Now()},
-					MimeType:  MEDIA_TYPE_REGISTRY.ByExtension["docx"].MimeType,
-					Language:  LANG_HEBREW,
+					MimeType:  common.MEDIA_TYPE_REGISTRY.ByExtension["docx"].MimeType,
+					Language:  common.LANG_HEBREW,
 				},
 			},
 			Mode: "new",
@@ -933,7 +934,7 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 		suite.Require().NotEmpty(evnts)
 
 		// Check op
-		suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+		suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_INSERT].ID, op.TypeID, "Operation TypeID")
 		suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 		var props map[string]interface{}
 		err = op.Properties.Unmarshal(&props)
@@ -968,7 +969,7 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 		// check content unit association
 		suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f))
 		ktCU := f.R.ContentUnit
-		suite.Equal(cType, CONTENT_TYPE_REGISTRY.ByID[ktCU.TypeID].Name, "KT CU type")
+		suite.Equal(cType, common.CONTENT_TYPE_REGISTRY.ByID[ktCU.TypeID].Name, "KT CU type")
 		suite.Require().Nil(ktCU.L.LoadDerivedContentUnitDerivations(suite.tx, true, ktCU))
 		suite.Equal(cu.ID, ktCU.R.DerivedContentUnitDerivations[0].SourceID, "KT CU source CU")
 
@@ -981,7 +982,7 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 		suite.Require().NotEmpty(evnts)
 
 		// Check op
-		suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+		suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_INSERT].ID, op.TypeID, "Operation TypeID")
 		suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 		err = op.Properties.Unmarshal(&props)
 		suite.Require().Nil(err)
@@ -1020,7 +1021,7 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 
 func (suite *HandlersSuite) TestHandleInsertPublication() {
 	// Create dummy content unit
-	cu, err := CreateContentUnit(suite.tx, CT_ARTICLE, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_ARTICLE, nil)
 	suite.Require().Nil(err)
 
 	// create dummy publisher
@@ -1045,8 +1046,8 @@ func (suite *HandlersSuite) TestHandleInsertPublication() {
 				Sha1:      "012356789abcdef012356789abcdef1111111111",
 				Size:      98737,
 				CreatedAt: &Timestamp{Time: time.Now()},
-				MimeType:  MEDIA_TYPE_REGISTRY.ByExtension["png"].MimeType,
-				Language:  LANG_HEBREW,
+				MimeType:  common.MEDIA_TYPE_REGISTRY.ByExtension["png"].MimeType,
+				Language:  common.LANG_HEBREW,
 			},
 		},
 		Mode: "new",
@@ -1057,7 +1058,7 @@ func (suite *HandlersSuite) TestHandleInsertPublication() {
 	suite.Require().NotEmpty(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_INSERT].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
@@ -1092,7 +1093,7 @@ func (suite *HandlersSuite) TestHandleInsertPublication() {
 	// check content unit association
 	suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f))
 	pCU := f.R.ContentUnit
-	suite.Equal(CT_PUBLICATION, CONTENT_TYPE_REGISTRY.ByID[pCU.TypeID].Name, "Publication CU type")
+	suite.Equal(common.CT_PUBLICATION, common.CONTENT_TYPE_REGISTRY.ByID[pCU.TypeID].Name, "Publication CU type")
 	suite.Require().Nil(pCU.L.LoadDerivedContentUnitDerivations(suite.tx, true, pCU))
 	suite.Equal(cu.ID, pCU.R.DerivedContentUnitDerivations[0].SourceID, "Publication CU source CU")
 
@@ -1105,7 +1106,7 @@ func (suite *HandlersSuite) TestHandleInsertPublication() {
 	suite.Require().NotEmpty(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_INSERT].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	err = op.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
@@ -1156,17 +1157,17 @@ func (suite *HandlersSuite) TestHandleInsertDeclamation() {
 				Sha1:      "012356789abcdef012356789abcdef1111111112",
 				Size:      98737,
 				CreatedAt: &Timestamp{Time: time.Now()},
-				MimeType:  MEDIA_TYPE_REGISTRY.ByExtension["mp3"].MimeType,
-				Language:  LANG_RUSSIAN,
+				MimeType:  common.MEDIA_TYPE_REGISTRY.ByExtension["mp3"].MimeType,
+				Language:  common.LANG_RUSSIAN,
 			},
-			Duration:  987.6,
+			Duration: 987.6,
 		},
 		Mode: "new",
 		Metadata: &CITMetadata{
-			ContentType: CT_BLOG_POST,
+			ContentType: common.CT_BLOG_POST,
 			FinalName:   "final_name",
 			CaptureDate: Date{time.Now()},
-			Language:    LANG_RUSSIAN,
+			Language:    common.LANG_RUSSIAN,
 			Lecturer:    "norav",
 		},
 	}
@@ -1176,7 +1177,7 @@ func (suite *HandlersSuite) TestHandleInsertDeclamation() {
 	suite.Require().NotEmpty(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_INSERT].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
@@ -1211,7 +1212,7 @@ func (suite *HandlersSuite) TestHandleInsertDeclamation() {
 	// check content unit association
 	suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f))
 	cu := f.R.ContentUnit
-	suite.Equal(CT_BLOG_POST, CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name, "CU type")
+	suite.Equal(common.CT_BLOG_POST, common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name, "CU type")
 	suite.Require().True(cu.Properties.Valid)
 	err = cu.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
@@ -1222,7 +1223,7 @@ func (suite *HandlersSuite) TestHandleInsertDeclamation() {
 
 func (suite *HandlersSuite) TestHandleInsertUpdateMode() {
 	// Create dummy content unit
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
 	// Create dummy old file
@@ -1253,7 +1254,7 @@ func (suite *HandlersSuite) TestHandleInsertUpdateMode() {
 				Size:      98737,
 				CreatedAt: &Timestamp{Time: time.Now()},
 				MimeType:  "application/msword",
-				Language:  LANG_HEBREW,
+				Language:  common.LANG_HEBREW,
 			},
 			Duration: 123.4,
 		},
@@ -1266,7 +1267,7 @@ func (suite *HandlersSuite) TestHandleInsertUpdateMode() {
 	suite.Require().NotEmpty(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_INSERT].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
@@ -1311,10 +1312,10 @@ func (suite *HandlersSuite) TestHandleInsertUpdateMode() {
 
 func (suite *HandlersSuite) TestHandleInsertRenameMode() {
 	// Create dummy content unit
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
-	cu2, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu2, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
 	// Create dummy old file
@@ -1326,7 +1327,7 @@ func (suite *HandlersSuite) TestHandleInsertRenameMode() {
 		Type:      "video",
 		SubType:   "video subtype",
 		MimeType:  "video/mp4",
-		Language:  LANG_RUSSIAN,
+		Language:  common.LANG_RUSSIAN,
 	}
 	oldFile, err := CreateFile(suite.tx, nil, ofi, nil)
 	suite.Require().Nil(err)
@@ -1349,7 +1350,7 @@ func (suite *HandlersSuite) TestHandleInsertRenameMode() {
 				Size:      98737,
 				CreatedAt: &Timestamp{Time: time.Now()},
 				MimeType:  "application/msword",
-				Language:  LANG_HEBREW,
+				Language:  common.LANG_HEBREW,
 			},
 			Duration: 123.4,
 		},
@@ -1361,7 +1362,7 @@ func (suite *HandlersSuite) TestHandleInsertRenameMode() {
 	suite.Require().NotEmpty(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_INSERT].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_INSERT].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)
@@ -1405,8 +1406,8 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 		Sha1:      "012356789abcdef012356789abcdef9876543210",
 		Size:      math.MaxInt64,
 		Type:      "video",
-		MimeType:  MEDIA_TYPE_REGISTRY.ByExtension["wmv"].MimeType,
-		Language:  LANG_HEBREW,
+		MimeType:  common.MEDIA_TYPE_REGISTRY.ByExtension["wmv"].MimeType,
+		Language:  common.LANG_HEBREW,
 	}
 	oProps := map[string]interface{}{
 		"duration": 1234,
@@ -1415,7 +1416,7 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 	suite.Require().Nil(err)
 
 	// Create dummy content unit
-	cu, err := CreateContentUnit(suite.tx, CT_LESSON_PART, nil)
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
 	// associate original and content unit
@@ -1443,7 +1444,7 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 	suite.Require().Nil(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_TRANSCODE].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_TRANSCODE].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	suite.False(op.Properties.Valid, "properties.Valid")
 
@@ -1468,9 +1469,9 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 	suite.Equal(input.Sha1, hex.EncodeToString(mp4.Sha1.Bytes), "mp4: SHA1")
 	suite.Equal(input.Size, mp4.Size, "mp4: Size")
 	suite.Equal(input.CreatedAt.Time.Unix(), mp4.FileCreatedAt.Time.Unix(), "mp4: FileCreatedAt")
-	suite.Equal(MEDIA_TYPE_REGISTRY.ByExtension["mp4"].Type, mp4.Type, "mp4: Type")
+	suite.Equal(common.MEDIA_TYPE_REGISTRY.ByExtension["mp4"].Type, mp4.Type, "mp4: Type")
 	suite.True(mp4.MimeType.Valid, "mp4: MimeType.Valid")
-	suite.Equal(MEDIA_TYPE_REGISTRY.ByExtension["mp4"].MimeType, mp4.MimeType.String, "mp4: Type")
+	suite.Equal(common.MEDIA_TYPE_REGISTRY.ByExtension["mp4"].MimeType, mp4.MimeType.String, "mp4: Type")
 	suite.True(mp4.ParentID.Valid, "mp4: ParentID.Valid")
 	suite.Equal(original.ID, mp4.ParentID.Int64, "mp4: ParentID")
 	suite.True(mp4.Properties.Valid, "mp4: Properties.Valid")
@@ -1512,9 +1513,9 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 	suite.Equal(input.Sha1, hex.EncodeToString(mp4New.Sha1.Bytes), "mp4New: SHA1")
 	suite.Equal(input.Size, mp4New.Size, "mp4: Size")
 	suite.Equal(input.CreatedAt.Time.Unix(), mp4New.FileCreatedAt.Time.Unix(), "mp4New: FileCreatedAt")
-	suite.Equal(MEDIA_TYPE_REGISTRY.ByExtension["mp4"].Type, mp4New.Type, "mp4: Type")
+	suite.Equal(common.MEDIA_TYPE_REGISTRY.ByExtension["mp4"].Type, mp4New.Type, "mp4: Type")
 	suite.True(mp4New.MimeType.Valid, "mp4New: MimeType.Valid")
-	suite.Equal(MEDIA_TYPE_REGISTRY.ByExtension["mp4"].MimeType, mp4New.MimeType.String, "mp4New: Type")
+	suite.Equal(common.MEDIA_TYPE_REGISTRY.ByExtension["mp4"].MimeType, mp4New.MimeType.String, "mp4New: Type")
 	suite.True(mp4New.ParentID.Valid, "mp4New: ParentID.Valid")
 	suite.Equal(original.ID, mp4New.ParentID.Int64, "mp4New: ParentID")
 	suite.True(mp4New.Properties.Valid, "mp4New: Properties.Valid")
@@ -1554,7 +1555,7 @@ func (suite *HandlersSuite) TestHandleTranscodeError() {
 	suite.Require().Nil(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_TRANSCODE].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_TRANSCODE].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	suite.True(op.Properties.Valid, "properties.Valid")
 	var props map[string]interface{}
@@ -1635,7 +1636,7 @@ func (suite *HandlersSuite) TestHandleJoin() {
 	suite.Require().Nil(evnts)
 
 	// Check op
-	suite.Equal(OPERATION_TYPE_REGISTRY.ByName[OP_JOIN].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_JOIN].ID, op.TypeID, "Operation TypeID")
 	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
 	var props map[string]interface{}
 	err = op.Properties.Unmarshal(&props)

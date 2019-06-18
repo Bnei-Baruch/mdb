@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/360EntSecGroup-Skylar/excelize"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/tealeg/xlsx"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
-	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -39,7 +39,7 @@ type UnitTitle struct {
 func doImportTitles(path string) error {
 	log.Infof("Processing %s", path)
 
-	xlFile, err := xlsx.OpenFile(path)
+	xlFile, err := excelize.OpenFile(path)
 	if err != nil {
 		return errors.Wrapf(err, "xlsx.OpenFile: %s", path)
 	}
@@ -49,31 +49,29 @@ func doImportTitles(path string) error {
 	wCU := 0
 	woCU := 0
 
-	for _, sheet := range xlFile.Sheets {
+	for _, name := range xlFile.GetSheetMap() {
+		rows := xlFile.GetRows(name)
 		titles := make([]*UnitTitle, 0)
-
-		rIdx := 0
-		for _, row := range sheet.Rows {
-			rIdx++
-			if len(row.Cells) < 2 {
+		for rIdx, row := range rows {
+			if len(row) < 2 {
 				continue
 			}
 
-			link := strings.TrimSpace(row.Cells[1].String())
+			link := strings.TrimSpace(row[1])
 			p, err := url.ParseRequestURI(link)
 			if err != nil {
 				//log.Infof("Sheet %s row %d invalid url: %s", sheet.Name, rIdx, link)
 			} else if !strings.HasPrefix(p.Host, "files") {
-				log.Infof("Sheet %s row %d bad host: %s", sheet.Name, rIdx, p.Host)
+				log.Infof("Sheet %s row %d bad host: %s", name, rIdx, p.Host)
 			} else {
 				name := ""
-				if len(row.Cells) > 4 {
-					name = strings.TrimSpace(row.Cells[4].String())
+				if len(row) > 4 {
+					name = strings.TrimSpace(row[4])
 				}
 
 				description := ""
-				if len(row.Cells) > 5 {
-					description = strings.TrimSpace(row.Cells[5].String())
+				if len(row) > 5 {
+					description = strings.TrimSpace(row[5])
 				}
 
 				if name == "" && description == "" {
@@ -98,10 +96,10 @@ func doImportTitles(path string) error {
 			}
 		}
 
-		data[sheet.Name] = titles
+		data[name] = titles
 	}
 
-	log.Infof("Data has %d entries (%d sheets)", len(data), len(xlFile.Sheets))
+	log.Infof("Data has %d entries (%d sheets)", len(data), xlFile.SheetCount)
 	log.Infof("woCU: %d", woCU)
 	log.Infof("wCU: %d", wCU)
 	for k, v := range data {
@@ -144,7 +142,7 @@ func linkToCU(link string) (*models.ContentUnit, error) {
 func updateCU(ut *UnitTitle) error {
 	i18n := models.ContentUnitI18n{
 		ContentUnitID: ut.cu.ID,
-		Language:      api.LANG_HEBREW,
+		Language:      common.LANG_HEBREW,
 		Name:          null.StringFrom(ut.Name),
 		Description:   null.StringFrom(ut.Description),
 	}

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/Bnei-Baruch/mdb/common"
 	"sort"
 	"strings"
 	"sync"
@@ -15,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 
-	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -241,7 +241,7 @@ func lessonReconciler(jobs <-chan *kmodels.Container, wg *sync.WaitGroup) {
 			name := ""
 			for i := range cu.R.ContentUnitI18ns {
 				i18n := cu.R.ContentUnitI18ns[i]
-				if i18n.Language == api.LANG_HEBREW {
+				if i18n.Language == common.LANG_HEBREW {
 					name = utils.Reverse(i18n.Name.String)
 				}
 			}

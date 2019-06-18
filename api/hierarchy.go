@@ -9,6 +9,8 @@ import (
 	"github.com/lib/pq"
 	"github.com/volatiletech/sqlboiler/queries"
 	"gopkg.in/gin-gonic/gin.v1"
+
+	"github.com/Bnei-Baruch/mdb/common"
 )
 
 // args:
@@ -86,7 +88,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 
 	var l string
 	if r.Language == "" {
-		l = LANG_HEBREW
+		l = common.LANG_HEBREW
 	} else {
 		l = r.Language
 	}
@@ -127,7 +129,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 			NewInternalError(err).Abort(c)
 			return
 		}
-		s.Type = SOURCE_TYPE_REGISTRY.ByID[typeID].Name
+		s.Type = common.SOURCE_TYPE_REGISTRY.ByID[typeID].Name
 
 		// Attach source to tree
 		sources[s.ID] = s
@@ -197,7 +199,7 @@ func TagsHierarchyHandler(c *gin.Context) {
 
 	var l string
 	if r.Language == "" {
-		l = LANG_HEBREW
+		l = common.LANG_HEBREW
 	} else {
 		l = r.Language
 	}
