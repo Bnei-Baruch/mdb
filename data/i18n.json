@@ -770,14 +770,14 @@
     "tr": "Dr. Michael Laitman'ın yemek sırasındaki konuşması"
   },
   "autoname.yh": {
-    "he": "ישיבת החברים העולמית",
-    "en": "Global Yeshivat Haverim",
-    "ru": "Мировая ешиват хаверим",
-    "es": "Reunión Mundial de Amigos",
-    "ua": "Світова Єшиват Хаверім",
-    "de": "Weltweite Versammlung der Freunde",
-    "it": "Assemblea mondiale degli amici",
-    "tr": "Global Dostlar Toplantısı"
+    "he": "ישיבת החברים",
+    "en": "Yeshivat Haverim",
+    "ru": "Ешиват хаверим",
+    "es": "Asamblea de Amigos",
+    "ua": "Єшиват Хаверім",
+    "de": "Versammlung der Freunde",
+    "it": "Assemblea degli amici",
+    "tr": "Dostlar Toplantısı"
   },
   "autoname.webinar": {
     "he": "וובינר עם הרב ד\"ר מיכאל לייטמן",
