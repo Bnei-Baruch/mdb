@@ -22,12 +22,12 @@
   "content_type.FRIENDS_GATHERINGS": {
     "he": "ישיבות חברים",
     "en": "Gatherings of Friends",
-    "ru": "Собрание товарищей",
+    "ru": "Ешиват хаверим",
     "es": "Asamblea de Amigos",
-    "ua": "Світова Єшиват Хаверім",
-    "de": "Weltweite Versammlungen der Freunde",
-    "it": "Assemblea mondiale degli Amici",
-    "tr": "Global Dostlar Toplantısı"
+    "ua": "Єшиват Хаверім",
+    "de": "Versammlungen der Freunde",
+    "it": "Assemblea degli Amici",
+    "tr": "Dostlar Toplantısı"
   },
   "content_type.CONGRESS": {
     "he": "כנס",
@@ -771,13 +771,13 @@
   },
   "autoname.yh": {
     "he": "ישיבת החברים",
-    "en": "Yeshivat Haverim",
-    "ru": "Ешиват хаверим",
+    "en": "Gathering of Friends",
+    "ru": "Собрание товарищей",
     "es": "Asamblea de Amigos",
-    "ua": "Єшиват Хаверім",
-    "de": "Versammlung der Freunde",
-    "it": "Assemblea degli amici",
-    "tr": "Dostlar Toplantısı"
+    "ua": "Світова Єшиват Хаверім",
+    "de": "Weltweite Versammlung der Freunde",
+    "it": "Assemblea mondiale degli amici",
+    "tr": "Global Dostlar Toplantısı"
   },
   "autoname.webinar": {
     "he": "וובינר עם הרב ד\"ר מיכאל לייטמן",
