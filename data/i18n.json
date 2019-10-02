@@ -22,12 +22,12 @@
   "content_type.FRIENDS_GATHERINGS": {
     "he": "ישיבות חברים",
     "en": "Gatherings of Friends",
-    "ru": "Ешиват хаверим",
+    "ru": "Собрание товарищей",
     "es": "Asamblea de Amigos",
-    "ua": "Єшиват Хаверім",
-    "de": "Versammlungen der Freunde",
-    "it": "Assemblea degli Amici",
-    "tr": "Dostlar Toplantısı"
+    "ua": "Світова Єшиват Хаверім",
+    "de": "Weltweite Versammlungen der Freunde",
+    "it": "Assemblea mondiale degli Amici",
+    "tr": "Global Dostlar Toplantısı"
   },
   "content_type.CONGRESS": {
     "he": "כנס",
