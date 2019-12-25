@@ -87,7 +87,8 @@ func (d GenericDescriber) DescribeContentUnit(exec boil.Executor,
 		ct == common.CT_LELO_MIKUD ||
 		ct == common.CT_FULL_LESSON ||
 		ct == common.CT_PUBLICATION ||
-		ct == common.CT_RESEARCH_MATERIAL {
+		ct == common.CT_RESEARCH_MATERIAL ||
+		ct == common.CT_KTAIM_NIVCHARIM {
 
 		// Keep technical name for these guys
 		names := map[string]string{

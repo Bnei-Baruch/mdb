@@ -389,6 +389,16 @@
     "it": "Materiale di ricerca",
     "tr": "Araştırma Materyali"
   },
+  "content_type.KTAIM_NIVCHARIM": {
+    "he": "קטעים נבחרים",
+    "en": "Selected Highlights",
+    "ru": "Избранные моменты",
+    "es": "Destacados Seleccionados",
+    "ua": "Вибрані моменти",
+    "de": "Ausgewählte Highlights",
+    "it": "Punti Salienti Selezionati",
+    "tr": "Seçilen Önemli Noktalar"
+  },
   "lang.en": {
     "es": "Ingles",
     "he": "אנגלית",

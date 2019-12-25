@@ -79,8 +79,9 @@ func (suite *AutonameSuite) TestGenericDescriberContentUnit() {
 				x == common.CT_LELO_MIKUD ||
 				x == common.CT_FULL_LESSON ||
 				x == common.CT_PUBLICATION ||
-				x == common.CT_RESEARCH_MATERIAL {
-				suite.Equal(metadata.FinalName, i18n.Name.String, "%s techincal name", i18n.Language)
+				x == common.CT_RESEARCH_MATERIAL ||
+				x == common.CT_KTAIM_NIVCHARIM {
+				suite.Equal(metadata.FinalName, i18n.Name.String, "%s technical name", i18n.Language)
 				suite.Len(i18ns, 3, "len(i18ns)")
 			} else {
 				suite.Len(i18ns, 8, "len(i18ns)")

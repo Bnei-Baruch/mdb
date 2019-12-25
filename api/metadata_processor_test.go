@@ -58,6 +58,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	// send parts
 	// send full
 	// send kitei makor of part 1
+	// send ktaim nivcharim from full
 
 	metadata := CITMetadata{
 		ContentType:    common.CT_LESSON_PART,
@@ -147,7 +148,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 
 	// process full
 	metadata.ContentType = common.CT_FULL_LESSON
-	metadata.Part = null.NewInt(0, false)
+	metadata.Part = null.IntFrom(-1)
 	metadata.Sources = nil
 	metadata.Tags = nil
 	tf := chain["full"]
@@ -243,6 +244,49 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Equal(metadata.CaptureDate.Format("2006-01-02"), props["film_date"], "c.Properties[\"film_date\"]")
 	suite.Equal("c12356789", props["capture_id"], "c.Properties[\"capture_id\"]")
 	suite.EqualValues(metadata.Number.Int, props["number"], "c.Properties[\"number\"]")
+
+	// process ktaim nivcharim from full
+	metadata.ContentType = common.CT_FULL_LESSON
+	metadata.Part = null.IntFrom(-1)
+	metadata.ArtifactType = null.StringFrom("ktaim_nivcharim")
+	metadata.WeekDate = nil
+	tf = chain["ktaim-nivcharim"]
+	original, proxy = tf.Original, tf.Proxy
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
+
+	// associated to "main" content unit
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu = original.R.ContentUnit
+	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
+	cud = cu.R.DerivedContentUnitDerivations[0]
+	suite.Equal(chain["full"].Original.ContentUnitID.Int64, cud.SourceID, "cud.SourceID")
+	suite.Equal("ktaim_nivcharim", cud.Name, "cud.Name")
+	err = cu.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	_, ok = props["artifact_type"]
+	suite.False(ok, "cu.properties[\"artifact_type\"]")
+
+	// associated with collection
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+	ccu = cu.R.CollectionsContentUnits[0]
+	suite.Equal("ktaim_nivcharim_1", ccu.Name, "ccu.Name")
+	suite.Equal(6, ccu.Position, "ccu.Position")
+	suite.Equal(c.ID, ccu.CollectionID, "ccu.CollectionID")
 }
 
 func (suite *MetadataProcessorSuite) TestSpecialLesson() {
@@ -341,7 +385,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 
 	// process full
 	metadata.ContentType = common.CT_FULL_LESSON
-	metadata.Part = null.NewInt(0, false)
+	metadata.Part = null.IntFrom(-1)
 	metadata.Sources = nil
 	metadata.Tags = nil
 	tf := chain["full"]
@@ -837,7 +881,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 
 	// process full
 	metadata.ContentType = common.CT_FULL_LESSON
-	metadata.Part = null.NewInt(0, false)
+	metadata.Part = null.IntFrom(-1)
 	metadata.Sources = nil
 	metadata.Tags = nil
 	tf := chain["full"]
@@ -934,7 +978,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 
 	// process full
 	metadata.ContentType = common.CT_FULL_LESSON
-	metadata.Part = null.NewInt(0, false)
+	metadata.Part = null.IntFrom(-1)
 	metadata.Sources = nil
 	metadata.Tags = nil
 	tf = chain["full"]
@@ -1128,8 +1172,8 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 	CS_SHA1 := [5]string{}
 	DMX_O_SHA1 := [5]string{}
 	DMX_P_SHA1 := [5]string{}
-	TRM_O_SHA1 := [6]string{}
-	TRM_P_SHA1 := [6]string{}
+	TRM_O_SHA1 := [7]string{}
+	TRM_P_SHA1 := [7]string{}
 	for i := range CS_SHA1 {
 		CS_SHA1[i] = utils.RandomSHA1()
 		DMX_O_SHA1[i] = utils.RandomSHA1()
@@ -1139,6 +1183,8 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 	}
 	TRM_O_SHA1[5] = utils.RandomSHA1()
 	TRM_P_SHA1[5] = utils.RandomSHA1()
+	TRM_O_SHA1[6] = utils.RandomSHA1()
+	TRM_P_SHA1[6] = utils.RandomSHA1()
 
 	// capture_start
 	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
@@ -1390,6 +1436,43 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 	trimFiles["part1_kitei-makor"] = TrimFiles{
 		Original: files[TRM_O_SHA1[5]],
 		Proxy:    files[TRM_P_SHA1[5]],
+	}
+
+	// trim ktaim nivcharim from full
+	op, evnts, err = handleTrim(suite.tx, TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: DMX_O_SHA1[4],
+		ProxySha1:    DMX_P_SHA1[4],
+		Original: AVFile{
+			File: File{
+				FileName:  "heb_o_rav_2019-12-23_ktaim-nivharim_n1_original.mp4",
+				Sha1:      TRM_O_SHA1[6],
+				Size:      6700,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 92.1900,
+		},
+		Proxy: AVFile{
+			File: File{
+				FileName:  "heb_o_rav_2019-12-23_ktaim-nivharim_n1_proxy.mp4",
+				Sha1:      TRM_P_SHA1[6],
+				Size:      6700,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 91.8800,
+		},
+		CaptureSource: "mltcap",
+		In:            []float64{10.05, 249.43, 253.83, 312.23, 463.3, 512.3},
+		Out:           []float64{240.51, 250.31, 282.13, 441.03, 483.39, 899.81},
+	})
+	suite.Require().Nil(err)
+	files = suite.opFilesBySHA1(op)
+	trimFiles["ktaim-nivcharim"] = TrimFiles{
+		Original: files[TRM_O_SHA1[6]],
+		Proxy:    files[TRM_P_SHA1[6]],
 	}
 
 	return trimFiles

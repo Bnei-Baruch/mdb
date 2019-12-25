@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -314,7 +315,9 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		return evnts, nil
 	}
 
-	if ct == common.CT_LESSON_PART || ct == common.CT_FULL_LESSON {
+	if ct == common.CT_LESSON_PART ||
+		ct == common.CT_FULL_LESSON ||
+		ct == common.CT_KTAIM_NIVCHARIM {
 		log.Info("Lesson reconciliation")
 
 		// Reconcile or create new
@@ -387,7 +390,9 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 
 				// Associate unit to collection
 				if c != nil &&
-					(!metadata.ArtifactType.Valid || metadata.ArtifactType.String == "main") {
+					(!metadata.ArtifactType.Valid ||
+						metadata.ArtifactType.String == "main" ||
+						metadata.ArtifactType.String == "ktaim_nivcharim") {
 					err := associateUnitToCollection(exec, cu, c, metadata)
 					if err != nil {
 						return nil, errors.Wrap(err, "associate content_unit to collection")
@@ -531,6 +536,10 @@ func associateUnitToCollection(exec boil.Executor, cu *models.ContentUnit, c *mo
 		}
 		break
 	}
+	if metadata.ArtifactType.Valid &&
+		metadata.ArtifactType.String != "main" {
+		ccu.Name = fmt.Sprintf("%s_%s", metadata.ArtifactType.String, ccu.Name)
+	}
 
 	// Make this new unit the last one in this collection
 	var err error
@@ -551,8 +560,7 @@ func associateUnitToCollection(exec boil.Executor, cu *models.ContentUnit, c *mo
 }
 
 func mainToDerived(exec boil.Executor, metadata CITMetadata, original *models.File) (map[int64]string, error) {
-
-	part := -888
+	part := -888  // something we never use for part
 	if metadata.Part.Valid {
 		part = metadata.Part.Int
 	}
@@ -598,7 +606,7 @@ WHERE cu.properties ? 'artifact_type' AND (cu.properties ->> 'part') :: INT = $2
 }
 
 func derivedToMain(exec boil.Executor, metadata CITMetadata, cu *models.ContentUnit, original *models.File) (int64, error) {
-	part := -888
+	part := -888 // something we never use for part
 	if metadata.Part.Valid {
 		part = metadata.Part.Int
 	}
