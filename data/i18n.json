@@ -725,9 +725,9 @@
     "ru": "Урок%s на тему",
     "es": "Lección%s sobre el tema de",
     "ua": "Урок%s на тему",
-    "de": "Lektion zum Thema",
+    "de": "Lektion%s zum Thema",
     "it": "Lezione%s sul tema di",
-    "tr": "Konusundaki Ders"
+    "tr": "Konusundaki%s Ders"
   },
   "autoname.lesson_preparation": {
     "he": "הכנה לשיעור",
