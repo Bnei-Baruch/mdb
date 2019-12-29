@@ -310,3 +310,30 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	name = names[common.LANG_HEBREW]
 	suite.Equal("source 1. source 3. source 4", name, "name")
 }
+
+func (suite *AutonameSuite) TestNameByTag() {
+	t := &models.Tag{ID: 88, UID: "1nyptSIo"}
+	suite.Require().Nil(t.Insert(suite.tx))
+	for _, lang := range [...]string{
+		common.LANG_HEBREW,
+		common.LANG_ENGLISH,
+		common.LANG_RUSSIAN,
+		common.LANG_SPANISH,
+		common.LANG_ITALIAN,
+		common.LANG_GERMAN,
+		common.LANG_UKRAINIAN,
+		common.LANG_TURKISH} {
+		i18n := &models.TagI18n{
+			TagID:    t.ID,
+			Language: lang,
+			Label:    null.StringFrom(fmt.Sprintf("tag lang %s", lang)),
+		}
+		suite.Require().Nil(i18n.Insert(suite.tx))
+	}
+
+	cNumber := new(int)
+	*cNumber = 1
+	names, err := nameByTagUID(suite.tx, t.UID, cNumber)
+	suite.Require().Nil(err)
+	suite.Len(names, 8, "len(names)")
+}
