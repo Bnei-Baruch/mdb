@@ -248,7 +248,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	// process ktaim nivcharim from full
 	metadata.ContentType = common.CT_FULL_LESSON
 	metadata.Part = null.IntFrom(-1)
-	metadata.ArtifactType = null.StringFrom("ktaim_nivcharim")
+	metadata.ArtifactType = null.StringFrom("KTAIM_NIVCHARIM")
 	metadata.WeekDate = nil
 	tf = chain["ktaim-nivcharim"]
 	original, proxy = tf.Original, tf.Proxy
@@ -273,7 +273,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
 	cud = cu.R.DerivedContentUnitDerivations[0]
 	suite.Equal(chain["full"].Original.ContentUnitID.Int64, cud.SourceID, "cud.SourceID")
-	suite.Equal("ktaim_nivcharim", cud.Name, "cud.Name")
+	suite.Equal("KTAIM_NIVCHARIM", cud.Name, "cud.Name")
 	err = cu.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
 	_, ok = props["artifact_type"]
@@ -284,7 +284,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Require().Nil(err)
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu = cu.R.CollectionsContentUnits[0]
-	suite.Equal("ktaim_nivcharim_1", ccu.Name, "ccu.Name")
+	suite.Equal("KTAIM_NIVCHARIM_1", ccu.Name, "ccu.Name")
 	suite.Equal(6, ccu.Position, "ccu.Position")
 	suite.Equal(c.ID, ccu.CollectionID, "ccu.CollectionID")
 }

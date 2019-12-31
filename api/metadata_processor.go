@@ -392,7 +392,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 				if c != nil &&
 					(!metadata.ArtifactType.Valid ||
 						metadata.ArtifactType.String == "main" ||
-						metadata.ArtifactType.String == "ktaim_nivcharim") {
+						metadata.ArtifactType.String == "KTAIM_NIVCHARIM") {
 					err := associateUnitToCollection(exec, cu, c, metadata)
 					if err != nil {
 						return nil, errors.Wrap(err, "associate content_unit to collection")
