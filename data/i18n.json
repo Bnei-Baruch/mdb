@@ -7,6 +7,7 @@
     "ua": "Урок",
     "de": "Tägliche Lektion",
     "it": "Lezione del giorno",
+    "cz": "Denní lekce",
     "tr": "Günlük Ders"
   },
   "content_type.SPECIAL_LESSON": {
@@ -17,6 +18,7 @@
     "ua": "Урок",
     "de": "Besondere Lektion",
     "it": "Lezione speciale",
+    "cz": "Denní lekce",
     "tr": "Özel Ders"
   },
   "content_type.FRIENDS_GATHERINGS": {
@@ -27,6 +29,7 @@
     "ua": "Єшиват Хаверім",
     "de": "Versammlungen der Freunde",
     "it": "Assemblea degli Amici",
+    "cz": "Shromáždění přátel",
     "tr": "Dostlar Toplantısı"
   },
   "content_type.CONGRESS": {
@@ -37,6 +40,7 @@
     "ua": "Конгрес",
     "de": "Kongress",
     "it": "Congresso",
+    "cz": "Setkání",
     "tr": "Kongre"
   },
   "content_type.VIDEO_PROGRAM": {
@@ -47,6 +51,7 @@
     "ua": "ТВ Програма",
     "de": "Videoprogramm",
     "it": "Programma video",
+    "cz": "TV pořad",
     "tr": "TV Programı"
   },
   "content_type.LECTURE_SERIES": {
@@ -57,6 +62,7 @@
     "ua": "Серія Лекцій",
     "de": "Vortragsreihe",
     "it": "Serie di conferenze",
+    "cz": "Série přednášek",
     "tr": "Konferans Serileri"
   },
   "content_type.CHILDREN_LESSONS": {
@@ -67,6 +73,7 @@
     "ua": "Діти Уроки",
     "de": "Unterrichte für Kinder",
     "it": "Lezioni per i bambini",
+    "cz": "Dětské lekce",
     "tr": "Çocuk Dersleri"
   },
   "content_type.WOMEN_LESSONS": {
@@ -77,6 +84,7 @@
     "ua": "Уроки для жiнок",
     "de": "Unterrichte für Frauen",
     "it": "Lezioni per le donne",
+    "cs": "Ženské lekce",
     "tr": "Kadın Dersleri"
   },
   "content_type.VIRTUAL_LESSONS": {
@@ -87,6 +95,7 @@
     "ua": "Віртуальнi Уроки",
     "de": "Virtuelle Lektionen",
     "it": "Lezioni virtuali",
+    "cz": "Virtuální lekce",
     "tr": "Sanal Dersler"
   },
   "content_type.MEALS": {
@@ -97,6 +106,7 @@
     "ua": "Трапези",
     "de": "Mahlzeiten",
     "it": "Pasti",
+    "cs": "Jídla",
     "tr": "Yemekler"
   },
   "content_type.HOLIDAY": {
@@ -107,6 +117,7 @@
     "ua": "Свято",
     "de": "Feiertag",
     "it": "Festività",
+    "cs": "Svátky",
     "tr": "Bayram"
   },
   "content_type.PICNIC": {
@@ -117,6 +128,7 @@
     "ua": "Пікнік",
     "de": "Picknick",
     "it": "Picnic",
+    "cs": "Piknik",
     "tr": "Piknik"
   },
   "content_type.UNITY_DAY": {
@@ -127,6 +139,7 @@
     "ua": "День Народної Єдності",
     "de": "Unity Day",
     "it": "Unity Day- Giorno dell’Unione",
+    "cs": "Den jednoty",
     "tr": "Birlik Günü"
   },
   "content_type.CLIPS": {
@@ -137,6 +150,7 @@
     "ua": "Кліпи",
     "de": "Clips",
     "it": "Video brevi",
+    "cs": "Klip",
     "tr": "Klipler"
   },
   "content_type.ARTICLES": {
@@ -147,6 +161,7 @@
     "ua": "Статті",
     "de": "Artikel",
     "it": "Articoli",
+    "cs": "Články",
     "tr": "Makaleler"
   },
   "content_type.LESSONS_SERIES": {
@@ -157,6 +172,7 @@
     "ua": "Серія Уроки",
     "de": "Teil Nr. der Lektion",
     "it": "Serie di lezioni",
+    "cs": "Série lekcí",
     "tr": "Ders Serileri"
   },
   "content_type.SONGS": {
@@ -167,6 +183,7 @@
     "ua": "Пісні",
     "de": "Lieder",
     "it": "Canzoni",
+    "cs": "Písnišky",
     "tr": "Şarkılar"
   },
   "content_type.BOOKS": {
@@ -177,6 +194,7 @@
     "ua": "Книги",
     "de": "Bücher",
     "it": "Libri",
+    "cs": "Knihy",
     "tr": "Kitaplar"
   },
   "content_type.LESSON_PART": {
@@ -187,6 +205,7 @@
     "ua": "Урок Частина",
     "de": "Lektionsteil",
     "it": "Parte dalla lezione",
+    "cs": "Část lekce",
     "tr": "Ders Bölümü"
   },
   "content_type.LECTURE": {
@@ -197,6 +216,7 @@
     "ua": "Лекція",
     "de": "Lektion",
     "it": "Conferenza",
+    "cs": "Přednáška",
     "tr": "Konferans"
   },
   "content_type.CHILDREN_LESSON": {
@@ -207,6 +227,7 @@
     "ua": "Діти Урок",
     "de": "Unterricht für Kinder",
     "it": "Lezione per i bambini",
+    "cs": "Dětská lekce",
     "tr": "Çocuk Dersi"
   },
   "content_type.WOMEN_LESSON": {
@@ -217,6 +238,7 @@
     "ua": "Урок для жiнок",
     "de": "Unterricht für Frauen",
     "it": "Lezione per le donne",
+    "cs": "Ženská lekce",
     "tr": "Kadın Dersi"
   },
   "content_type.VIRTUAL_LESSON": {
@@ -227,6 +249,7 @@
     "ua": "Віртуальний Урок",
     "de": "Virtuelle Lektion",
     "it": "Lezione virtuale",
+    "cs": "Virtuální lekce",
     "tr": "Sanal Ders"
   },
   "content_type.FRIENDS_GATHERING": {
@@ -237,6 +260,7 @@
     "ua": "Єшиват Хаверім",
     "de": "Versammlung der Freunde",
     "it": "Assemblea degli Amici",
+    "cs": "Setkávání přátel",
     "tr": "Dostlar Toplantısı"
   },
   "content_type.MEAL": {
@@ -247,6 +271,7 @@
     "ua": "Трапеза",
     "de": "Mahlzeit",
     "it": "Assemblea degli Amici",
+    "cs": "Jídlo",
     "tr": "Yemek"
   },
   "content_type.VIDEO_PROGRAM_CHAPTER": {
@@ -257,6 +282,7 @@
     "ua": "Епізод",
     "de": "Teil des Programmes",
     "it": "Episodio del programma video",
+    "cs": "Epizoda",
     "tr": "Bölüm"
   },
   "content_type.FULL_LESSON": {
@@ -267,6 +293,7 @@
     "ua": "Цілий Урок",
     "de": "Vollständige Lektion",
     "it": "Lezione completa",
+    "cs": "Celá lekce",
     "tr": "Tam Ders"
   },
   "content_type.ARTICLE": {
@@ -277,6 +304,7 @@
     "ua": "Стаття",
     "de": "Artikel",
     "it": "Articolo",
+    "cs": "Článek",
     "tr": "Makale"
   },
   "content_type.UNKNOWN": {
@@ -287,6 +315,7 @@
     "ua": "Невідомий",
     "de": "Unbekannt",
     "it": "Sconosciuto",
+    "cs": "Neznámé",
     "tr": "Bilinmeyen"
   },
   "content_type.EVENT_PART": {
@@ -297,6 +326,7 @@
     "ua": "Подія Частина",
     "de": "Teil der Veranstaltung",
     "it": "Parte dell'evento",
+    "cs": "Část události",
     "tr": "Olaylar Bölümü"
   },
   "content_type.CLIP": {
@@ -307,6 +337,7 @@
     "ua": "Кліп",
     "de": "Clip",
     "it": "Video breve",
+    "cs": "Klip",
     "tr": "Klip"
   },
   "content_type.TRAINING": {
@@ -317,6 +348,7 @@
     "ua": "Навчання",
     "de": "Training",
     "it": "Formazione",
+    "cs": "Trénink",
     "tr": "Eğitim"
   },
   "content_type.KITEI_MAKOR": {
@@ -327,6 +359,7 @@
     "ua": "Початкові Витяги",
     "de": "Fragmente von Primärquellen",
     "it": "Estratti dalle fonti",
+    "cs": "Výňatky ze zdrojů",
     "tr": "Kaynaklardan Alıntılar"
   },
   "content_type.PUBLICATION": {
@@ -337,6 +370,7 @@
     "ua": "Публікація",
     "de": "Veröffentlichung",
     "it": "Pubblicazione",
+    "cs": "Publikace",
     "tr": "Yayınlar"
   },
   "content_type.LELO_MIKUD": {
@@ -347,6 +381,7 @@
     "ua": "Без Фокус-Групи",
     "de": "Bearbeitet - Ohne Fokusgruppen",
     "it": "Senza Focus Group",
+    "cs": "Bez Focus Group",
     "tr": "Fokuz Grupsuz"
   },
   "content_type.SONG": {
@@ -357,6 +392,7 @@
     "ua": "Пісня",
     "de": "Lied",
     "it": "Canzone",
+    "cs": "Píseň",
     "tr": "Şarkı"
   },
   "content_type.BOOK": {
@@ -367,6 +403,7 @@
     "ua": "Книга",
     "de": "Buch",
     "it": "Libro",
+    "cs": "Kniha",
     "tr": "Kitap"
   },
   "content_type.BLOG_POST": {
@@ -377,16 +414,18 @@
     "ua": "Публікація блогів",
     "de": "Blogeintrag",
     "it": "Post dal Blog",
+    "cs": "Blog Post",
     "tr": "Blok Postu"
   },
   "content_type.RESEARCH_MATERIAL": {
     "he": "חומרי מחקר",
     "en": "Research Material",
-    "ru": "Материал сследования",
+    "ru": "Материал исследования",
     "es": "Material de investigación",
     "ua": "Матеріал дослідження",
     "de": "Forschungsmaterial",
     "it": "Materiale di ricerca",
+    "cs": "Výzkumný materiál",
     "tr": "Araştırma Materyali"
   },
   "content_type.KTAIM_NIVCHARIM": {
@@ -397,6 +436,7 @@
     "ua": "Вибрані моменти",
     "de": "Ausgewählte Highlights",
     "it": "Punti Salienti Selezionati",
+    "cs": "Vybraná zvýraznění",
     "tr": "Seçilen Önemli Noktalar"
   },
   "lang.en": {
@@ -407,6 +447,7 @@
     "de": "Englisch",
     "ua": "Англійська",
     "it": "English",
+    "cz": "Angličtina",
     "tr": "English"
   },
   "lang.he": {
@@ -417,6 +458,7 @@
     "de": "Hebräisch",
     "ua": "Іврит",
     "it": "Hebrew",
+    "cz": "Hebrejština",
     "tr": "Hebrew"
   },
   "lang.ru": {
@@ -437,6 +479,7 @@
     "de": "Spanisch",
     "ua": "Іспанська",
     "it": "Spanish",
+    "cz": "Ruština",
     "tr": "Spanish"
   },
   "lang.it": {
@@ -447,6 +490,7 @@
     "de": "Italienisch",
     "ua": "Італійська",
     "it": "Italian",
+    "cz": "Italština",
     "tr": "Italian"
   },
   "lang.de": {
@@ -457,6 +501,7 @@
     "de": "Deutsch",
     "ua": "Німецька",
     "it": "German",
+    "cz": "Němec",
     "tr": "German"
   },
   "lang.nl": {
@@ -467,6 +512,7 @@
     "de": "Niederländisch",
     "ua": "Голландська",
     "it": "Dutch",
+    "cz": "Holandský",
     "tr": "Dutch"
   },
   "lang.fr": {
@@ -477,6 +523,7 @@
     "de": "Französisch",
     "ua": "Французька",
     "it": "French",
+    "cz": "Francouzština",
     "tr": "French"
   },
   "lang.pt": {
@@ -487,6 +534,7 @@
     "de": "Portugiesisch",
     "ua": "Португальська",
     "it": "Portuguese",
+    "cz": "Portugalština",
     "tr": "Portuguese"
   },
   "lang.tr": {
@@ -497,6 +545,7 @@
     "de": "Türkisch",
     "ua": "Турецька",
     "it": "Turkish",
+    "cz": "Turečtina",
     "tr": "Türkçe"
   },
   "lang.pl": {
@@ -507,6 +556,7 @@
     "de": "Polnisch",
     "ua": "Польська",
     "it": "Polish",
+    "cz": "Polština",
     "tr": "Polish"
   },
   "lang.ar": {
@@ -517,6 +567,7 @@
     "de": "Arabisch",
     "ua": "Арабська",
     "it": "Arabic",
+    "cz": "Arabština",
     "tr": "Arabic"
   },
   "lang.hu": {
@@ -527,6 +578,7 @@
     "de": "Ungarisch",
     "ua": "Угорська",
     "it": "Hungarian",
+    "cz": "Maďarština",
     "tr": "Hungarian"
   },
   "lang.fi": {
@@ -537,6 +589,7 @@
     "de": "Finnisch",
     "ua": "Фінська",
     "it": "Finnish",
+    "cz": "Finština",
     "tr": "Finnish"
   },
   "lang.lt": {
@@ -547,6 +600,7 @@
     "de": "Litauisch",
     "ua": "Литовська",
     "it": "Lithuanian",
+    "cz": "Litevština",
     "tr": "Lithuanian"
   },
   "lang.ja": {
@@ -557,6 +611,7 @@
     "de": "Japanisch",
     "ua": "Японська",
     "it": "Japanese",
+    "cz": "japonština",
     "tr": "Japanese"
   },
   "lang.bg": {
@@ -567,6 +622,7 @@
     "de": "Bulgarisch",
     "ua": "Болгарська",
     "it": "Bulgarian",
+    "cz": "Bulharština",
     "tr": "Bulgarian"
   },
   "lang.ka": {
@@ -577,6 +633,7 @@
     "de": "Georgisch",
     "ua": "Грузинська",
     "it": "Georgian",
+    "cz": "Gruzínština",
     "tr": "Georgian"
   },
   "lang.no": {
@@ -587,6 +644,7 @@
     "de": "Norwegisch",
     "ua": "Норвезька",
     "it": "Norwegian",
+    "cz": "Norština",
     "tr": "Norwegian"
   },
   "lang.sv": {
@@ -597,6 +655,7 @@
     "de": "Schwedisch",
     "ua": "Шведська",
     "it": "Swedish",
+    "cz": "Švédština",
     "tr": "Swedish"
   },
   "lang.hr": {
@@ -607,6 +666,7 @@
     "de": "Kroatisch",
     "ua": "Хорватська",
     "it": "Croatian",
+    "cz": "Chorvatština",
     "tr": "Croatian"
   },
   "lang.zh": {
@@ -617,6 +677,7 @@
     "de": "Chinesisch",
     "ua": "Китайська",
     "it": "Chinese",
+    "cz": "čínština",
     "tr": "Chinese"
   },
   "lang.fa": {
@@ -627,6 +688,7 @@
     "de": "Persisch",
     "ua": "Персидська",
     "it": "Persian",
+    "cz": "Perština",
     "tr": "Persian"
   },
   "lang.ro": {
@@ -637,6 +699,7 @@
     "de": "Rumänisch",
     "ua": "Румунська",
     "it": "Romanian",
+    "cz": "Rumunština",
     "tr": "Romanian"
   },
   "lang.hi": {
@@ -647,6 +710,7 @@
     "de": "Indisch",
     "ua": "Індійська",
     "it": "Hindi",
+    "cz": "Hindština",
     "tr": "Hindi"
   },
   "lang.ua": {
@@ -657,6 +721,7 @@
     "de": "Ukrainisch",
     "ua": "Українська",
     "it": "Ukrainian",
+    "cz": "Ukrajinština",
     "tr": "Ukrainian"
   },
   "lang.mk": {
@@ -667,6 +732,7 @@
     "de": "Mazedonisch",
     "ua": "Македонська",
     "it": "Macedonian",
+    "cz": "Makedonština",
     "tr": "Macedonian"
   },
   "lang.sl": {
@@ -677,6 +743,7 @@
     "de": "Slowenisch",
     "ua": "Словенська",
     "it": "Slovenian",
+    "cz": "Slovinština",
     "tr": "Slovenian"
   },
   "lang.lv": {
@@ -687,6 +754,7 @@
     "de": "Lettisch",
     "ua": "Латвійська",
     "it": "Latvian",
+    "cz": "Lotyština",
     "tr": "Latvian"
   },
   "lang.sk": {
@@ -697,6 +765,7 @@
     "de": "Slowakisch",
     "ua": "Словацька",
     "it": "Slovak",
+    "cz": "Slovákština",
     "tr": "Slovak"
   },
   "lang.cs": {
@@ -707,6 +776,7 @@
     "de": "Tschechisch",
     "ua": "Чеська",
     "it": "Czech",
+    "cz": "Čeština",
     "tr": "Czech"
   },
   "lang.am": {
@@ -717,6 +787,7 @@
     "de": "Amharisch",
     "ua": "Амхарський",
     "it": "Amarica",
+    "cz": "Amharština",
     "tr": "Amharic"
   },
   "autoname.lesson_by_topic_tag": {
@@ -727,6 +798,7 @@
     "ua": "Урок%s на тему",
     "de": "Lektion%s zum Thema",
     "it": "Lezione%s sul tema di",
+    "cz": "Lekce%s na téma",
     "tr": "Konusundaki%s Ders"
   },
   "autoname.lesson_preparation": {
@@ -737,6 +809,7 @@
     "ua": "Підготовка до Уроку",
     "de": "Vorbereitung auf die Lektion",
     "it": "Preparazione alla lezione",
+    "cs": "Příprava na lekci",
     "tr": "Derse Hazırlık"
   },
   "autoname.record": {
@@ -747,6 +820,7 @@
     "ua": "Записка",
     "de": "Aufzeichnung",
     "it": "Record",
+    "cs": "Záznam",
     "tr": "Kayıt"
   },
   "autoname.lfq8P1du": {
@@ -757,6 +831,7 @@
     "ua": "Запитання та відповіді з д-ром Міхаелем Лайтманом",
     "de": "Fragen und Antworten mit Dr. Michael Laitman",
     "it": "Domande e risposte con il Dr. Michael Laitman",
+    "cs": "Otázky a odpovědi s Dr. Michaelem Laitmanem",
     "tr": "Dr. Michael Laitman ile soru ve cevaplar"
   },
   "autoname.iWPWpSNy": {
@@ -767,6 +842,7 @@
     "ua": "Бесіда д-ра Міхаеля Лайтмана з жінками",
     "de": "Dr. Michael Laitman im Gespräch mit Frauen",
     "it": " Dr. Michael Laitman conversazione con le donne",
+    "cs": "Dr. Michael Laitman hovoří s ženami",
     "tr": "Dr. Michael Laitman'ın kadınlarla sohbeti"
   },
   "autoname.meal": {
@@ -777,6 +853,7 @@
     "ua": "Промова д-ра Міхаеля Лайтмана на трапезі",
     "de": " Dr. Michael Laitmans Vortrag während der Mahlzeit",
     "it": "Discorso del Dr. M. Laitman durante il pasto",
+    "cs": "Řeč Dr. Michaela Laitmana u jídla",
     "tr": "Dr. Michael Laitman'ın yemek sırasındaki konuşması"
   },
   "autoname.yh": {
@@ -787,6 +864,7 @@
     "ua": "Світова Єшиват Хаверім",
     "de": "Weltweite Versammlung der Freunde",
     "it": "Assemblea mondiale degli amici",
+    "cs": "Globální Ješivat Haverim",
     "tr": "Global Dostlar Toplantısı"
   },
   "autoname.webinar": {
@@ -797,6 +875,7 @@
     "ua": "Вебінар з д-ром Міхаелем Лайтманом",
     "de": "Webinar mit Dr. Michael Laitman",
     "it": "Webinar con il Dr. Michael Laitman",
+    "cs": "Webinář s Dr. Michaelem Laitmanem",
     "tr": "Dr. Michael Laitman ile Webinar"
   },
   "autoname.declamation": {
@@ -807,6 +886,7 @@
     "ua": "Радіо-версія блогу д-ра Міхаеля Лайтмана",
     "de": "Die Radio-Version dem Blog Dr. Michael Laitman",
     "it": "Blog di Dr. Michael Laitman - Versione audio",
+    "cz": "Blog Dr. Michaela Laitmana - Zvuková verze",
     "tr": "Michael Laitman Blog - Ses Sürümü"
   }
 }
