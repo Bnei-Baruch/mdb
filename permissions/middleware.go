@@ -16,7 +16,7 @@ type Roles struct {
 type IDTokenClaims struct {
 	Acr               string           `json:"acr"`
 	AllowedOrigins    []string         `json:"allowed-origins"`
-	Aud               string           `json:"aud"`
+	Aud               interface{}      `json:"aud"`
 	AuthTime          int              `json:"auth_time"`
 	Azp               string           `json:"azp"`
 	Email             string           `json:"email"`
