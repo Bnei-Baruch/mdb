@@ -24,6 +24,7 @@ var CLIP_RE = regexp.MustCompile("(?i)клип")
 var TWITTER_RE = regexp.MustCompile("(?i)(Мои мысли в Twitter|Mis pensamientos en Twitter|Mis pensamiento en Twitter|My Thoughts On Twitter|המחשבות שלי ב &#8211; Twitter)")
 var DECLAMATION_RE = regexp.MustCompile("(?i)^(Радио-версия|Audio Version Of The Blog|גרסת אודיו)")
 var PROGRAMS_RE = regexp.MustCompile("(?i)^(Una nueva vida|Una vida nueva|Good Environment|New Life|חיים חדשים|טעימות משיעור הקבלה היומי)")
+var WORKSHOPS_RE = regexp.MustCompile("(?i)^(שיעורי הקבלה, סדנאות ושיחות)")
 
 func Analyze() {
 	clock, _ := Init()
@@ -294,7 +295,8 @@ func (f *TitleBasedFilter) IsPass(post *wordpress.Post) bool {
 		// CLIP_RE.MatchString(post.Title.Rendered) ||
 		TWITTER_RE.MatchString(title) ||
 		PROGRAMS_RE.MatchString(title) ||
-		DECLAMATION_RE.MatchString(title))
+		DECLAMATION_RE.MatchString(title) ||
+		WORKSHOPS_RE.MatchString(title))
 }
 
 var titleBasedFilter = new(TitleBasedFilter)
