@@ -32,7 +32,10 @@ emitter-size=1024
 
 [authentication]
 enable=true
-issuer="https://accounts.kbb1.com/auth/realms/main"
+issuers=[
+    "https://accounts.kbb1.com/auth/realms/main",
+    "https://accounts.kab.info/auth/realms/main"
+]
 
 [permissions]
 enable=true

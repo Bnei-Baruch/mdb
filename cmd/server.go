@@ -64,13 +64,15 @@ func serverFn(cmd *cobra.Command, args []string) {
 	corsConfig.AllowAllOrigins = true
 
 	// Authentication
-	var oidcIDTokenVerifier *oidc.IDTokenVerifier
+	var oidcIDTokenVerifiers []*oidc.IDTokenVerifier
 	if viper.GetBool("authentication.enable") {
-		oidcProvider, err := oidc.NewProvider(context.TODO(), viper.GetString("authentication.issuer"))
-		utils.Must(err)
-		oidcIDTokenVerifier = oidcProvider.Verifier(&oidc.Config{
-			SkipClientIDCheck: true,
-		})
+		for _, issuer := range viper.GetStringSlice("authentication.issuers") {
+			oidcProvider, err := oidc.NewProvider(context.TODO(), issuer)
+			utils.Must(err)
+			oidcIDTokenVerifiers = append(oidcIDTokenVerifiers, oidcProvider.Verifier(&oidc.Config{
+				SkipClientIDCheck: true,
+			}))
+		}
 	}
 
 	// casbin
@@ -84,7 +86,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	router := gin.New()
 	router.Use(
 		utils.MdbLoggerMiddleware(),
-		utils.EnvMiddleware(db, emitter, enforcer, oidcIDTokenVerifier),
+		utils.EnvMiddleware(db, emitter, enforcer, oidcIDTokenVerifiers),
 		utils.ErrorHandlingMiddleware(),
 		permissions.AuthenticationMiddleware(),
 		cors.New(corsConfig),

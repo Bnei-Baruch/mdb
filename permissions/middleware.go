@@ -39,15 +39,15 @@ type IDTokenClaims struct {
 
 func AuthenticationMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenVerifier, _ := c.Get("TOKEN_VERIFIER")
-		if verifier, ok := tokenVerifier.(*oidc.IDTokenVerifier); ok && verifier != nil {
-			// We have a proper ID Token Verifier. Game on
+		tokenVerifiers, _ := c.Get("TOKEN_VERIFIERS")
+		if verifiers, ok := tokenVerifiers.([]*oidc.IDTokenVerifier); ok && verifiers != nil {
+			// We have some ID Token Verifiers. Game on
 
 			authHeader := strings.Split(strings.TrimSpace(c.Request.Header.Get("Authorization")), " ")
 			if len(authHeader) == 2 || strings.ToLower(authHeader[0]) == "bearer" {
 				// Authorization header provided, let's verify.
 
-				token, err := verifier.Verify(context.TODO(), authHeader[1])
+				token, err := verifyWithFallback(verifiers, authHeader[1])
 				if err != nil {
 					c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
 					return
@@ -69,4 +69,16 @@ func AuthenticationMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func verifyWithFallback(verifiers []*oidc.IDTokenVerifier, tokenStr string) (*oidc.IDToken, error) {
+	var token *oidc.IDToken
+	var err error
+	for _, verifier := range verifiers {
+		token, err = verifier.Verify(context.TODO(), tokenStr)
+		if err == nil {
+			return token, nil
+		}
+	}
+	return nil, err
 }

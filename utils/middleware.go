@@ -39,12 +39,12 @@ func MdbLoggerMiddleware() gin.HandlerFunc {
 }
 
 func EnvMiddleware(mdb *sql.DB, emitter events.EventEmitter, enforcer *casbin.Enforcer,
-	tokenVerifier *oidc.IDTokenVerifier) gin.HandlerFunc {
+	tokenVerifiers []*oidc.IDTokenVerifier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set("MDB", mdb)
 		c.Set("EVENTS_EMITTER", emitter)
 		c.Set("PERMISSIONS_ENFORCER", enforcer)
-		c.Set("TOKEN_VERIFIER", tokenVerifier)
+		c.Set("TOKEN_VERIFIERS", tokenVerifiers)
 		c.Next()
 	}
 }
