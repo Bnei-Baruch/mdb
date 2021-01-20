@@ -677,6 +677,9 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 	if r.Mode == "new" && file != nil {
 		return nil, nil, errors.Errorf("File already exist")
 	}
+	if r.Mode == "rename" && err != nil {
+		return nil, nil, err
+	}
 
 	opFiles := make([]*models.File, 0)
 	var oldFile *models.File
