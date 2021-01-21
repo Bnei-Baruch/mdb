@@ -44,6 +44,7 @@ const (
 	CT_BLOG_POST             = "BLOG_POST"
 	CT_RESEARCH_MATERIAL     = "RESEARCH_MATERIAL"
 	CT_KTAIM_NIVCHARIM       = "KTAIM_NIVCHARIM"
+	CT_AUDIO_SOURCE          = "AUDIO_SOURCE"
 
 	// Operation Types
 	OP_CAPTURE_START = "capture_start"
