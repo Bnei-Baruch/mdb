@@ -3436,6 +3436,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 			return nil, NewInternalError(err)
 		}
 	}
+	common.CreateCUTypeSource(&s.Source, exec, "")
 
 	return handleGetSource(exec, s.ID)
 }

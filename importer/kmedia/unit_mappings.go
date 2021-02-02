@@ -261,7 +261,7 @@ func fixUnitMappings(mappings []*FileMappings) error {
 		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_PUBLICATION].ID:       true,
 		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_RESEARCH_MATERIAL].ID: true,
 		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_KTAIM_NIVCHARIM].ID:   true,
-		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_AUDIO_SOURCE].ID:      true,
+		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID:            true,
 	}
 	for k, v := range bySize {
 		fmt.Printf("size %d\n", k)

@@ -32,13 +32,19 @@ import (
 var UID_REGEX = regexp.MustCompile("[a-zA-z0-9]{8}")
 
 type TestDBManager struct {
-	DB     *sql.DB
-	testDB string
+	DB      *sql.DB
+	testDB  string
+	rootDir string
 }
 
-func (m *TestDBManager) InitTestDB() error {
+func (m *TestDBManager) InitTestDB(dir ...string) error {
 	m.testDB = fmt.Sprintf("test_%s", strings.ToLower(GenerateName(10)))
 	fmt.Println("Initializing test DB: ", m.testDB)
+	if len(dir) > 0 {
+		m.rootDir = dir[0]
+	} else {
+		m.rootDir = "../"
+	}
 
 	m.initConfig()
 
@@ -104,7 +110,7 @@ func (m *TestDBManager) initConfig() {
 	})
 
 	viper.SetConfigName("config")
-	viper.AddConfigPath("../")
+	viper.AddConfigPath(m.rootDir)
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
@@ -137,7 +143,7 @@ func (m *TestDBManager) runMigrations(db *sql.DB) error {
 		return nil
 	}
 
-	return filepath.Walk("../migrations", visit)
+	return filepath.Walk(fmt.Sprintf("%s/migrations", m.rootDir), visit)
 }
 
 func Sha1(s string) string {

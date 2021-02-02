@@ -1,7 +1,7 @@
 -- MDB generated migration file
 -- rambler up
 
-WITH data(name) AS (VALUES ('AUDIO_SOURCE'))
+WITH data(name) AS (VALUES ('CT_SOURCE'))
 INSERT
 INTO content_types (name)
 SELECT d.name
@@ -14,4 +14,4 @@ WHERE NOT EXISTS(SELECT ct.name
 
 DELETE
 FROM content_types
-WHERE name IN ('AUDIO_SOURCE');
+WHERE name IN ('CT_SOURCE');
