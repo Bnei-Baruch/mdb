@@ -33,7 +33,7 @@ func StdLang(lang string) string {
 	return LANG_UNKNOWN
 }
 
-func CreateCUTypeSource(s *models.Source, mdb boil.Executor, uid string) (*models.ContentUnit, error) {
+func CreateCUTypeSource(s *models.Source, mdb boil.Executor) (*models.ContentUnit, error) {
 	if has := haveSourceCUTypeSource(s.UID, mdb); has {
 		return nil, errors.New(fmt.Sprintf("Have CU type %s for this source %s", CT_SOURCE, s.UID))
 	}
@@ -46,7 +46,7 @@ func CreateCUTypeSource(s *models.Source, mdb boil.Executor, uid string) (*model
 	}
 
 	cu := &models.ContentUnit{
-		UID:        uid,
+		UID:        s.UID,
 		TypeID:     CONTENT_TYPE_REGISTRY.ByName[CT_SOURCE].ID,
 		Secure:     SEC_PUBLIC,
 		Published:  true,

@@ -2,7 +2,6 @@ package cusource
 
 import (
 	"database/sql"
-	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -30,11 +29,12 @@ func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 		//qm.Select("id", "uid", "properties", ),
 		qm.InnerJoin("content_units_sources cus ON id = cus.source_id"),
 		qm.InnerJoin("content_units cu ON cus.content_unit_id = cu.id"),
-		qm.Where("cu.type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID),
+		qm.Where("cus IS NOT NULL AND cu.type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID),
 	).All()
 	utils.Must(err)
 
-	sources, err := filterRoots(mdb)
+	//sources, err := filterRoots(mdb)
+	sources, err := models.Sources(mdb).All()
 	utils.Must(err)
 
 	for _, s := range sources {
@@ -46,9 +46,8 @@ func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 			}
 		}
 		if !hasCU {
-			cuUid, err := api.GetFreeUID(mdb, new(api.ContentUnitUIDChecker))
 			utils.Must(err)
-			cu, err := common.CreateCUTypeSource(s, mdb, cuUid)
+			cu, err := common.CreateCUTypeSource(s, mdb)
 			if err != nil {
 				log.Debug("Duplicate create CU", err)
 			}
