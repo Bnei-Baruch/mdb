@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
-	log "github.com/Sirupsen/logrus"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
@@ -33,7 +32,15 @@ func StdLang(lang string) string {
 	return LANG_UNKNOWN
 }
 
-func CreateCUTypeSource(s *models.Source, mdb boil.Executor) (*models.ContentUnit, error) {
+func CreateCUTypeSource(source *models.Source, mdb boil.Executor) (*models.ContentUnit, error) {
+	s, err := models.Sources(mdb,
+		qm.Where("id = ?", source.ID),
+		qm.Load("SourceI18ns")).
+		One()
+	if err != nil {
+		return nil, err
+	}
+
 	if has := haveSourceCUTypeSource(s.UID, mdb); has {
 		return nil, errors.New(fmt.Sprintf("Have CU type %s for this source %s", CT_SOURCE, s.UID))
 	}
@@ -53,10 +60,19 @@ func CreateCUTypeSource(s *models.Source, mdb boil.Executor) (*models.ContentUni
 		Properties: null.JSONFrom(p),
 		CreatedAt:  time.Now(),
 	}
-	log.Debug("CreateCUTypeSource - before insert unit", cu)
+
 	err = cu.Insert(mdb)
-	log.Debug("CreateCUTypeSource - after insert unit", cu, err)
 	utils.Must(err)
+
+	for _, i18n := range s.R.SourceI18ns {
+		nI18n := models.ContentUnitI18n{
+			ContentUnitID: cu.ID,
+			Language:      i18n.Language,
+			Name:          i18n.Name,
+		}
+		err := cu.AddContentUnitI18ns(mdb, true, &nI18n)
+		utils.Must(err)
+	}
 
 	err = cu.AddSources(mdb, false, s)
 	utils.Must(err)

@@ -2056,6 +2056,10 @@ func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *P
 		return nil, NewForbiddenError()
 	}
 
+	if unit.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
+		return nil, NewForbiddenError()
+	}
+
 	if cu.Secure.Valid {
 		unit.Secure = cu.Secure.Int16
 		err = unit.Update(exec, "secure")
@@ -2089,6 +2093,10 @@ func handleUpdateContentUnitI18n(cp utils.ContextProvider, exec boil.Executor, i
 
 	// check object level permissions
 	if !can(cp, secureToPermission(unit.Secure), common.PERM_I18N_WRITE) {
+		return nil, NewForbiddenError()
+	}
+
+	if unit.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
 		return nil, NewForbiddenError()
 	}
 
@@ -3444,7 +3452,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 func handleGetSource(exec boil.Executor, id int64) (*Source, *HttpError) {
 	source, err := models.Sources(exec,
 		qm.Where("id = ?", id),
-		qm.Load("SourceI18ns")).
+		qm.Load("SourceI18ns", "ContentUnits")).
 		One()
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -3460,7 +3468,11 @@ func handleGetSource(exec boil.Executor, id int64) (*Source, *HttpError) {
 	for _, i18n := range source.R.SourceI18ns {
 		x.I18n[i18n.Language] = i18n
 	}
-
+	for _, cu := range source.R.ContentUnits {
+		if cu.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
+			x.SourceCUID = cu.ID
+		}
+	}
 	return x, nil
 }
 
@@ -3493,22 +3505,66 @@ func handleUpdateSourceI18n(exec boil.Executor, id int64, i18ns []*models.Source
 		return nil, err
 	}
 
+	cu, errCU := models.ContentUnits(exec,
+		qm.Load("ContentUnitI18n"),
+		qm.Where("uid =  ?", source.UID),
+	).One()
+	if errCU != nil {
+		if errCU == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(errCU)
+		}
+	}
+
 	// Upsert all new i18ns
 	nI18n := make(map[string]*models.SourceI18n, len(i18ns))
 	for _, i18n := range i18ns {
 		i18n.SourceID = id
 		nI18n[i18n.Language] = i18n
+
+		var i18nCU *models.ContentUnitI18n
+		for _, x := range cu.R.ContentUnitI18ns {
+			if x.Language == i18n.Language {
+				i18nCU = x
+			}
+		}
 		err := i18n.Upsert(exec, true,
 			[]string{"source_id", "language"},
 			[]string{"name", "description"})
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
+		if i18nCU != nil {
+			errCU := i18nCU.Upsert(exec, true,
+				[]string{},
+				[]string{"name", "description"})
+
+			if errCU != nil {
+				return nil, NewInternalError(err)
+			}
+		} else {
+			ni18nCU := models.ContentUnitI18n{
+				ContentUnitID: cu.ID,
+				Language:      i18n.Language,
+				Name:          i18n.Name,
+			}
+			ni18nCU.Insert(exec)
+		}
 	}
 
 	// Delete old i18ns not in new i18ns
 	for k, v := range source.I18n {
 		if _, ok := nI18n[k]; !ok {
+			for _, x := range cu.R.ContentUnitI18ns {
+				if x.Language == x.Language {
+					err := x.Delete(exec)
+
+					if err != nil {
+						return nil, NewInternalError(err)
+					}
+				}
+			}
 			err := v.Delete(exec)
 			if err != nil {
 				return nil, NewInternalError(err)
