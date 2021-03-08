@@ -3506,7 +3506,7 @@ func handleUpdateSourceI18n(exec boil.Executor, id int64, i18ns []*models.Source
 	}
 
 	cu, errCU := models.ContentUnits(exec,
-		qm.Load("ContentUnitI18n"),
+		qm.Load("ContentUnitI18ns"),
 		qm.Where("uid =  ?", source.UID),
 	).One()
 	if errCU != nil {
