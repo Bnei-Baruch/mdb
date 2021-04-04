@@ -217,6 +217,29 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func CollectionContentUnitsPositionHandler(c *gin.Context) {
+	var err *HttpError
+	var resp interface{}
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if c.Request.Method == http.MethodPost {
+
+		if e != nil {
+			err = NewBadRequestError(errors.Wrap(e, "cuID expects int64"))
+		}
+		var event *events.Event
+		tx := mustBeginTx(c)
+		event, err = handleCollectionContentUnitsPosition(tx, id)
+		mustConcludeTx(tx, err)
+
+		if err == nil && event != nil {
+			emitEvents(c, *event)
+		}
+
+		resp, err = handleCollectionCCU(c, c.MustGet("MDB").(*sql.DB), id)
+	}
+	concludeRequest(c, resp, err)
+}
+
 // Toggle the active flag of a single container
 func CollectionActivateHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
@@ -1583,6 +1606,29 @@ func handleUpdateCollection(cp utils.ContextProvider, exec boil.Executor, c *Par
 	}
 
 	return handleGetCollection(cp, exec, c.ID)
+}
+
+func handleCollectionContentUnitsPosition(exec boil.Executor, id int64) (*events.Event, *HttpError) {
+	collection, err := models.FindCollection(exec, id)
+	event := events.CollectionContentUnitsChangeEvent(collection)
+	if err != nil {
+		return &event, NewInternalError(err)
+	}
+	ccus, errF := models.CollectionsContentUnits(exec,
+		qm.Where("collection_id = ?", id),
+		qm.InnerJoin("content_units cu ON content_unit_id = cu.id"),
+		qm.OrderBy("cu.properties->>'film_date'")).
+		All()
+	if errF != nil {
+		return &event, NewInternalError(err)
+	}
+
+	for k, ccu := range ccus {
+		ccu.Position = k
+		ccu.Update(exec, "position")
+	}
+	return &event, nil
+
 }
 
 func handleDeleteCollection(cp utils.ContextProvider, exec boil.Executor, id int64) (*models.Collection, *HttpError) {

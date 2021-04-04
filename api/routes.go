@@ -29,6 +29,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.DELETE("/collections/:id/", CollectionHandler)
 	rest.PUT("/collections/:id/i18n/", CollectionI18nHandler)
 	rest.GET("/collections/:id/content_units/", CollectionContentUnitsHandler)
+	rest.POST("/collections/:id/order_positions", CollectionContentUnitsPositionHandler)
 	rest.POST("/collections/:id/content_units/", CollectionContentUnitsHandler)
 	rest.PUT("/collections/:id/content_units/:cuID", CollectionContentUnitsHandler)
 	rest.DELETE("/collections/:id/content_units/:cuID", CollectionContentUnitsHandler)
