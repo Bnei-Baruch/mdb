@@ -217,6 +217,32 @@ func CollectionContentUnitsHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+func CollectionContentUnitsPositionHandler(c *gin.Context) {
+	var err *HttpError
+	var event *events.Event
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	tx := mustBeginTx(c)
+	event, err = handleCollectionContentUnitsPosition(tx, id)
+	mustConcludeTx(tx, err)
+	if err != nil {
+		NewInternalError(err).Abort(c)
+		return
+	}
+
+	if event != nil {
+		emitEvents(c, *event)
+	}
+
+	resp, err := handleCollectionCCU(c, c.MustGet("MDB").(*sql.DB), id)
+
+	concludeRequest(c, resp, err)
+}
+
 // Toggle the active flag of a single container
 func CollectionActivateHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
@@ -1583,6 +1609,33 @@ func handleUpdateCollection(cp utils.ContextProvider, exec boil.Executor, c *Par
 	}
 
 	return handleGetCollection(cp, exec, c.ID)
+}
+
+func handleCollectionContentUnitsPosition(exec boil.Executor, id int64) (*events.Event, *HttpError) {
+	collection, err := models.FindCollection(exec, id)
+	event := events.CollectionContentUnitsChangeEvent(collection)
+	if err != nil {
+		return &event, NewInternalError(err)
+	}
+
+	_, err = queries.Raw(exec,
+		`UPDATE collections_content_units
+		SET position = s.row_number 
+		FROM (
+			select cu.id, cu.properties ->> 'film_date', ccu.position, ROW_NUMBER() 
+			OVER ( ORDER BY cu.properties ->> 'film_date') as row_number 
+				from collections_content_units ccu 
+					inner join content_units cu on ccu.content_unit_id = cu.id and ccu.collection_id = $1 
+				order by cu.properties ->> 'film_date'
+		) AS s 
+		WHERE content_unit_id = s.id and collection_id = $1;`,
+		id).Exec()
+	if err != nil {
+		return &event, NewInternalError(err)
+	}
+
+	return &event, nil
+
 }
 
 func handleDeleteCollection(cp utils.ContextProvider, exec boil.Executor, id int64) (*models.Collection, *HttpError) {
