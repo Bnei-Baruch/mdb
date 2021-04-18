@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/casbin/casbin"
@@ -3444,7 +3445,37 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 			return nil, NewInternalError(err)
 		}
 	}
-	common.CreateCUTypeSource(&s.Source, exec)
+	// create CU type source
+
+	cuUid := s.UID
+	hasCU, err := models.ContentUnits(exec, qm.Where("uid = ?", cuUid)).Exists()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if hasCU {
+		cuUid, err = GetFreeUID(exec, new(ContentUnitUIDChecker))
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	props := make(map[string]interface{})
+	props["source"] = s.UID
+	p, _ := json.Marshal(props)
+
+	cu := &models.ContentUnit{
+		UID:        s.UID,
+		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
+		Secure:     common.SEC_PUBLIC,
+		Published:  true,
+		Properties: null.JSONFrom(p),
+		CreatedAt:  time.Now(),
+	}
+
+	err = s.Source.AddContentUnits(exec, true, cu)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
 
 	return handleGetSource(exec, s.ID)
 }
@@ -3452,7 +3483,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 func handleGetSource(exec boil.Executor, id int64) (*Source, *HttpError) {
 	source, err := models.Sources(exec,
 		qm.Where("id = ?", id),
-		qm.Load("SourceI18ns", "ContentUnits")).
+		qm.Load("SourceI18ns")).
 		One()
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -3467,11 +3498,6 @@ func handleGetSource(exec boil.Executor, id int64) (*Source, *HttpError) {
 	x.I18n = make(map[string]*models.SourceI18n, len(source.R.SourceI18ns))
 	for _, i18n := range source.R.SourceI18ns {
 		x.I18n[i18n.Language] = i18n
-	}
-	for _, cu := range source.R.ContentUnits {
-		if cu.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
-			x.SourceCUID = cu.ID
-		}
 	}
 	return x, nil
 }
@@ -3505,66 +3531,22 @@ func handleUpdateSourceI18n(exec boil.Executor, id int64, i18ns []*models.Source
 		return nil, err
 	}
 
-	cu, errCU := models.ContentUnits(exec,
-		qm.Load("ContentUnitI18ns"),
-		qm.Where("uid =  ?", source.UID),
-	).One()
-	if errCU != nil {
-		if errCU == sql.ErrNoRows {
-			return nil, NewNotFoundError()
-		} else {
-			return nil, NewInternalError(errCU)
-		}
-	}
-
 	// Upsert all new i18ns
 	nI18n := make(map[string]*models.SourceI18n, len(i18ns))
 	for _, i18n := range i18ns {
 		i18n.SourceID = id
 		nI18n[i18n.Language] = i18n
-
-		var i18nCU *models.ContentUnitI18n
-		for _, x := range cu.R.ContentUnitI18ns {
-			if x.Language == i18n.Language {
-				i18nCU = x
-			}
-		}
 		err := i18n.Upsert(exec, true,
 			[]string{"source_id", "language"},
 			[]string{"name", "description"})
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
-		if i18nCU != nil {
-			errCU := i18nCU.Upsert(exec, true,
-				[]string{},
-				[]string{"name", "description"})
-
-			if errCU != nil {
-				return nil, NewInternalError(err)
-			}
-		} else {
-			ni18nCU := models.ContentUnitI18n{
-				ContentUnitID: cu.ID,
-				Language:      i18n.Language,
-				Name:          i18n.Name,
-			}
-			ni18nCU.Insert(exec)
-		}
 	}
 
 	// Delete old i18ns not in new i18ns
 	for k, v := range source.I18n {
 		if _, ok := nI18n[k]; !ok {
-			for _, x := range cu.R.ContentUnitI18ns {
-				if x.Language == x.Language {
-					err := x.Delete(exec)
-
-					if err != nil {
-						return nil, NewInternalError(err)
-					}
-				}
-			}
 			err := v.Delete(exec)
 			if err != nil {
 				return nil, NewInternalError(err)

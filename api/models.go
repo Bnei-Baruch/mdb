@@ -430,8 +430,7 @@ type (
 
 	Source struct {
 		models.Source
-		I18n       map[string]*models.SourceI18n `json:"i18n"`
-		SourceCUID int64                         `json:"cuid,omitempty"`
+		I18n map[string]*models.SourceI18n `json:"i18n"`
 	}
 
 	Tag struct {
