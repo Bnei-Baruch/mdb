@@ -1966,11 +1966,32 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 
 	// i18n
 	data := make([]*ContentUnit, len(units))
+	sources, err := findSourceForSourceTypes(exec, units)
 	for i, cu := range units {
 		x := &ContentUnit{ContentUnit: *cu}
 		data[i] = x
-		x.I18n = make(map[string]*models.ContentUnitI18n, len(cu.R.ContentUnitI18ns))
-		for _, i18n := range cu.R.ContentUnitI18ns {
+
+		var i18ns models.ContentUnitI18nSlice
+		var source *models.Source
+		if x.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
+			i18ns = cu.R.ContentUnitI18ns
+		} else {
+			for _, s := range sources {
+				for _, u := range s.R.ContentUnits {
+					if u.ID == cu.ID {
+						source = s
+						break
+					}
+				}
+				if source != nil {
+					break
+				}
+			}
+			i18ns = buildCuI18nFromSource(cu.ID, source)
+		}
+
+		x.I18n = make(map[string]*models.ContentUnitI18n, len(i18ns))
+		for _, i18n := range i18ns {
 			x.I18n[i18n.Language] = i18n
 		}
 	}
@@ -1979,6 +2000,26 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 		ListResponse: ListResponse{Total: total},
 		ContentUnits: data,
 	}, nil
+}
+
+func findSourceForSourceTypes(exec boil.Executor, units []*models.ContentUnit) ([]*models.Source, error) {
+	var ids []int64
+	for _, u := range units {
+		if u.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
+			ids = append(ids, u.ID)
+		}
+	}
+
+	sources, err := models.Sources(exec,
+		qm.InnerJoin("content_unit_source cus ON cus.source_id = s.id"),
+		qm.WhereIn("cus.content_unit_id IN ?", utils.ConvertArgsInt64(ids)...),
+		qm.Load("SourcesI18ns", "ContentUnits")).
+		All()
+
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	return sources, nil
 }
 
 func handleGetContentUnit(cp utils.ContextProvider, exec boil.Executor, id int64) (*ContentUnit, *HttpError) {
@@ -2000,13 +2041,40 @@ func handleGetContentUnit(cp utils.ContextProvider, exec boil.Executor, id int64
 	}
 
 	// i18n
+	var i18ns models.ContentUnitI18nSlice
+	if unit.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
+		i18ns = unit.R.ContentUnitI18ns
+	} else {
+		s, err := models.Sources(exec,
+			qm.InnerJoin("content_unit_source cus ON cus.source_id = s.id", id),
+			qm.Where("cus.content_unit_id = ?", unit.ID),
+			qm.Load("SourcesI18ns")).
+			One()
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		i18ns = buildCuI18nFromSource(unit.ID, s)
+	}
 	x := &ContentUnit{ContentUnit: *unit}
-	x.I18n = make(map[string]*models.ContentUnitI18n, len(unit.R.ContentUnitI18ns))
-	for _, i18n := range unit.R.ContentUnitI18ns {
+	x.I18n = make(map[string]*models.ContentUnitI18n, len(i18ns))
+	for _, i18n := range i18ns {
 		x.I18n[i18n.Language] = i18n
 	}
 
 	return x, nil
+}
+
+func buildCuI18nFromSource(id int64, s *models.Source) models.ContentUnitI18nSlice {
+	var i18ns models.ContentUnitI18nSlice
+	for _, i18n := range s.R.SourceI18ns {
+		nI18n := &models.ContentUnitI18n{
+			ContentUnitID: id,
+			Language:      i18n.Language,
+			Name:          i18n.Name,
+		}
+		i18ns = append(i18ns, nI18n)
+	}
+	return i18ns
 }
 
 func handleCreateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu ContentUnit) (*ContentUnit, *HttpError) {
