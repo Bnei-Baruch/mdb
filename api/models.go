@@ -33,7 +33,7 @@ type (
 		Language  string     `json:"language" binding:"omitempty,min=2,max=3"`
 	}
 
-	// same as File but all fields are optional
+	// MaybeFile same as File but all fields are optional
 	MaybeFile struct {
 		FileName  string     `json:"file_name" binding:"omitempty,max=255"`
 		Sha1      string     `json:"sha1" binding:"omitempty,len=40,hexadecimal"`
@@ -105,18 +105,18 @@ type (
 
 	DemuxRequest struct {
 		Operation
-		Sha1          string `json:"sha1" binding:"required,len=40,hexadecimal"`
-		Original      AVFile `json:"original"`
-		Proxy         AVFile `json:"proxy"`
-		CaptureSource string `json:"capture_source"`
+		Sha1          string  `json:"sha1" binding:"required,len=40,hexadecimal"`
+		Original      AVFile  `json:"original"`
+		Proxy         *AVFile `json:"proxy"`
+		CaptureSource string  `json:"capture_source"`
 	}
 
 	TrimRequest struct {
 		Operation
 		OriginalSha1  string    `json:"original_sha1" binding:"required,len=40,hexadecimal"`
-		ProxySha1     string    `json:"proxy_sha1" binding:"required,len=40,hexadecimal"`
+		ProxySha1     string    `json:"proxy_sha1" binding:"len=40,hexadecimal"`
 		Original      AVFile    `json:"original"`
-		Proxy         AVFile    `json:"proxy"`
+		Proxy         *AVFile   `json:"proxy"`
 		In            []float64 `json:"in"`
 		Out           []float64 `json:"out"`
 		CaptureSource string    `json:"capture_source"`
@@ -125,7 +125,7 @@ type (
 	SendRequest struct {
 		Operation
 		Original Rename      `json:"original"`
-		Proxy    Rename      `json:"proxy"`
+		Proxy    *Rename     `json:"proxy"`
 		Metadata CITMetadata `json:"metadata"`
 		Mode     null.String `json:"mode"`
 	}
@@ -170,9 +170,9 @@ type (
 	JoinRequest struct {
 		Operation
 		OriginalShas []string `json:"original_shas" binding:"required,dive,len=40,hexadecimal"`
-		ProxyShas    []string `json:"proxy_shas" binding:"required,dive,len=40,hexadecimal"`
+		ProxyShas    []string `json:"proxy_shas" binding:"omitempty,dive,len=40,hexadecimal"`
 		Original     AVFile   `json:"original"`
-		Proxy        AVFile   `json:"proxy"`
+		Proxy        *AVFile  `json:"proxy"`
 	}
 
 	// REST

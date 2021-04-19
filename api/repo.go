@@ -34,6 +34,19 @@ WITH RECURSIVE rf AS (
   WHERE id != $1
 `
 
+const FILE_DESCENDANTS_SQL = `
+WITH RECURSIVE rf AS (
+  SELECT f.*
+  FROM files f
+  WHERE f.id = $1
+  UNION
+  SELECT f.*
+  FROM files f INNER JOIN rf ON f.parent_id = rf.id
+) SELECT *
+  FROM rf
+  WHERE id != $1
+`
+
 const SOURCE_PATH_SQL = `
 WITH RECURSIVE rs AS (
   SELECT s.*
@@ -184,6 +197,14 @@ func FindUpChainOperation(exec boil.Executor, fileID int64, opType string) (*mod
 	}
 
 	return &op, nil
+}
+
+func FindOperationsByWorkflowID(exec boil.Executor, workflowID interface{}, opType string) ([]*models.Operation, error) {
+	opTypeID := common.OPERATION_TYPE_REGISTRY.ByName[opType].ID
+	return models.Operations(exec,
+		qm.Where("properties->>'workflow_id' = ?", workflowID),
+		qm.Where("type_id = ?", opTypeID),
+	).All()
 }
 
 func CreateCollection(exec boil.Executor, contentType string, properties map[string]interface{}) (*models.Collection, error) {
@@ -701,6 +722,17 @@ func FindFileAncestors(exec boil.Executor, id int64) ([]*models.File, error) {
 	}
 
 	return ancestors, nil
+}
+
+func FindFileDescendants(exec boil.Executor, id int64) ([]*models.File, error) {
+	var descendants []*models.File
+
+	err := queries.Raw(exec, FILE_DESCENDANTS_SQL, id).Bind(&descendants)
+	if err != nil {
+		return nil, errors.Wrap(err, "DB lookup")
+	}
+
+	return descendants, nil
 }
 
 func FindFileTreeWithOperations(exec boil.Executor, fileID int64) ([]*MFile, error) {

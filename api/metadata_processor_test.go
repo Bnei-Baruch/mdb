@@ -1052,6 +1052,101 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	}
 }
 
+func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
+	chain := suite.simulateLessonChainWithSource()
+
+	// send parts
+	// send full
+	// send kitei makor of part 1
+	// send ktaim nivcharim from full
+
+	metadata := CITMetadata{
+		ContentType:    common.CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       common.LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(0),
+		Sources:        suite.someSources(),
+		Tags:           suite.someTags(),
+		RequireTest:    false,
+	}
+
+	// process parts
+	var collectionID int64
+	for i := 0; i < 4; i++ {
+		metadata.Part = null.IntFrom(i)
+		metadata.Sources = suite.someSources()
+		metadata.Tags = suite.someTags()
+		tf := chain[fmt.Sprintf("part%d", i)]
+		original, proxy := tf.Original, tf.Proxy
+
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		suite.Require().Nil(err)
+		suite.Require().NotNil(evnts)
+
+		err = original.Reload(suite.tx)
+		suite.Require().Nil(err)
+		err = proxy.Reload(suite.tx)
+		suite.Require().Nil(err)
+
+		suite.assertFiles(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy, false)
+
+		// collection association
+		err = original.L.LoadContentUnit(suite.tx, true, original)
+		suite.Require().Nil(err)
+		cu := original.R.ContentUnit
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		suite.Require().Nil(err)
+		suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+		ccu := cu.R.CollectionsContentUnits[0]
+		suite.Equal(strconv.Itoa(i), ccu.Name, "ccu.Name")
+		suite.Equal(i, ccu.Position, "ccu.Position")
+		if collectionID == 0 {
+			collectionID = ccu.CollectionID
+		} else {
+			suite.Equal(collectionID, ccu.CollectionID, "ccu.CollectionID")
+		}
+	}
+
+	// process full
+	metadata.ContentType = common.CT_FULL_LESSON
+	metadata.Part = null.IntFrom(-1)
+	metadata.Sources = nil
+	metadata.Tags = nil
+	tf := chain["full"]
+	original, proxy := tf.Original, tf.Proxy
+
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
+
+	// collection association
+	err = original.L.LoadContentUnit(suite.tx, true, original)
+	suite.Require().Nil(err)
+	cu := original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	suite.Require().Nil(err)
+	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+	ccu := cu.R.CollectionsContentUnits[0]
+	suite.Equal("full", ccu.Name, "ccu.Name")
+	suite.Equal(4, ccu.Position, "ccu.Position")
+	suite.Equal(collectionID, ccu.CollectionID, "ccu.CollectionID")
+
+}
+
 // Helpers
 
 type TrimFiles struct {
@@ -1116,7 +1211,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 			},
 			Duration: 892.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "demux_simple_proxy.mp4",
 				Sha1:      DMX_P_SHA1,
@@ -1146,7 +1241,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 			},
 			Duration: 892.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "trim_simple_proxy.mp4",
 				Sha1:      TRM_P_SHA1,
@@ -1275,7 +1370,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			},
 			Duration: 892.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "demux_full_proxy.mp4",
 				Sha1:      DMX_P_SHA1[4],
@@ -1306,7 +1401,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 				},
 				Duration: 892.1900,
 			},
-			Proxy: AVFile{
+			Proxy: &AVFile{
 				File: File{
 					FileName:  "demux_part" + part + "_proxy.mp4",
 					Sha1:      DMX_P_SHA1[i],
@@ -1340,7 +1435,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			},
 			Duration: 892.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "trim_full_proxy.mp4",
 				Sha1:      TRM_P_SHA1[4],
@@ -1378,7 +1473,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 				},
 				Duration: 892.1900,
 			},
-			Proxy: AVFile{
+			Proxy: &AVFile{
 				File: File{
 					FileName:  "trim_part" + part + "_proxy.mp4",
 					Sha1:      TRM_P_SHA1[i],
@@ -1418,7 +1513,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			},
 			Duration: 92.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "trim_part1_kitei_makor_proxy.mp4",
 				Sha1:      TRM_P_SHA1[5],
@@ -1455,7 +1550,7 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 			},
 			Duration: 92.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "heb_o_rav_2019-12-23_ktaim-nivharim_n1_proxy.mp4",
 				Sha1:      TRM_P_SHA1[6],
@@ -1580,7 +1675,7 @@ func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]Tri
 			},
 			Duration: 892.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "demux_full_proxy.mp4",
 				Sha1:      DMX_P_SHA1[0],
@@ -1609,7 +1704,7 @@ func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]Tri
 			},
 			Duration: 892.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "demux_part" + part + "_proxy.mp4",
 				Sha1:      DMX_P_SHA1[1],
@@ -1642,7 +1737,7 @@ func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]Tri
 			},
 			Duration: 892.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "trim_full_proxy.mp4",
 				Sha1:      TRM_P_SHA1[4],
@@ -1680,7 +1775,7 @@ func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]Tri
 				},
 				Duration: 892.1900,
 			},
-			Proxy: AVFile{
+			Proxy: &AVFile{
 				File: File{
 					FileName:  "trim_part" + part + "_proxy.mp4",
 					Sha1:      TRM_P_SHA1[i],
@@ -1722,7 +1817,7 @@ func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]Tri
 				},
 				Duration: 92.1900,
 			},
-			Proxy: AVFile{
+			Proxy: &AVFile{
 				File: File{
 					FileName:  fmt.Sprintf("trim_part%d_kitei_makor_proxy.mp4", i),
 					Sha1:      TRM_P_SHA1[5+i],
@@ -1762,7 +1857,7 @@ func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]Tri
 				},
 				Duration: 92.1900,
 			},
-			Proxy: AVFile{
+			Proxy: &AVFile{
 				File: File{
 					FileName:  fmt.Sprintf("trim_part%d_lelo_mikud_proxy.mp4", i),
 					Sha1:      TRM_P_SHA1[9+i],
@@ -1869,6 +1964,117 @@ func (suite *MetadataProcessorSuite) simulateConvertUpload(original *models.File
 	return files
 }
 
+func (suite *MetadataProcessorSuite) simulateLessonChainWithSource() map[string]TrimFiles {
+	trimFiles := suite.simulateLessonChain()
+
+	CS_SHA1 := [4]string{}
+	DMX_O_SHA1 := [4]string{}
+	TRM_O_SHA1 := [4]string{}
+	for i := range CS_SHA1 {
+		CS_SHA1[i] = utils.RandomSHA1()
+		DMX_O_SHA1[i] = utils.RandomSHA1()
+		TRM_O_SHA1[i] = utils.RandomSHA1()
+	}
+
+	// capture_start
+	for i := 0; i < 4; i++ {
+		part := strconv.Itoa(i)
+		_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+			Operation: Operation{
+				Station:    "Capture station",
+				User:       "operator@dev.com",
+				WorkflowID: "c" + strings.Repeat(part, 8),
+			},
+			FileName:      "capture_start_source_part" + part,
+			CaptureSource: "capture_of_source",
+			CollectionUID: "c12356789",
+		})
+		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
+	}
+
+	// capture_stop
+	for i := 0; i < 4; i++ {
+		part := strconv.Itoa(i)
+		_, evnts, err := handleCaptureStop(suite.tx, CaptureStopRequest{
+			Operation: Operation{
+				Station:    "Capture station",
+				User:       "operator@dev.com",
+				WorkflowID: "c" + strings.Repeat(part, 8),
+			},
+			File: File{
+				FileName:  "capture_stop_source_part" + part + ".mp4",
+				Sha1:      CS_SHA1[i],
+				Size:      int64(i),
+				CreatedAt: &Timestamp{Time: time.Now()},
+				Language:  common.LANG_MULTI,
+			},
+			CaptureSource: "capture_of_source",
+			CollectionUID: "c12356789",
+			Part:          part,
+		})
+		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
+	}
+
+	// demux
+	for i := 0; i < 4; i++ {
+		part := strconv.Itoa(i)
+		_, evnts, err := handleDemux(suite.tx, DemuxRequest{
+			Operation: Operation{
+				Station: "Trimmer station",
+				User:    "operator@dev.com",
+			},
+			Sha1: CS_SHA1[i],
+			Original: AVFile{
+				File: File{
+					FileName:  "demux_source_part" + part + "_original.mp4",
+					Sha1:      DMX_O_SHA1[i],
+					Size:      98737,
+					CreatedAt: &Timestamp{Time: time.Now()},
+				},
+				Duration: 892.1900,
+			},
+			CaptureSource: "capture_of_source",
+		})
+		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
+	}
+
+	// trim
+	for i := 0; i < 4; i++ {
+		part := strconv.Itoa(i)
+		op, evnts, err := handleTrim(suite.tx, TrimRequest{
+			Operation: Operation{
+				Station: "Trimmer station",
+				User:    "operator@dev.com",
+			},
+			OriginalSha1: DMX_O_SHA1[i],
+			Original: AVFile{
+				File: File{
+					FileName:  "trim_source_part" + part + "_original.mp4",
+					Sha1:      TRM_O_SHA1[i],
+					Size:      98000,
+					CreatedAt: &Timestamp{Time: time.Now()},
+				},
+				Duration: 892.1900,
+			},
+			CaptureSource: "capture_of_source",
+			In:            []float64{10.05, 249.43},
+			Out:           []float64{240.51, 899.27},
+		})
+		suite.Require().Nil(err)
+		suite.Require().Nil(evnts)
+
+		files := suite.opFilesBySHA1(op)
+		trimFiles["source_part"+part] = TrimFiles{
+			Original: files[TRM_O_SHA1[i]],
+		}
+	}
+
+	return trimFiles
+}
+
 func (suite *MetadataProcessorSuite) opFilesBySHA1(o *models.Operation) map[string]*models.File {
 	files := make(map[string]*models.File)
 	for _, f := range o.R.Files {
@@ -1968,25 +2174,45 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	// files in unit
 	err = cu.L.LoadFiles(suite.tx, true, cu)
 	suite.Require().Nil(err)
-	suite.True(original.ContentUnitID.Valid, "original.ContentUnitID.Valid")
-	suite.True(proxy.ContentUnitID.Valid, "proxy.ContentUnitID.Valid")
-	suite.Equal(original.ContentUnitID.Int64, proxy.ContentUnitID.Int64, "original.cuid = proxy.cuid")
+	filesInUnit := []*models.File{original, proxy}
 
-	// ancestors ?
 	if !isUpdate {
-		if isDerived {
-			suite.Equal(2, len(cu.R.Files), "len(cu.R.Files)")
-		} else {
+		if !isDerived {
+			// ancestors
 			ancestors, err := FindFileAncestors(suite.tx, original.ID)
 			suite.Require().Nil(err)
+			filesInUnit = append(filesInUnit, ancestors...)
 			proxy.L.LoadParent(suite.tx, true, proxy)
 			suite.Require().Nil(err)
-			ancestors = append(ancestors, proxy.R.Parent)
-			suite.Equal(2+len(ancestors), len(cu.R.Files), "len(cu.R.Files)")
-			for i, f := range ancestors {
-				suite.True(f.ContentUnitID.Valid, "Ancestor[%d].ContentUnitID.Valid", i)
-				suite.Equal(original.ContentUnitID.Int64, f.ContentUnitID.Int64, "Ancestor[%d]ContentUnitID.Int64", i)
+			filesInUnit = append(filesInUnit, proxy.R.Parent)
+
+			// related captures
+			captureStop, err := FindUpChainOperation(suite.tx, original.ID, common.OP_CAPTURE_STOP)
+			suite.Require().Nil(err)
+			err = json.Unmarshal(captureStop.Properties.JSON, &props)
+			suite.Require().Nil(err)
+			if workflowID, ok := props["workflow_id"]; ok {
+				relatedCaptures, err := FindOperationsByWorkflowID(suite.tx, workflowID, common.OP_CAPTURE_STOP)
+				suite.Require().Nil(err)
+				for _, capture := range relatedCaptures {
+					if capture.ID == captureStop.ID {
+						continue
+					}
+					err = capture.L.LoadFiles(suite.tx, true, capture)
+					suite.Require().Nil(err)
+					captureFile := capture.R.Files[0]
+					filesInUnit = append(filesInUnit, captureFile)
+					files, err := FindFileDescendants(suite.tx, captureFile.ID)
+					suite.Require().Nil(err)
+					filesInUnit = append(filesInUnit, files...)
+				}
 			}
+		}
+
+		suite.Equal(len(filesInUnit), len(cu.R.Files), "len(cu.R.Files)")
+		for i, f := range filesInUnit {
+			suite.True(f.ContentUnitID.Valid, "Ancestor[%d].ContentUnitID.Valid", i)
+			suite.Equal(original.ContentUnitID.Int64, f.ContentUnitID.Int64, "Ancestor[%d]ContentUnitID.Int64", i)
 		}
 	}
 

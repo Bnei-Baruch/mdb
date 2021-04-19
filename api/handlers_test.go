@@ -187,7 +187,7 @@ func (suite *HandlersSuite) TestHandleDemux() {
 			},
 			Duration: 892.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "proxy.mp4",
 				Sha1:      "987653210abcdef012356789abcdef9876543210",
@@ -248,6 +248,74 @@ func (suite *HandlersSuite) TestHandleDemux() {
 	suite.Equal(input.Proxy.Duration, props["duration"], "Proxy props: duration")
 }
 
+func (suite *HandlersSuite) TestHandleDemuxNoProxy() {
+	// Create dummy parent file
+	fi := File{
+		FileName:  "dummy parent file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef0123456789",
+		Size:      math.MaxInt64,
+	}
+	_, err := CreateFile(suite.tx, nil, fi, nil)
+	suite.Require().Nil(err)
+
+	// Do demux operation
+	input := DemuxRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		Sha1: fi.Sha1,
+		Original: AVFile{
+			File: File{
+				FileName:  "original.mp4",
+				Sha1:      "012356789abcdef012356789abcdef9876543210",
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		CaptureSource: "capture_without_proxy",
+	}
+
+	op, evnts, err := handleDemux(suite.tx, input)
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	// Check op
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_DEMUX].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	var props map[string]interface{}
+	err = op.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.CaptureSource, props["capture_source"], "properties: capture_source")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 2, "Number of files")
+	fm := make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	parent := fm[fi.FileName]
+
+	// Check original
+	original := fm[input.Original.FileName]
+	suite.Equal(input.Original.FileName, original.Name, "Original: Name")
+	suite.Equal(input.Original.Sha1, hex.EncodeToString(original.Sha1.Bytes), "Original: SHA1")
+	suite.Equal(input.Original.Size, original.Size, "Original: Size")
+	suite.Equal(input.Original.CreatedAt.Time.Unix(), original.FileCreatedAt.Time.Unix(), "Original: FileCreatedAt")
+	suite.Equal(parent.ID, original.ParentID.Int64, "Original Parent.ID")
+	err = original.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Original.Duration, props["duration"], "Original props: duration")
+}
+
 func (suite *HandlersSuite) TestHandleTrim() {
 	// Create dummy original and proxy parent files
 	ofi := File{
@@ -285,7 +353,7 @@ func (suite *HandlersSuite) TestHandleTrim() {
 			},
 			Duration: 892.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "proxy_trim.mp4",
 				Sha1:      "987653210abcdef012356789abcdef2222222222",
@@ -355,6 +423,82 @@ func (suite *HandlersSuite) TestHandleTrim() {
 	suite.Equal(input.Proxy.Duration, props["duration"], "Proxy props: duration")
 }
 
+func (suite *HandlersSuite) TestHandleTrimNoProxy() {
+	// Create dummy original parent file
+	ofi := File{
+		FileName:  "dummy original parent file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+	}
+	_, err := CreateFile(suite.tx, nil, ofi, nil)
+	suite.Require().Nil(err)
+
+	// Do trim operation
+	input := TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: ofi.Sha1,
+		Original: AVFile{
+			File: File{
+				FileName:  "original_trim.mp4",
+				Sha1:      "012356789abcdef012356789abcdef1111111111",
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		CaptureSource: "capture_without_proxy",
+		In:            []float64{10.05, 249.43},
+		Out:           []float64{240.51, 899.27},
+	}
+
+	op, evnts, err := handleTrim(suite.tx, input)
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	// Check op
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_TRIM].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	var props map[string]interface{}
+	err = op.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.CaptureSource, props["capture_source"], "properties: capture_source")
+	for i, v := range input.In {
+		suite.Equal(v, props["in"].([]interface{})[i], "properties: in[%d]", i)
+	}
+	for i, v := range input.Out {
+		suite.Equal(v, props["out"].([]interface{})[i], "properties: out[%d]", i)
+	}
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 2, "Number of files")
+	fm := make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	originalParent := fm[ofi.FileName]
+
+	// Check original
+	original := fm[input.Original.FileName]
+	suite.Equal(input.Original.FileName, original.Name, "Original: Name")
+	suite.Equal(input.Original.Sha1, hex.EncodeToString(original.Sha1.Bytes), "Original: SHA1")
+	suite.Equal(input.Original.Size, original.Size, "Original: Size")
+	suite.Equal(input.Original.CreatedAt.Time.Unix(), original.FileCreatedAt.Time.Unix(), "Original: FileCreatedAt")
+	suite.Equal(originalParent.ID, original.ParentID.Int64, "Original Parent.ID")
+	err = original.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Original.Duration, props["duration"], "Original props: duration")
+}
+
 func (suite *HandlersSuite) TestHandleSend() {
 	// Create dummy original and proxy trimmed files
 	ofi := File{
@@ -386,7 +530,7 @@ func (suite *HandlersSuite) TestHandleSend() {
 			Sha1:     ofi.Sha1,
 			FileName: "original_renamed.mp4",
 		},
-		Proxy: Rename{
+		Proxy: &Rename{
 			Sha1:     pfi.Sha1,
 			FileName: "proxy_renamed.mp4",
 		},
@@ -428,6 +572,63 @@ func (suite *HandlersSuite) TestHandleSend() {
 	proxy := fm[input.Proxy.FileName]
 	suite.Equal(input.Proxy.FileName, proxy.Name, "Proxy: Name")
 	suite.Equal(input.Proxy.Sha1, hex.EncodeToString(proxy.Sha1.Bytes), "Proxy: SHA1")
+}
+
+func (suite *HandlersSuite) TestHandleSendNoProxy() {
+	// Create dummy original trimmed file
+	ofi := File{
+		FileName:  "dummy original trimmed file",
+		CreatedAt: &Timestamp{time.Now()},
+		Sha1:      "012356789abcdef012356789abcdef9876543210",
+		Size:      math.MaxInt64,
+	}
+	_, err := CreateFile(suite.tx, nil, ofi, nil)
+	suite.Require().Nil(err)
+
+	// Do send operation
+	input := SendRequest{
+		Operation: Operation{
+			Station:    "Trimmer station",
+			User:       "operator@dev.com",
+			WorkflowID: "t123456789",
+		},
+		Original: Rename{
+			Sha1:     ofi.Sha1,
+			FileName: "original_renamed.mp4",
+		},
+		Metadata: CITMetadata{
+			ContentType: common.CT_LESSON_PART,
+		},
+	}
+
+	op, evnts, err := handleSend(suite.tx, input)
+	suite.Require().Nil(err)
+	suite.Require().NotEmpty(evnts)
+
+	// Check op
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_SEND].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	var props map[string]interface{}
+	err = op.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Operation.WorkflowID, props["workflow_id"], "properties: workflow_id")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 1, "Number of files")
+	fm := make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	// Check original
+	original := fm[input.Original.FileName]
+	suite.Equal(input.Original.FileName, original.Name, "Original: Name")
+	suite.Equal(input.Original.Sha1, hex.EncodeToString(original.Sha1.Bytes), "Original: SHA1")
 }
 
 func (suite *HandlersSuite) TestHandleConvert() {
@@ -1620,7 +1821,7 @@ func (suite *HandlersSuite) TestHandleJoin() {
 			},
 			Duration: 892.1900,
 		},
-		Proxy: AVFile{
+		Proxy: &AVFile{
 			File: File{
 				FileName:  "proxy_join.mp4",
 				Sha1:      "987653210abcdef012356789abcdef2222222222",
@@ -1679,4 +1880,76 @@ func (suite *HandlersSuite) TestHandleJoin() {
 	err = proxy.Properties.Unmarshal(&props)
 	suite.Require().Nil(err)
 	suite.Equal(input.Proxy.Duration, props["duration"], "Proxy props: duration")
+}
+
+func (suite *HandlersSuite) TestHandleJoinNoProxy() {
+	// create dummy input files
+
+	inOriginals := make([]string, 3)
+	for i := 0; i < len(inOriginals); i++ {
+		fi := File{
+			FileName:  fmt.Sprintf("dummy original file %d", i+1),
+			CreatedAt: &Timestamp{time.Now()},
+			Sha1:      utils.RandomSHA1(),
+			Size:      math.MaxInt64,
+		}
+		_, err := CreateFile(suite.tx, nil, fi, nil)
+		suite.Require().Nil(err)
+		inOriginals[i] = fi.Sha1
+	}
+
+	// Do join operation
+	input := JoinRequest{
+		Operation: Operation{
+			Station: "Joiner station",
+			User:    "operator@dev.com",
+		},
+		OriginalShas: inOriginals,
+		Original: AVFile{
+			File: File{
+				FileName:  "original_join.mp4",
+				Sha1:      "012356789abcdef012356789abcdef1111111111",
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+	}
+
+	op, evnts, err := handleJoin(suite.tx, input)
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	// Check op
+	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_JOIN].ID, op.TypeID, "Operation TypeID")
+	suite.Equal(input.Operation.Station, op.Station.String, "Operation Station")
+	var props map[string]interface{}
+	err = op.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	for i, v := range input.OriginalShas {
+		suite.Equal(v, props["original_shas"].([]interface{})[i], "properties: original_shas[%d]", i)
+	}
+	suite.Empty(props["proxy_shas"], "properties: proxy_shas should be empty")
+
+	// Check user
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
+
+	// Check associated files
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Len(op.R.Files, 4, "Number of files")
+	fm := make(map[string]*models.File)
+	for _, x := range op.R.Files {
+		fm[x.Name] = x
+	}
+
+	// Check original
+	original := fm[input.Original.FileName]
+	suite.Equal(input.Original.FileName, original.Name, "Original: Name")
+	suite.Equal(input.Original.Sha1, hex.EncodeToString(original.Sha1.Bytes), "Original: SHA1")
+	suite.Equal(input.Original.Size, original.Size, "Original: Size")
+	suite.Equal(input.Original.CreatedAt.Time.Unix(), original.FileCreatedAt.Time.Unix(), "Original: FileCreatedAt")
+	err = original.Properties.Unmarshal(&props)
+	suite.Require().Nil(err)
+	suite.Equal(input.Original.Duration, props["duration"], "Original props: duration")
 }

@@ -296,6 +296,8 @@ func handleDemux(exec boil.Executor, input interface{}) (*models.Operation, []ev
 		return nil, nil, err
 	}
 
+	opFiles := []*models.File{parent}
+
 	log.Info("Creating operation")
 	props := map[string]interface{}{
 		"capture_source": r.CaptureSource,
@@ -313,18 +315,24 @@ func handleDemux(exec boil.Executor, input interface{}) (*models.Operation, []ev
 	if err != nil {
 		return nil, nil, err
 	}
+	opFiles = append(opFiles, original)
 
-	log.Info("Creating proxy")
-	props = map[string]interface{}{
-		"duration": r.Proxy.Duration,
-	}
-	proxy, err := CreateFile(exec, parent, r.Proxy.File, props)
-	if err != nil {
-		return nil, nil, err
+	if r.Proxy != nil {
+		log.Info("Creating proxy")
+		props = map[string]interface{}{
+			"duration": r.Proxy.Duration,
+		}
+		proxy, err := CreateFile(exec, parent, r.Proxy.File, props)
+		if err != nil {
+			return nil, nil, err
+		}
+		opFiles = append(opFiles, proxy)
+	} else {
+		log.Info("Proxy not provided. Skipping Creation of proxy file")
 	}
 
 	log.Info("Associating files to operation")
-	return operation, nil, operation.AddFiles(exec, false, parent, original, proxy)
+	return operation, nil, operation.AddFiles(exec, false, opFiles...)
 }
 
 func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
@@ -335,9 +343,15 @@ func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	if err != nil {
 		return nil, nil, err
 	}
-	proxy, _, err := FindFileBySHA1(exec, r.ProxySha1)
-	if err != nil {
-		return nil, nil, err
+	opFiles := []*models.File{original}
+
+	var proxy *models.File
+	if r.ProxySha1 != "" {
+		proxy, _, err = FindFileBySHA1(exec, r.ProxySha1)
+		if err != nil {
+			return nil, nil, err
+		}
+		opFiles = append(opFiles, proxy)
 	}
 
 	// TODO: in case of re-trim with the exact same parameters we already have the files in DB.
@@ -362,18 +376,24 @@ func handleTrim(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	if err != nil {
 		return nil, nil, err
 	}
+	opFiles = append(opFiles, originalTrim)
 
-	log.Info("Creating trimmed proxy")
-	props = map[string]interface{}{
-		"duration": r.Proxy.Duration,
-	}
-	proxyTrim, err := CreateFile(exec, proxy, r.Proxy.File, props)
-	if err != nil {
-		return nil, nil, err
+	if proxy != nil && r.Proxy != nil {
+		log.Info("Creating trimmed proxy")
+		props = map[string]interface{}{
+			"duration": r.Proxy.Duration,
+		}
+		proxyTrim, err := CreateFile(exec, proxy, r.Proxy.File, props)
+		if err != nil {
+			return nil, nil, err
+		}
+		opFiles = append(opFiles, proxyTrim)
+	} else {
+		log.Info("Proxy not provided. Skipping trimmed proxy creation")
 	}
 
 	log.Info("Associating files to operation")
-	return operation, nil, operation.AddFiles(exec, false, original, originalTrim, proxy, proxyTrim)
+	return operation, nil, operation.AddFiles(exec, false, opFiles...)
 }
 
 func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
@@ -395,20 +415,28 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 		}
 	}
 
+	opFiles := []*models.File{original}
+
 	// Proxy
-	proxy, _, err := FindFileBySHA1(exec, r.Proxy.Sha1)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Lookup proxy file")
-	}
-	if proxy.Name == r.Proxy.FileName {
-		log.Info("Proxy's name hasn't change")
-	} else {
-		log.Info("Renaming proxy")
-		proxy.Name = r.Proxy.FileName
-		err = proxy.Update(exec, "name")
+	var proxy *models.File
+	if r.Proxy != nil {
+		proxy, _, err = FindFileBySHA1(exec, r.Proxy.Sha1)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "Rename proxy file")
+			return nil, nil, errors.Wrap(err, "Lookup proxy file")
 		}
+		opFiles = append(opFiles, proxy)
+		if proxy.Name == r.Proxy.FileName {
+			log.Info("Proxy's name hasn't change")
+		} else {
+			log.Info("Renaming proxy")
+			proxy.Name = r.Proxy.FileName
+			err = proxy.Update(exec, "name")
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "Rename proxy file")
+			}
+		}
+	} else {
+		log.Info("Proxy not provided. Skipping possible rename")
 	}
 
 	mode := "new"
@@ -442,7 +470,7 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	}
 
 	log.Info("Associating files to operation")
-	err = operation.AddFiles(exec, false, original, proxy)
+	err = operation.AddFiles(exec, false, opFiles...)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Associate files")
 	}
@@ -1123,6 +1151,8 @@ func handleJoin(exec boil.Executor, input interface{}) (*models.Operation, []eve
 		inProxies = append(inProxies, f)
 	}
 
+	opFiles := append(inOriginals, inProxies...)
+
 	log.Info("Creating operation")
 	props := map[string]interface{}{
 		"original_shas": r.OriginalShas,
@@ -1141,20 +1171,24 @@ func handleJoin(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	if err != nil {
 		return nil, nil, err
 	}
+	opFiles = append(opFiles, original)
 
-	log.Info("Creating joined proxy")
-	props = map[string]interface{}{
-		"duration": r.Proxy.Duration,
-	}
-	proxy, err := CreateFile(exec, nil, r.Proxy.File, props)
-	if err != nil {
-		return nil, nil, err
+	if r.Proxy != nil {
+		log.Info("Creating joined proxy")
+		props = map[string]interface{}{
+			"duration": r.Proxy.Duration,
+		}
+		proxy, err := CreateFile(exec, nil, r.Proxy.File, props)
+		if err != nil {
+			return nil, nil, err
+		}
+		opFiles = append(opFiles, proxy)
+	} else {
+		log.Info("No proxy provided. skipping joined proxy creation")
 	}
 
 	log.Info("Associating files to operation")
-	allFiles := append(inOriginals, inProxies...)
-	allFiles = append(allFiles, original, proxy)
-	return operation, nil, operation.AddFiles(exec, false, allFiles...)
+	return operation, nil, operation.AddFiles(exec, false, opFiles...)
 }
 
 // Helpers

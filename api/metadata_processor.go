@@ -34,12 +34,13 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 // 	4. Describe content unit (i18ns)
 //	5. Add files to new unit
 // 	6. Add ancestor files to unit
-// 	7. Associate unit with sources, tags, and persons
-// 	8. Get or create collection
-// 	9. Update collection (content_type, dates, number) if full lesson or new lesson
-// 	10. Associate collection and unit
-// 	11. Associate unit and derived units
-// 	12. Set default permissions ?!
+//  7. Add peer ancestor (related captures)
+// 	8. Associate unit with sources, tags, and persons
+// 	9. Get or create collection
+// 	10. Update collection (content_type, dates, number) if full lesson or new lesson
+// 	11. Associate collection and unit
+// 	12. Associate unit and derived units
+// 	13. Set default permissions ?!
 func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models.File, cu *models.ContentUnit) ([]events.Event, error) {
 	isUpdate := cu != nil
 	log.Infof("Processing CITMetadata, isUpdate: %t", isUpdate)
@@ -53,6 +54,8 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		filmDate = *metadata.FilmDate
 	}
 
+	evnts := make([]events.Event, 0)
+
 	props := map[string]interface{}{
 		"capture_date":      metadata.CaptureDate,
 		"film_date":         filmDate,
@@ -63,14 +66,14 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 	if err != nil {
 		return nil, err
 	}
-	err = UpdateFileProperties(exec, proxy, props)
-	if err != nil {
-		return nil, err
+	evnts = append(evnts, events.FileUpdateEvent(original))
+	if proxy != nil {
+		err = UpdateFileProperties(exec, proxy, props)
+		if err != nil {
+			return nil, err
+		}
+		evnts = append(evnts, events.FileUpdateEvent(proxy))
 	}
-
-	evnts := make([]events.Event, 2)
-	evnts[0] = events.FileUpdateEvent(original)
-	evnts[1] = events.FileUpdateEvent(proxy)
 
 	// Update language of original.
 	// TODO: What about proxy !?
@@ -158,9 +161,15 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 
 	// Add files to new unit
 	log.Info("Adding files to unit")
-	err = cu.AddFiles(exec, false, original, proxy)
+	err = cu.AddFiles(exec, false, original)
 	if err != nil {
-		return nil, errors.Wrap(err, "Add files to unit")
+		return nil, errors.Wrap(err, "Add original to unit")
+	}
+	if proxy != nil {
+		err = cu.AddFiles(exec, false, proxy)
+		if err != nil {
+			return nil, errors.Wrap(err, "Add proxy to unit")
+		}
 	}
 
 	// Add ancestor files to unit (not for derived units)
@@ -171,12 +180,14 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 			return nil, errors.Wrap(err, "Find original's ancestors")
 		}
 
-		err = proxy.L.LoadParent(exec, true, proxy)
-		if err != nil {
-			return nil, errors.Wrap(err, "Load proxy's parent")
-		}
-		if proxy.R.Parent != nil {
-			ancestors = append(ancestors, proxy.R.Parent)
+		if proxy != nil {
+			err = proxy.L.LoadParent(exec, true, proxy)
+			if err != nil {
+				return nil, errors.Wrap(err, "Load proxy's parent")
+			}
+			if proxy.R.Parent != nil {
+				ancestors = append(ancestors, proxy.R.Parent)
+			}
 		}
 
 		err = cu.AddFiles(exec, false, ancestors...)
@@ -189,6 +200,60 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 			evnts = append(evnts, events.FileUpdateEvent(x))
 			log.Infof("%s [%d]", x.Name, x.ID)
 		}
+	}
+
+	// Add peer ancestor (related captures)
+	var captureStopProps map[string]interface{}
+	captureStop, err := FindUpChainOperation(exec, original.ID, common.OP_CAPTURE_STOP)
+	if err != nil {
+		if ex, ok := err.(UpChainOperationNotFound); ok {
+			log.Warnf("capture_stop operation not found for original: %s", ex.Error())
+		}
+	} else {
+		if captureStop.Properties.Valid {
+			err = json.Unmarshal(captureStop.Properties.JSON, &captureStopProps)
+			if err != nil {
+				return nil, errors.Wrap(err, "json Unmarshal")
+			}
+		}
+	}
+
+	if workflowID, ok := captureStopProps["workflow_id"]; ok {
+		// find other captures
+		relatedCaptures, err := FindOperationsByWorkflowID(exec, workflowID, common.OP_CAPTURE_STOP)
+		if err != nil {
+			return nil, errors.Wrap(err, "find related captures")
+		}
+
+		// find other captures files and add them all to this unit
+		var relatedCapturesFiles []*models.File
+		for _, capture := range relatedCaptures {
+			if capture.ID == captureStop.ID {
+				continue
+			}
+			if err := capture.L.LoadFiles(exec, true, capture); err != nil {
+				return nil, errors.Wrapf(err, "load related capture files %d", capture.ID)
+			}
+			captureFile := capture.R.Files[0]
+			relatedCapturesFiles = append(relatedCapturesFiles, captureFile)
+			if files, err := FindFileDescendants(exec, captureFile.ID); err != nil {
+				return nil, errors.Wrapf(err, "load descendants of related capture file %d", captureFile.ID)
+			} else {
+				relatedCapturesFiles = append(relatedCapturesFiles, files...)
+			}
+		}
+
+		err = cu.AddFiles(exec, false, relatedCapturesFiles...)
+		if err != nil {
+			return nil, errors.Wrap(err, "Add related capture files to unit")
+		}
+		log.Infof("Added %d related capture files", len(relatedCapturesFiles))
+		for _, f := range relatedCapturesFiles {
+			evnts = append(evnts, events.FileUpdateEvent(f))
+			log.Infof("%s [%d]", f.Name, f.ID)
+		}
+	} else {
+		log.Info("capture_stop not found or its missing workflow_id. Skipping related captures associations")
 	}
 
 	// Associate unit with sources, tags, and persons
@@ -323,87 +388,69 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		// Reconcile or create new
 		// Reconciliation is done by looking up the operation chain of original to capture_stop.
 		// There we have a property of saying the capture_id of the full lesson capture.
-		captureStop, err := FindUpChainOperation(exec, original.ID, common.OP_CAPTURE_STOP)
-		if err != nil {
-			if ex, ok := err.(UpChainOperationNotFound); ok {
-				log.Warnf("capture_stop operation not found for original: %s", ex.Error())
+		if captureID, ok := captureStopProps["collection_uid"]; ok {
+			log.Infof("Reconcile by capture_id %s", captureID)
+			var cct string
+			if metadata.WeekDate == nil {
+				cct = common.CT_DAILY_LESSON
 			} else {
-				return nil, err
+				cct = common.CT_SPECIAL_LESSON
 			}
-		} else if captureStop.Properties.Valid {
-			var oProps map[string]interface{}
-			err = json.Unmarshal(captureStop.Properties.JSON, &oProps)
+
+			// Keep this property on the collection for other parts to find it
+			props["capture_id"] = captureID
+			if metadata.Number.Valid {
+				props["number"] = metadata.Number.Int
+			}
+			delete(props, "duration")
+			delete(props, "part")
+
+			// get or create collection
+			c, err := FindCollectionByCaptureID(exec, captureID)
 			if err != nil {
-				return nil, errors.Wrap(err, "json Unmarshal")
+				if _, ok := err.(CollectionNotFound); !ok {
+					return nil, err
+				}
+
+				// Create new collection
+				log.Info("Creating new collection")
+				c, err = CreateCollection(exec, cct, props)
+				if err != nil {
+					return nil, err
+				}
+				evnts = append(evnts, events.CollectionCreateEvent(c))
+			} else if ct == common.CT_FULL_LESSON {
+				// Update collection properties to those of full lesson
+				log.Info("Full lesson, overriding collection properties")
+				if c.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[cct].ID {
+					log.Infof("Full lesson, content_type changed to %s", cct)
+					c.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[cct].ID
+					err = c.Update(exec, "type_id")
+					if err != nil {
+						return nil, errors.Wrap(err, "Update collection type in DB")
+					}
+				}
+
+				err = UpdateCollectionProperties(exec, c, props)
+				if err != nil {
+					return nil, err
+				}
+				evnts = append(evnts, events.CollectionUpdateEvent(c))
 			}
 
-			captureID, ok := oProps["collection_uid"]
-			if ok {
-				log.Infof("Reconcile by capture_id %s", captureID)
-				var cct string
-				if metadata.WeekDate == nil {
-					cct = common.CT_DAILY_LESSON
-				} else {
-					cct = common.CT_SPECIAL_LESSON
-				}
-
-				// Keep this property on the collection for other parts to find it
-				props["capture_id"] = captureID
-				if metadata.Number.Valid {
-					props["number"] = metadata.Number.Int
-				}
-				delete(props, "duration")
-				delete(props, "part")
-
-				// get or create collection
-				c, err := FindCollectionByCaptureID(exec, captureID)
+			// Associate unit to collection
+			if c != nil &&
+				(!metadata.ArtifactType.Valid ||
+					metadata.ArtifactType.String == "main" ||
+					metadata.ArtifactType.String == "KTAIM_NIVCHARIM") {
+				err := associateUnitToCollection(exec, cu, c, metadata)
 				if err != nil {
-					if _, ok := err.(CollectionNotFound); !ok {
-						return nil, err
-					}
-
-					// Create new collection
-					log.Info("Creating new collection")
-					c, err = CreateCollection(exec, cct, props)
-					if err != nil {
-						return nil, err
-					}
-					evnts = append(evnts, events.CollectionCreateEvent(c))
-				} else if ct == common.CT_FULL_LESSON {
-					// Update collection properties to those of full lesson
-					log.Info("Full lesson, overriding collection properties")
-					if c.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[cct].ID {
-						log.Infof("Full lesson, content_type changed to %s", cct)
-						c.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[cct].ID
-						err = c.Update(exec, "type_id")
-						if err != nil {
-							return nil, errors.Wrap(err, "Update collection type in DB")
-						}
-					}
-
-					err = UpdateCollectionProperties(exec, c, props)
-					if err != nil {
-						return nil, err
-					}
-					evnts = append(evnts, events.CollectionUpdateEvent(c))
+					return nil, errors.Wrap(err, "associate content_unit to collection")
 				}
-
-				// Associate unit to collection
-				if c != nil &&
-					(!metadata.ArtifactType.Valid ||
-						metadata.ArtifactType.String == "main" ||
-						metadata.ArtifactType.String == "KTAIM_NIVCHARIM") {
-					err := associateUnitToCollection(exec, cu, c, metadata)
-					if err != nil {
-						return nil, errors.Wrap(err, "associate content_unit to collection")
-					}
-					evnts = append(evnts, events.CollectionContentUnitsChangeEvent(c))
-				}
-			} else {
-				log.Warnf("No collection_uid in capture_stop [%d] properties", captureStop.ID)
+				evnts = append(evnts, events.CollectionContentUnitsChangeEvent(c))
 			}
 		} else {
-			log.Warnf("Invalid properties in capture_stop [%d]", captureStop.ID)
+			log.Warn("capture_stop not found or its missing collection_uid. Skipping lesson reconciliation")
 		}
 	}
 
@@ -560,7 +607,7 @@ func associateUnitToCollection(exec boil.Executor, cu *models.ContentUnit, c *mo
 }
 
 func mainToDerived(exec boil.Executor, metadata CITMetadata, original *models.File) (map[int64]string, error) {
-	part := -888  // something we never use for part
+	part := -888 // something we never use for part
 	if metadata.Part.Valid {
 		part = metadata.Part.Int
 	}
@@ -681,17 +728,22 @@ func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original
 		mutualAncestors.Add(oPath[i].ID)
 	}
 
-	pPath, err := FindFileAncestors(exec, proxy.ID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "lookup proxy ancestors %d", original.ID)
+	if proxy != nil {
+		pPath, err := FindFileAncestors(exec, proxy.ID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "lookup proxy ancestors %d", original.ID)
+		}
+		for i := range pPath {
+			mutualAncestors.Add(pPath[i].ID)
+		}
 	}
-	for i := range pPath {
-		mutualAncestors.Add(pPath[i].ID)
-	}
-	ancestorsIDs := mutualAncestors.Values()
 
+	ancestorsIDs := mutualAncestors.Values()
 	// These are the fix. Not the problem. Don't remove them
-	ancestorsIDs = append(ancestorsIDs, original.ID, proxy.ID)
+	ancestorsIDs = append(ancestorsIDs, original.ID)
+	if proxy != nil {
+		ancestorsIDs = append(ancestorsIDs, original.ID, proxy.ID)
+	}
 
 	log.Infof("ancestorsIDs: %v", ancestorsIDs)
 
