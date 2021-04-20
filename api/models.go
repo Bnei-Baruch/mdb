@@ -114,7 +114,7 @@ type (
 	TrimRequest struct {
 		Operation
 		OriginalSha1  string    `json:"original_sha1" binding:"required,len=40,hexadecimal"`
-		ProxySha1     string    `json:"proxy_sha1" binding:"len=40,hexadecimal"`
+		ProxySha1     string    `json:"proxy_sha1" binding:"omitempty,len=40,hexadecimal"`
 		Original      AVFile    `json:"original"`
 		Proxy         *AVFile   `json:"proxy"`
 		In            []float64 `json:"in"`
