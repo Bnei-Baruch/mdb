@@ -2,6 +2,7 @@ package cusource
 
 import (
 	"database/sql"
+	"encoding/json"
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -62,12 +63,16 @@ func createCU(s *models.Source, mdb boil.Executor) (*models.ContentUnit, error) 
 			return nil, api.NewInternalError(err)
 		}
 	}
+
+	props := make(map[string]interface{})
+	props["source_id"] = s.UID
+	p, _ := json.Marshal(props)
 	cu := &models.ContentUnit{
 		UID:        cuUid,
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
 		Secure:     common.SEC_PUBLIC,
 		Published:  true,
-		Properties: null.JSONFrom(nil),
+		Properties: null.JSONFrom(p),
 		CreatedAt:  time.Now(),
 	}
 

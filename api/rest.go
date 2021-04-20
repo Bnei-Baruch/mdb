@@ -1966,29 +1966,11 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 
 	// i18n
 	data := make([]*ContentUnit, len(units))
-	sources, err := findSourceForSourceTypes(exec, units)
 	for i, cu := range units {
 		x := &ContentUnit{ContentUnit: *cu}
 		data[i] = x
 
-		var i18ns models.ContentUnitI18nSlice
-		var source *models.Source
-		if x.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
-			i18ns = cu.R.ContentUnitI18ns
-		} else {
-			for _, s := range sources {
-				for _, u := range s.R.ContentUnits {
-					if u.ID == cu.ID {
-						source = s
-						break
-					}
-				}
-				if source != nil {
-					break
-				}
-			}
-			i18ns = buildCuI18nFromSource(cu.ID, source)
-		}
+		i18ns := cu.R.ContentUnitI18ns
 
 		x.I18n = make(map[string]*models.ContentUnitI18n, len(i18ns))
 		for _, i18n := range i18ns {
@@ -2041,20 +2023,7 @@ func handleGetContentUnit(cp utils.ContextProvider, exec boil.Executor, id int64
 	}
 
 	// i18n
-	var i18ns models.ContentUnitI18nSlice
-	if unit.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
-		i18ns = unit.R.ContentUnitI18ns
-	} else {
-		s, err := models.Sources(exec,
-			qm.InnerJoin("content_unit_source cus ON cus.source_id = s.id", id),
-			qm.Where("cus.content_unit_id = ?", unit.ID),
-			qm.Load("SourcesI18ns")).
-			One()
-		if err != nil {
-			return nil, NewInternalError(err)
-		}
-		i18ns = buildCuI18nFromSource(unit.ID, s)
-	}
+	i18ns := unit.R.ContentUnitI18ns
 	x := &ContentUnit{ContentUnit: *unit}
 	x.I18n = make(map[string]*models.ContentUnitI18n, len(i18ns))
 	for _, i18n := range i18ns {
@@ -3528,7 +3497,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 	}
 
 	props := make(map[string]interface{})
-	props["source"] = s.UID
+	props["source_id"] = s.UID
 	p, _ := json.Marshal(props)
 
 	cu := &models.ContentUnit{
