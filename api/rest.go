@@ -2060,7 +2060,7 @@ func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *P
 	}
 
 	if unit.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
-		return nil, NewBadRequestError(errors.Errorf("Unit type %s is close for change", common.CT_SOURCE))
+		return nil, NewBadRequestError(errors.Errorf("Unit type %s is close for changes", common.CT_SOURCE))
 	}
 
 	if cu.Secure.Valid {
