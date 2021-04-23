@@ -5,11 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/casbin/casbin"
 	"github.com/lib/pq"
@@ -19,6 +14,9 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/volatiletech/null.v6"
+	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
@@ -1984,26 +1982,6 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 	}, nil
 }
 
-func findSourceForSourceTypes(exec boil.Executor, units []*models.ContentUnit) ([]*models.Source, error) {
-	var ids []int64
-	for _, u := range units {
-		if u.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
-			ids = append(ids, u.ID)
-		}
-	}
-
-	sources, err := models.Sources(exec,
-		qm.InnerJoin("content_unit_source cus ON cus.source_id = s.id"),
-		qm.WhereIn("cus.content_unit_id IN ?", utils.ConvertArgsInt64(ids)...),
-		qm.Load("SourcesI18ns", "ContentUnits")).
-		All()
-
-	if err != nil {
-		return nil, NewInternalError(err)
-	}
-	return sources, nil
-}
-
 func handleGetContentUnit(cp utils.ContextProvider, exec boil.Executor, id int64) (*ContentUnit, *HttpError) {
 	unit, err := models.ContentUnits(exec,
 		qm.Where("id = ?", id),
@@ -2031,19 +2009,6 @@ func handleGetContentUnit(cp utils.ContextProvider, exec boil.Executor, id int64
 	}
 
 	return x, nil
-}
-
-func buildCuI18nFromSource(id int64, s *models.Source) models.ContentUnitI18nSlice {
-	var i18ns models.ContentUnitI18nSlice
-	for _, i18n := range s.R.SourceI18ns {
-		nI18n := &models.ContentUnitI18n{
-			ContentUnitID: id,
-			Language:      i18n.Language,
-			Name:          i18n.Name,
-		}
-		i18ns = append(i18ns, nI18n)
-	}
-	return i18ns
 }
 
 func handleCreateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu ContentUnit) (*ContentUnit, *HttpError) {
@@ -2095,7 +2060,7 @@ func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *P
 	}
 
 	if unit.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
-		return nil, NewForbiddenError()
+		return nil, NewBadRequestError(errors.Errorf("Unit type %s is close for change", common.CT_SOURCE))
 	}
 
 	if cu.Secure.Valid {
@@ -3496,20 +3461,17 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 		}
 	}
 
-	props := make(map[string]interface{})
-	props["source_id"] = s.UID
-	p, _ := json.Marshal(props)
+	props, _ := json.Marshal(map[string]string{"source_id": s.UID})
 
 	cu := &models.ContentUnit{
 		UID:        s.UID,
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
 		Secure:     common.SEC_PUBLIC,
 		Published:  true,
-		Properties: null.JSONFrom(p),
-		CreatedAt:  time.Now(),
+		Properties: null.JSONFrom(props),
 	}
 
-	err = s.Source.AddContentUnits(exec, true, cu)
+	err = cu.Insert(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}

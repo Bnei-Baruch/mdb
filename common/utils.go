@@ -1,8 +1,6 @@
 package common
 
-import (
-	"strings"
-)
+import "strings"
 
 // Return standard language or LANG_UNKNOWN
 //

@@ -3,24 +3,22 @@ package cusource
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/Bnei-Baruch/mdb/api"
-	"github.com/Bnei-Baruch/mdb/common"
-	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
-	"time"
+
+	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
+	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 
 	rows, err := queries.Raw(mdb,
-		`SELECT cus.source_id FROM content_units cu
-			INNER JOIN content_units_sources cus ON cus.content_unit_id = cu.id
-			WHERE cu.type_id = $1`,
+		`SELECT WHERE cu.properties->>'source_id' FROM content_units cu WHERE cu.type_id = $1`,
 		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
 	).Query()
 
@@ -64,36 +62,18 @@ func createCU(s *models.Source, mdb boil.Executor) (*models.ContentUnit, error) 
 		}
 	}
 
-	props := make(map[string]interface{})
-	props["source_id"] = s.UID
-	p, _ := json.Marshal(props)
+	props, _ := json.Marshal(map[string]string{"source_id": s.UID})
 	cu := &models.ContentUnit{
 		UID:        cuUid,
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
 		Secure:     common.SEC_PUBLIC,
 		Published:  true,
-		Properties: null.JSONFrom(p),
-		CreatedAt:  time.Now(),
+		Properties: null.JSONFrom(props),
 	}
 
 	err = cu.Insert(mdb)
 	if err != nil {
 		return nil, err
 	}
-
-	err = cu.AddSources(mdb, false, s)
-	utils.Must(err)
 	return cu, nil
-}
-
-func haveSourceCUTypeSource(suid string, mdb boil.Executor) bool {
-	tid := common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID
-	has, err := models.ContentUnits(
-		mdb,
-		qm.Where("content_units.type_id = ? AND s.uid = ?", tid, suid),
-		qm.InnerJoin("content_units_sources as cus ON cus.content_unit_id = content_units.id"),
-		qm.InnerJoin("sources as s ON cus.source_id = s.id"),
-	).Exists()
-	utils.Must(err)
-	return has
 }
