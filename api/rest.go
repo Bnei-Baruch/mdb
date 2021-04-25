@@ -5,6 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/casbin/casbin"
 	"github.com/lib/pq"
@@ -14,9 +18,6 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/volatiletech/null.v6"
-	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
@@ -1967,11 +1968,8 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 	for i, cu := range units {
 		x := &ContentUnit{ContentUnit: *cu}
 		data[i] = x
-
-		i18ns := cu.R.ContentUnitI18ns
-
-		x.I18n = make(map[string]*models.ContentUnitI18n, len(i18ns))
-		for _, i18n := range i18ns {
+		x.I18n = make(map[string]*models.ContentUnitI18n, len(cu.R.ContentUnitI18ns))
+		for _, i18n := range cu.R.ContentUnitI18ns {
 			x.I18n[i18n.Language] = i18n
 		}
 	}
@@ -2001,10 +1999,9 @@ func handleGetContentUnit(cp utils.ContextProvider, exec boil.Executor, id int64
 	}
 
 	// i18n
-	i18ns := unit.R.ContentUnitI18ns
 	x := &ContentUnit{ContentUnit: *unit}
-	x.I18n = make(map[string]*models.ContentUnitI18n, len(i18ns))
-	for _, i18n := range i18ns {
+	x.I18n = make(map[string]*models.ContentUnitI18n, len(unit.R.ContentUnitI18ns))
+	for _, i18n := range unit.R.ContentUnitI18ns {
 		x.I18n[i18n.Language] = i18n
 	}
 
@@ -2100,7 +2097,7 @@ func handleUpdateContentUnitI18n(cp utils.ContextProvider, exec boil.Executor, i
 	}
 
 	if unit.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
-		return nil, NewForbiddenError()
+		return nil, NewBadRequestError(errors.Errorf("Unit type %s is close for changes", common.CT_SOURCE))
 	}
 
 	// Upsert all new i18ns

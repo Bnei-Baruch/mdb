@@ -4,21 +4,23 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
+	"io/ioutil"
+
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
-	"io/ioutil"
 )
 
 func Validator() {
 	//mdb, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	mdb, err := sql.Open("postgres", viper.GetString("source-import.test-url"))
-	defer mdb.Close()
 	utils.Must(err)
 	utils.Must(mdb.Ping())
+	defer mdb.Close()
 	boil.SetDB(mdb)
 	boil.DebugMode = true
 	utils.Must(common.InitTypeRegistries(mdb))

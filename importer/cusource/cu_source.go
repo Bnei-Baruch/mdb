@@ -2,6 +2,7 @@ package cusource
 
 import (
 	"database/sql"
+
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/spf13/viper"

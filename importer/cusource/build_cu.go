@@ -3,6 +3,7 @@ package cusource
 import (
 	"database/sql"
 	"encoding/json"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries"
