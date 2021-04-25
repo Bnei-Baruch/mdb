@@ -18,7 +18,7 @@ import (
 func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 
 	rows, err := queries.Raw(mdb,
-		`SELECT WHERE cu.properties->>'source_id' FROM content_units cu WHERE cu.type_id = $1`,
+		`SELECT cu.properties->>'source_id' FROM content_units cu WHERE cu.type_id = $1`,
 		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
 	).Query()
 
