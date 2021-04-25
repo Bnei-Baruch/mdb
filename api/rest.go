@@ -3418,7 +3418,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 	}
 
 	// save source to DB
-	uid, err := GetFreeUID(exec, new(SourceUIDChecker))
+	uid, err := getUniqSourceAndCUUID(exec, 0)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3446,18 +3446,6 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 	}
 	// create CU type source
 
-	cuUid := s.UID
-	hasCU, err := models.ContentUnits(exec, qm.Where("uid = ?", cuUid)).Exists()
-	if err != nil {
-		return nil, NewInternalError(err)
-	}
-	if hasCU {
-		cuUid, err = GetFreeUID(exec, new(ContentUnitUIDChecker))
-		if err != nil {
-			return nil, NewInternalError(err)
-		}
-	}
-
 	props, _ := json.Marshal(map[string]string{"source_id": s.UID})
 
 	cu := &models.ContentUnit{
@@ -3474,6 +3462,25 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 	}
 
 	return handleGetSource(exec, s.ID)
+}
+
+func getUniqSourceAndCUUID(exec boil.Executor, attempts int64) (string, error) {
+	if attempts > 10 {
+		return "", errors.New("Too match attempts of find unique UID for CU and Source")
+	}
+	uid, err := GetFreeUID(exec, new(SourceUIDChecker))
+	if err != nil {
+		return "", NewInternalError(err)
+	}
+	hasCU, err := models.ContentUnits(exec, qm.Where("uid = ?", uid)).Exists()
+	if err != nil {
+		return "", NewInternalError(err)
+	}
+	if hasCU {
+		attempts++
+		return getUniqSourceAndCUUID(exec, attempts)
+	}
+	return uid, err
 }
 
 func handleGetSource(exec boil.Executor, id int64) (*Source, *HttpError) {

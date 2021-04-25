@@ -10,7 +10,6 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
-	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -51,28 +50,16 @@ func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 }
 
 func createCU(s *models.Source, mdb boil.Executor) (*models.ContentUnit, error) {
-	cuUid := s.UID
-	hasCU, err := models.ContentUnits(mdb, qm.Where("uid = ?", cuUid)).Exists()
-	if err != nil {
-		return nil, api.NewInternalError(err)
-	}
-	if hasCU {
-		cuUid, err = api.GetFreeUID(mdb, new(api.ContentUnitUIDChecker))
-		if err != nil {
-			return nil, api.NewInternalError(err)
-		}
-	}
-
 	props, _ := json.Marshal(map[string]string{"source_id": s.UID})
 	cu := &models.ContentUnit{
-		UID:        cuUid,
+		UID:        s.UID,
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
 		Secure:     common.SEC_PUBLIC,
 		Published:  true,
 		Properties: null.JSONFrom(props),
 	}
 
-	err = cu.Insert(mdb)
+	err := cu.Insert(mdb)
 	if err != nil {
 		return nil, err
 	}
