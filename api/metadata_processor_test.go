@@ -1145,6 +1145,28 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 	suite.Equal(4, ccu.Position, "ccu.Position")
 	suite.Equal(collectionID, ccu.CollectionID, "ccu.CollectionID")
 
+	// process kitei makor for part 1
+	metadata.ContentType = common.CT_LESSON_PART
+	metadata.Part = null.IntFrom(1)
+	metadata.ArtifactType = null.StringFrom("kitei_makor")
+	metadata.WeekDate = nil
+	tf = chain["part1_kitei-makor"]
+	_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+	suite.Require().Nil(err)
+
+	// verify source remains associated to main and not derived
+	tfOriginals := chain["part1"]
+	tfSource := chain["source_part1"]
+	tfKtaim := chain["part1_kitei-makor"]
+
+	err = tfOriginals.Original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = tfSource.Original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = tfKtaim.Original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.Equal(tfOriginals.Original.ContentUnitID.Int64, tfSource.Original.ContentUnitID.Int64, "main and source unit")
+	suite.NotEqual(tfKtaim.Original.ContentUnitID.Int64, tfSource.Original.ContentUnitID.Int64, "derived and source unit")
 }
 
 // Helpers
