@@ -33,14 +33,13 @@ func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 	}
 	mods := make([]qm.QueryMod, 0)
 	if len(ids) > 0 {
-		mods = append(mods, qm.WhereIn("id NOT IN ?", utils.ConvertArgsInt64(ids)...))
+		mods = append(mods, qm.WhereIn("uid NOT IN ?", utils.ConvertArgsInt64(ids)...))
 	}
 
 	sources, err := models.Sources(mdb, mods...).All()
 	utils.Must(err)
 
 	for _, s := range sources {
-		utils.Must(err)
 		_, err := createCU(s, mdb)
 		if err != nil {
 			log.Debug("Duplicate create CU", err)
