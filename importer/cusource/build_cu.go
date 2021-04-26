@@ -40,6 +40,15 @@ func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 	utils.Must(err)
 
 	for _, s := range sources {
+		isParent := false
+		for _, sl := range sources {
+			if sl.ParentID.Int64 == s.ID {
+				isParent = true
+			}
+		}
+		if isParent {
+			continue
+		}
 		_, err := createCU(s, mdb)
 		if err != nil {
 			log.Debug("Duplicate create CU", err)
