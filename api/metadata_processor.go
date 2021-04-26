@@ -159,6 +159,22 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		}
 	}
 
+	// we lookup Original's capture_stop operation as it holds required information below
+	var captureStopProps map[string]interface{}
+	captureStop, err := FindUpChainOperation(exec, original.ID, common.OP_CAPTURE_STOP)
+	if err != nil {
+		if ex, ok := err.(UpChainOperationNotFound); ok {
+			log.Warnf("capture_stop operation not found for original: %s", ex.Error())
+		}
+	} else {
+		if captureStop.Properties.Valid {
+			err = json.Unmarshal(captureStop.Properties.JSON, &captureStopProps)
+			if err != nil {
+				return nil, errors.Wrap(err, "json Unmarshal")
+			}
+		}
+	}
+
 	// Add files to new unit
 	log.Info("Adding files to unit")
 	err = cu.AddFiles(exec, false, original)
@@ -200,60 +216,45 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 			evnts = append(evnts, events.FileUpdateEvent(x))
 			log.Infof("%s [%d]", x.Name, x.ID)
 		}
-	}
 
-	// Add peer ancestor (related captures)
-	var captureStopProps map[string]interface{}
-	captureStop, err := FindUpChainOperation(exec, original.ID, common.OP_CAPTURE_STOP)
-	if err != nil {
-		if ex, ok := err.(UpChainOperationNotFound); ok {
-			log.Warnf("capture_stop operation not found for original: %s", ex.Error())
-		}
-	} else {
-		if captureStop.Properties.Valid {
-			err = json.Unmarshal(captureStop.Properties.JSON, &captureStopProps)
+		// Add peer ancestor (related captures)
+		if workflowID, ok := captureStopProps["workflow_id"]; ok {
+			// find other captures
+			relatedCaptures, err := FindOperationsByWorkflowID(exec, workflowID, common.OP_CAPTURE_STOP)
 			if err != nil {
-				return nil, errors.Wrap(err, "json Unmarshal")
+				return nil, errors.Wrap(err, "find related captures")
 			}
-		}
-	}
 
-	if workflowID, ok := captureStopProps["workflow_id"]; ok {
-		// find other captures
-		relatedCaptures, err := FindOperationsByWorkflowID(exec, workflowID, common.OP_CAPTURE_STOP)
-		if err != nil {
-			return nil, errors.Wrap(err, "find related captures")
-		}
+			// find other captures files and add them all to this unit
+			var relatedCapturesFiles []*models.File
+			for _, capture := range relatedCaptures {
+				if capture.ID == captureStop.ID {
+					continue
+				}
+				if err := capture.L.LoadFiles(exec, true, capture); err != nil {
+					return nil, errors.Wrapf(err, "load related capture files %d", capture.ID)
+				}
+				captureFile := capture.R.Files[0]
+				relatedCapturesFiles = append(relatedCapturesFiles, captureFile)
+				if files, err := FindFileDescendants(exec, captureFile.ID); err != nil {
+					return nil, errors.Wrapf(err, "load descendants of related capture file %d", captureFile.ID)
+				} else {
+					relatedCapturesFiles = append(relatedCapturesFiles, files...)
+				}
+			}
 
-		// find other captures files and add them all to this unit
-		var relatedCapturesFiles []*models.File
-		for _, capture := range relatedCaptures {
-			if capture.ID == captureStop.ID {
-				continue
+			err = cu.AddFiles(exec, false, relatedCapturesFiles...)
+			if err != nil {
+				return nil, errors.Wrap(err, "Add related capture files to unit")
 			}
-			if err := capture.L.LoadFiles(exec, true, capture); err != nil {
-				return nil, errors.Wrapf(err, "load related capture files %d", capture.ID)
+			log.Infof("Added %d related capture files", len(relatedCapturesFiles))
+			for _, f := range relatedCapturesFiles {
+				evnts = append(evnts, events.FileUpdateEvent(f))
+				log.Infof("%s [%d]", f.Name, f.ID)
 			}
-			captureFile := capture.R.Files[0]
-			relatedCapturesFiles = append(relatedCapturesFiles, captureFile)
-			if files, err := FindFileDescendants(exec, captureFile.ID); err != nil {
-				return nil, errors.Wrapf(err, "load descendants of related capture file %d", captureFile.ID)
-			} else {
-				relatedCapturesFiles = append(relatedCapturesFiles, files...)
-			}
+		} else {
+			log.Info("capture_stop not found or its missing workflow_id. Skipping related captures associations")
 		}
-
-		err = cu.AddFiles(exec, false, relatedCapturesFiles...)
-		if err != nil {
-			return nil, errors.Wrap(err, "Add related capture files to unit")
-		}
-		log.Infof("Added %d related capture files", len(relatedCapturesFiles))
-		for _, f := range relatedCapturesFiles {
-			evnts = append(evnts, events.FileUpdateEvent(f))
-			log.Infof("%s [%d]", f.Name, f.ID)
-		}
-	} else {
-		log.Info("capture_stop not found or its missing workflow_id. Skipping related captures associations")
 	}
 
 	// Associate unit with sources, tags, and persons
