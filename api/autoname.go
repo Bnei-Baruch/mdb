@@ -237,9 +237,9 @@ func (d FixedKeyDescriber) DescribeContentUnit(exec boil.Executor,
 	return makeCUI18ns(cu.ID, names), nil
 }
 
-type VideoProgramChapterDescriber struct{}
+type CollectionNameDescriber struct{}
 
-func (d VideoProgramChapterDescriber) DescribeContentUnit(exec boil.Executor,
+func (d CollectionNameDescriber) DescribeContentUnit(exec boil.Executor,
 	cu *models.ContentUnit,
 	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
 
@@ -297,10 +297,11 @@ func (d BlogPostDescriber) DescribeContentUnit(exec boil.Executor,
 
 var CUDescribers = map[string]ContentUnitDescriber{
 	common.CT_LESSON_PART:           new(LessonPartDescriber),
-	common.CT_VIDEO_PROGRAM_CHAPTER: new(VideoProgramChapterDescriber),
+	common.CT_VIDEO_PROGRAM_CHAPTER: new(CollectionNameDescriber),
 	common.CT_BLOG_POST:             new(BlogPostDescriber),
 	common.CT_MEAL:                  &FixedKeyDescriber{Key: "autoname.meal"},
 	common.CT_FRIENDS_GATHERING:     &FixedKeyDescriber{Key: "autoname.yh"},
+	common.CT_CLIP:                  new(CollectionNameDescriber),
 }
 
 var CDescribers = map[string]CollectionDescriber{}
