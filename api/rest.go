@@ -3451,7 +3451,6 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 	cu := &models.ContentUnit{
 		UID:        s.UID,
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
-		Secure:     common.SEC_PUBLIC,
 		Published:  true,
 		Properties: null.JSONFrom(props),
 	}

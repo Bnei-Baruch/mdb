@@ -62,7 +62,6 @@ func createCU(s *models.Source, mdb boil.Executor) (*models.ContentUnit, error) 
 	cu := &models.ContentUnit{
 		UID:        s.UID,
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
-		Secure:     common.SEC_PUBLIC,
 		Published:  true,
 		Properties: null.JSONFrom(props),
 	}
