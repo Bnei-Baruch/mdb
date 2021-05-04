@@ -20,6 +20,7 @@ func SetupRoutes(router *gin.Engine) {
 	operations.POST("/transcode", TranscodeHandler)
 	operations.POST("/join", JoinHandler)
 	operations.GET("/descendant_units/:sha1", DescendantUnitsHandler)
+	operations.POST("/content_unit_autoname", ContentUnitAutoname)
 
 	rest := router.Group("rest")
 	rest.GET("/collections/", CollectionsListHandler)
