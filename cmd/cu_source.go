@@ -27,5 +27,5 @@ func buildCUSourcesCmdFn(cmd *cobra.Command, args []string) {
 }
 
 func buildCUSourcesValidatorCmdFn(cmd *cobra.Command, args []string) {
-	cusource.Validator()
+	new(cusource.ComparatorDbVsFolder).Run()
 }
