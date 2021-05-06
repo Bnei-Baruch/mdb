@@ -5,10 +5,12 @@ import (
 	"compress/gzip"
 	"crypto/sha1"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
+	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
@@ -21,11 +23,7 @@ import (
 )
 
 type ComparatorDbVsFolder struct {
-}
-
-type diffWithKeys struct {
-	sha1 string
-	sUid string
+	result map[string]diff
 }
 
 type diff struct {
@@ -37,6 +35,8 @@ type diff struct {
 }
 
 func (c *ComparatorDbVsFolder) Run() {
+	c.result = make(map[string]diff)
+
 	dir := c.untar()
 	mdb := c.openDB()
 	c.uploadData(mdb, dir)
@@ -44,8 +44,6 @@ func (c *ComparatorDbVsFolder) Run() {
 	utils.Must(mdb.Close())
 
 }
-
-//prepare upload
 
 func (c *ComparatorDbVsFolder) openDB() *sql.DB {
 	mdb, err := sql.Open("postgres", viper.GetString("source-import.test-url"))
@@ -101,115 +99,86 @@ func (c *ComparatorDbVsFolder) uploadData(mdb *sql.DB, dir string) {
 	units, err := models.ContentUnits(mdb,
 		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID),
 		qm.Load("Files"),
+		//qm.Limit(10),
 	).All()
 	utils.Must(err)
-
-	chDB := make(chan []diffWithKeys)
-	chFStorage := make(chan []diffWithKeys)
-	chFolder := make(chan []diffWithKeys)
-
 	for _, u := range units {
-		go func(unit models.ContentUnit) {
-			db, fs := c.unitDataFromDB(unit)
-			chDB <- db
-			chFStorage <- fs
-		}(*u)
+		c.unitDataFromDB(*u)
 	}
 
 	filesOS, err := ioutil.ReadDir(dir)
 	utils.Must(err)
 
 	for _, sDir := range filesOS {
-		go func() {
-			d := c.unitDataFromFolder(sDir, dir)
-			chFolder <- d
-		}()
+		c.unitDataFromFolder(sDir, dir)
 	}
-	result := make(map[string]diff)
-	for _, r := range <-chDB {
-		key := r.sUid + "_" + r.sha1
-		if v, ok := result[key]; ok {
-			v.isOnDb = true
-			result[key] = v
-		} else {
-			d := diff{sha1: r.sha1, sUid: r.sUid, isOnDb: true}
-			result[key] = d
-		}
-	}
-
-	for _, r := range <-chFStorage {
-		key := r.sUid + "_" + r.sha1
-		if v, ok := result[key]; ok {
-			v.isOnFileStorage = true
-			result[key] = v
-		} else {
-			d := diff{sha1: r.sha1, sUid: r.sUid, isOnFileStorage: true}
-			result[key] = d
-		}
-	}
-
-	for _, r := range <-chFolder {
-		key := r.sUid + "_" + r.sha1
-		if v, ok := result[key]; ok {
-			v.isOnFolder = true
-			result[key] = v
-		} else {
-			d := diff{sha1: r.sha1, sUid: r.sUid, isOnFolder: true}
-			result[key] = d
-		}
-	}
-
-	fmt.Print("\n\n******** Pint results ********\n\n")
-	for _, d := range result {
-		fmt.Printf("\nsha1: %s, sUid: %s, isOnDb: %t, isOnFolder: %t, isOnFileStorage: %t \n", d.sha1, d.sUid, d.isOnDb, d.isOnFolder, d.isOnFileStorage)
-	}
-	fmt.Print("\n\n******** End results ********\n\n")
+	c.printResults()
+	fmt.Print("\n******** End process ********\n")
 }
 
-func (c *ComparatorDbVsFolder) unitDataFromDB(unit models.ContentUnit) ([]diffWithKeys, []diffWithKeys) {
+func (c *ComparatorDbVsFolder) unitDataFromDB(unit models.ContentUnit) {
 	sUid := unit.UID
-	isOnDB := make([]diffWithKeys, 0)
-	isOnFStorage := make([]diffWithKeys, 0)
 	for _, f := range unit.R.Files {
-		isOnDB = append(isOnDB, diffWithKeys{sha1: fmt.Sprintf("%x", f.Sha1.Bytes), sUid: sUid})
+		shaDb := hex.EncodeToString(f.Sha1.Bytes)
+		kdb := sUid + "_" + shaDb
+		if _, ok := c.result[kdb]; !ok {
+			c.result[kdb] = diff{
+				sha1:   shaDb,
+				sUid:   sUid,
+				isOnDb: true,
+			}
+		} else {
+			t := c.result[kdb]
+			t.isOnDb = true
+			c.result[kdb] = t
+		}
 
+		//check if have file at Shirai
 		var p map[string]string
 		err := f.Properties.Unmarshal(&p)
 		if err != nil {
-			fmt.Printf("\nCU id - %s, file name - %s have no Properties. error: %s", sUid, f.Name, err.Error())
+			log.Debugf("CU id - %s, file name - %s have no Properties. error: %s", sUid, f.Name, err.Error())
 			continue
 		}
 
-		var url string
-		if u, ok := p["url"]; !ok {
-			fmt.Printf("\nCU id - %s, file name - %s have no url on Properties. error: %s", sUid, f.Name, err)
-			continue
-		} else {
-			url = u
-		}
+		url := "https://files.kabbalahmedia.info/files/" + f.Name
 		resp, err := http.Get(url)
-		utils.Must(err)
-
-		var b []byte
-		_, err = resp.Body.Read(b)
 		if err != nil {
-			fmt.Printf("\nCU id - %s, file name - %s is not on FileStorage. error: %s", sUid, f.Name, err)
+			log.Errorf("Not find file on link: %s, error: %s", url, err.Error())
 			continue
 		}
-		sha := sha1.Sum(b)
-		isOnFStorage = append(isOnFStorage, diffWithKeys{sUid: sUid, sha1: fmt.Sprintf("%x", sha)})
+		b, err := ioutil.ReadAll(resp.Body)
+
+		if err != nil {
+			log.Debugf("CU id - %s, file name - %s is not on FileStorage. error: %s", sUid, f.Name, err)
+			continue
+		}
 		utils.Must(resp.Body.Close())
+		b1 := sha1.Sum(b)
+		var shab = make(chan []byte, 1)
+		shab <- b1[:]
+		shaFS := hex.EncodeToString(<-shab)
+		kfs := sUid + "_" + shaFS
+		if _, ok := c.result[kfs]; !ok {
+			c.result[kfs] = diff{
+				sha1:            shaDb,
+				sUid:            sUid,
+				isOnFileStorage: true,
+			}
+		} else {
+			t := c.result[kfs]
+			t.isOnFileStorage = true
+			c.result[kfs] = t
+		}
 	}
-	return isOnDB, isOnFStorage
 }
 
-func (c *ComparatorDbVsFolder) unitDataFromFolder(dir os.FileInfo, path string) []diffWithKeys {
-
-	isOnFolder := make([]diffWithKeys, 0)
+func (c *ComparatorDbVsFolder) unitDataFromFolder(dir os.FileInfo, path string) {
 	if !dir.IsDir() {
-		fmt.Printf("\nNot forder %s", dir.Name())
-		return isOnFolder
+		log.Errorf("Not folder %s", dir.Name())
+		return
 	}
+
 	sUid := dir.Name()
 	dPath := filepath.Join(path, dir.Name())
 	files, err := ioutil.ReadDir(dPath)
@@ -227,10 +196,35 @@ func (c *ComparatorDbVsFolder) unitDataFromFolder(dir os.FileInfo, path string) 
 		var b []byte
 		_, err = f.Read(b)
 		utils.Must(err)
-		sha := sha1.Sum(b)
+		b1 := sha1.Sum(b)
+		var shab = make(chan []byte, 1)
+		shab <- b1[:]
+		sha := hex.EncodeToString(<-shab)
 		utils.Must(f.Close())
-		isOnFolder = append(isOnFolder, diffWithKeys{sUid: sUid, sha1: fmt.Sprintf("%x", sha)})
 
+		key := sUid + "_" + sha
+
+		if _, ok := c.result[key]; !ok {
+			c.result[key] = diff{
+				sha1:       sha,
+				sUid:       sUid,
+				isOnFolder: true,
+			}
+		} else {
+			t := c.result[key]
+			t.isOnFolder = true
+			c.result[key] = t
+		}
 	}
-	return isOnFolder
+}
+
+func (c *ComparatorDbVsFolder) printResults() {
+	lines := []string{"sha1, sUid, isOnDb, isOnFileStorage, isOnFolder"}
+	for _, d := range c.result {
+		l := fmt.Sprintf("\n%s, %s, %t, %t, %t", d.sha1, d.sUid, d.isOnDb, d.isOnFileStorage, d.isOnFolder)
+		lines = append(lines, l)
+	}
+	b := []byte(strings.Join(lines, ","))
+	err := ioutil.WriteFile(viper.GetString("source-import.output"), b, 0644)
+	utils.Must(err)
 }
