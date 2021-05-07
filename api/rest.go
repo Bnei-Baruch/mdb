@@ -332,6 +332,16 @@ func ContentUnitHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+//Get auto names of unit
+func ContentUnitAutoname(c *gin.Context) {
+	var r *ContentUnitAutonameRequest
+	if c.Bind(&r) != nil {
+		return
+	}
+	resp, err := handleContentUnitAutoname(c.MustGet("MDB").(*sql.DB), r)
+	concludeRequest(c, resp, err)
+}
+
 func ContentUnitI18nHandler(c *gin.Context) {
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
@@ -2132,6 +2142,22 @@ func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *P
 	}
 
 	return handleGetContentUnit(cp, exec, cu.ID)
+}
+
+func handleContentUnitAutoname(exec boil.Executor, data *ContentUnitAutonameRequest) ([]*models.ContentUnitI18n, *HttpError) {
+	metadata := CITMetadata{CollectionUID: data.CollectionUID}
+	describer, err := GetCUDescriber(exec, &models.ContentUnit{TypeID: data.TypeID}, metadata)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// describe
+	resp, err := describer.DescribeContentUnit(exec, &models.ContentUnit{ID: -1, TypeID: data.TypeID}, metadata)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	return resp, nil
+
 }
 
 func handleUpdateContentUnitI18n(cp utils.ContextProvider, exec boil.Executor, id int64, i18ns []*models.ContentUnitI18n) (*ContentUnit, *HttpError) {
