@@ -23,24 +23,28 @@ import (
 )
 
 type ComparatorDbVsFolder struct {
-	result map[string]diff
+	result  map[string]compare
+	baseDir string
 }
 
-type diff struct {
+type compare struct {
 	sha1            string
 	sUid            string
+	name            string
 	isOnDb          bool
 	isOnFolder      bool
 	isOnFileStorage bool
 }
 
 func (c *ComparatorDbVsFolder) Run() {
-	c.result = make(map[string]diff)
+	c.result = make(map[string]compare)
 
 	dir := c.untar()
 	mdb := c.openDB()
 	c.uploadData(mdb, dir)
-	utils.Must(os.RemoveAll(dir))
+	if !viper.GetBool("source-import.dont-remove-dir") {
+		utils.Must(os.RemoveAll(c.baseDir))
+	}
 	utils.Must(mdb.Close())
 
 }
@@ -64,7 +68,11 @@ func (c *ComparatorDbVsFolder) untar() string {
 	utils.Must(err)
 	defer utils.Must(gzr.Close())
 
-	dir, _ := ioutil.TempDir(filepath.Dir(path), "un_tared")
+	c.baseDir, err = ioutil.TempDir(filepath.Dir(path), "compere_sources")
+	utils.Must(err)
+	dir := filepath.Join(c.baseDir, "from_tar")
+	err = os.Mkdir(dir, 0755)
+	utils.Must(err)
 
 	tr := tar.NewReader(gzr)
 
@@ -106,13 +114,15 @@ func (c *ComparatorDbVsFolder) uploadData(mdb *sql.DB, dir string) {
 		c.unitDataFromDB(*u)
 	}
 
+	dir = filepath.Join(dir, "sources")
+
 	filesOS, err := ioutil.ReadDir(dir)
 	utils.Must(err)
 
 	for _, sDir := range filesOS {
 		c.unitDataFromFolder(sDir, dir)
 	}
-	c.printResults()
+	printResults(c.result)
 	fmt.Print("\n******** End process ********\n")
 }
 
@@ -122,9 +132,10 @@ func (c *ComparatorDbVsFolder) unitDataFromDB(unit models.ContentUnit) {
 		shaDb := hex.EncodeToString(f.Sha1.Bytes)
 		kdb := sUid + "_" + shaDb
 		if _, ok := c.result[kdb]; !ok {
-			c.result[kdb] = diff{
+			c.result[kdb] = compare{
 				sha1:   shaDb,
 				sUid:   sUid,
+				name:   f.Name,
 				isOnDb: true,
 			}
 		} else {
@@ -153,16 +164,18 @@ func (c *ComparatorDbVsFolder) unitDataFromDB(unit models.ContentUnit) {
 			log.Debugf("CU id - %s, file name - %s is not on FileStorage. error: %s", sUid, f.Name, err)
 			continue
 		}
+		c.saveDBFile(sUid, f.Name, b)
 		utils.Must(resp.Body.Close())
-		b1 := sha1.Sum(b)
-		var shab = make(chan []byte, 1)
-		shab <- b1[:]
-		shaFS := hex.EncodeToString(<-shab)
+
+		shaFS := shaFromBytes(b)
+		log.Infof("Read from file storage, sUid: %s, file name: %s, number of bites: %n, sha: %s", sUid, f.Name, len(b), shaFS)
+
 		kfs := sUid + "_" + shaFS
 		if _, ok := c.result[kfs]; !ok {
-			c.result[kfs] = diff{
+			c.result[kfs] = compare{
 				sha1:            shaDb,
 				sUid:            sUid,
+				name:            f.Name,
 				isOnFileStorage: true,
 			}
 		} else {
@@ -187,27 +200,22 @@ func (c *ComparatorDbVsFolder) unitDataFromFolder(dir os.FileInfo, path string) 
 	for _, file := range files {
 		spl := strings.Split(file.Name(), "/")
 		name := spl[len(spl)-1]
-		if isDoc := strings.Contains(name, ".docx"); !isDoc {
+		if isDoc := strings.Contains(name, ".doc"); !isDoc {
 			continue
 		}
 
-		f, err := os.Open(filepath.Join(dPath, file.Name()))
+		b, err := ioutil.ReadFile(filepath.Join(dPath, file.Name()))
 		utils.Must(err)
-		var b []byte
-		_, err = f.Read(b)
-		utils.Must(err)
-		b1 := sha1.Sum(b)
-		var shab = make(chan []byte, 1)
-		shab <- b1[:]
-		sha := hex.EncodeToString(<-shab)
-		utils.Must(f.Close())
+		sha := shaFromBytes(b)
+		log.Infof("Read from folder, sUid: %s, file name: %s, number of bites: %n, sha: %s", sUid, name, len(b), sha)
 
 		key := sUid + "_" + sha
 
 		if _, ok := c.result[key]; !ok {
-			c.result[key] = diff{
+			c.result[key] = compare{
 				sha1:       sha,
 				sUid:       sUid,
+				name:       name,
 				isOnFolder: true,
 			}
 		} else {
@@ -218,10 +226,27 @@ func (c *ComparatorDbVsFolder) unitDataFromFolder(dir os.FileInfo, path string) 
 	}
 }
 
-func (c *ComparatorDbVsFolder) printResults() {
-	lines := []string{"sha1, sUid, isOnDb, isOnFileStorage, isOnFolder"}
-	for _, d := range c.result {
-		l := fmt.Sprintf("\n%s, %s, %t, %t, %t", d.sha1, d.sUid, d.isOnDb, d.isOnFileStorage, d.isOnFolder)
+func (c *ComparatorDbVsFolder) saveDBFile(sUid, name string, file []byte) {
+	path := filepath.Join(c.baseDir, "from_db", sUid)
+	err := os.MkdirAll(path, 0755)
+	utils.Must(err)
+
+	err = ioutil.WriteFile(filepath.Join(path, name), file, 0755)
+	utils.Must(err)
+}
+
+/*                 helpers              */
+func shaFromBytes(b []byte) string {
+	sum := sha1.Sum(b)
+	var sha = make(chan []byte, 1)
+	sha <- sum[:]
+	return hex.EncodeToString(<-sha)
+}
+
+func printResults(result map[string]compare) {
+	lines := []string{"sha1, sUid, name, isOnDb, isOnFileStorage, isOnFolder"}
+	for _, d := range result {
+		l := fmt.Sprintf("\n%s, %s,  %s, %t, %t, %t", d.sha1, d.sUid, d.name, d.isOnDb, d.isOnFileStorage, d.isOnFolder)
 		lines = append(lines, l)
 	}
 	b := []byte(strings.Join(lines, ","))
