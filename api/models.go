@@ -485,6 +485,11 @@ type (
 		Label    null.String `json:"label"`
 		Children []*TagH     `json:"children,omitempty"`
 	}
+
+	ContentUnitAutonameRequest struct {
+		TypeID        int64       `json:"typeId"`
+		CollectionUID null.String `json:"collectionUid,omitempty"`
+	}
 )
 
 func NewCollectionsResponse() *CollectionsResponse {
