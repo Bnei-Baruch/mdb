@@ -168,7 +168,7 @@ func (c *ComparatorDbVsFolder) unitDataFromDB(unit models.ContentUnit) {
 		utils.Must(resp.Body.Close())
 
 		shaFS := shaFromBytes(b)
-		log.Infof("Read from file storage, sUid: %s, file name: %s, number of bites: %n, sha: %s", sUid, f.Name, len(b), shaFS)
+		log.Infof("Read from file storage, sUid: %s, file name: %s, number of bites: %d, sha: %s", sUid, f.Name, len(b), shaFS)
 
 		kfs := sUid + "_" + shaFS
 		if _, ok := c.result[kfs]; !ok {
@@ -207,7 +207,7 @@ func (c *ComparatorDbVsFolder) unitDataFromFolder(dir os.FileInfo, path string) 
 		b, err := ioutil.ReadFile(filepath.Join(dPath, file.Name()))
 		utils.Must(err)
 		sha := shaFromBytes(b)
-		log.Infof("Read from folder, sUid: %s, file name: %s, number of bites: %n, sha: %s", sUid, name, len(b), sha)
+		log.Infof("Read from folder, sUid: %s, file name: %s, number of bites: %d, sha: %s", sUid, name, len(b), sha)
 
 		key := sUid + "_" + sha
 
