@@ -20,4 +20,3 @@ func StdLang(lang string) string {
 
 	return LANG_UNKNOWN
 }
-

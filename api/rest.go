@@ -2119,6 +2119,10 @@ func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *P
 		return nil, NewForbiddenError()
 	}
 
+	if unit.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
+		return nil, NewBadRequestError(errors.Errorf("Unit type %s is close for changes", common.CT_SOURCE))
+	}
+
 	if cu.Secure.Valid {
 		unit.Secure = cu.Secure.Int16
 		err = unit.Update(exec, "secure")
@@ -2169,6 +2173,10 @@ func handleUpdateContentUnitI18n(cp utils.ContextProvider, exec boil.Executor, i
 	// check object level permissions
 	if !can(cp, secureToPermission(unit.Secure), common.PERM_I18N_WRITE) {
 		return nil, NewForbiddenError()
+	}
+
+	if unit.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID {
+		return nil, NewBadRequestError(errors.Errorf("Unit type %s is close for changes", common.CT_SOURCE))
 	}
 
 	// Upsert all new i18ns
@@ -3489,7 +3497,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 	}
 
 	// save source to DB
-	uid, err := GetFreeUID(exec, new(SourceUIDChecker))
+	uid, err := getUniqSourceAndCUUID(exec, 0)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3515,8 +3523,42 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 			return nil, NewInternalError(err)
 		}
 	}
+	// create CU type source
+
+	props, _ := json.Marshal(map[string]string{"source_id": s.UID})
+
+	cu := &models.ContentUnit{
+		UID:        s.UID,
+		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
+		Published:  true,
+		Properties: null.JSONFrom(props),
+	}
+
+	err = cu.Insert(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
 
 	return handleGetSource(exec, s.ID)
+}
+
+func getUniqSourceAndCUUID(exec boil.Executor, attempts int64) (string, error) {
+	if attempts > 10 {
+		return "", errors.New("Too match attempts of find unique UID for CU and Source")
+	}
+	uid, err := GetFreeUID(exec, new(SourceUIDChecker))
+	if err != nil {
+		return "", NewInternalError(err)
+	}
+	hasCU, err := models.ContentUnits(exec, qm.Where("uid = ?", uid)).Exists()
+	if err != nil {
+		return "", NewInternalError(err)
+	}
+	if hasCU {
+		attempts++
+		return getUniqSourceAndCUUID(exec, attempts)
+	}
+	return uid, err
 }
 
 func handleGetSource(exec boil.Executor, id int64) (*Source, *HttpError) {
@@ -3538,7 +3580,6 @@ func handleGetSource(exec boil.Executor, id int64) (*Source, *HttpError) {
 	for _, i18n := range source.R.SourceI18ns {
 		x.I18n[i18n.Language] = i18n
 	}
-
 	return x, nil
 }
 

@@ -51,3 +51,10 @@ consumer-secret=""
 url="https://www.laitman.ru/"
 username=""
 password=""
+
+
+[source-import]
+source-dir = "/home/david/Downloads/sources.tar.gz"
+test-url = "postgres://mdb_dev:p5eMchzHrO@pgsql.mdb.bbdomain.org/mdb_dev_2?sslmode=disable"
+output = "/home/david/Downloads/validation-results.csv"
+dont-remove-dir = false

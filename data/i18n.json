@@ -439,6 +439,17 @@
     "cs": "Vybraná zvýraznění",
     "tr": "Seçilen Önemli Noktalar"
   },
+  "content_type.SOURCE": {
+    "he": "Source unit",
+    "en": "Source unit",
+    "ru": "Source unit",
+    "es": "Source unit",
+    "ua": "Source unit",
+    "de": "Source unit",
+    "it": "Source unit",
+    "cs": "Source unit",
+    "tr": "Source unit"
+  },
   "lang.en": {
     "es": "Ingles",
     "he": "אנגלית",
