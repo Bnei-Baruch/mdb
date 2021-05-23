@@ -3,7 +3,6 @@ package cusource
 import (
 	"database/sql"
 	"encoding/json"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries"
@@ -58,7 +57,7 @@ func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 }
 
 func createCU(s *models.Source, mdb boil.Executor) (*models.ContentUnit, error) {
-	props, _ := json.Marshal(map[string]string{"source_id": s.UID})
+	props, _ := json.Marshal(map[string]string{"source_id": s.UID, "film_date": "1980-01-01"})
 	cu := &models.ContentUnit{
 		UID:        s.UID,
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
