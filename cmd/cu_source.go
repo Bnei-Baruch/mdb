@@ -17,9 +17,16 @@ var buildCUSourcesValidatorCmd = &cobra.Command{
 	Run:   buildCUSourcesValidatorCmdFn,
 }
 
+var removeFilesBySHA1Cmd = &cobra.Command{
+	Use:   "remove_files_by_sha",
+	Short: "remove files by SHA1 ",
+	Run:   removeFilesBySHA1CmdFn,
+}
+
 func init() {
 	RootCmd.AddCommand(buildCUSourcesCmd)
 	RootCmd.AddCommand(buildCUSourcesValidatorCmd)
+	RootCmd.AddCommand(removeFilesBySHA1Cmd)
 }
 
 func buildCUSourcesCmdFn(cmd *cobra.Command, args []string) {
@@ -28,4 +35,8 @@ func buildCUSourcesCmdFn(cmd *cobra.Command, args []string) {
 
 func buildCUSourcesValidatorCmdFn(cmd *cobra.Command, args []string) {
 	new(cusource.ComparatorDbVsFolder).Run()
+}
+
+func removeFilesBySHA1CmdFn(cmd *cobra.Command, args []string) {
+	cusource.RemoveFilesBySHA1()
 }
