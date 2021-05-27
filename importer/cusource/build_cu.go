@@ -58,11 +58,11 @@ func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 }
 
 func createCU(s *models.Source, mdb boil.Executor) (*models.ContentUnit, error) {
-	props, _ := json.Marshal(map[string]string{"source_id": s.UID})
+	props, _ := json.Marshal(map[string]string{"source_id": s.UID, "film_date": "1980-01-01"})
 	cu := &models.ContentUnit{
 		UID:        s.UID,
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
-		Published:  false,
+		Published:  true,
 		Properties: null.JSONFrom(props),
 	}
 
