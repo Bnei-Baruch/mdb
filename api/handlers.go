@@ -1001,7 +1001,7 @@ FROM content_units cu
 func insertResultRenderer(c *gin.Context, exec boil.Executor, input interface{}, op *models.Operation) error {
 	i := input.(InsertRequest)
 
-	if i.InsertType != "declamation" {
+	if i.InsertType != "declamation" && i.InsertType != "source" {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		return nil
 	}
