@@ -18,8 +18,7 @@ import (
 	"strings"
 )
 
-func RemoveFilesBySHA1() {
-	log.SetLevel(log.InfoLevel)
+func RemoveFilesByFileName() {
 	mdb, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	defer mdb.Close()
 	utils.Must(err)
@@ -64,27 +63,16 @@ func deleteFileOnTransaction(mdb *sql.DB, fId int64, oIds []int64) error {
 		return err
 	}
 
-	defer func() {
-		if err == nil {
-			log.Info("Send commit of transaction ")
-			err = tx.Commit()
-			if err != nil {
-				log.Errorf("Commit error %s", err)
-			}
-		} else {
-			log.Info("Send Rollback of transaction ")
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf("Commit error %s", err)
-			}
-		}
-	}()
-
 	log.Infof("Start remove files_operations with files ids:%v ", fId)
 	qfo := fmt.Sprintf("DELETE FROM files_operations fo where  fo.file_id = %d", fId)
 	_, err = queries.Raw(mdb, qfo).Exec()
 	if err != nil {
 		log.Errorf("Problem on delete files_operations: %s ", err)
+		errR := tx.Rollback()
+		if errR != nil {
+			log.Errorf("Rollback error %s", errR)
+			return errR
+		}
 		return err
 	}
 
@@ -94,6 +82,11 @@ func deleteFileOnTransaction(mdb *sql.DB, fId int64, oIds []int64) error {
 		err = models.Operations(mdb, qm.WhereIn("id IN ?", utils.ConvertArgsInt64(oIds)...)).DeleteAll()
 		if err != nil {
 			log.Errorf("Problem on delete operations: %s ", err)
+			errR := tx.Rollback()
+			if errR != nil {
+				log.Errorf("Rollback error %s", errR)
+				return errR
+			}
 			return err
 		}
 	}
@@ -102,16 +95,36 @@ func deleteFileOnTransaction(mdb *sql.DB, fId int64, oIds []int64) error {
 	_, err = queries.Raw(mdb, qfs).Exec()
 	if err != nil {
 		log.Errorf("Problem on delete files_storages: %s ", err)
+		errR := tx.Rollback()
+		if errR != nil {
+			log.Errorf("Rollback error %s", errR)
+			return errR
+		}
 		return err
 	}
 
 	err = models.Files(mdb, qm.WhereIn("id = ?", fId)).DeleteAll()
 	if err != nil {
 		log.Errorf("Problem on delete files: %s ", err)
+		errR := tx.Rollback()
+		if errR != nil {
+			log.Errorf("Rollback error %s", errR)
+			return errR
+		}
 		return err
 	}
 
 	log.Info("Delete successful and committed transaction ")
+	err = tx.Commit()
+	if err != nil {
+		log.Errorf("Commit error %s", err)
+		errR := tx.Rollback()
+		if errR != nil {
+			log.Errorf("Rollback error %s", errR)
+			return errR
+		}
+		return err
+	}
 	return nil
 }
 
