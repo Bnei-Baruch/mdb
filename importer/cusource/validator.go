@@ -42,9 +42,7 @@ func (c *ComparatorDbVsFolder) Run() {
 	dir := c.untar()
 	mdb := c.openDB()
 	c.uploadData(mdb, dir)
-	if !viper.GetBool("source-import.dont-remove-dir") {
-		utils.Must(os.RemoveAll(c.baseDir))
-	}
+	utils.Must(os.RemoveAll(c.baseDir))
 	utils.Must(mdb.Close())
 
 }
