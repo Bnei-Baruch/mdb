@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/Bnei-Baruch/mdb/importer/cusource"
+	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -17,16 +18,23 @@ var buildCUSourcesValidatorCmd = &cobra.Command{
 	Run:   buildCUSourcesValidatorCmdFn,
 }
 
-var removeFilesBySHA1Cmd = &cobra.Command{
-	Use:   "remove_files_by_sha",
-	Short: "remove files by SHA1 ",
-	Run:   removeFilesBySHA1CmdFn,
+var removeFilesByFileNameCmd = &cobra.Command{
+	Use:   "remove_files_by_name",
+	Short: "remove files by Fiel name ",
+	Run:   removeFilesByFileNameCmdFn,
+}
+
+var createSourceFromKiteiMakorCmd = &cobra.Command{
+	Use:   "kitei_makor_to_source",
+	Short: "create Source From Kitei Makor",
+	Run:   createSourceFromKiteiMakorCmdFn,
 }
 
 func init() {
 	RootCmd.AddCommand(buildCUSourcesCmd)
 	RootCmd.AddCommand(buildCUSourcesValidatorCmd)
-	RootCmd.AddCommand(removeFilesBySHA1Cmd)
+	RootCmd.AddCommand(removeFilesByFileNameCmd)
+	RootCmd.AddCommand(createSourceFromKiteiMakorCmd)
 }
 
 func buildCUSourcesCmdFn(cmd *cobra.Command, args []string) {
@@ -37,6 +45,14 @@ func buildCUSourcesValidatorCmdFn(cmd *cobra.Command, args []string) {
 	new(cusource.ComparatorDbVsFolder).Run()
 }
 
-func removeFilesBySHA1CmdFn(cmd *cobra.Command, args []string) {
-	cusource.RemoveFilesBySHA1()
+func removeFilesByFileNameCmdFn(cmd *cobra.Command, args []string) {
+	log.SetLevel(log.InfoLevel)
+	cusource.RemoveFilesByFileName()
+}
+
+func createSourceFromKiteiMakorCmdFn(cmd *cobra.Command, args []string) {
+	log.SetLevel(log.DebugLevel)
+	//executor := new(cusource.KiteiMakorPrintWithDoc)
+	executor := new(cusource.KiteiMakorCompare)
+	executor.Run()
 }
