@@ -24,17 +24,10 @@ var removeFilesByFileNameCmd = &cobra.Command{
 	Run:   removeFilesByFileNameCmdFn,
 }
 
-var createSourceFromKiteiMakorCmd = &cobra.Command{
-	Use:   "kitei_makor_to_source",
-	Short: "create Source From Kitei Makor",
-	Run:   createSourceFromKiteiMakorCmdFn,
-}
-
 func init() {
 	RootCmd.AddCommand(buildCUSourcesCmd)
 	RootCmd.AddCommand(buildCUSourcesValidatorCmd)
 	RootCmd.AddCommand(removeFilesByFileNameCmd)
-	RootCmd.AddCommand(createSourceFromKiteiMakorCmd)
 }
 
 func buildCUSourcesCmdFn(cmd *cobra.Command, args []string) {
@@ -48,11 +41,4 @@ func buildCUSourcesValidatorCmdFn(cmd *cobra.Command, args []string) {
 func removeFilesByFileNameCmdFn(cmd *cobra.Command, args []string) {
 	log.SetLevel(log.InfoLevel)
 	cusource.RemoveFilesByFileName()
-}
-
-func createSourceFromKiteiMakorCmdFn(cmd *cobra.Command, args []string) {
-	log.SetLevel(log.DebugLevel)
-	//executor := new(cusource.KiteiMakorPrintWithDoc)
-	executor := new(cusource.KiteiMakorCompare)
-	executor.Run()
 }

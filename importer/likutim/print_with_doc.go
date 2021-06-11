@@ -1,4 +1,4 @@
-package cusource
+package likutim
 
 import (
 	"database/sql"
@@ -14,12 +14,13 @@ import (
 	"gopkg.in/volatiletech/null.v6"
 	"io/ioutil"
 	"os"
+	"path"
 	"sort"
 	"strings"
 	"time"
 )
 
-type KiteiMakorPrintWithDoc struct{}
+type PrintWithDoc struct{}
 
 type printData struct {
 	cuUid    string
@@ -28,7 +29,7 @@ type printData struct {
 	topic    string
 }
 
-func (c *KiteiMakorPrintWithDoc) Run() {
+func (c *PrintWithDoc) Run() {
 	mdb := c.openDB()
 	defer mdb.Close()
 
@@ -64,7 +65,7 @@ func (c *KiteiMakorPrintWithDoc) Run() {
 	c.printToCSV(forPrint)
 }
 
-func (c *KiteiMakorPrintWithDoc) prepareForPrint(cu, cuo *models.ContentUnit) printData {
+func (c *PrintWithDoc) prepareForPrint(cu, cuo *models.ContentUnit) printData {
 	var cuProps map[string]interface{}
 	err := json.Unmarshal(cu.Properties.JSON, &cuProps)
 	if err != nil {
@@ -104,7 +105,7 @@ func (c *KiteiMakorPrintWithDoc) prepareForPrint(cu, cuo *models.ContentUnit) pr
 	}
 }
 
-func (c *KiteiMakorPrintWithDoc) printToCSV(data []printData) {
+func (c *PrintWithDoc) printToCSV(data []printData) {
 	sort.Slice(data, func(i, j int) bool {
 		return data[i].filmDate.Before(data[j].filmDate)
 	})
@@ -115,11 +116,12 @@ func (c *KiteiMakorPrintWithDoc) printToCSV(data []printData) {
 		lines = append(lines, l)
 	}
 	b := []byte(strings.Join(lines, ","))
-	err := ioutil.WriteFile(viper.GetString("source-import.move-kitvei-makor"), b, 0644)
+	p := path.Join(viper.GetString("source-import.results-dir"), "move-kitvei-makor.csv")
+	err := ioutil.WriteFile(p, b, 0644)
 	utils.Must(err)
 }
 
-func (c *KiteiMakorPrintWithDoc) openDB() *sql.DB {
+func (c *PrintWithDoc) openDB() *sql.DB {
 	mdb, err := sql.Open("postgres", viper.GetString("source-import.test-url"))
 	utils.Must(err)
 	utils.Must(mdb.Ping())
@@ -147,7 +149,7 @@ func FindOrigin(mdb *sql.DB, id int64) (*models.ContentUnit, error) {
 
 	cus, err := models.ContentUnits(mdb,
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
-		qm.Load("ContentUnitI18ns")).
+		qm.Load("ContentUnitI18ns", "Tags")).
 		One()
 	if err != nil {
 		return nil, err

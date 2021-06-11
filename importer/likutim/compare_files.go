@@ -1,4 +1,4 @@
-package cusource
+package likutim
 
 import (
 	"database/sql"
@@ -14,23 +14,24 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 )
 
-type KiteiMakorCompare struct {
+type Compare struct {
 	storageDir     string
 	allDocs        []string
 	wordsByFileUid map[string][]map[string]int64 // file name -> list of paragraphs -> word -> counter
-	result         []double
+	result         []Double
 	errors         [][]interface{}
 }
 
-type double struct {
-	save string
-	same []string
+type Double struct {
+	Save    string   `json:"save"`
+	Doubles []string `json:"doubles"`
 }
 
-func (c *KiteiMakorCompare) Run() {
+func (c *Compare) Run() []Double {
 	mdb := c.openDB()
 	defer mdb.Close()
 
@@ -56,7 +57,7 @@ func (c *KiteiMakorCompare) Run() {
 	//   שיעור בנושא "מתפילת העשירייה לתפילה של העשירייה עבור העולם"  (הכנה לכנס וירטואלי " העולם החדש" 2020)
 	//uids4 := []string{"MBEAFhIh", "EUIRZA8s"}
 	// problems files
-	uids := []string{"91e7mma7", "ruvfZyA4"}
+	//uids := []string{"91e7mma7", "ruvfZyA4"}
 
 	//uids := append(uids1, uids2...)
 	//uids = append(uids, uids3...)
@@ -67,8 +68,9 @@ func (c *KiteiMakorCompare) Run() {
 		qm.InnerJoin("files f ON f.content_unit_id = \"content_units\".id"),
 		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_KITEI_MAKOR].ID),
 		qm.Load("Files", "Tags", "Tags.TagI18ns"),
-		qm.WhereIn("\"content_units\".uid in ?", utils.ConvertArgsString(uids)...),
-		//qm.Limit(100),
+		//qm.Offset(74),
+		//qm.WhereIn("\"content_units\".uid in ?", utils.ConvertArgsString(uids)...),
+		//qm.Limit(1),
 	).All()
 	if err != nil {
 		log.Errorf("can't load units: %s", err)
@@ -78,9 +80,11 @@ func (c *KiteiMakorCompare) Run() {
 	c.clearDuplicates(c.allDocs)
 	log.Debugf("Result - uniq files: %v", c.result)
 	c.printToCSV()
+	c.saveJSON()
+	return c.result
 }
 
-func (c *KiteiMakorCompare) mapFiles(units []*models.ContentUnit) {
+func (c *Compare) mapFiles(units []*models.ContentUnit) {
 	for _, u := range units {
 		for _, f := range u.R.Files {
 			if f.Language.String != "he" || !strings.Contains(f.Name, ".doc") {
@@ -113,15 +117,15 @@ func (c *KiteiMakorCompare) mapFiles(units []*models.ContentUnit) {
 	}
 }
 
-func (c *KiteiMakorCompare) clearDuplicates(docs []string) {
+func (c *Compare) clearDuplicates(docs []string) {
 	log.Debugf("Start recursive function docs length: ", len(docs))
 	if len(docs) == 0 {
 		return
 	}
 
-	d := double{
-		save: docs[0],
-		same: []string{},
+	d := Double{
+		Save:    docs[0],
+		Doubles: []string{docs[0]},
 	}
 	var nextDocs []string
 
@@ -131,8 +135,8 @@ func (c *KiteiMakorCompare) clearDuplicates(docs []string) {
 		}
 		eq, b := c.compareFiles(docs[0], n)
 		if eq {
-			d.save = b
-			d.same = append(d.same, n)
+			d.Save = b
+			d.Doubles = append(d.Doubles, n)
 		} else {
 			nextDocs = append(nextDocs, n)
 		}
@@ -142,7 +146,7 @@ func (c *KiteiMakorCompare) clearDuplicates(docs []string) {
 	c.clearDuplicates(nextDocs)
 }
 
-func (c *KiteiMakorCompare) compareFiles(n1, n2 string) (bool, string) {
+func (c *Compare) compareFiles(n1, n2 string) (bool, string) {
 	f1 := c.wordsByFileUid[n1]
 	f2 := c.wordsByFileUid[n2]
 	biggerName := n1
@@ -176,7 +180,7 @@ func (c *KiteiMakorCompare) compareFiles(n1, n2 string) (bool, string) {
 	return percent > 0.9, biggerName
 }
 
-func (c *KiteiMakorCompare) compareParagraph(p1, p2 map[string]int64) bool {
+func (c *Compare) compareParagraph(p1, p2 map[string]int64) bool {
 	keys := map[string]float64{}
 	wordsCount := float64(0)
 	for k, c := range p1 {
@@ -212,7 +216,7 @@ func (c *KiteiMakorCompare) compareParagraph(p1, p2 map[string]int64) bool {
 	return diffCount/wordsCount < 0.1
 }
 
-func (c *KiteiMakorCompare) openDB() *sql.DB {
+func (c *Compare) openDB() *sql.DB {
 	mdb, err := sql.Open("postgres", viper.GetString("source-import.test-url"))
 	utils.Must(err)
 	utils.Must(mdb.Ping())
@@ -222,10 +226,10 @@ func (c *KiteiMakorCompare) openDB() *sql.DB {
 	return mdb
 }
 
-func (c *KiteiMakorCompare) printToCSV() {
+func (c *Compare) printToCSV() {
 	lines := []string{"File that stay", "All duplicates"}
 	for _, r := range c.result {
-		l := fmt.Sprintf("\n%s, %v", r.save, r.same)
+		l := fmt.Sprintf("\n%s, %v", r.Save, r.Doubles)
 		lines = append(lines, l)
 	}
 	lines = append(lines, "\nFiles  with exceptions")
@@ -234,6 +238,20 @@ func (c *KiteiMakorCompare) printToCSV() {
 		lines = append(lines, l)
 	}
 	b := []byte(strings.Join(lines, ","))
-	err := ioutil.WriteFile(viper.GetString("source-import.kitvei-makor-duplicates"), b, 0644)
+	p := path.Join(viper.GetString("source-import.results-dir"), "kitvei-makor-duplicates.csv")
+	err := ioutil.WriteFile(p, b, 0644)
 	utils.Must(err)
+}
+
+func (c *Compare) saveJSON() {
+	j, err := json.Marshal(c.result)
+	if err != nil {
+		log.Errorf("Error on create json", c.result, err)
+		return
+	}
+	p := path.Join(viper.GetString("source-import.results-dir"), "kitvei-makor-duplicates.json")
+	err = ioutil.WriteFile(p, j, 0644)
+	if err != nil {
+		log.Errorf("Error on save json: %s, path: %s", j, p, err)
+	}
 }

@@ -439,6 +439,17 @@
     "cs": "Vybraná zvýraznění",
     "tr": "Seçilen Önemli Noktalar"
   },
+  "content_type.LIKUTIM": {
+    "he": "קטעים נבחרים",
+    "en": "Selected Highlights",
+    "ru": "Избранные моменты",
+    "es": "Destacados Seleccionados",
+    "ua": "Вибрані моменти",
+    "de": "Ausgewählte Highlights",
+    "it": "Punti Salienti Selezionati",
+    "cs": "Vybraná zvýraznění",
+    "tr": "Seçilen Önemli Noktalar"
+  },
   "content_type.SOURCE": {
     "he": "Source unit",
     "en": "Source unit",

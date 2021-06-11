@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -248,6 +249,7 @@ func printResults(result map[string]compare) {
 		lines = append(lines, l)
 	}
 	b := []byte(strings.Join(lines, ","))
-	err := ioutil.WriteFile(viper.GetString("source-import.output"), b, 0644)
+	p := path.Join(viper.GetString("source-import.results-dir"), "validation-results_production_new.csv")
+	err := ioutil.WriteFile(p, b, 0644)
 	utils.Must(err)
 }
