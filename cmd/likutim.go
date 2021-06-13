@@ -19,6 +19,8 @@ func init() {
 func likutimCmdFn(cmd *cobra.Command, args []string) {
 	log.SetLevel(log.DebugLevel)
 	switch args[0] {
+	case "tar":
+		new(likutim.CreateTar).Run()
 	case "c":
 		new(likutim.CreateUnits).Run()
 	case "comp":
