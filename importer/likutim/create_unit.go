@@ -143,7 +143,16 @@ func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, err
 		return cu, err
 	}
 
-	err = cu.AddContentUnitI18ns(c.mdb, false, cuo.R.ContentUnitI18ns...)
+	var i18n models.ContentUnitI18nSlice
+	for _, i := range cuo.R.ContentUnitI18ns {
+		n := &models.ContentUnitI18n{
+			ContentUnitID: cu.ID,
+			Language:      i.Language,
+			Name:          i.Name,
+		}
+		i18n = append(i18n, n)
+	}
+	err = cu.AddContentUnitI18ns(c.mdb, false, i18n...)
 	if err != nil {
 		log.Errorf("Cant add i18n for CU id %d", cu.ID, err)
 		return cu, err
