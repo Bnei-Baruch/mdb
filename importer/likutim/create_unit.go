@@ -22,13 +22,13 @@ type CreateUnits struct {
 }
 
 func (c *CreateUnits) Run() {
-	//err := c.duplicatesFromJSON()
-	//if err != nil {
-	//log.Errorf("Error on read", err)
-	compare := new(Compare)
-	compare.Run()
-	c.duplicates = compare.result
-	//}
+	err := c.duplicatesFromJSON()
+	if err != nil {
+		log.Errorf("Error on read", err)
+		compare := new(Compare)
+		compare.Run()
+		c.duplicates = compare.result
+	}
 
 	c.openDB()
 	defer c.mdb.Close()
@@ -93,7 +93,6 @@ func (c *CreateUnits) fetchUnits() {
 			d := &models.ContentUnitDerivation{
 				SourceID:  cuo.ID,
 				DerivedID: cu.ID,
-				Name:      "test",
 			}
 			err = cuo.AddSourceContentUnitDerivations(c.mdb, true, d)
 			if err != nil {
@@ -152,7 +151,7 @@ func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, err
 		}
 		i18n = append(i18n, n)
 	}
-	err = cu.AddContentUnitI18ns(c.mdb, false, i18n...)
+	err = cu.AddContentUnitI18ns(c.mdb, true, i18n...)
 	if err != nil {
 		log.Errorf("Cant add i18n for CU id %d", cu.ID, err)
 		return cu, err

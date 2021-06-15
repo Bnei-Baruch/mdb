@@ -21,11 +21,11 @@ func likutimCmdFn(cmd *cobra.Command, args []string) {
 	switch args[0] {
 	case "tar":
 		new(likutim.CreateTar).Run()
-	case "c":
+	case "create":
 		new(likutim.CreateUnits).Run()
-	case "comp":
+	case "compare":
 		new(likutim.Compare).Run()
-	case "p":
+	case "print":
 	default:
 		new(likutim.PrintWithDoc).Run()
 	}

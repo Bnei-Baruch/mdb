@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sort"
 	"strings"
 )
 
@@ -68,15 +69,19 @@ func (c *Compare) Run() []Double {
 		qm.InnerJoin("files f ON f.content_unit_id = \"content_units\".id"),
 		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_KITEI_MAKOR].ID),
 		qm.Load("Files", "Tags", "Tags.TagI18ns"),
-		//qm.Offset(74),
+		//qm.Offset(20),
 		//qm.WhereIn("\"content_units\".uid in ?", utils.ConvertArgsString(uids)...),
-		//qm.Limit(1),
+		//qm.Limit(10),
 	).All()
 	if err != nil {
 		log.Errorf("can't load units: %s", err)
 	}
 
-	c.mapFiles(cus)
+	c.countWordsPerFIle(cus)
+	//order by file size - will be ease on recursive function
+	sort.Slice(c.allDocs, func(i, j int) bool {
+		return len(c.wordsByFileUid[c.allDocs[i]]) >= len(c.wordsByFileUid[c.allDocs[j]])
+	})
 	c.clearDuplicates(c.allDocs)
 	log.Debugf("Result - uniq files: %v", c.result)
 	c.printToCSV()
@@ -84,7 +89,7 @@ func (c *Compare) Run() []Double {
 	return c.result
 }
 
-func (c *Compare) mapFiles(units []*models.ContentUnit) {
+func (c *Compare) countWordsPerFIle(units []*models.ContentUnit) {
 	for _, u := range units {
 		for _, f := range u.R.Files {
 			if f.Language.String != "he" || !strings.Contains(f.Name, ".doc") {
