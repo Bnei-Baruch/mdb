@@ -108,7 +108,7 @@ func (c *Compare) countWordsPerFIle(units []*models.ContentUnit) {
 
 			ps := []map[string]int64{}
 			if err = json.NewDecoder(resp.Body).Decode(&ps); err != nil {
-				log.Errorf("Error on decode response", err)
+				log.Errorf("Error on decode response . Error: %s", err)
 				e := make([]interface{}, 2)
 				e[0] = f
 				e[1] = err
@@ -123,7 +123,7 @@ func (c *Compare) countWordsPerFIle(units []*models.ContentUnit) {
 }
 
 func (c *Compare) clearDuplicates(docs []string) {
-	log.Debugf("Start recursive function docs length: ", len(docs))
+	log.Debugf("Start recursive function docs length: %d ", len(docs))
 	if len(docs) == 0 {
 		return
 	}
@@ -147,7 +147,7 @@ func (c *Compare) clearDuplicates(docs []string) {
 		}
 	}
 	c.result = append(c.result, d)
-	log.Debugf("Call recursive function docs length: ", len(nextDocs))
+	log.Debugf("Call recursive function docs length: %d", len(nextDocs))
 	c.clearDuplicates(nextDocs)
 }
 
@@ -251,12 +251,12 @@ func (c *Compare) printToCSV() {
 func (c *Compare) saveJSON() {
 	j, err := json.Marshal(c.result)
 	if err != nil {
-		log.Errorf("Error on create json", c.result, err)
+		log.Errorf("Error on create json. Result: %v, Error: %s", c.result, err)
 		return
 	}
 	p := path.Join(viper.GetString("source-import.results-dir"), "kitvei-makor-duplicates.json")
 	err = ioutil.WriteFile(p, j, 0644)
 	if err != nil {
-		log.Errorf("Error on save json: %s, path: %s", j, p, err)
+		log.Errorf("Error on save json: %s, path: %s. Error: %s ", j, p, err)
 	}
 }

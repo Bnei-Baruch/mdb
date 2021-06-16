@@ -46,7 +46,7 @@ func (c *PrintWithDoc) Run() {
 		qm.Load("Files", "Tags", "Tags.TagI18ns"),
 	).All()
 	if err != nil {
-		log.Errorf("can't load units: %s", err)
+		log.Errorf("can't load units. Error: %s", err)
 	}
 
 	forPrint := make([]printData, 0)
@@ -54,11 +54,11 @@ func (c *PrintWithDoc) Run() {
 	for _, cu := range cus {
 
 		if err != nil {
-			log.Errorf("Error on parse date %s", err)
+			log.Errorf("Error on parse date. Error: %s", err)
 		}
 		cuo, err := FindOrigin(mdb, cu.ID)
 		if err != nil {
-			log.Errorf("Error on looking for origins for unit", err)
+			log.Errorf("Error on looking for origins for unit Error: %s", err)
 		}
 		forPrint = append(forPrint, c.prepareForPrint(cu, cuo))
 	}

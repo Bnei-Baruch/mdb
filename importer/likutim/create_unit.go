@@ -24,7 +24,7 @@ type CreateUnits struct {
 func (c *CreateUnits) Run() {
 	err := c.duplicatesFromJSON()
 	if err != nil {
-		log.Errorf("Error on read", err)
+		log.Errorf("Error on read. Error: %s", err)
 		compare := new(Compare)
 		compare.Run()
 		c.duplicates = compare.result
@@ -43,7 +43,7 @@ func (c *CreateUnits) fetchUnits() {
 			qm.Where("uid = ?", d.Save),
 		).One()
 		if err != nil {
-			log.Errorf("cant find base file by uid: ", d.Save, err)
+			log.Errorf("cant find base file by uid: %s. Error: %s", d.Save, err)
 			continue
 		}
 		cukn, err := models.ContentUnits(c.mdb,
@@ -51,41 +51,41 @@ func (c *CreateUnits) fetchUnits() {
 			qm.Load("Files"),
 		).One()
 		if err != nil {
-			log.Errorf("cant find base unit by file: %v ", fbase, err)
+			log.Errorf("cant find base unit by file: %v. Error: %s", fbase, err)
 			continue
 		}
 
 		for _, uid := range d.Doubles {
 			tx, err := c.mdb.Begin()
 			if err != nil {
-				log.Errorf("problem open transaction", err)
+				log.Errorf("problem open transaction. Error: %s", err)
 				tx.Rollback()
 				continue
 			}
 			f, err := models.Files(c.mdb, qm.Where("uid = ?", uid)).One()
 			if err != nil {
-				log.Errorf("cant find file by uid: ", uid, err)
+				log.Errorf("cant find file by uid: %s. Error: %s", uid, err)
 				tx.Rollback()
 				continue
 			}
 
 			u, err := models.ContentUnits(c.mdb, qm.Where("id = ?", f.ContentUnitID.Int64)).One()
 			if err != nil {
-				log.Errorf("cant find unit by file: %v ", f, err)
+				log.Errorf("cant find unit by file: %v. Error: %s", f, err)
 				tx.Rollback()
 				continue
 			}
 
 			cuo, err := FindOrigin(c.mdb, u.ID)
 			if err != nil {
-				log.Errorf("cant find origin unit by unit: %v ", u, err)
+				log.Errorf("cant find origin unit by unit: %v. Error: %s", u, err)
 				tx.Rollback()
 				continue
 			}
 
 			cu, err := c.createCU(cuo)
 			if err != nil {
-				log.Errorf("cant create unit %v to unit: %v ", cu, cuo, err)
+				log.Errorf("cant create unit %v to unit: %v, origin: %v. Error: %s", cu, cuo, err)
 				tx.Rollback()
 				continue
 			}
@@ -97,13 +97,13 @@ func (c *CreateUnits) fetchUnits() {
 			}
 			err = cuo.AddSourceContentUnitDerivations(c.mdb, true, d)
 			if err != nil {
-				log.Errorf("cant derive unit %v to unit: %v ", u, cuo, err)
+				log.Errorf("cant derive unit %v to unit: %v. Error: %s", u, cuo, err)
 				tx.Rollback()
 				continue
 			}
 			err = tx.Commit()
 			if err != nil {
-				log.Errorf("problem commit transaction", err)
+				log.Errorf("problem commit transaction. Error: %s", err)
 			}
 			log.Debug("End create new unit type LIKUTIM id: %d", cu.ID)
 		}
@@ -132,14 +132,14 @@ func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, err
 	}
 	err := cu.Insert(c.mdb)
 	if err != nil {
-		log.Errorf("Cant add tags for CU id %d", cu.ID, err)
+		log.Errorf("Cant add tags for CU id %d. Error: %s", cu.ID, err)
 		return cu, err
 	}
 
 	//take data from origin for new unit
 	err = cu.AddTags(c.mdb, false, cuo.R.Tags...)
 	if err != nil {
-		log.Errorf("Cant add tags for CU id %d", cu.ID, err)
+		log.Errorf("Cant add tags for CU id %d. Error: %s", cu.ID, err)
 		return cu, err
 	}
 
@@ -154,7 +154,7 @@ func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, err
 	}
 	err = cu.AddContentUnitI18ns(c.mdb, true, i18n...)
 	if err != nil {
-		log.Errorf("Cant add i18n for CU id %d", cu.ID, err)
+		log.Errorf("Cant add i18n for CU id %d. Error: %s", cu.ID, err)
 		return cu, err
 	}
 	return cu, nil

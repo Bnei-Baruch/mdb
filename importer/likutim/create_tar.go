@@ -31,7 +31,7 @@ type CreateTar struct {
 func (c *CreateTar) Run() {
 	err := c.duplicatesFromJSON()
 	if err != nil {
-		log.Errorf("Error on read", err)
+		log.Errorf("Error on read: %s", err)
 	}
 
 	c.openDB()
@@ -86,17 +86,17 @@ func (c CreateTar) buildTar() error {
 	var buf bytes.Buffer
 	err := compress(c.baseDir, &buf)
 	if err != nil {
-		log.Errorf("Error on compress to tar", err)
+		log.Errorf("Error on compress to tar. Error: %s", err)
 		return err
 	}
 
 	f, err := os.OpenFile(out, os.O_CREATE|os.O_RDWR, os.FileMode(0777))
 	if err != nil {
-		log.Errorf("Error on create tar file", err)
+		log.Errorf("Error on create tar file. Error: %s", err)
 		return err
 	}
 	if _, err := io.Copy(f, &buf); err != nil {
-		log.Errorf("Error on insert data to the tar file", err)
+		log.Errorf("Error on insert data to the tar file. Error: %s", err)
 		return err
 	}
 	return nil
