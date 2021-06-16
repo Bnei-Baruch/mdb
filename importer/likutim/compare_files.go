@@ -99,7 +99,7 @@ func (c *Compare) countWordsPerFIle(units []*models.ContentUnit) {
 			url := viper.GetString("source-import.word-counter-url") + "?f=" + f.UID
 			resp, err := http.Get(url)
 			if err != nil {
-				log.Errorf("Can't count words per paragraph in file unit id: %d, file id: %d", u.ID, f.ID, err)
+				log.Errorf("Can't count words per paragraph in file unit id: %d, file id: %d. Error: %s", u.ID, f.ID, err)
 				e := make([]interface{}, 2)
 				e[0] = f
 				e[1] = err

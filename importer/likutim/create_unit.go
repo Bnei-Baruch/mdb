@@ -38,7 +38,7 @@ func (c *CreateUnits) Run() {
 
 func (c *CreateUnits) fetchUnits() {
 	for _, d := range c.duplicates {
-		log.Debug("\n\nStart create new unit type LIKUTIM, file: %s all files: %v", d.Save, d.Doubles)
+		log.Debugf("\n\nStart create new unit type LIKUTIM, file: %s all files: %v", d.Save, d.Doubles)
 		fbase, err := models.Files(c.mdb,
 			qm.Where("uid = ?", d.Save),
 		).One()
@@ -85,7 +85,7 @@ func (c *CreateUnits) fetchUnits() {
 
 			cu, err := c.createCU(cuo)
 			if err != nil {
-				log.Errorf("cant create unit %v to unit: %v, origin: %v. Error: %s", cu, cuo, err)
+				log.Errorf("cant create unit %v to unit: %v. Error: %s", cu, cuo, err)
 				tx.Rollback()
 				continue
 			}
@@ -105,7 +105,7 @@ func (c *CreateUnits) fetchUnits() {
 			if err != nil {
 				log.Errorf("problem commit transaction. Error: %s", err)
 			}
-			log.Debug("End create new unit type LIKUTIM id: %d", cu.ID)
+			log.Debugf("End create new unit type LIKUTIM id: %d", cu.ID)
 		}
 	}
 }
