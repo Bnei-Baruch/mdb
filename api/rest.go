@@ -30,9 +30,10 @@ const (
 	DEFAULT_PAGE_SIZE = 50
 	MAX_PAGE_SIZE     = 1000
 
-	SEARCH_IN_FILES         = 1
-	SEARCH_IN_CONTENT_UNITS = 2
-	SEARCH_IN_COLLECTIONS   = 3
+	SEARCH_IN_FILES                     = 1
+	SEARCH_IN_CONTENT_UNITS             = 2
+	SEARCH_IN_COLLECTIONS               = 3
+	SEARCH_IN_CONTENT_UNITS_TYPE_SOURCE = 4
 )
 
 func CollectionsListHandler(c *gin.Context) {
@@ -1993,7 +1994,13 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 	if err := appendTagsFilterMods(exec, &mods, r.TagsFilter); err != nil {
 		return nil, NewInternalError(err)
 	}
-	if err := appendSearchTermFilterMods(exec, &mods, r.SearchTermFilter, SEARCH_IN_CONTENT_UNITS); err != nil {
+	searchIn := SEARCH_IN_CONTENT_UNITS
+	for _, t := range r.ContentTypesFilter.ContentTypes {
+		if t == common.CT_SOURCE {
+			searchIn = SEARCH_IN_CONTENT_UNITS_TYPE_SOURCE
+		}
+	}
+	if err := appendSearchTermFilterMods(exec, &mods, r.SearchTermFilter, searchIn); err != nil {
 		return nil, NewBadRequestError(err)
 	}
 	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
@@ -4254,6 +4261,24 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 		if ids != nil && len(ids) != 0 {
 			intListStr := strings.Trim(strings.Replace(fmt.Sprint(ids), " ", ",", -1), "[]")
 			whereParts = append(whereParts, fmt.Sprintf("id in (%s)", intListStr))
+		}
+
+	case SEARCH_IN_CONTENT_UNITS_TYPE_SOURCE:
+
+		// get CU UIDs from search in i18ns of sources with same uid
+		var uids pq.StringArray
+		q := `select array_agg(s.uid)
+			  from sources s 
+			  left join source_i18n si on s.id = si.source_id
+			  where si.name ~ $1 limit $2`
+		err := queries.Raw(exec, q, f.Query, MAX_PAGE_SIZE).QueryRow().Scan(&uids)
+		if err != nil {
+			return err
+		}
+
+		if uids != nil && len(uids) != 0 {
+			listAsStr := strings.Join(uids, "', '")
+			whereParts = append(whereParts, fmt.Sprintf("uid in ('%s')", listAsStr))
 		}
 
 	case SEARCH_IN_COLLECTIONS:
