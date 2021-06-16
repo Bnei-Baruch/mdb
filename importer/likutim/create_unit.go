@@ -38,6 +38,7 @@ func (c *CreateUnits) Run() {
 
 func (c *CreateUnits) fetchUnits() {
 	for _, d := range c.duplicates {
+		log.Debug("\n\nStart create new unit type LIKUTIM, file: %s all files: %v", d.Save, d.Doubles)
 		fbase, err := models.Files(c.mdb,
 			qm.Where("uid = ?", d.Save),
 		).One()
@@ -45,7 +46,7 @@ func (c *CreateUnits) fetchUnits() {
 			log.Errorf("cant find base file by uid: ", d.Save, err)
 			continue
 		}
-		cukm, err := models.ContentUnits(c.mdb,
+		cukn, err := models.ContentUnits(c.mdb,
 			qm.Where("id = ?", fbase.ContentUnitID.Int64),
 			qm.Load("Files"),
 		).One()
@@ -88,7 +89,7 @@ func (c *CreateUnits) fetchUnits() {
 				tx.Rollback()
 				continue
 			}
-			c.moveFiles(cukm, &cu)
+			c.moveFiles(cukn, &cu)
 
 			d := &models.ContentUnitDerivation{
 				SourceID:  cuo.ID,
@@ -104,7 +105,7 @@ func (c *CreateUnits) fetchUnits() {
 			if err != nil {
 				log.Errorf("problem commit transaction", err)
 			}
-
+			log.Debug("End create new unit type LIKUTIM id: %d", cu.ID)
 		}
 	}
 }
