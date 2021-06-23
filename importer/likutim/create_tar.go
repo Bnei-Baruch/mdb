@@ -23,7 +23,7 @@ import (
 )
 
 type CreateTar struct {
-	duplicates []Double
+	duplicates []*Double
 	mdb        *sql.DB
 	baseDir    string
 }
@@ -31,7 +31,7 @@ type CreateTar struct {
 func (c *CreateTar) Run() {
 	err := c.duplicatesFromJSON()
 	if err != nil {
-		log.Errorf("Error on read: %s", err)
+		log.Fatalf("Error on read: %s", err)
 	}
 
 	c.openDB()
@@ -46,7 +46,7 @@ func (c *CreateTar) Run() {
 	utils.Must(c.buildTar())
 }
 
-func (c CreateTar) buildFolder() error {
+func (c *CreateTar) buildFolder() error {
 	for _, d := range c.duplicates {
 		f, err := models.Files(c.mdb,
 			qm.Load("ContentUnit"),
@@ -85,7 +85,7 @@ func (c CreateTar) fetchFile(f *models.File) error {
 	return nil
 }
 
-func (c CreateTar) buildTar() error {
+func (c *CreateTar) buildTar() error {
 	out := path.Join(viper.GetString("likutim.os-dir"), "fileByUIDLikutim.tar")
 
 	var buf bytes.Buffer
@@ -155,7 +155,7 @@ func (c *CreateTar) duplicatesFromJSON() error {
 	if err != nil {
 		return err
 	}
-	var r []Double
+	var r []*Double
 	err = json.Unmarshal(j, &r)
 	if err != nil {
 		return err

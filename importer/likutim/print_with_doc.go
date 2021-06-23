@@ -45,9 +45,9 @@ func (c *PrintWithDoc) Run() {
 
 	cus, err := models.ContentUnits(mdb,
 		qm.Select("distinct on (\"content_units\".id) \"content_units\".*"),
-		qm.InnerJoin("files f ON f.content_unit_id = \"content_units\".id"),
+		//qm.InnerJoin("files f ON f.content_unit_id = \"content_units\".id"),
 		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_KITEI_MAKOR].ID),
-		qm.Load("Files", "Tags", "Tags.TagI18ns"),
+		qm.Load("Files", "Tags", "Tags.TagI18ns", "DerivedContentUnitDerivations", "DerivedContentUnitDerivations.Source", "DerivedContentUnitDerivations.Source.ContentUnitI18ns"),
 	).All()
 	if err != nil {
 		log.Errorf("can't load units. Error: %s", err)
@@ -56,15 +56,15 @@ func (c *PrintWithDoc) Run() {
 	forPrint := make([]printData, 0)
 
 	for _, cu := range cus {
-
-		if err != nil {
-			log.Errorf("Error on parse date. Error: %s", err)
+		if len(cu.R.DerivedContentUnitDerivations) == 0 {
+			log.Errorf("cant find origin unit by unit: %v. Error: %s", cu, err)
+			continue
 		}
-		cuo, err := FindOrigin(mdb, cu.ID)
+
 		if err != nil {
 			log.Errorf("Error on looking for origins for unit Error: %s", err)
 		}
-		forPrint = append(forPrint, c.prepareForPrint(cu, cuo))
+		forPrint = append(forPrint, c.prepareForPrint(cu, cu.R.DerivedContentUnitDerivations[0].R.Source))
 	}
 	c.printToCSV(forPrint)
 }
@@ -133,31 +133,4 @@ func (c *PrintWithDoc) openDB() *sql.DB {
 	boil.DebugMode = true
 	utils.Must(common.InitTypeRegistries(mdb))
 	return mdb
-}
-
-func FindOrigin(mdb *sql.DB, id int64) (*models.ContentUnit, error) {
-	cuds, err := models.ContentUnitDerivations(mdb,
-		qm.Where("derived_id = ?", id)).
-		All()
-	if err != nil {
-		return nil, err
-	}
-
-	ids := make([]int64, len(cuds))
-	for i := range cuds {
-		ids[i] = cuds[i].SourceID
-	}
-	if len(ids) == 0 {
-		return nil, nil
-	}
-
-	cus, err := models.ContentUnits(mdb,
-		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
-		qm.Load("ContentUnitI18ns", "Tags")).
-		One()
-	if err != nil {
-		return nil, err
-	}
-	return cus, nil
-
 }

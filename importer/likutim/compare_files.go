@@ -24,7 +24,7 @@ type Compare struct {
 	storageDir     string
 	allDocs        []string
 	wordsByFileUid map[string][]map[string]int64 // file name -> list of paragraphs -> word -> counter
-	result         []Double
+	result         []*Double
 	errors         [][]interface{}
 }
 
@@ -33,7 +33,7 @@ type Double struct {
 	Doubles []string `json:"doubles"`
 }
 
-func (c *Compare) Run() []Double {
+func (c *Compare) Run() []*Double {
 	mdb := c.openDB()
 	defer mdb.Close()
 
@@ -155,7 +155,7 @@ func (c *Compare) clearDuplicates(docs []string) {
 			nextDocs = append(nextDocs, n)
 		}
 	}
-	c.result = append(c.result, d)
+	c.result = append(c.result, &d)
 	log.Debugf("Call recursive function docs length: %d", len(nextDocs))
 	c.clearDuplicates(nextDocs)
 }

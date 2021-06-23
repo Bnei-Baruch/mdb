@@ -7,6 +7,7 @@ import (
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 	log "github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
@@ -18,7 +19,7 @@ import (
 )
 
 type CreateUnits struct {
-	duplicates []Double
+	duplicates []*Double
 	mdb        *sql.DB
 }
 
@@ -64,26 +65,35 @@ func (c *CreateUnits) fetchUnits() {
 			tx, err := c.mdb.Begin()
 			if err != nil {
 				log.Errorf("problem open transaction. Error: %s", err)
-				tx.Rollback()
 				continue
 			}
-			f, err := models.Files(c.mdb, qm.Where("uid = ?", uid)).One()
+			f, err := models.Files(tx, qm.Where("uid = ?",
+				qm.Load("ContentUnit", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source"),
+				uid)).One()
 			if err != nil {
 				log.Errorf("cant find file by uid: %s. Error: %s", uid, err)
 				tx.Rollback()
 				continue
 			}
 
-			u, err := models.ContentUnits(c.mdb, qm.Where("id = ?", f.ContentUnitID.Int64)).One()
-			if err != nil {
+			if f.R.ContentUnit == nil {
 				log.Errorf("cant find unit by file: %v. Error: %s", f, err)
 				tx.Rollback()
 				continue
 			}
 
-			cuo, err := FindOrigin(c.mdb, u.ID)
+			if len(f.R.ContentUnit.R.DerivedContentUnitDerivations) == 0 {
+				log.Errorf("cant find origin unit by unit: %v. Error: %s", f.R.ContentUnit, err)
+				tx.Rollback()
+				continue
+			}
+
+			cuo, err := models.ContentUnits(tx,
+				qm.Where("id = ?", f.R.ContentUnit.R.DerivedContentUnitDerivations[0].SourceID),
+				qm.Load("ContentUnitI18ns", "Tags"),
+			).One()
 			if err != nil {
-				log.Errorf("cant find origin unit by unit: %v. Error: %s", u, err)
+				log.Errorf("cant find origin unit by unit: %v. Error: %s", f.R.ContentUnit, err)
 				tx.Rollback()
 				continue
 			}
@@ -94,15 +104,19 @@ func (c *CreateUnits) fetchUnits() {
 				tx.Rollback()
 				continue
 			}
-			c.moveFiles(cukn, &cu)
+			if err := c.moveFiles(cukn, &cu); err != nil {
+				log.Error(err)
+				tx.Rollback()
+				continue
+			}
 
 			d := &models.ContentUnitDerivation{
 				SourceID:  cuo.ID,
 				DerivedID: cu.ID,
 			}
-			err = cuo.AddSourceContentUnitDerivations(c.mdb, true, d)
+			err = cuo.AddSourceContentUnitDerivations(tx, true, d)
 			if err != nil {
-				log.Errorf("cant derive unit %v to unit: %v. Error: %s", u, cuo, err)
+				log.Errorf("cant derive unit %v to unit: %v. Error: %s", cu, cuo, err)
 				tx.Rollback()
 				continue
 			}
@@ -115,17 +129,17 @@ func (c *CreateUnits) fetchUnits() {
 	}
 }
 
-func (c *CreateUnits) moveFiles(cukm, newu *models.ContentUnit) {
+func (c *CreateUnits) moveFiles(cukm, newu *models.ContentUnit) error {
 	for _, f := range cukm.R.Files {
 		if !strings.Contains(f.Name, ".doc") {
 			continue
 		}
 		f.ContentUnitID = null.Int64{Int64: newu.ID, Valid: true}
-		err := f.Update(c.mdb, "content_unit_id")
-		if err != nil {
-			log.Errorf("Cant insert files from kitvei makor unit: %s  to new CU: %s", cukm.UID, newu.UID)
+		if err := f.Update(c.mdb, "content_unit_id"); err != nil {
+			return errors.Wrapf(err, "Cant insert files from kitvei makor unit: %s  to new CU: %s", cukm.UID, newu.UID)
 		}
 	}
+	return nil
 }
 
 func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, error) {
@@ -171,7 +185,7 @@ func (c *CreateUnits) duplicatesFromJSON() error {
 	if err != nil {
 		return err
 	}
-	var r []Double
+	var r []*Double
 	err = json.Unmarshal(j, &r)
 	if err != nil {
 		return err
