@@ -1,11 +1,9 @@
 package likutim
 
 import (
-	"archive/tar"
-	"bytes"
-	"compress/gzip"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -13,19 +11,17 @@ import (
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
-	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
-	"strings"
 )
 
 type CreateTar struct {
 	duplicates []*Double
 	mdb        *sql.DB
-	baseDir    string
+	inDir      string
 }
 
 func (c *CreateTar) Run() {
@@ -41,9 +37,17 @@ func (c *CreateTar) Run() {
 		log.Errorf("Can't create directory: %s", err)
 	}
 
-	c.baseDir = path.Join(viper.GetString("likutim.os-dir"), "likutimByCU.tar")
+	c.inDir = path.Join(viper.GetString("likutim.os-dir"), "likutimByCU")
 	utils.Must(c.buildFolder())
-	utils.Must(c.buildTar())
+
+	out := path.Join(viper.GetString("likutim.os-dir"), "fileByUIDLikutim.tar")
+
+	cmd := exec.Command("tar  file.tar.gz directory", "-czvf", out, c.inDir)
+	_, err = cmd.Output()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 }
 
 func (c *CreateTar) buildFolder() error {
@@ -54,97 +58,12 @@ func (c *CreateTar) buildFolder() error {
 		if err != nil {
 			return err
 		}
-		err = c.fetchFile(f)
+		url := "https://cdn.kabbalahmedia.info/" + f.UID
+		p := filepath.Join(c.inDir, f.R.ContentUnit.UID, f.Name)
+		err = utils.DownloadUrl(url, p)
 		if err != nil {
 			return err
 		}
-
-	}
-	return nil
-}
-
-func (c CreateTar) fetchFile(f *models.File) error {
-	dirName := f.R.ContentUnit.UID
-	p := filepath.Join(c.baseDir, dirName)
-	err := os.MkdirAll(p, 0755)
-	if err != nil {
-		return err
-	}
-
-	resp, err := http.Get("https://files.kabbalahmedia.info/files/" + f.Name)
-	if err != nil {
-		log.Errorf("Not find file on link: %s, error: %s", f.Name, err)
-		return err
-	}
-	file, err := ioutil.ReadAll(resp.Body)
-
-	err = ioutil.WriteFile(filepath.Join(p, f.Name), file, 0755)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *CreateTar) buildTar() error {
-	out := path.Join(viper.GetString("likutim.os-dir"), "fileByUIDLikutim.tar")
-
-	var buf bytes.Buffer
-	err := compress(c.baseDir, &buf)
-	if err != nil {
-		log.Errorf("Error on compress to tar. Error: %s", err)
-		return err
-	}
-
-	f, err := os.OpenFile(out, os.O_CREATE|os.O_RDWR, os.FileMode(0777))
-	if err != nil {
-		log.Errorf("Error on create tar file. Error: %s", err)
-		return err
-	}
-	if _, err := io.Copy(f, &buf); err != nil {
-		log.Errorf("Error on insert data to the tar file. Error: %s", err)
-		return err
-	}
-	return nil
-}
-
-func compress(src string, buf io.Writer) error {
-
-	zr := gzip.NewWriter(buf)
-	tw := tar.NewWriter(zr)
-
-	// walk through every file in the folder
-	filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
-		header, err := tar.FileInfoHeader(fi, file)
-		if err != nil {
-			return err
-		}
-
-		if !fi.IsDir() {
-			p := strings.Split(file, "/")
-			header.Name = path.Join("/", p[len(p)-2], p[len(p)-1])
-		}
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
-
-		if !fi.IsDir() {
-			data, err := os.Open(file)
-			if err != nil {
-				return err
-			}
-			if _, err := io.Copy(tw, data); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-
-	// produce tar
-	if err := tw.Close(); err != nil {
-		return err
-	}
-	if err := zr.Close(); err != nil {
-		return err
 	}
 	return nil
 }
