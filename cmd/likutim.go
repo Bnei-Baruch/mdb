@@ -8,25 +8,54 @@ import (
 
 var likutimCmd = &cobra.Command{
 	Use:   "likutim",
-	Short: "create CU type likutim with .doc from kitvei makor",
-	Run:   likutimCmdFn,
+	Short: "by default run create units and create tar",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.SetLevel(log.DebugLevel)
+		new(likutim.CreateUnits).Run()
+		new(likutim.CreateTar).Run()
+	},
+}
+
+var tarCmd = &cobra.Command{
+	Use:   "tar",
+	Short: "Create tar folder name - unit uid type likutin with files of this unit",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.SetLevel(log.DebugLevel)
+		new(likutim.CreateTar).Run()
+	},
+}
+
+var createCmd = &cobra.Command{
+	Use:   "create",
+	Short: "create units likutim by uniq files from kitvei makor",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.SetLevel(log.DebugLevel)
+		new(likutim.CreateUnits).Run()
+	},
+}
+
+var compareCmd = &cobra.Command{
+	Use:   "compare",
+	Short: "compare all kitvei makor files and find doubles",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.SetLevel(log.DebugLevel)
+		new(likutim.Compare).Run()
+	},
+}
+
+var printCmd = &cobra.Command{
+	Use:   "print",
+	Short: "Only print duplicate kitvei makor without any changes",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.SetLevel(log.DebugLevel)
+		new(likutim.PrintWithDoc).Run()
+	},
 }
 
 func init() {
 	RootCmd.AddCommand(likutimCmd)
-}
-
-func likutimCmdFn(cmd *cobra.Command, args []string) {
-	log.SetLevel(log.DebugLevel)
-	switch args[0] {
-	case "tar":
-		new(likutim.CreateTar).Run()
-	case "create":
-		new(likutim.CreateUnits).Run()
-	case "compare":
-		new(likutim.Compare).Run()
-	case "print":
-	default:
-		new(likutim.PrintWithDoc).Run()
-	}
+	likutimCmd.AddCommand(tarCmd)
+	likutimCmd.AddCommand(createCmd)
+	likutimCmd.AddCommand(compareCmd)
+	likutimCmd.AddCommand(printCmd)
 }
