@@ -36,7 +36,12 @@ func (c *CreateTar) Run() {
 
 	c.openDB()
 	defer c.mdb.Close()
-	c.baseDir = path.Join(viper.GetString("source-import.results-dir"), "likutimByCU.tar")
+	err = os.MkdirAll(viper.GetString("likutim.os-dir"), os.ModePerm)
+	if err != nil {
+		log.Errorf("Can't create directory: %s", err)
+	}
+
+	c.baseDir = path.Join(viper.GetString("likutim.os-dir"), "likutimByCU.tar")
 	utils.Must(c.buildFolder())
 	utils.Must(c.buildTar())
 }
@@ -81,7 +86,7 @@ func (c CreateTar) fetchFile(f *models.File) error {
 }
 
 func (c CreateTar) buildTar() error {
-	out := path.Join(viper.GetString("source-import.results-dir"), "fileByUIDLikutim.tar")
+	out := path.Join(viper.GetString("likutim.os-dir"), "fileByUIDLikutim.tar")
 
 	var buf bytes.Buffer
 	err := compress(c.baseDir, &buf)
@@ -145,7 +150,7 @@ func compress(src string, buf io.Writer) error {
 }
 
 func (c *CreateTar) duplicatesFromJSON() error {
-	p := path.Join(viper.GetString("source-import.results-dir"), "kitvei-makor-duplicates.json")
+	p := path.Join(viper.GetString("likutim.os-dir"), "kitvei-makor-duplicates.json")
 	j, err := ioutil.ReadFile(p)
 	if err != nil {
 		return err

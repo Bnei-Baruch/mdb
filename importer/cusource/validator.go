@@ -249,7 +249,7 @@ func printResults(result map[string]compare) {
 		lines = append(lines, l)
 	}
 	b := []byte(strings.Join(lines, ","))
-	p := path.Join(viper.GetString("source-import.results-dir"), "validation-results_production_new.csv")
+	p := path.Join(viper.GetString("likutim.os-dir"), "validation-results_production_new.csv")
 	err := ioutil.WriteFile(p, b, 0644)
 	utils.Must(err)
 }

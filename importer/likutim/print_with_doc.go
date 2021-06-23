@@ -33,7 +33,11 @@ func (c *PrintWithDoc) Run() {
 	mdb := c.openDB()
 	defer mdb.Close()
 
-	dir, err := ioutil.TempDir("/home/david", "temp_kitvei_makor")
+	err := os.MkdirAll(viper.GetString("likutim.results-dir"), os.ModePerm)
+	if err != nil {
+		log.Errorf("Can't create directory: %s", err)
+	}
+	dir, err := ioutil.TempDir(viper.GetString("likutim.results-dir"), "temp_kitvei_makor")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -116,7 +120,7 @@ func (c *PrintWithDoc) printToCSV(data []printData) {
 		lines = append(lines, l)
 	}
 	b := []byte(strings.Join(lines, ","))
-	p := path.Join(viper.GetString("source-import.results-dir"), "move-kitvei-makor.csv")
+	p := path.Join(viper.GetString("likutim.os-dir"), "move-kitvei-makor.csv")
 	err := ioutil.WriteFile(p, b, 0644)
 	utils.Must(err)
 }

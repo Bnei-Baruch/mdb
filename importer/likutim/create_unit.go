@@ -12,6 +12,7 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 )
@@ -33,6 +34,10 @@ func (c *CreateUnits) Run() {
 	c.openDB()
 	defer c.mdb.Close()
 
+	err = os.MkdirAll(viper.GetString("likutim.results-dir"), os.ModePerm)
+	if err != nil {
+		log.Errorf("Can't create directory: %s", err)
+	}
 	c.fetchUnits()
 }
 
@@ -161,7 +166,7 @@ func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, err
 }
 
 func (c *CreateUnits) duplicatesFromJSON() error {
-	p := path.Join(viper.GetString("source-import.results-dir"), "kitvei-makor-duplicates.json")
+	p := path.Join(viper.GetString("likutim.os-dir"), "kitvei-makor-duplicates.json")
 	j, err := ioutil.ReadFile(p)
 	if err != nil {
 		return err
