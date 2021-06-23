@@ -8,6 +8,7 @@ import (
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 	log "github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
@@ -78,7 +79,8 @@ func (c *Compare) Run() []Double {
 		//qm.Limit(10),
 	).All()
 	if err != nil {
-		log.Errorf("can't load units: %s", err)
+		log.Fatalf("Can't load units: %s", err)
+		return c.result
 	}
 
 	c.countWordsPerFIle(cus)
@@ -89,7 +91,10 @@ func (c *Compare) Run() []Double {
 	c.clearDuplicates(c.allDocs)
 	log.Debugf("Result - uniq files: %v", c.result)
 	c.printToCSV()
-	c.saveJSON()
+	err = c.saveJSON()
+	if err != nil {
+		log.Error(err)
+	}
 	return c.result
 }
 
@@ -236,31 +241,38 @@ func (c *Compare) openDB() *sql.DB {
 }
 
 func (c *Compare) printToCSV() {
-	lines := []string{"File that stay", "All duplicates"}
+	addToFile("File that stay, All duplicates")
 	for _, r := range c.result {
-		l := fmt.Sprintf("\n%s, %v", r.Save, r.Doubles)
-		lines = append(lines, l)
+		addToFile(fmt.Sprintf(",\n%s, %v", r.Save, r.Doubles))
 	}
-	lines = append(lines, "\nFiles  with exceptions")
+	addToFile(",\nFiles  with exceptions")
 	for _, e := range c.errors {
-		l := fmt.Sprintf("\n%v, %v", e[0], e[1])
-		lines = append(lines, l)
+		addToFile(fmt.Sprintf(",\n%v, %v", e[0], e[1]))
 	}
-	b := []byte(strings.Join(lines, ","))
-	p := path.Join(viper.GetString("likutim.os-dir"), "kitvei-makor-duplicates.csv")
-	err := ioutil.WriteFile(p, b, 0644)
-	utils.Must(err)
 }
 
-func (c *Compare) saveJSON() {
+func addToFile(line string) {
+	p := path.Join(viper.GetString("likutim.os-dir"), "kitvei-makor-duplicates.csv")
+	f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	utils.Must(err)
+
+	if _, err := f.Write([]byte(line)); err != nil {
+		f.Close()
+		log.Error(err)
+	}
+
+	utils.Must(f.Close())
+}
+
+func (c *Compare) saveJSON() error {
 	j, err := json.Marshal(c.result)
 	if err != nil {
-		log.Errorf("Error on create json. Result: %v, Error: %s", c.result, err)
-		return
+		return errors.Wrapf(err, "Error on create json. Result: %v.", c.result)
 	}
 	p := path.Join(viper.GetString("likutim.os-dir"), "kitvei-makor-duplicates.json")
 	err = ioutil.WriteFile(p, j, 0644)
 	if err != nil {
-		log.Errorf("Error on save json: %s, path: %s. Error: %s ", j, p, err)
+		return errors.Wrapf(err, "Error on save json: %s, path: %s.", j, p)
 	}
+	return nil
 }
