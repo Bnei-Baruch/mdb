@@ -57,7 +57,7 @@ func (c *PrintWithDoc) Run() {
 
 	for _, cu := range cus {
 		if len(cu.R.DerivedContentUnitDerivations) == 0 {
-			log.Errorf("cant find origin unit by unit: %v. Error: %s", cu, err)
+			log.Errorf("Can't find origin unit by unit: %v. Error: %s", cu, err)
 			continue
 		}
 

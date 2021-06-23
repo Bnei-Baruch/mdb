@@ -49,7 +49,7 @@ func (c *CreateUnits) fetchUnits() {
 			qm.Where("uid = ?", d.Save),
 		).One()
 		if err != nil {
-			log.Errorf("cant find base file by uid: %s. Error: %s", d.Save, err)
+			log.Errorf("Can't find base file by uid: %s. Error: %s", d.Save, err)
 			continue
 		}
 		cukn, err := models.ContentUnits(c.mdb,
@@ -57,7 +57,7 @@ func (c *CreateUnits) fetchUnits() {
 			qm.Load("Files"),
 		).One()
 		if err != nil {
-			log.Errorf("cant find base unit by file: %v. Error: %s", fbase, err)
+			log.Errorf("Can't find base unit by file: %v. Error: %s", fbase, err)
 			continue
 		}
 
@@ -71,19 +71,19 @@ func (c *CreateUnits) fetchUnits() {
 				qm.Load("ContentUnit", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source"),
 				uid)).One()
 			if err != nil {
-				log.Errorf("cant find file by uid: %s. Error: %s", uid, err)
+				log.Errorf("Can't find file by uid: %s. Error: %v", uid, err)
 				tx.Rollback()
 				continue
 			}
 
 			if f.R.ContentUnit == nil {
-				log.Errorf("cant find unit by file: %v. Error: %s", f, err)
+				log.Errorf("Can't find unit by file: %v. Error: %s", f, err)
 				tx.Rollback()
 				continue
 			}
 
 			if len(f.R.ContentUnit.R.DerivedContentUnitDerivations) == 0 {
-				log.Errorf("cant find origin unit by unit: %v. Error: %s", f.R.ContentUnit, err)
+				log.Errorf("Can't find origin unit by unit: %v. Error: %s", f.R.ContentUnit, err)
 				tx.Rollback()
 				continue
 			}
@@ -93,14 +93,14 @@ func (c *CreateUnits) fetchUnits() {
 				qm.Load("ContentUnitI18ns", "Tags"),
 			).One()
 			if err != nil {
-				log.Errorf("cant find origin unit by unit: %v. Error: %s", f.R.ContentUnit, err)
+				log.Errorf("Can't find origin unit by unit: %v. Error: %s", f.R.ContentUnit, err)
 				tx.Rollback()
 				continue
 			}
 
 			cu, err := c.createCU(cuo)
 			if err != nil {
-				log.Errorf("cant create unit %v to unit: %v. Error: %s", cu, cuo, err)
+				log.Errorf("Can't create unit %v to unit: %v. Error: %s", cu, cuo, err)
 				tx.Rollback()
 				continue
 			}
@@ -116,7 +116,7 @@ func (c *CreateUnits) fetchUnits() {
 			}
 			err = cuo.AddSourceContentUnitDerivations(tx, true, d)
 			if err != nil {
-				log.Errorf("cant derive unit %v to unit: %v. Error: %s", cu, cuo, err)
+				log.Errorf("Can't derive unit %v to unit: %v. Error: %s", cu, cuo, err)
 				tx.Rollback()
 				continue
 			}
@@ -136,7 +136,7 @@ func (c *CreateUnits) moveFiles(cukm, newu *models.ContentUnit) error {
 		}
 		f.ContentUnitID = null.Int64{Int64: newu.ID, Valid: true}
 		if err := f.Update(c.mdb, "content_unit_id"); err != nil {
-			return errors.Wrapf(err, "Cant insert files from kitvei makor unit: %s  to new CU: %s", cukm.UID, newu.UID)
+			return errors.Wrapf(err, "Can't insert files from kitvei makor unit: %s  to new CU: %s", cukm.UID, newu.UID)
 		}
 	}
 	return nil
@@ -151,14 +151,14 @@ func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, err
 	}
 	err := cu.Insert(c.mdb)
 	if err != nil {
-		log.Errorf("Cant add tags for CU id %d. Error: %s", cu.ID, err)
+		log.Errorf("Can't add tags for CU id %d. Error: %s", cu.ID, err)
 		return cu, err
 	}
 
 	//take data from origin for new unit
 	err = cu.AddTags(c.mdb, false, cuo.R.Tags...)
 	if err != nil {
-		log.Errorf("Cant add tags for CU id %d. Error: %s", cu.ID, err)
+		log.Errorf("Can't add tags for CU id %d. Error: %s", cu.ID, err)
 		return cu, err
 	}
 
@@ -173,7 +173,7 @@ func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, err
 	}
 	err = cu.AddContentUnitI18ns(c.mdb, true, i18n...)
 	if err != nil {
-		log.Errorf("Cant add i18n for CU id %d. Error: %s", cu.ID, err)
+		log.Errorf("Can't add i18n for CU id %d. Error: %s", cu.ID, err)
 		return cu, err
 	}
 	return cu, nil
