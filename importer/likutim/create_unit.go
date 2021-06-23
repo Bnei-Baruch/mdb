@@ -67,9 +67,8 @@ func (c *CreateUnits) fetchUnits() {
 				log.Errorf("problem open transaction. Error: %s", err)
 				continue
 			}
-			f, err := models.Files(tx, qm.Where("uid = ?",
-				qm.Load("ContentUnit", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source"),
-				uid)).One()
+			f, err := models.Files(tx, qm.Where("uid = ?", uid),
+				qm.Load("ContentUnit", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source")).One()
 			if err != nil {
 				log.Errorf("Can't find file by uid: %s. Error: %v", uid, err)
 				tx.Rollback()

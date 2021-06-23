@@ -41,11 +41,11 @@ func (c *CreateTar) Run() {
 	utils.Must(c.buildFolder())
 
 	out := path.Join(viper.GetString("likutim.os-dir"), "fileByUIDLikutim.tar")
-
-	cmd := exec.Command("tar  file.tar.gz directory", "-czvf", out, c.inDir)
-	_, err = cmd.Output()
+	cmd := exec.Command("tar", "-czvf", out, "-C", c.inDir, ".")
+	r, err := cmd.Output()
 	if err != nil {
 		fmt.Println(err.Error())
+		fmt.Println(r)
 		return
 	}
 }
@@ -59,8 +59,11 @@ func (c *CreateTar) buildFolder() error {
 			return err
 		}
 		url := "https://cdn.kabbalahmedia.info/" + f.UID
-		p := filepath.Join(c.inDir, f.R.ContentUnit.UID, f.Name)
-		err = utils.DownloadUrl(url, p)
+		pd := filepath.Join(c.inDir, f.R.ContentUnit.UID)
+		if err := os.MkdirAll(pd, os.ModePerm); err != nil {
+			return err
+		}
+		err = utils.DownloadUrl(url, filepath.Join(pd, f.Name))
 		if err != nil {
 			return err
 		}

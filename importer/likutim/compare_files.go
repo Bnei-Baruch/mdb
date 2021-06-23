@@ -105,7 +105,7 @@ func (c *Compare) countWordsPerFIle(units []*models.ContentUnit) {
 				continue
 			}
 			log.Debugf("Start count words. unit id: %d, file id: %d", u.ID, f.ID)
-			url := viper.GetString("source-import.word-counter-url") + "?f=" + f.UID
+			url := viper.GetString("likutim.word-counter-url") + "?f=" + f.UID
 			resp, err := http.Get(url)
 			if err != nil {
 				log.Errorf("Can't count words per paragraph in file unit id: %d, file id: %d. Error: %s", u.ID, f.ID, err)
