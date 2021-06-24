@@ -153,6 +153,7 @@ func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, err
 		log.Errorf("Can't add tags for CU id %d. Error: %s", cu.ID, err)
 		return cu, err
 	}
+	log.Debugf("Unit was inserted CU %v", cu)
 
 	//take data from origin for new unit
 	err = cu.AddTags(c.mdb, false, cuo.R.Tags...)
@@ -194,7 +195,7 @@ func (c *CreateUnits) duplicatesFromJSON() error {
 }
 
 func (c *CreateUnits) openDB() {
-	mdb, err := sql.Open("postgres", viper.GetString("source-import.test-url"))
+	mdb, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	utils.Must(err)
 	utils.Must(mdb.Ping())
 	boil.SetDB(mdb)

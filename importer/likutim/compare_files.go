@@ -231,7 +231,7 @@ func (c *Compare) compareParagraph(p1, p2 map[string]int64) bool {
 }
 
 func (c *Compare) openDB() *sql.DB {
-	mdb, err := sql.Open("postgres", viper.GetString("source-import.test-url"))
+	mdb, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	utils.Must(err)
 	utils.Must(mdb.Ping())
 	boil.SetDB(mdb)

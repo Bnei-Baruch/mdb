@@ -87,7 +87,7 @@ func (c *CreateTar) duplicatesFromJSON() error {
 }
 
 func (c *CreateTar) openDB() {
-	mdb, err := sql.Open("postgres", viper.GetString("source-import.test-url"))
+	mdb, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	utils.Must(err)
 	utils.Must(mdb.Ping())
 	boil.SetDB(mdb)

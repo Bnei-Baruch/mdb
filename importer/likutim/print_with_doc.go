@@ -126,7 +126,7 @@ func (c *PrintWithDoc) printToCSV(data []printData) {
 }
 
 func (c *PrintWithDoc) openDB() *sql.DB {
-	mdb, err := sql.Open("postgres", viper.GetString("source-import.test-url"))
+	mdb, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	utils.Must(err)
 	utils.Must(mdb.Ping())
 	boil.SetDB(mdb)
