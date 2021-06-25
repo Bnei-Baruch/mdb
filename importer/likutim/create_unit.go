@@ -3,6 +3,7 @@ package likutim
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -105,8 +106,13 @@ func (c *CreateUnits) createUnitOnTransaction(tx *sql.Tx, uid string) (error, *m
 	if err != nil {
 		return errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit), nil
 	}
+	var props map[string]interface{}
+	if err = json.Unmarshal(f.R.ContentUnit.Properties.JSON, &props); err != nil {
+		return errors.Wrapf(err, "Can't unmarshal properties of unit: %d.", f.R.ContentUnit.ID), nil
+	}
+	filmDate := fmt.Sprintf("%v", props["film_date"])
 	//create unit type LIKUTIM
-	cu, err := c.createCU(tx, cuo)
+	cu, err := c.createCU(tx, cuo, filmDate)
 	if err != nil {
 		return errors.Wrapf(err, "Can't create unit %v to unit: %v.", cu, cuo), nil
 	}
@@ -165,12 +171,14 @@ func (c *CreateUnits) moveFiles(tx *sql.Tx, cukm, newu *models.ContentUnit) erro
 	return nil
 }
 
-func (c *CreateUnits) createCU(tx *sql.Tx, cuo *models.ContentUnit) (models.ContentUnit, error) {
+func (c *CreateUnits) createCU(tx *sql.Tx, cuo *models.ContentUnit, filmDate string) (models.ContentUnit, error) {
+	props, _ := json.Marshal(map[string]string{"film_date": filmDate})
 	cu := models.ContentUnit{
-		UID:       utils.GenerateUID(8),
-		TypeID:    common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
-		Secure:    0,
-		Published: true,
+		UID:        utils.GenerateUID(8),
+		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
+		Secure:     0,
+		Published:  true,
+		Properties: null.JSONFrom(props),
 	}
 	err := cu.Insert(tx)
 	if err != nil {
