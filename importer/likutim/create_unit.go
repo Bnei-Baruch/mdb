@@ -41,86 +41,37 @@ func (c *CreateUnits) Run() {
 	if err != nil {
 		log.Errorf("Can't create directory: %s", err)
 	}
-	c.fetchUnits()
+	c.updateUnits()
 }
 
-func (c *CreateUnits) fetchUnits() {
+func (c *CreateUnits) updateUnits() {
 	for _, d := range c.duplicates {
 		log.Debugf("\n\nStart create new unit type LIKUTIM, file: %s all files: %v", d.Save, d.Doubles)
-		fbase, err := models.Files(c.mdb,
-			qm.Where("uid = ?", d.Save),
-		).One()
-		if err != nil {
-			log.Errorf("Can't find base file by uid: %s. Error: %s", d.Save, err)
-			continue
-		}
-		cukn, err := models.ContentUnits(c.mdb,
-			qm.Where("id = ?", fbase.ContentUnitID.Int64),
-			qm.Load("Files"),
-		).One()
-		if err != nil {
-			log.Errorf("Can't find base unit by file: %v. Error: %s", fbase, err)
-			continue
-		}
 
+		tx, err := c.mdb.Begin()
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		err, cu := c.createUnitOnTransaction(tx, d.Save)
+		if err != nil {
+			log.Error(err)
+			tx.Rollback()
+			continue
+		}
+		err = tx.Commit()
+		// Derivation unit type LIKITIM to origins of doubles
 		for _, uid := range d.Doubles {
+			if uid == d.Save {
+				continue
+			}
 			tx, err := c.mdb.Begin()
 			if err != nil {
-				log.Errorf("problem open transaction. Error: %s", err)
-				continue
-			}
-			f, err := models.Files(tx, qm.Where("uid = ?", uid),
-				qm.Load("ContentUnit", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source")).One()
-			if err != nil {
-				log.Errorf("Can't find file by uid: %s. Error: %v", uid, err)
-				tx.Rollback()
-				continue
-			}
-
-			if f.R.ContentUnit == nil {
-				log.Errorf("Can't find unit by file: %v. Error: %s", f, err)
-				tx.Rollback()
-				continue
-			}
-
-			if len(f.R.ContentUnit.R.DerivedContentUnitDerivations) == 0 {
-				log.Errorf("Can't find origin unit by unit: %v. Error: %s", f.R.ContentUnit, err)
-				tx.Rollback()
-				continue
-			}
-
-			cuo, err := models.ContentUnits(tx,
-				qm.Where("id = ?", f.R.ContentUnit.R.DerivedContentUnitDerivations[0].SourceID),
-				qm.Load("ContentUnitI18ns", "Tags"),
-			).One()
-			if err != nil {
-				log.Errorf("Can't find origin unit by unit: %v. Error: %s", f.R.ContentUnit, err)
-				tx.Rollback()
-				continue
-			}
-
-			cu, err := c.createCU(cuo)
-			if err != nil {
-				log.Errorf("Can't create unit %v to unit: %v. Error: %s", cu, cuo, err)
-				tx.Rollback()
-				continue
-			}
-			if err := c.moveFiles(cukn, &cu); err != nil {
 				log.Error(err)
 				tx.Rollback()
 				continue
 			}
-
-			d := &models.ContentUnitDerivation{
-				SourceID:  cuo.ID,
-				DerivedID: cu.ID,
-			}
-			err = cuo.AddSourceContentUnitDerivations(tx, true, d)
-			if err != nil {
-				log.Errorf("Can't derive unit %v to unit: %v. Error: %s", cu, cuo, err)
-				tx.Rollback()
-				continue
-			}
+			err = moveDataOnTransaction(tx, uid, cu)
 			err = tx.Commit()
 			if err != nil {
 				log.Errorf("problem commit transaction. Error: %s", err)
@@ -130,27 +81,98 @@ func (c *CreateUnits) fetchUnits() {
 	}
 }
 
-func (c *CreateUnits) moveFiles(cukm, newu *models.ContentUnit) error {
+func (c *CreateUnits) createUnitOnTransaction(tx *sql.Tx, uid string) (error, *models.ContentUnit) {
+	//fetch files and get origin unit
+	f, err := models.Files(tx,
+		qm.Where("uid = ?", uid),
+		qm.Load("ContentUnit", "ContentUnit.Files", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source"),
+	).One()
+	if err != nil {
+		return errors.Wrapf(err, "Can't find base file by uid: %s.", uid), nil
+	}
+	if f.R.ContentUnit == nil {
+		return errors.Wrapf(err, "Can't find base unit by file: %v.", f), nil
+	}
+
+	if len(f.R.ContentUnit.R.DerivedContentUnitDerivations) == 0 {
+		return errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit), nil
+	}
+
+	cuo, err := models.ContentUnits(tx,
+		qm.Where("id = ?", f.R.ContentUnit.R.DerivedContentUnitDerivations[0].SourceID),
+		qm.Load("ContentUnitI18ns", "Tags"),
+	).One()
+	if err != nil {
+		return errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit), nil
+	}
+	//create unit type LIKUTIM
+	cu, err := c.createCU(tx, cuo)
+	if err != nil {
+		return errors.Wrapf(err, "Can't create unit %v to unit: %v.", cu, cuo), nil
+	}
+	if err := c.moveFiles(tx, f.R.ContentUnit, &cu); err != nil {
+		return err, nil
+	}
+	//derivation to origin
+	cud := &models.ContentUnitDerivation{
+		SourceID:  cuo.ID,
+		DerivedID: cu.ID,
+	}
+	err = cuo.AddSourceContentUnitDerivations(tx, true, cud)
+	if err != nil {
+		return errors.Wrapf(err, "Can't derive unit %v to unit: %v.", cu, cuo), nil
+	}
+	return nil, &cu
+}
+
+func moveDataOnTransaction(tx *sql.Tx, uid string, cu *models.ContentUnit) error {
+
+	f, err := models.Files(tx, qm.Where("uid = ?", uid),
+		qm.Load("ContentUnit", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source")).One()
+	if err != nil {
+		return errors.Wrapf(err, "Can't find file by uid: %s.", uid)
+	}
+
+	if f.R.ContentUnit == nil {
+		return errors.Wrapf(err, "Can't find unit by file: %v.", f)
+	}
+
+	if len(f.R.ContentUnit.R.DerivedContentUnitDerivations) == 0 {
+		return errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit)
+	}
+
+	d := &models.ContentUnitDerivation{
+		SourceID:  f.R.ContentUnit.R.DerivedContentUnitDerivations[0].SourceID,
+		DerivedID: cu.ID,
+	}
+	err = cu.AddDerivedContentUnitDerivations(tx, true, d)
+	if err != nil {
+		return errors.Wrapf(err, "Can't derive unit %v to unit id: %d.", cu, f.R.ContentUnit.R.DerivedContentUnitDerivations[0].SourceID)
+	}
+	return nil
+}
+
+func (c *CreateUnits) moveFiles(tx *sql.Tx, cukm, newu *models.ContentUnit) error {
 	for _, f := range cukm.R.Files {
 		if !strings.Contains(f.Name, ".doc") {
 			continue
 		}
 		f.ContentUnitID = null.Int64{Int64: newu.ID, Valid: true}
-		if err := f.Update(c.mdb, "content_unit_id"); err != nil {
+		if err := f.Update(tx, "content_unit_id"); err != nil {
 			return errors.Wrapf(err, "Can't insert files from kitvei makor unit: %s  to new CU: %s", cukm.UID, newu.UID)
 		}
 	}
 	return nil
 }
 
-func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, error) {
+func (c *CreateUnits) createCU(tx *sql.Tx, cuo *models.ContentUnit) (models.ContentUnit, error) {
 	cu := models.ContentUnit{
 		UID:       utils.GenerateUID(8),
 		TypeID:    common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
 		Secure:    0,
 		Published: true,
 	}
-	err := cu.Insert(c.mdb)
+	err := cu.Insert(tx)
 	if err != nil {
 		log.Errorf("Can't add tags for CU id %d. Error: %s", cu.ID, err)
 		return cu, err
@@ -158,7 +180,7 @@ func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, err
 	log.Debugf("Unit was inserted CU %v", cu)
 
 	//take data from origin for new unit
-	err = cu.AddTags(c.mdb, false, cuo.R.Tags...)
+	err = cu.AddTags(tx, false, cuo.R.Tags...)
 	if err != nil {
 		log.Errorf("Can't add tags for CU id %d. Error: %s", cu.ID, err)
 		return cu, err
@@ -173,7 +195,7 @@ func (c *CreateUnits) createCU(cuo *models.ContentUnit) (models.ContentUnit, err
 		}
 		i18n = append(i18n, n)
 	}
-	err = cu.AddContentUnitI18ns(c.mdb, true, i18n...)
+	err = cu.AddContentUnitI18ns(tx, true, i18n...)
 	if err != nil {
 		log.Errorf("Can't add i18n for CU id %d. Error: %s", cu.ID, err)
 		return cu, err
