@@ -92,11 +92,8 @@ func (c *Compare) Run() []*Double {
 	})
 	c.clearDuplicates(c.allDocs)
 	log.Debugf("Result - uniq files: %v", c.result)
-	c.printToCSV()
-	err = c.saveJSON()
-	if err != nil {
-		log.Error(err)
-	}
+	utils.Must(c.printToCSV())
+	utils.Must(c.saveJSON())
 	return c.result
 }
 
@@ -242,28 +239,38 @@ func (c *Compare) openDB() *sql.DB {
 	return mdb
 }
 
-func (c *Compare) printToCSV() {
-	addToFile("File that stay, All duplicates")
-	for _, r := range c.result {
-		addToFile(fmt.Sprintf(",\n%s, %v", r.Save, r.Doubles))
-	}
-	addToFile(",\nFiles  with exceptions")
-	for _, e := range c.errors {
-		addToFile(fmt.Sprintf(",\n%v, %v", e[0], e[1]))
-	}
-}
-
-func addToFile(line string) {
+func (c *Compare) printToCSV() error {
 	p := path.Join(viper.GetString("likutim.os-dir"), "kitvei-makor-duplicates.csv")
 	f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	utils.Must(err)
-
-	if _, err := f.Write([]byte(line)); err != nil {
-		f.Close()
-		log.Error(err)
+	if err != nil {
+		return err
 	}
+	defer utils.Must(f.Close())
 
-	utils.Must(f.Close())
+	if err = addToFile("File that stay, All duplicates", f); err != nil {
+		return err
+	}
+	for _, r := range c.result {
+		if err = addToFile(fmt.Sprintf(",\n%s, %v", r.Save, r.Doubles), f); err != nil {
+			return err
+		}
+	}
+	if err = addToFile(",\nFiles  with exceptions", f); err != nil {
+		return err
+	}
+	for _, e := range c.errors {
+		if err = addToFile(fmt.Sprintf(",\n%v, %v", e[0], e[1]), f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func addToFile(line string, f *os.File) error {
+	if _, err := f.Write([]byte(line)); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Compare) saveJSON() error {

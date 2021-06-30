@@ -5,17 +5,19 @@ import (
 	"compress/gzip"
 	"database/sql"
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/common"
-	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
+	"io"
+	"os"
+	"strings"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries"
 	"github.com/volatiletech/sqlboiler/queries/qm"
-	"io"
-	"os"
-	"strings"
+
+	"github.com/Bnei-Baruch/mdb/common"
+	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 func RemoveFilesByFileName() {
