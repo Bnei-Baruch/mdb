@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
@@ -28,6 +29,7 @@ type CreateUnits struct {
 
 func (c *CreateUnits) Run() {
 	err := c.duplicatesFromJSON()
+	//if no json with data of duplicated doc files - create it
 	if err != nil {
 		log.Errorf("Error on read. Error: %s", err)
 		compare := new(Compare)
@@ -38,10 +40,7 @@ func (c *CreateUnits) Run() {
 	c.openDB()
 	defer c.mdb.Close()
 
-	err = os.MkdirAll(viper.GetString("likutim.results-dir"), os.ModePerm)
-	if err != nil {
-		log.Errorf("Can't create directory: %s", err)
-	}
+	utils.Must(os.MkdirAll(viper.GetString("likutim.os-dir"), os.ModePerm))
 	c.updateUnits()
 }
 
@@ -54,49 +53,56 @@ func (c *CreateUnits) updateUnits() {
 			log.Error(err)
 			continue
 		}
-		err, cu := c.createUnitOnTransaction(tx, d.Save)
+		cu, err := c.createUnit(tx, d.Save)
 		if err != nil {
 			log.Error(err)
-			tx.Rollback()
+			if err = tx.Rollback(); err != nil {
+				log.Errorf("problem rollback transaction. Error: %s", err)
+			}
 			continue
 		}
-		err = tx.Commit()
+
 		// Derivation unit type LIKITIM to origins of doubles
 		for _, uid := range d.Doubles {
 			if uid == d.Save {
 				continue
 			}
-			tx, err := c.mdb.Begin()
-			if err != nil {
+
+			if err = moveData(tx, uid, cu); err != nil {
 				log.Error(err)
-				tx.Rollback()
-				continue
+				if err = tx.Rollback(); err != nil {
+					log.Errorf("problem rollback transaction. Error: %s", err)
+				}
+				break
 			}
-			err = moveDataOnTransaction(tx, uid, cu)
-			err = tx.Commit()
-			if err != nil {
-				log.Errorf("problem commit transaction. Error: %s", err)
-			}
-			log.Debugf("End create new unit type LIKUTIM id: %d", cu.ID)
 		}
+
+		if err = tx.Commit(); err != nil {
+			log.Errorf("problem commit transaction. Error: %s", err)
+		}
+		log.Debugf("End create new unit type LIKUTIM id: %d", cu.ID)
 	}
 }
 
-func (c *CreateUnits) createUnitOnTransaction(tx *sql.Tx, uid string) (error, *models.ContentUnit) {
+func (c *CreateUnits) createUnit(tx *sql.Tx, uid string) (*models.ContentUnit, error) {
 	//fetch files and get origin unit
 	f, err := models.Files(tx,
 		qm.Where("uid = ?", uid),
 		qm.Load("ContentUnit", "ContentUnit.Files", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source"),
 	).One()
 	if err != nil {
-		return errors.Wrapf(err, "Can't find base file by uid: %s.", uid), nil
+		return nil, errors.Wrapf(err, "Can't find base file by uid: %s.", uid)
 	}
 	if f.R.ContentUnit == nil {
-		return errors.Wrapf(err, "Can't find base unit by file: %v.", f), nil
+		return nil, errors.Wrapf(err, "Can't find base unit by file: %v.", f)
+	}
+
+	if f.R.ContentUnit.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID {
+		return nil, errors.New(fmt.Sprintf("this file alredy have Unit type LIKUTIM : %v.", f))
 	}
 
 	if len(f.R.ContentUnit.R.DerivedContentUnitDerivations) == 0 {
-		return errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit), nil
+		return nil, errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit)
 	}
 
 	cuo, err := models.ContentUnits(tx,
@@ -104,20 +110,25 @@ func (c *CreateUnits) createUnitOnTransaction(tx *sql.Tx, uid string) (error, *m
 		qm.Load("ContentUnitI18ns", "Tags"),
 	).One()
 	if err != nil {
-		return errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit), nil
+		return nil, errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit)
 	}
 	var props map[string]interface{}
-	if err = json.Unmarshal(f.R.ContentUnit.Properties.JSON, &props); err != nil {
-		return errors.Wrapf(err, "Can't unmarshal properties of unit: %d.", f.R.ContentUnit.ID), nil
+	var filmDate string
+	if f.R.ContentUnit.Properties.Valid {
+		if err = json.Unmarshal(f.R.ContentUnit.Properties.JSON, &props); err != nil {
+			return nil, errors.Wrapf(err, "Can't unmarshal properties of unit: %d.", f.R.ContentUnit.ID)
+		}
+		filmDate = fmt.Sprintf("%v", props["film_date"])
+	} else {
+		filmDate = time.Now().Format("2006-01-02")
 	}
-	filmDate := fmt.Sprintf("%v", props["film_date"])
 	//create unit type LIKUTIM
 	cu, err := c.createCU(tx, cuo, filmDate)
 	if err != nil {
-		return errors.Wrapf(err, "Can't create unit %v to unit: %v.", cu, cuo), nil
+		return nil, errors.Wrapf(err, "Can't create unit %v to unit: %v.", cu, cuo)
 	}
 	if err := c.moveFiles(tx, f.R.ContentUnit, &cu); err != nil {
-		return err, nil
+		return nil, err
 	}
 	//derivation to origin
 	cud := &models.ContentUnitDerivation{
@@ -126,12 +137,12 @@ func (c *CreateUnits) createUnitOnTransaction(tx *sql.Tx, uid string) (error, *m
 	}
 	err = cuo.AddSourceContentUnitDerivations(tx, true, cud)
 	if err != nil {
-		return errors.Wrapf(err, "Can't derive unit %v to unit: %v.", cu, cuo), nil
+		return nil, errors.Wrapf(err, "Can't derive unit %v to unit: %v.", cu, cuo)
 	}
-	return nil, &cu
+	return &cu, nil
 }
 
-func moveDataOnTransaction(tx *sql.Tx, uid string, cu *models.ContentUnit) error {
+func moveData(tx *sql.Tx, uid string, cu *models.ContentUnit) error {
 
 	f, err := models.Files(tx, qm.Where("uid = ?", uid),
 		qm.Load("ContentUnit", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source")).One()

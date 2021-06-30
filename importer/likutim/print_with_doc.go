@@ -35,11 +35,11 @@ func (c *PrintWithDoc) Run() {
 	mdb := c.openDB()
 	defer mdb.Close()
 
-	err := os.MkdirAll(viper.GetString("likutim.results-dir"), os.ModePerm)
+	err := os.MkdirAll(viper.GetString("likutim.os-dir"), os.ModePerm)
 	if err != nil {
 		log.Errorf("Can't create directory: %s", err)
 	}
-	dir, err := ioutil.TempDir(viper.GetString("likutim.results-dir"), "temp_kitvei_makor")
+	dir, err := ioutil.TempDir(viper.GetString("likutim.os-dir"), "temp_kitvei_makor")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func (c *PrintWithDoc) Run() {
 		log.Errorf("can't load units. Error: %s", err)
 	}
 
-	forPrint := make([]printData, 0)
+	forPrint := make([]*printData, 0)
 
 	for _, cu := range cus {
 		if len(cu.R.DerivedContentUnitDerivations) == 0 {
@@ -71,7 +71,7 @@ func (c *PrintWithDoc) Run() {
 	c.printToCSV(forPrint)
 }
 
-func (c *PrintWithDoc) prepareForPrint(cu, cuo *models.ContentUnit) printData {
+func (c *PrintWithDoc) prepareForPrint(cu, cuo *models.ContentUnit) *printData {
 	var cuProps map[string]interface{}
 	err := json.Unmarshal(cu.Properties.JSON, &cuProps)
 	if err != nil {
@@ -103,7 +103,7 @@ func (c *PrintWithDoc) prepareForPrint(cu, cuo *models.ContentUnit) printData {
 		}
 	}
 
-	return printData{
+	return &printData{
 		cuUid:    cu.UID,
 		oName:    name.String,
 		filmDate: film,
@@ -111,7 +111,7 @@ func (c *PrintWithDoc) prepareForPrint(cu, cuo *models.ContentUnit) printData {
 	}
 }
 
-func (c *PrintWithDoc) printToCSV(data []printData) {
+func (c *PrintWithDoc) printToCSV(data []*printData) {
 	sort.Slice(data, func(i, j int) bool {
 		return data[i].filmDate.Before(data[j].filmDate)
 	})
