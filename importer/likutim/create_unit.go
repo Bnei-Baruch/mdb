@@ -123,7 +123,7 @@ func (c *CreateUnits) createUnit(tx *sql.Tx, uid string) (*models.ContentUnit, e
 		filmDate = time.Now().Format("2006-01-02")
 	}
 	//create unit type LIKUTIM
-	cu, err := c.createCU(tx, cuo, filmDate)
+	cu, err := c.createCU(tx, cuo, filmDate, f)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Can't create unit %v to unit: %v.", cu, cuo)
 	}
@@ -182,8 +182,8 @@ func (c *CreateUnits) moveFiles(tx *sql.Tx, cukm, newu *models.ContentUnit) erro
 	return nil
 }
 
-func (c *CreateUnits) createCU(tx *sql.Tx, cuo *models.ContentUnit, filmDate string) (models.ContentUnit, error) {
-	props, _ := json.Marshal(map[string]string{"film_date": filmDate})
+func (c *CreateUnits) createCU(tx *sql.Tx, cuo *models.ContentUnit, filmDate string, f *models.File) (models.ContentUnit, error) {
+	props, _ := json.Marshal(map[string]string{"film_date": filmDate, "pattern": patternByFileName(f.Name), "original_language": common.LANG_HEBREW})
 	cu := models.ContentUnit{
 		UID:        utils.GenerateUID(8),
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
@@ -220,6 +220,15 @@ func (c *CreateUnits) createCU(tx *sql.Tx, cuo *models.ContentUnit, filmDate str
 		return cu, err
 	}
 	return cu, nil
+}
+func patternByFileName(name string) string {
+	spl := strings.Split(strings.ToLower(name), "kitei-makor")
+	spl = strings.Split(spl[1], ".")
+	spl = strings.Split(spl[0], "_")
+	if spl[0] != "" || len(spl) < 2 {
+		return spl[0]
+	}
+	return spl[1]
 }
 
 func (c *CreateUnits) duplicatesFromJSON() error {
