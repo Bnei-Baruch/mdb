@@ -45,6 +45,7 @@ const (
 	CT_RESEARCH_MATERIAL     = "RESEARCH_MATERIAL"
 	CT_KTAIM_NIVCHARIM       = "KTAIM_NIVCHARIM"
 	CT_SOURCE                = "SOURCE"
+	CT_LIKUTIM               = "LIKUTIM"
 
 	// Operation Types
 	OP_CAPTURE_START = "capture_start"

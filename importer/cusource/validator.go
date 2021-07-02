@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -42,9 +43,7 @@ func (c *ComparatorDbVsFolder) Run() {
 	dir := c.untar()
 	mdb := c.openDB()
 	c.uploadData(mdb, dir)
-	if !viper.GetBool("source-import.dont-remove-dir") {
-		utils.Must(os.RemoveAll(c.baseDir))
-	}
+	utils.Must(os.RemoveAll(c.baseDir))
 	utils.Must(mdb.Close())
 
 }
@@ -250,6 +249,7 @@ func printResults(result map[string]compare) {
 		lines = append(lines, l)
 	}
 	b := []byte(strings.Join(lines, ","))
-	err := ioutil.WriteFile(viper.GetString("source-import.output"), b, 0644)
+	p := path.Join(viper.GetString("likutim.os-dir"), "validation-results_production_new.csv")
+	err := ioutil.WriteFile(p, b, 0644)
 	utils.Must(err)
 }

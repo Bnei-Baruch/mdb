@@ -24,16 +24,16 @@ func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 
 	utils.Must(err)
 	defer rows.Close()
-	ids := make([]int64, 0)
+	uids := make([]string, 0)
 	for rows.Next() {
-		var id int64
+		var id string
 		err := rows.Scan(&id)
 		utils.Must(err)
-		ids = append(ids, id)
+		uids = append(uids, id)
 	}
 	mods := make([]qm.QueryMod, 0)
-	if len(ids) > 0 {
-		mods = append(mods, qm.WhereIn("uid NOT IN ?", utils.ConvertArgsInt64(ids)...))
+	if len(uids) > 0 {
+		mods = append(mods, qm.WhereIn("uid NOT IN ?", utils.ConvertArgsString(uids)...))
 	}
 
 	sources, err := models.Sources(mdb, mods...).All()
@@ -58,7 +58,7 @@ func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 }
 
 func createCU(s *models.Source, mdb boil.Executor) (*models.ContentUnit, error) {
-	props, _ := json.Marshal(map[string]string{"source_id": s.UID})
+	props, _ := json.Marshal(map[string]string{"source_id": s.UID, "film_date": "1980-01-01"})
 	cu := &models.ContentUnit{
 		UID:        s.UID,
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/Bnei-Baruch/mdb/importer/cusource"
+	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -17,9 +18,16 @@ var buildCUSourcesValidatorCmd = &cobra.Command{
 	Run:   buildCUSourcesValidatorCmdFn,
 }
 
+var removeFilesByFileNameCmd = &cobra.Command{
+	Use:   "remove_files_by_name",
+	Short: "remove files by Fiel name ",
+	Run:   removeFilesByFileNameCmdFn,
+}
+
 func init() {
 	RootCmd.AddCommand(buildCUSourcesCmd)
 	RootCmd.AddCommand(buildCUSourcesValidatorCmd)
+	RootCmd.AddCommand(removeFilesByFileNameCmd)
 }
 
 func buildCUSourcesCmdFn(cmd *cobra.Command, args []string) {
@@ -28,4 +36,9 @@ func buildCUSourcesCmdFn(cmd *cobra.Command, args []string) {
 
 func buildCUSourcesValidatorCmdFn(cmd *cobra.Command, args []string) {
 	new(cusource.ComparatorDbVsFolder).Run()
+}
+
+func removeFilesByFileNameCmdFn(cmd *cobra.Command, args []string) {
+	log.SetLevel(log.InfoLevel)
+	cusource.RemoveFilesByFileName()
 }
