@@ -322,6 +322,44 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 			return nil, errors.Wrap(err, "Associate tags")
 		}
 	}
+	if len(metadata.Likutim) > 0 {
+		log.Infof("Associating %d likutim", len(metadata.Likutim))
+		likutim, err := models.ContentUnits(exec,
+			qm.Select("distinct on (\"content_units\".id) \"content_units\".*"),
+			qm.WhereIn("uid in ?", utils.ConvertArgsString(metadata.Likutim)...)).
+			All()
+		if err != nil {
+			return nil, errors.Wrap(err, "Lookup tags  in DB")
+		}
+
+		// are we missing some tag ?
+		if len(likutim) != len(metadata.Likutim) {
+			missing := make([]string, 0)
+			for _, x := range metadata.Likutim {
+				found := false
+				for _, y := range likutim {
+					if x == y.UID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					missing = append(missing, x)
+				}
+			}
+			log.Warnf("Unknown likutim: %s", missing)
+		}
+
+		derivations := make([]*models.ContentUnitDerivation, len(likutim))
+		for i, l := range likutim {
+			cud := &models.ContentUnitDerivation{DerivedID: l.ID}
+			derivations[i] = cud
+		}
+		err = cu.AddSourceContentUnitDerivations(exec, false, derivations...)
+		if err != nil {
+			return nil, errors.Wrap(err, "Associate likutim")
+		}
+	}
 
 	// Handle persons ...
 	if strings.ToLower(metadata.Lecturer) == common.P_RAV {
