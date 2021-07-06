@@ -332,7 +332,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 			return nil, errors.Wrap(err, "Lookup tags  in DB")
 		}
 
-		// are we missing some tag ?
+		// are we missing some unit ?
 		if len(likutim) != len(metadata.Likutim) {
 			missing := make([]string, 0)
 			for _, x := range metadata.Likutim {

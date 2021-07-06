@@ -859,7 +859,7 @@ func nameByTagUID(exec boil.Executor, uid string, cNumber *int) (map[string]stri
 
 func nameByLikutimUID(exec boil.Executor, uid string, cNumber *int) (map[string]string, error) {
 
-	// Load tag details from DB
+	// Load Likutim details from DB
 	cu, err := models.ContentUnits(exec, qm.Load("ContentUnitI18ns"), qm.Where("uid = ?", uid)).One()
 	if err != nil {
 		return nil, errors.Wrapf(err, "Find Unit in DB")
