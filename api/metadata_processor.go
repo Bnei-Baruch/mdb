@@ -352,13 +352,20 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 
 		derivations := make([]*models.ContentUnitDerivation, len(likutim))
 		for i, l := range likutim {
-			cud := &models.ContentUnitDerivation{DerivedID: l.ID}
+			cud := &models.ContentUnitDerivation{
+				SourceID:  cu.ID,
+				DerivedID: l.ID,
+			}
 			derivations[i] = cud
 		}
-		err = cu.AddSourceContentUnitDerivations(exec, false, derivations...)
+		err = cu.AddSourceContentUnitDerivations(exec, true, derivations...)
 		if err != nil {
 			return nil, errors.Wrap(err, "Associate likutim")
 		}
+		for _, l := range likutim {
+			evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(l))
+		}
+		evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(cu))
 	}
 
 	// Handle persons ...

@@ -172,7 +172,7 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 				log.Warnf("metadata.major index out of bounds got %d but only %d elements in likutim",
 					idx, len(metadata.Likutim))
 			}
-			names, err = nameByLikutimUID(exec, metadata.Likutim[idx], cNumber)
+			names, err = nameByLikutimUID(exec, metadata.Likutim[idx])
 			if err != nil {
 				return nil, errors.Wrap(err, "Name by likutim")
 			}
@@ -857,7 +857,7 @@ func nameByTagUID(exec boil.Executor, uid string, cNumber *int) (map[string]stri
 	return names, nil
 }
 
-func nameByLikutimUID(exec boil.Executor, uid string, cNumber *int) (map[string]string, error) {
+func nameByLikutimUID(exec boil.Executor, uid string) (map[string]string, error) {
 
 	// Load Likutim details from DB
 	cu, err := models.ContentUnits(exec, qm.Load("ContentUnitI18ns"), qm.Where("uid = ?", uid)).One()
