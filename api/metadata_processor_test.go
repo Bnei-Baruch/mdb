@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
 	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
@@ -28,7 +27,6 @@ type MetadataProcessorSuite struct {
 }
 
 func (suite *MetadataProcessorSuite) SetupSuite() {
-	log.SetLevel(log.DebugLevel)
 	suite.Require().Nil(suite.InitTestDB())
 	suite.Require().Nil(common.InitTypeRegistries(suite.DB))
 }
@@ -40,8 +38,6 @@ func (suite *MetadataProcessorSuite) TearDownSuite() {
 func (suite *MetadataProcessorSuite) SetupTest() {
 	var err error
 	suite.tx, err = suite.DB.Begin()
-	suite.Require().Nil(err)
-	_, err = CreateLikutim(suite.tx)
 	suite.Require().Nil(err)
 }
 
@@ -57,13 +53,18 @@ func TestMetadataProcessor(t *testing.T) {
 }
 
 func (suite *MetadataProcessorSuite) TestDailyLesson() {
-	chain := suite.simulateLessonChain()
+	likutim, err := SomeLikutim(suite.tx)
+	suite.Require().Nil(err)
+	likutimUIDs := make([]string, len(likutim))
+	for i, l := range likutim {
+		likutimUIDs[i] = l.UID
+	}
 
+	chain := suite.simulateLessonChain()
 	// send parts
 	// send full
 	// send kitei makor of part 1
 	// send ktaim nivcharim from full
-
 	metadata := CITMetadata{
 		ContentType:    common.CT_LESSON_PART,
 		AutoName:       "auto_name",
@@ -76,7 +77,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 		Part:           null.IntFrom(0),
 		Sources:        suite.someSources(),
 		Tags:           suite.someTags(),
-		Likutim:        suite.someLikutim(),
+		Likutim:        likutimUIDs,
 		RequireTest:    false,
 	}
 	original, proxy := chain["part0"].Original, chain["part0"].Proxy
@@ -123,7 +124,6 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 		metadata.Part = null.IntFrom(i)
 		metadata.Sources = suite.someSources()
 		metadata.Tags = suite.someTags()
-		metadata.Likutim = suite.someLikutim()
 		tf := chain[fmt.Sprintf("part%d", i)]
 		original, proxy := tf.Original, tf.Proxy
 
@@ -157,7 +157,6 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	metadata.Part = null.IntFrom(-1)
 	metadata.Sources = nil
 	metadata.Tags = nil
-	metadata.Likutim = nil
 	tf := chain["full"]
 	original, proxy = tf.Original, tf.Proxy
 
@@ -316,7 +315,6 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		Part:           null.IntFrom(0),
 		Sources:        suite.someSources(),
 		Tags:           suite.someTags(),
-		Likutim:        suite.someLikutim(),
 		RequireTest:    false,
 	}
 	original, proxy := chain["part0"].Original, chain["part0"].Proxy
@@ -363,7 +361,6 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		metadata.Part = null.IntFrom(i)
 		metadata.Sources = suite.someSources()
 		metadata.Tags = suite.someTags()
-		metadata.Likutim = suite.someLikutim()
 		tf := chain[fmt.Sprintf("part%d", i)]
 		original, proxy := tf.Original, tf.Proxy
 
@@ -397,7 +394,6 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	metadata.Part = null.IntFrom(-1)
 	metadata.Sources = nil
 	metadata.Tags = nil
-	metadata.Likutim = nil
 	tf := chain["full"]
 	original, proxy = tf.Original, tf.Proxy
 
@@ -777,7 +773,6 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 		Part:           null.IntFrom(0),
 		Sources:        suite.someSources(),
 		Tags:           suite.someTags(),
-		Likutim:        suite.someLikutim(),
 		RequireTest:    false,
 	}
 	original, proxy := chain["part0"].Original, chain["part0"].Proxy
@@ -841,7 +836,6 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 		metadata.Part = null.IntFrom(i)
 		metadata.Sources = suite.someSources()
 		metadata.Tags = suite.someTags()
-		metadata.Likutim = suite.someLikutim()
 		tf := chain[fmt.Sprintf("part%d", i)]
 		original, proxy := tf.Original, tf.Proxy
 
@@ -896,7 +890,6 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	metadata.Part = null.IntFrom(-1)
 	metadata.Sources = nil
 	metadata.Tags = nil
-	metadata.Likutim = nil
 	tf := chain["full"]
 	original, proxy = tf.Original, tf.Proxy
 
@@ -969,7 +962,6 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 		Part:           null.IntFrom(0),
 		Sources:        suite.someSources(),
 		Tags:           suite.someTags(),
-		Likutim:        suite.someLikutim(),
 		RequireTest:    false,
 	}
 	tf := chain["part0"]
@@ -983,7 +975,6 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 		metadata.Part = null.IntFrom(i)
 		metadata.Sources = suite.someSources()
 		metadata.Tags = suite.someTags()
-		metadata.Likutim = suite.someLikutim()
 		tf := chain[fmt.Sprintf("part%d", i)]
 		originals[fmt.Sprintf("part%d", i)] = tf
 
@@ -996,7 +987,6 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	metadata.Part = null.IntFrom(-1)
 	metadata.Sources = nil
 	metadata.Tags = nil
-	metadata.Likutim = nil
 	tf = chain["full"]
 	originals["full"] = tf
 
@@ -1046,7 +1036,6 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	metadata.Lecturer = "norav"
 	metadata.Sources = suite.someSources()
 	metadata.Tags = suite.someTags()
-	metadata.Likutim = suite.someLikutim()
 
 	suite.True(cu.Published, "cu.Published before fix")
 
@@ -1089,7 +1078,6 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 		Part:           null.IntFrom(0),
 		Sources:        suite.someSources(),
 		Tags:           suite.someTags(),
-		Likutim:        suite.someLikutim(),
 		RequireTest:    false,
 	}
 
@@ -1099,7 +1087,6 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 		metadata.Part = null.IntFrom(i)
 		metadata.Sources = suite.someSources()
 		metadata.Tags = suite.someTags()
-		metadata.Likutim = suite.someLikutim()
 		tf := chain[fmt.Sprintf("part%d", i)]
 		original, proxy := tf.Original, tf.Proxy
 
@@ -1137,7 +1124,6 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 	metadata.Part = null.IntFrom(-1)
 	metadata.Sources = nil
 	metadata.Tags = nil
-	metadata.Likutim = nil
 	tf := chain["full"]
 	original, proxy := tf.Original, tf.Proxy
 
@@ -2145,18 +2131,6 @@ func (suite *MetadataProcessorSuite) someTags() []string {
 	return uids
 }
 
-func (suite *MetadataProcessorSuite) someLikutim() []string {
-	items, err := models.ContentUnits(suite.tx,
-		qm.Limit(1+rand.Intn(10)),
-		qm.Where("type_id = ? AND published IS TRUE", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID)).All()
-	suite.Require().Nil(err)
-	uids := make([]string, len(items))
-	for i, x := range items {
-		uids[i] = x.UID
-	}
-	return uids
-}
-
 func (suite *MetadataProcessorSuite) assertFiles(metadata CITMetadata, original, proxy *models.File) {
 	capDate := metadata.CaptureDate
 	filmDate := metadata.CaptureDate
@@ -2330,16 +2304,17 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	}
 }
 
-func CreateLikutim(exec boil.Executor) ([]*models.ContentUnit, error) {
-	sources, err := models.Sources(exec).All()
+func SomeLikutim(exec boil.Executor) ([]*models.ContentUnit, error) {
+	sources, err := models.Sources(exec, qm.Limit(1+rand.Intn(10))).All()
 	if err != nil {
 		return nil, err
 	}
 	likutim := make([]*models.ContentUnit, len(sources))
 	for i, s := range sources {
 		likutim[i] = &models.ContentUnit{
-			UID:    s.UID,
-			TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
+			UID:       s.UID,
+			TypeID:    common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
+			Published: true,
 		}
 		err = likutim[i].Insert(exec)
 		if err != nil {
