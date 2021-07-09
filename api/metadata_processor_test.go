@@ -41,7 +41,8 @@ func (suite *MetadataProcessorSuite) SetupTest() {
 	var err error
 	suite.tx, err = suite.DB.Begin()
 	suite.Require().Nil(err)
-	suite.createLikutim(suite.tx)
+	_, err = CreateLikutim(suite.tx)
+	suite.Require().Nil(err)
 }
 
 func (suite *MetadataProcessorSuite) TearDownTest() {
@@ -2305,7 +2306,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 		qm.Where("cud.source_id = ? AND \"content_units\".type_id = ? AND published IS TRUE", cu.ID, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID)).All()
 	suite.Require().Nil(err)
 	suite.Equal(len(metadata.Likutim), len(likutim), "len(likutim)")
-	for _, x := range metadata.Tags {
+	for _, x := range metadata.Likutim {
 		missing := true
 		for _, y := range likutim {
 			if x == y.UID {
@@ -2329,19 +2330,27 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	}
 }
 
-func (suite *MetadataProcessorSuite) createLikutim(exec boil.Executor) {
+func CreateLikutim(exec boil.Executor) ([]*models.ContentUnit, error) {
 	sources, err := models.Sources(exec).All()
-	suite.NoError(err)
+	if err != nil {
+		return nil, err
+	}
 	likutim := make([]*models.ContentUnit, len(sources))
 	for i, s := range sources {
 		likutim[i] = &models.ContentUnit{
 			UID:    s.UID,
 			TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
 		}
-		suite.NoError(likutim[i].Insert(exec))
+		err = likutim[i].Insert(exec)
+		if err != nil {
+			return nil, err
+		}
 
 		i18ns := []*models.ContentUnitI18n{{Language: common.LANG_HEBREW, Name: null.StringFrom("name")}}
-		suite.NoError(likutim[i].AddContentUnitI18ns(exec, true, i18ns...))
+		err = likutim[i].AddContentUnitI18ns(exec, true, i18ns...)
+		if err != nil {
+			return nil, err
+		}
 	}
-	suite.NotEqual(0, len(likutim), "not created unit type likutim")
+	return likutim, nil
 }

@@ -338,9 +338,8 @@ func (suite *AutonameSuite) TestNameByTag() {
 	suite.Len(names, 8, "len(names)")
 }
 
-/*
 func (suite *AutonameSuite) TestNameByLikutim() {
-	likutim, err := utils.CreateLikutim(suite.tx)
+	likutim, err := CreateLikutim(suite.tx)
 	suite.Require().Nil(err)
 
 	names, err := nameByLikutimUID(suite.tx, likutim[0].UID)
@@ -355,4 +354,3 @@ func (suite *AutonameSuite) TestNameByLikutim() {
 	suite.NotNil(name)
 	suite.Equal(name.String, names[common.LANG_HEBREW], "len(names)")
 }
-*/
