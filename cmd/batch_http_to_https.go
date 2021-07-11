@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Bnei-Baruch/mdb/batch"
@@ -18,7 +17,7 @@ func init() {
 }
 
 func httpToHttpsFn(cmd *cobra.Command, args []string) {
-	log.SetLevel(log.DebugLevel)
+	//log.SetLevel(log.DebugLevel)
 	replacer := batch.NewPostsHttpToHttps()
 	replacer.Do()
 }
