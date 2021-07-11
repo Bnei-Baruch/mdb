@@ -19,5 +19,6 @@ func init() {
 
 func httpToHttpsFn(cmd *cobra.Command, args []string) {
 	log.SetLevel(log.DebugLevel)
-	batch.PostsHttpToHttps()
+	replacer := batch.NewPostsHttpToHttps()
+	replacer.Do()
 }
