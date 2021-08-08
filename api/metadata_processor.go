@@ -326,7 +326,8 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		log.Infof("Associating %d likutim", len(metadata.Likutim))
 		likutim, err := models.ContentUnits(exec,
 			qm.Select("distinct on (\"content_units\".id) \"content_units\".*"),
-			qm.WhereIn("uid in ? AND type_id = ?", utils.ConvertArgsString(metadata.Likutim), common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID)).
+			qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID),
+			qm.WhereIn("uid in ?", utils.ConvertArgsString(metadata.Likutim)...)).
 			All()
 		if err != nil {
 			return nil, errors.Wrap(err, "Lookup tags  in DB")
