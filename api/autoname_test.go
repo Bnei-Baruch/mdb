@@ -342,7 +342,7 @@ func (suite *AutonameSuite) TestNameByLikutim() {
 	likutim, err := SomeLikutim(suite.tx)
 	suite.Require().Nil(err)
 
-	names, err := nameByLikutimUID(suite.tx, likutim[0].UID)
+	names, err := nameByUnitUID(suite.tx, likutim[0].UID)
 	suite.Require().Nil(err)
 
 	var name null.String
