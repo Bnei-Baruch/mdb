@@ -863,20 +863,20 @@
     "es": "Michael Laitman conversación con las mujeres",
     "ua": "Бесіда д-ра Міхаеля Лайтмана з жінками",
     "de": "Dr. Michael Laitman im Gespräch mit Frauen",
-    "it": " Dr. Michael Laitman conversazione con le donne",
+    "it": "Dr. Michael Laitman conversazione con le donne",
     "cs": "Dr. Michael Laitman hovoří s ženami",
     "tr": "Dr. Michael Laitman'ın kadınlarla sohbeti"
   },
   "autoname.meal": {
-    "he": "דברי הרב ד\"ר מיכאל לייטמן בסעודה",
-    "en": "Dr. Michael Laitman's talk at the meal",
-    "ru": "Речь д-ра Михаэля Лайтмана на трапезе",
-    "es": "Discurso del Rav M. Laitman en la comida",
-    "ua": "Промова д-ра Міхаеля Лайтмана на трапезі",
-    "de": " Dr. Michael Laitmans Vortrag während der Mahlzeit",
-    "it": "Discorso del Dr. M. Laitman durante il pasto",
-    "cs": "Řeč Dr. Michaela Laitmana u jídla",
-    "tr": "Dr. Michael Laitman'ın yemek sırasındaki konuşması"
+    "he": "סעודה",
+    "en": "Meal",
+    "ru": "Трапеза",
+    "es": "Comida",
+    "ua": "Трапеза",
+    "de": "Mahlzeit",
+    "it": "Pasto",
+    "cs": "Jídlo",
+    "tr": "Yemek"
   },
   "autoname.yh": {
     "he": "ישיבת החברים",
