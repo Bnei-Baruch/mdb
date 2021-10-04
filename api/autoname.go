@@ -264,13 +264,22 @@ func (d CollectionNameDescriber) DescribeContentUnit(exec boil.Executor,
 		return nil, errors.Wrap(err, "Lookup collection in DB")
 	}
 
+	props := make(map[string]interface{})
+	if err = json.Unmarshal(collection.Properties.JSON, &props); err != nil {
+		return nil, errors.Wrap(err, "json Unmarshal")
+	}
+
 	var names = make(map[string]string)
 	for _, language := range common.ALL_LANGS {
-		i18n := getCollectionI18n(collection, language)
-		if i18n == nil {
-			continue
+		if p, ok := props["description"]; ok {
+			names[language] = fmt.Sprintf("%s %s", p, metadata.Episode.String)
+		} else {
+			i18n := getCollectionI18n(collection, language)
+			if i18n == nil {
+				continue
+			}
+			names[language] = fmt.Sprintf("%s %s", i18n.Name.String, metadata.Episode.String)
 		}
-		names[language] = fmt.Sprintf("%s %s", i18n.Name.String, metadata.Episode.String)
 	}
 
 	return makeCUI18ns(cu.ID, names), nil
@@ -308,10 +317,11 @@ func (d BlogPostDescriber) DescribeContentUnit(exec boil.Executor,
 var CUDescribers = map[string]ContentUnitDescriber{
 	common.CT_LESSON_PART:           new(LessonPartDescriber),
 	common.CT_VIDEO_PROGRAM_CHAPTER: new(CollectionNameDescriber),
+	common.CT_CLIP:                  new(CollectionNameDescriber),
+	common.CT_VIRTUAL_LESSON:        new(CollectionNameDescriber),
 	common.CT_BLOG_POST:             new(BlogPostDescriber),
 	common.CT_MEAL:                  &FixedKeyDescriber{Key: "autoname.meal"},
 	common.CT_FRIENDS_GATHERING:     &FixedKeyDescriber{Key: "autoname.yh"},
-	common.CT_CLIP:                  new(CollectionNameDescriber),
 }
 
 var CDescribers = map[string]CollectionDescriber{}
