@@ -264,22 +264,17 @@ func (d CollectionNameDescriber) DescribeContentUnit(exec boil.Executor,
 		return nil, errors.Wrap(err, "Lookup collection in DB")
 	}
 
-	props := make(map[string]interface{})
-	if err = json.Unmarshal(collection.Properties.JSON, &props); err != nil {
-		return nil, errors.Wrap(err, "json Unmarshal")
-	}
-
 	var names = make(map[string]string)
 	for _, language := range common.ALL_LANGS {
-		if p, ok := props["description"]; ok {
-			names[language] = fmt.Sprintf("%s %s", p, metadata.Episode.String)
-		} else {
-			i18n := getCollectionI18n(collection, language)
-			if i18n == nil {
-				continue
-			}
-			names[language] = fmt.Sprintf("%s %s", i18n.Name.String, metadata.Episode.String)
+		i18n := getCollectionI18n(collection, language)
+		if i18n == nil {
+			continue
 		}
+		n := i18n.Description
+		if !n.Valid {
+			n = i18n.Name
+		}
+		names[language] = fmt.Sprintf("%s %s", n.String, metadata.Episode.String)
 	}
 
 	return makeCUI18ns(cu.ID, names), nil
