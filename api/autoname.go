@@ -270,7 +270,11 @@ func (d CollectionNameDescriber) DescribeContentUnit(exec boil.Executor,
 		if i18n == nil {
 			continue
 		}
-		names[language] = fmt.Sprintf("%s %s", i18n.Name.String, metadata.Episode.String)
+		n := i18n.Description
+		if !n.Valid {
+			n = i18n.Name
+		}
+		names[language] = fmt.Sprintf("%s %s", n.String, metadata.Episode.String)
 	}
 
 	return makeCUI18ns(cu.ID, names), nil
@@ -308,10 +312,11 @@ func (d BlogPostDescriber) DescribeContentUnit(exec boil.Executor,
 var CUDescribers = map[string]ContentUnitDescriber{
 	common.CT_LESSON_PART:           new(LessonPartDescriber),
 	common.CT_VIDEO_PROGRAM_CHAPTER: new(CollectionNameDescriber),
+	common.CT_CLIP:                  new(CollectionNameDescriber),
+	common.CT_VIRTUAL_LESSON:        new(CollectionNameDescriber),
 	common.CT_BLOG_POST:             new(BlogPostDescriber),
 	common.CT_MEAL:                  &FixedKeyDescriber{Key: "autoname.meal"},
 	common.CT_FRIENDS_GATHERING:     &FixedKeyDescriber{Key: "autoname.yh"},
-	common.CT_CLIP:                  new(CollectionNameDescriber),
 }
 
 var CDescribers = map[string]CollectionDescriber{}
