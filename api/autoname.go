@@ -274,7 +274,7 @@ func (d CollectionNameDescriber) DescribeContentUnit(exec boil.Executor,
 		if !n.Valid {
 			n = i18n.Name
 		}
-		names[language] = fmt.Sprintf("%s %s", n.String, metadata.Episode.String)
+		names[language] = fmt.Sprintf("%s", n.String)
 	}
 
 	return makeCUI18ns(cu.ID, names), nil
