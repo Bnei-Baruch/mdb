@@ -97,8 +97,8 @@ func prepare(post *wordpress.Post) (*models.BlogPost, error) {
 	var sb strings.Builder
 
 	content := post.Content.Rendered
-	if strings.Contains(content, "http://youtube") {
-		content = strings.ReplaceAll(content, "http://youtube", "https://youtube")
+	if strings.Contains(content, "http://www.youtube") {
+		content = strings.ReplaceAll(content, "http://www.youtube", "https://www.youtube")
 	}
 	nodes, err := html.ParseFragment(strings.NewReader(content), &ctxNode)
 	if err != nil {
