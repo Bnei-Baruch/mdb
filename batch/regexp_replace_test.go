@@ -13,7 +13,7 @@ import (
 type RegexpReplacerSuite struct {
 	suite.Suite
 	utils.TestDBManager
-	app PostRegexpReplacer
+	app RegexpReplacer
 }
 
 func (s *RegexpReplacerSuite) SetupSuite() {
@@ -25,7 +25,7 @@ func (s *RegexpReplacerSuite) TearDownSuite() {
 }
 
 func (s *RegexpReplacerSuite) SetupTest() {
-	s.app = PostRegexpReplacer{
+	s.app = RegexpReplacer{
 		DB:        s.DB,
 		RegStr:    "(http://.{0,5}youtube)",
 		NewStr:    "https://www.youtube",

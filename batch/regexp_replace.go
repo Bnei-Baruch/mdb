@@ -13,7 +13,7 @@ import (
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
-type PostRegexpReplacer struct {
+type RegexpReplacer struct {
 	DB        *sql.DB
 	RegStr    string
 	NewStr    string
@@ -27,7 +27,7 @@ type entity struct {
 	id      int64
 }
 
-func (a *PostRegexpReplacer) Init() error {
+func (a *RegexpReplacer) Init() error {
 
 	if a.Limit == 0 {
 		a.Limit = 100
@@ -44,14 +44,14 @@ func (a *PostRegexpReplacer) Init() error {
 	return nil
 }
 
-func (a *PostRegexpReplacer) Run() {
+func (a *RegexpReplacer) Run() {
 	defer a.shutdown()
 	log.Infof("Start replace %s to %s for regexp %s", a.RegStr, a.NewStr, a.RegStr)
 	a.Run()
 	log.Infof("End replace")
 }
 
-func (a *PostRegexpReplacer) Do() {
+func (a *RegexpReplacer) Do() {
 	var total int
 	utils.Must(queries.Raw(a.DB, fmt.Sprintf("Select count(id) FROM %s", a.TableName)).QueryRow().Scan(&total))
 
@@ -73,7 +73,7 @@ func (a *PostRegexpReplacer) Do() {
 	}
 }
 
-func (a *PostRegexpReplacer) updateDB(tx boil.Transactor, iteration int) error {
+func (a *RegexpReplacer) updateDB(tx boil.Transactor, iteration int) error {
 	log.Infof("Start replace on iteration %d", iteration)
 	rows, err := queries.Raw(tx, fmt.Sprintf(`Select %s, id FROM %s ORDER BY id`, a.ColName, a.TableName)).Query()
 	if err != nil {
@@ -106,7 +106,7 @@ func (a *PostRegexpReplacer) updateDB(tx boil.Transactor, iteration int) error {
 	return nil
 }
 
-func (a *PostRegexpReplacer) replace(cont string) (string, bool) {
+func (a *RegexpReplacer) replace(cont string) (string, bool) {
 	re := regexp.MustCompile(a.RegStr)
 	if !re.MatchString(cont) {
 		return "", false
@@ -116,7 +116,7 @@ func (a *PostRegexpReplacer) replace(cont string) (string, bool) {
 	return cont, true
 }
 
-func (a *PostRegexpReplacer) shutdown() {
+func (a *RegexpReplacer) shutdown() {
 	if err := a.DB.Close(); err != nil {
 		log.Errorf("DB.close %v", err)
 	}

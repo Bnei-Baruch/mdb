@@ -34,7 +34,7 @@ func regexpReplacerFn(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	replacer := batch.PostRegexpReplacer{
+	replacer := batch.RegexpReplacer{
 		TableName: args[0],
 		ColName:   args[1],
 		RegStr:    args[2],
