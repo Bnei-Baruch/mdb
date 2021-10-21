@@ -7,7 +7,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries"
 
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -59,23 +58,17 @@ func (a *RegexpReplacer) Do() {
 	iterations := total / a.Limit
 
 	for i := 0; i <= iterations; i++ {
-		log.Infof("\nStart transaction")
-		tx, err := a.DB.Begin()
-		utils.Must(err)
-		err = a.updateDB(tx, i)
+		err := a.updateDB(i)
 		if err != nil {
 			log.Errorf("Exception %v on iteration %d", err, i)
-			utils.Must(tx.Rollback())
 			continue
 		}
-		utils.Must(tx.Commit())
-		log.Infof("Transaction committed")
 	}
 }
 
-func (a *RegexpReplacer) updateDB(tx boil.Transactor, iteration int) error {
+func (a *RegexpReplacer) updateDB(iteration int) error {
 	log.Infof("Start replace on iteration %d", iteration)
-	rows, err := queries.Raw(tx, fmt.Sprintf(`Select %s, id FROM %s ORDER BY id`, a.ColName, a.TableName)).Query()
+	rows, err := queries.Raw(a.DB, fmt.Sprintf(`Select %s, id FROM %s ORDER BY id`, a.ColName, a.TableName)).Query()
 	if err != nil {
 		return err
 	}
@@ -94,13 +87,21 @@ func (a *RegexpReplacer) updateDB(tx boil.Transactor, iteration int) error {
 	}
 
 	for _, e := range update {
+
+		log.Infof("\nStart transaction")
+		tx, err := a.DB.Begin()
+		utils.Must(err)
+
 		q := fmt.Sprintf(`UPDATE %s SET %s = '%s' WHERE id = %d`, a.TableName, a.ColName, e.content, e.id)
 		_, err = queries.Raw(tx, q).Exec()
 		if err != nil {
 			log.Errorf("Error on Update post with id %d error %v", e.id, err)
+			utils.Must(tx.Rollback())
 			return err
 		}
 		log.Infof("Successfully replace for post id %d", e.id)
+		utils.Must(tx.Commit())
+		log.Infof("Transaction committed")
 	}
 	log.Infof("End replace on iteration %d", iteration)
 	return nil
