@@ -246,8 +246,8 @@ func cleanPost(post *models.BlogPost) error {
 		Data:     "body",
 	}
 	content := post.Content
-	if strings.Contains(content, "http://youtube") {
-		content = strings.ReplaceAll(content, "http://youtube", "https://youtube")
+	if strings.Contains(content, "http://www.youtube") {
+		content = strings.ReplaceAll(content, "http://www.youtube", "https://www.youtube")
 	}
 
 	nodes, err := html.ParseFragment(strings.NewReader(content), &ctxNode)
