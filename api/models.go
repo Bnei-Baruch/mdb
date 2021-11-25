@@ -267,6 +267,7 @@ type (
 		SourcesFilter
 		TagsFilter
 		SearchTermFilter
+		WithCollections bool `form:"with_collections" binding:"omitempty"`
 	}
 
 	ContentUnitsResponse struct {
@@ -388,7 +389,8 @@ type (
 
 	ContentUnit struct {
 		models.ContentUnit
-		I18n map[string]*models.ContentUnitI18n `json:"i18n"`
+		Collections []*Collection                      `json:"collections, omitempty"`
+		I18n        map[string]*models.ContentUnitI18n `json:"i18n"`
 	}
 
 	PartialContentUnit struct {
