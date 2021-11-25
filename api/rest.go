@@ -2008,6 +2008,10 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 	}
 	appendPublishedFilterMods(&mods, r.PublishedFilter)
 
+	if r.OriginalLanguage != "" {
+		mods = append(mods, qm.Where("properties->>'original_language' = ?", r.OriginalLanguage))
+	}
+
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
