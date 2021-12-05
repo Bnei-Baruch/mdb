@@ -2025,7 +2025,18 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 	}
 
 	// Eager loading
-	mods = append(mods, qm.Load("ContentUnitI18ns"))
+
+	// Eager loading
+	loadTables := []string{"ContentUnitI18ns"}
+
+	if r.WithCollections {
+		loadTables = append(loadTables,
+			"CollectionsContentUnits",
+			"CollectionsContentUnits.Collection",
+			"CollectionsContentUnits.Collection.CollectionI18ns",
+		)
+	}
+	mods = append(mods, qm.Load(loadTables...))
 
 	// data query
 	units, err := models.ContentUnits(exec, mods...).All()
@@ -2041,6 +2052,18 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 		x.I18n = make(map[string]*models.ContentUnitI18n, len(cu.R.ContentUnitI18ns))
 		for _, i18n := range cu.R.ContentUnitI18ns {
 			x.I18n[i18n.Language] = i18n
+		}
+		if cu.R.CollectionsContentUnits != nil {
+			x.Collections = make([]*Collection, len(cu.R.CollectionsContentUnits))
+			for i, ccu := range cu.R.CollectionsContentUnits {
+				c := &Collection{Collection: *ccu.R.Collection}
+				c.I18n = make(map[string]*models.CollectionI18n, len(ccu.R.Collection.R.CollectionI18ns))
+
+				for _, i18n := range ccu.R.Collection.R.CollectionI18ns {
+					c.I18n[i18n.Language] = i18n
+				}
+				x.Collections[i] = c
+			}
 		}
 	}
 
