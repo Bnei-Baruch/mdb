@@ -10,11 +10,8 @@ build: clean bindata test
 clean:
 	rm -f mdb
 
-install:
-	@godep restore
-
 test: bindata
-	go test -count=1 $(shell go list ./... | grep -v github.com/Bnei-Baruch/mdb/models)
+	go test -v -count=1 $(shell go list ./... | grep -v github.com/Bnei-Baruch/mdb/models)
 
 lint:
 	@golint $(GO_FILES) || true

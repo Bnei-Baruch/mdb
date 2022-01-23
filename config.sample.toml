@@ -6,13 +6,13 @@ rollbar-token=""
 rollbar-environment="development"
 
 [mdb]
-url="postgres://localhost/mdb?sslmode=disable&user=postgres"
+url="postgres://user:passwordlocalhost/mdb?sslmode=disable"
 
 [kmedia_old]
 url="postgres://localhost/kmedia_old?sslmode=disable&user=postgres"
 
 [test]
-url-template="postgres://localhost/%s?sslmode=disable&user=postgres"
+url-template="postgres://user:passwordlocalhost/%s?sslmode=disable"
 debug-sql=false
 
 [storage]
@@ -33,7 +33,6 @@ emitter-size=1024
 [authentication]
 enable=true
 issuers=[
-    "https://accounts.kbb1.com/auth/realms/main",
     "https://accounts.kab.info/auth/realms/main"
 ]
 
@@ -55,6 +54,6 @@ password=""
 
 [source-import]
 source-dir = "/home/david/Downloads/sources.tar.gz"
-test-url = "postgres://mdb_dev:p5eMchzHrO@pgsql.mdb.bbdomain.org/mdb_dev_2?sslmode=disable"
+test-url = "postgres://user:password@localhost/mdb?sslmode=disable"
 output = "/home/david/Downloads/validation-results.csv"
 dont-remove-dir = false
