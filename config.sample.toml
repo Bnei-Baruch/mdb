@@ -7,13 +7,10 @@ rollbar-environment="development"
 
 [mdb]
 url="postgres://user:passwordlocalhost/mdb?sslmode=disable"
+test_url="postgres://user:passwordlocalhost/%s?sslmode=disable"
 
 [kmedia_old]
 url="postgres://localhost/kmedia_old?sslmode=disable&user=postgres"
-
-[test]
-url-template="postgres://user:passwordlocalhost/%s?sslmode=disable"
-debug-sql=false
 
 [storage]
 api-url="http://storage.backend.com"
