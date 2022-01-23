@@ -1,6 +1,7 @@
 package api
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -12,24 +13,18 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/volatiletech/null.v6"
 
-	"github.com/Bnei-Baruch/mdb/bindata"
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
+//go:embed i18n.json
+var i18nJson []byte
+
 var I18n map[string]map[string]string
 
 func init() {
-	data, err := bindata.Asset("data/i18n.json")
-	if err != nil {
-		panic(err)
-	}
-
-	err = json.Unmarshal(data, &I18n)
-	if err != nil {
-		panic(err)
-	}
+	utils.Must(json.Unmarshal(i18nJson, &I18n))
 }
 
 type MissingI18n struct {

@@ -38,8 +38,7 @@ func (suite *DocsSuite) SetupSuite() {
 	suite.Require().Nil(common.InitTypeRegistries(suite.DB))
 	//suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
 
-	enforcer, err := permissions.NewEnforcer()
-	utils.Must(err)
+	enforcer := permissions.NewEnforcer()
 	enforcer.EnableEnforce(false)
 
 	gin.SetMode(gin.TestMode)
@@ -51,6 +50,7 @@ func (suite *DocsSuite) SetupSuite() {
 	SetupRoutes(suite.router)
 
 	test.RegisterURLVarExtractor(Vars)
+	var err error
 	suite.testServer, err = test.NewServer(suite.router)
 	if err != nil {
 		panic(err.Error())

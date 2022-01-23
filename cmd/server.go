@@ -76,8 +76,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	}
 
 	// casbin
-	enforcer, err := permissions.NewEnforcer()
-	utils.Must(err)
+	enforcer := permissions.NewEnforcer()
 	enforcer.EnableEnforce(viper.GetBool("permissions.enable"))
 	enforcer.EnableLog(viper.GetBool("permissions.log"))
 

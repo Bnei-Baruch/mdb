@@ -17,10 +17,6 @@ We assume docker and golang are already installed on your system.
 
 ### Tools
 
-```Shell
-go get -u github.com/jteeuwen/go-bindata/...
-```
-
 See **_rambler_** under Schema Migrations and **_sqlboiler_** ORM sections below.
 
 ### Useful Commands
