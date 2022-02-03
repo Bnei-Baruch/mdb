@@ -92,6 +92,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.GET("/publishers/:id/", PublisherHandler)
 	rest.PUT("/publishers/:id/", PublisherHandler)
 	rest.PUT("/publishers/:id/i18n/", PublisherI18nHandler)
+	rest.POST("/labels", LabelHandler)
 
 	hierarchy := router.Group("hierarchy")
 	hierarchy.GET("/sources/", SourcesHierarchyHandler)

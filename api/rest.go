@@ -5,10 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/casbin/casbin"
 	"github.com/lib/pq"
@@ -18,6 +14,9 @@ import (
 	"github.com/volatiletech/sqlboiler/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/volatiletech/null.v6"
+	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
@@ -1446,6 +1445,25 @@ func StoragesHandler(c *gin.Context) {
 	}
 
 	resp, err := handleStoragesList(c.MustGet("MDB").(*sql.DB), r)
+	concludeRequest(c, resp, err)
+}
+
+func LabelHandler(c *gin.Context) {
+	var err *HttpError
+	var resp interface{}
+
+	var l CreateLabelRequest
+	if c.Bind(&l) != nil {
+		return
+	}
+	tx := mustBeginTx(c)
+	resp, err = handleCreateLabel(tx, &l)
+	mustConcludeTx(tx, err)
+
+	if err == nil {
+		emitEvents(c, events.LabelCreateEvent(&resp.(*LabelResponse).Label))
+	}
+
 	concludeRequest(c, resp, err)
 }
 
@@ -4188,6 +4206,81 @@ func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.Pub
 	}
 
 	return handleGetPublisher(exec, id)
+}
+
+func handleGetLabel(exec boil.Executor, id int64) (*LabelResponse, *HttpError) {
+	label, err := models.Labels(exec,
+		qm.Where("id = ?", id),
+		qm.Load("LabelI18ns", "Tags", "ContentUnit")).
+		One()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// i18n
+	resp := &LabelResponse{Label: *label, ContentUnit: label.R.ContentUnit.UID}
+	resp.I18n = make(map[string]*models.LabelI18n, len(label.R.LabelI18ns))
+	for _, i18n := range label.R.LabelI18ns {
+		resp.I18n[i18n.Language] = i18n
+	}
+	resp.Tags = make([]string, len(label.R.Tags))
+	for i, t := range label.R.Tags {
+		resp.Tags[i] = t.UID
+	}
+
+	return resp, nil
+}
+
+func handleCreateLabel(exec boil.Executor, r *CreateLabelRequest) (*LabelResponse, *HttpError) {
+	cu, err := models.ContentUnits(exec, qm.WhereIn("uid = ?", r.ContentUnit)).One()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	label := &models.Label{
+		MediaType:     r.MediaType,
+		Secure:        0,
+		ContentUnitID: cu.ID,
+	}
+
+	// save label to DB
+	uid, err := GetFreeUID(exec, new(LabelUIDChecker))
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	label.UID = uid
+
+	if r.Properties.Valid {
+		label.Properties = r.Properties
+	}
+
+	err = label.Insert(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	// save i18n
+	for _, v := range r.I18n {
+		err := label.AddLabelI18ns(exec, true, v)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// save tags connection
+	tags, err := models.Tags(exec, qm.WhereIn("uid IN ?", utils.ConvertArgsString(r.Tags)...)).All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	if err = label.AddTags(exec, false, tags...); err != nil {
+		return nil, NewInternalError(err)
+	}
+	return handleGetLabel(exec, label.ID)
 }
 
 // Query Helpers

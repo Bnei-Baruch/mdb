@@ -493,6 +493,21 @@ type (
 		TypeID        int64       `json:"typeId"`
 		CollectionUID null.String `json:"collectionUid,omitempty"`
 	}
+
+	CreateLabelRequest struct {
+		ContentUnit string                       `json:"content_unit,required"`
+		MediaType   string                       `json:"media_type,required"`
+		Tags        []string                     `json:"tags"`
+		Properties  null.JSON                    `json:"properties,omitempty"`
+		I18n        map[string]*models.LabelI18n `json:"i18n,required"`
+	}
+
+	LabelResponse struct {
+		models.Label
+		Tags        []string                     `json:"tags"`
+		ContentUnit string                       `json:"content_unit"`
+		I18n        map[string]*models.LabelI18n `json:"i18n"`
+	}
 )
 
 func NewCollectionsResponse() *CollectionsResponse {
