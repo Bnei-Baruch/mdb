@@ -496,7 +496,7 @@ func testLabelI18nsSelect(t *testing.T) {
 }
 
 var (
-	labelI18nDBTypes = map[string]string{`CreatedAt`: `timestamp with time zone`, `CreatedWith`: `character varying`, `LabelID`: `bigint`, `Language`: `character`, `Name`: `text`}
+	labelI18nDBTypes = map[string]string{`Author`: `character varying`, `CreatedAt`: `timestamp with time zone`, `LabelID`: `bigint`, `Language`: `character`, `Name`: `text`}
 	_                = bytes.MinRead
 )
 
