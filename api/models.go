@@ -497,6 +497,7 @@ type (
 	CreateLabelRequest struct {
 		ContentUnit string                       `json:"content_unit,required"`
 		MediaType   string                       `json:"media_type,required"`
+		Author      string                       `json:"author,required"`
 		Tags        []string                     `json:"tags"`
 		Properties  null.JSON                    `json:"properties,omitempty"`
 		I18n        map[string]*models.LabelI18n `json:"i18n,required"`

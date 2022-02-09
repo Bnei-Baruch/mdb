@@ -1449,6 +1449,10 @@ func StoragesHandler(c *gin.Context) {
 }
 
 func LabelHandler(c *gin.Context) {
+	if !can(c, "label", common.PERM_WRITE) {
+		NewForbiddenError().Abort(c)
+		return
+	}
 	var err *HttpError
 	var resp interface{}
 
