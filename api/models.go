@@ -494,13 +494,15 @@ type (
 		CollectionUID null.String `json:"collectionUid,omitempty"`
 	}
 
+	Label struct {
+		models.Label
+		I18n map[string]*models.LabelI18n `json:"i18n,required"`
+	}
+
 	CreateLabelRequest struct {
-		ContentUnit string                       `json:"content_unit,required"`
-		MediaType   string                       `json:"media_type,required"`
-		Author      string                       `json:"author,required"`
-		Tags        []string                     `json:"tags"`
-		Properties  null.JSON                    `json:"properties,omitempty"`
-		I18n        map[string]*models.LabelI18n `json:"i18n,required"`
+		Label
+		ContentUnit string   `json:"content_unit"`
+		Tags        []string `json:"tags"`
 	}
 
 	LabelResponse struct {
@@ -508,6 +510,19 @@ type (
 		Tags        []string                     `json:"tags"`
 		ContentUnit string                       `json:"content_unit"`
 		I18n        map[string]*models.LabelI18n `json:"i18n"`
+	}
+
+	LabelsRequest struct {
+		ListRequest
+		IDsFilter
+		DateRangeFilter
+		SecureFilter
+		PublishedFilter
+	}
+
+	LabelsResponse struct {
+		ListResponse
+		Labels []*Label `json:"data"`
 	}
 )
 
@@ -553,6 +568,10 @@ func NewStoragesResponse() *StoragesResponse {
 
 func NewPublishersResponse() *PublishersResponse {
 	return &PublishersResponse{Publishers: make([]*Publisher, 0)}
+}
+
+func NewLabelsResponse() *LabelsResponse {
+	return &LabelsResponse{Labels: make([]*Label, 0)}
 }
 
 func (mf MaybeFile) AsFile() File {

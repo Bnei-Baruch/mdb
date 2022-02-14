@@ -292,3 +292,10 @@ func LabelUpdateEvent(p *models.Label) Event {
 		"uid": p.UID,
 	})
 }
+
+func LabelDeleteEvent(p *models.Label) Event {
+	return makeEvent(E_LABEL_DELETE, map[string]interface{}{
+		"id":  p.ID,
+		"uid": p.UID,
+	})
+}

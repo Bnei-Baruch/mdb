@@ -9,6 +9,7 @@ CREATE TABLE labels
     media_type      VARCHAR(16)                                       NOT NULL,
     properties      JSONB                                             NULL,
     secure          SMALLINT                                          NOT NULL DEFAULT 0,
+    published       BOOLEAN                                           NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMP WITH TIME ZONE                          NOT NULL DEFAULT now_utc()
 );
 

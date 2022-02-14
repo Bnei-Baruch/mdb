@@ -1449,23 +1449,112 @@ func StoragesHandler(c *gin.Context) {
 }
 
 func LabelHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var err *HttpError
+	var resp interface{}
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
+		var r LabelsRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+		resp, err = handleGetLabel(c.MustGet("MDB").(*sql.DB), id)
+	}
+
+	if c.Request.Method == http.MethodDelete {
+		if !isAdmin(c) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+
+		tx := mustBeginTx(c)
+		l, err := handleDeleteLabel(tx, id)
+		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.LabelDeleteEvent(l))
+		}
+	}
+	concludeRequest(c, resp, err)
+}
+
+func LabelListHandler(c *gin.Context) {
 	if !can(c, "label", common.PERM_WRITE) {
 		NewForbiddenError().Abort(c)
 		return
 	}
 	var err *HttpError
 	var resp interface{}
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+		var r LabelsRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+		resp, err = handleGetLabelList(c.MustGet("MDB").(*sql.DB), &r)
+	}
+	if c.Request.Method == http.MethodPut {
+		if !can(c, "label", common.PERM_WRITE) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+		var r CreateLabelRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+		tx := mustBeginTx(c)
+		resp, err = handleCreateLabel(tx, &r)
+		mustConcludeTx(tx, err)
 
-	var l CreateLabelRequest
-	if c.Bind(&l) != nil {
+		if err == nil {
+			emitEvents(c, events.LabelCreateEvent(&resp.(*LabelResponse).Label))
+		}
+
+	}
+	concludeRequest(c, resp, err)
+}
+
+func LabelI18nHandler(c *gin.Context) {
+	if !can(c, "label", common.PERM_WRITE) {
+		NewForbiddenError().Abort(c)
 		return
 	}
+
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var i18ns []*models.LabelI18n
+	if c.Bind(&i18ns) != nil {
+		return
+	}
+	for _, x := range i18ns {
+		if common.StdLang(x.Language) == common.LANG_UNKNOWN {
+			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+			return
+		}
+	}
+
 	tx := mustBeginTx(c)
-	resp, err = handleCreateLabel(tx, &l)
+	resp, err := handleUpdateLabelI18n(tx, id, i18ns)
 	mustConcludeTx(tx, err)
 
 	if err == nil {
-		emitEvents(c, events.LabelCreateEvent(&resp.(*LabelResponse).Label))
+		emitEvents(c, events.LabelUpdateEvent(&resp.Label))
 	}
 
 	concludeRequest(c, resp, err)
@@ -4212,6 +4301,58 @@ func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.Pub
 	return handleGetPublisher(exec, id)
 }
 
+func handleGetLabelList(exec boil.Executor, r *LabelsRequest) (*LabelsResponse, *HttpError) {
+	mods := make([]qm.QueryMod, 0)
+
+	// filters
+	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "created_at"); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendSecureFilterMods(&mods, r.SecureFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	appendPublishedFilterMods(&mods, r.PublishedFilter)
+
+	// count query
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	err := models.Labels(exec, countMods...).QueryRow().Scan(&total)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if total == 0 {
+		return NewLabelsResponse(), nil
+	}
+
+	labels, err := models.Labels(exec, qm.Load("LabelI18ns", "Tags")).All()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// i18n
+	data := make([]*Label, len(labels))
+	for i, pr := range labels {
+		x := &Label{Label: *pr}
+		data[i] = x
+		x.I18n = make(map[string]*models.LabelI18n, len(pr.R.LabelI18ns))
+		for _, i18n := range pr.R.LabelI18ns {
+			x.I18n[i18n.Language] = i18n
+		}
+	}
+
+	return &LabelsResponse{
+		ListResponse: ListResponse{Total: total},
+		Labels:       data,
+	}, nil
+}
+
 func handleGetLabel(exec boil.Executor, id int64) (*LabelResponse, *HttpError) {
 	label, err := models.Labels(exec,
 		qm.Where("id = ?", id),
@@ -4237,6 +4378,56 @@ func handleGetLabel(exec boil.Executor, id int64) (*LabelResponse, *HttpError) {
 	}
 
 	return resp, nil
+}
+
+func handleUpdateLabelI18n(exec boil.Executor, id int64, i18ns []*models.LabelI18n) (*LabelResponse, *HttpError) {
+	label, err := handleGetLabel(exec, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Upsert all new i18ns
+	nI18n := make(map[string]*models.LabelI18n, len(i18ns))
+	for _, i18n := range i18ns {
+		i18n.LabelID = id
+		nI18n[i18n.Language] = i18n
+		err := i18n.Upsert(exec, true,
+			[]string{"label_id", "language"},
+			[]string{"name", "author"})
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// Delete old i18ns not in new i18ns
+	for k, v := range label.I18n {
+		if _, ok := nI18n[k]; !ok {
+			err := v.Delete(exec)
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+		}
+	}
+
+	return handleGetLabel(exec, id)
+}
+
+func handleDeleteLabel(exec boil.Executor, id int64) (*models.Label, *HttpError) {
+	label, err := models.FindLabel(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	err = label.Delete(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return label, nil
 }
 
 func handleCreateLabel(exec boil.Executor, r *CreateLabelRequest) (*LabelResponse, *HttpError) {
