@@ -1,23 +1,18 @@
 package permissions
 
 import (
-	"github.com/casbin/casbin"
-	"github.com/pkg/errors"
+	_ "embed"
 
-	"github.com/Bnei-Baruch/mdb/bindata"
+	"github.com/casbin/casbin"
 )
 
-func NewEnforcer() (*casbin.Enforcer, error) {
+//go:embed permissions_model.conf
+var permissionsModel string
+
+func NewEnforcer() *casbin.Enforcer {
 	e := casbin.NewEnforcer()
 	e.EnableLog(false)
-
-	// load model
-	pModel, err := bindata.Asset("data/permissions_model.conf")
-	if err != nil {
-		return nil, errors.Wrap(err, "Load permissions_model.conf")
-	}
-	e.SetModel(casbin.NewModel(string(pModel)))
-
-	e.InitWithModelAndAdapter(casbin.NewModel(string(pModel)), NewBindataPolicyAdapter())
-	return e, nil
+	e.SetModel(casbin.NewModel(permissionsModel))
+	e.InitWithModelAndAdapter(casbin.NewModel(permissionsModel), NewEmbeddedPolicyAdapter())
+	return e
 }

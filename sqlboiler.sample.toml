@@ -1,10 +1,11 @@
 no-hooks=true
 no-auto-timestamps=true
-blacklist=["migrations"]
-[postgres]
+[psql]
   dbname="mdb"
   host="localhost"
   port=5432
-  user="some user name"
-  pass="some pass word"
+  user="user"
+  pass="password"
+  schema = "public"
   sslmode="disable"
+  blacklist=["migrations"]

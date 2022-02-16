@@ -3,30 +3,28 @@ package permissions
 import (
 	"bufio"
 	"bytes"
+	_ "embed"
 	"io"
 	"strings"
 
 	"github.com/casbin/casbin/model"
 	"github.com/casbin/casbin/persist"
 	"github.com/pkg/errors"
-
-	"github.com/Bnei-Baruch/mdb/bindata"
-	"github.com/Bnei-Baruch/mdb/utils"
 )
 
-type BindataPolicyAdapter struct {
+//go:embed permissions_policy.csv
+var permissionsPolicy []byte
+
+type EmbeddedPolicyAdapter struct {
 }
 
-func NewBindataPolicyAdapter() *BindataPolicyAdapter {
-	return new(BindataPolicyAdapter)
+func NewEmbeddedPolicyAdapter() *EmbeddedPolicyAdapter {
+	return new(EmbeddedPolicyAdapter)
 }
 
 // LoadPolicy loads all policy rules from the storage.
-func (a *BindataPolicyAdapter) LoadPolicy(model model.Model) error {
-	pPoicy, err := bindata.Asset("data/permissions_policy.csv")
-	utils.Must(err)
-
-	buf := bufio.NewReader(bytes.NewReader(pPoicy))
+func (a *EmbeddedPolicyAdapter) LoadPolicy(model model.Model) error {
+	buf := bufio.NewReader(bytes.NewReader(permissionsPolicy))
 	for {
 		line, err := buf.ReadString('\n')
 		line = strings.TrimSpace(line)
@@ -41,21 +39,21 @@ func (a *BindataPolicyAdapter) LoadPolicy(model model.Model) error {
 }
 
 // SavePolicy saves all policy rules to the storage.
-func (a *BindataPolicyAdapter) SavePolicy(model model.Model) error {
+func (a *EmbeddedPolicyAdapter) SavePolicy(model.Model) error {
 	return errors.New("not implemented")
 }
 
 // AddPolicy adds a policy rule to the storage.
-func (a *BindataPolicyAdapter) AddPolicy(sec string, ptype string, rule []string) error {
+func (a *EmbeddedPolicyAdapter) AddPolicy(string, string, []string) error {
 	return errors.New("not implemented")
 }
 
 // RemovePolicy removes a policy rule from the storage.
-func (a *BindataPolicyAdapter) RemovePolicy(sec string, ptype string, rule []string) error {
+func (a *EmbeddedPolicyAdapter) RemovePolicy(string, string, []string) error {
 	return errors.New("not implemented")
 }
 
 // RemoveFilteredPolicy removes policy rules that match the filter from the storage.
-func (a *BindataPolicyAdapter) RemoveFilteredPolicy(sec string, ptype string, fieldIndex int, fieldValues ...string) error {
+func (a *EmbeddedPolicyAdapter) RemoveFilteredPolicy(string, string, int, ...string) error {
 	return errors.New("not implemented")
 }

@@ -55,8 +55,8 @@ func (m *TestDBManager) InitTestDB() error {
 
 	// Close first connection and connect to temp database
 	db.Close()
-	fmt.Println(fmt.Sprintf(viper.GetString("test.url-template"), m.testDB))
-	db, err = sql.Open("postgres", fmt.Sprintf(viper.GetString("test.url-template"), m.testDB))
+	fmt.Println(fmt.Sprintf(viper.GetString("mdb.test_url"), m.testDB))
+	db, err = sql.Open("postgres", fmt.Sprintf(viper.GetString("mdb.test_url"), m.testDB))
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (m *TestDBManager) InitTestDB() error {
 	// Setup SQLBoiler
 	m.DB = db
 	//boil.SetDB(db)
-	//boil.DebugMode = viper.GetBool("test.debug-sql")
+	//boil.DebugMode = true
 
 	return nil
 }
@@ -98,9 +98,8 @@ func (m *TestDBManager) DestroyTestDB() error {
 }
 
 func (m *TestDBManager) initConfig() {
-	viper.SetDefault("test", map[string]interface{}{
-		"url-template": "postgres://localhost/%s?sslmode=disable&?user=postgres",
-		"debug-sql":    true,
+	viper.SetDefault("mdb", map[string]interface{}{
+		"test_url": "postgres://localhost/%s?sslmode=disable&?user=postgres",
 	})
 
 	viper.SetConfigName("config")
