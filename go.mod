@@ -13,7 +13,7 @@ require (
 	github.com/coreos/go-oidc v0.0.0-20180117170138-065b426bd416
 	github.com/emirpasic/gods v1.9.1-0.20171013190107-8a038b010338
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
-	github.com/lib/pq v0.0.0-20170603225454-8837942c3e09
+	github.com/lib/pq v1.10.4
 	github.com/nats-io/go-nats-streaming v0.4.0
 	github.com/nats-io/nats-streaming-server v0.11.2
 	github.com/oklog/ulid v0.3.1-0.20171113214249-eb55c82d96c7

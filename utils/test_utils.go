@@ -43,7 +43,7 @@ func (m *TestDBManager) InitTestDB() error {
 	m.initConfig()
 
 	// Open connection to RDBMS
-	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
+	db, err := sql.Open("postgres", fmt.Sprintf(viper.GetString("mdb.test_url"), "postgres"))
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (m *TestDBManager) DestroyTestDB() error {
 	}
 
 	// Connect to MDB
-	db, err := sql.Open("postgres", viper.GetString("mdb.url"))
+	db, err := sql.Open("postgres", fmt.Sprintf(viper.GetString("mdb.test_url"), "postgres"))
 	if err != nil {
 		return err
 	}

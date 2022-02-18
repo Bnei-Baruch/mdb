@@ -4575,11 +4575,13 @@ func mustConcludeTx(tx *sql.Tx, err *HttpError) {
 
 func mdbReplicationLocation(c utils.ContextProvider) (string, error) {
 	var loc string
-	err := c.MustGet("MDB").(*sql.DB).
-		QueryRow("SELECT pg_current_xlog_insert_location();").
-		Scan(&loc)
+	db := c.MustGet("MDB").(*sql.DB)
+	err := db.QueryRow("SELECT pg_current_wal_insert_lsn();").Scan(&loc) // postgres version > 9.x
 	if err != nil {
-		return "", errors.Wrap(err, "Fetch Replication Position")
+		err = db.QueryRow("SELECT pg_current_xlog_insert_location();").Scan(&loc) // postgres version <= 9.x
+		if err != nil {
+			return "", errors.Wrap(err, "Fetch Replication Position")
+		}
 	}
 	return loc, nil
 }
