@@ -1471,7 +1471,7 @@ func LabelHandler(c *gin.Context) {
 	}
 
 	if c.Request.Method == http.MethodDelete {
-		if !isAdmin(c) {
+		if !isLabelModerator(c) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -1495,7 +1495,7 @@ func LabelListHandler(c *gin.Context) {
 	var err *HttpError
 	var resp interface{}
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_READ) {
+		if !isLabelModerator(c) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -4438,7 +4438,7 @@ func handleCreateLabel(exec boil.Executor, r *CreateLabelRequest) (*LabelRespons
 
 	label := &models.Label{
 		MediaType:     r.MediaType,
-		Secure:        0,
+		Secure:        common.SEC_PUBLIC,
 		ContentUnitID: cu.ID,
 	}
 
@@ -4937,6 +4937,18 @@ func isAdmin(cp utils.ContextProvider) bool {
 		claims := v.(permissions.IDTokenClaims)
 		for i := range claims.RealmAccess.Roles {
 			if "archive_admin" == claims.RealmAccess.Roles[i] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isLabelModerator(cp utils.ContextProvider) bool {
+	if v, ok := cp.Get("ID_TOKEN_CLAIMS"); ok {
+		claims := v.(permissions.IDTokenClaims)
+		for i := range claims.RealmAccess.Roles {
+			if "archive_admin" == claims.RealmAccess.Roles[i] || "label_moderator" == claims.RealmAccess.Roles[i] {
 				return true
 			}
 		}

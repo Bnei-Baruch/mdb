@@ -282,20 +282,21 @@ func TweetDeleteEvent(t *models.TwitterTweet) Event {
 
 func LabelCreateEvent(l *models.Label) Event {
 	return makeEvent(E_LABEL_CREATE, map[string]interface{}{
+		"id":  l.ID,
 		"uid": l.UID,
 	})
 }
 
-func LabelUpdateEvent(p *models.Label) Event {
+func LabelUpdateEvent(l *models.Label) Event {
 	return makeEvent(E_LABEL_UPDATE, map[string]interface{}{
-		"id":  p.ID,
-		"uid": p.UID,
+		"id":  l.ID,
+		"uid": l.UID,
 	})
 }
 
-func LabelDeleteEvent(p *models.Label) Event {
+func LabelDeleteEvent(l *models.Label) Event {
 	return makeEvent(E_LABEL_DELETE, map[string]interface{}{
-		"id":  p.ID,
-		"uid": p.UID,
+		"id":  l.ID,
+		"uid": l.UID,
 	})
 }
