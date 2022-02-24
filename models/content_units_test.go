@@ -396,78 +396,6 @@ func testContentUnitToManyCollectionsContentUnits(t *testing.T) {
 	}
 }
 
-func testContentUnitToManySourceContentUnitDerivations(t *testing.T) {
-	var err error
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a ContentUnit
-	var b, c ContentUnitDerivation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
-		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	randomize.Struct(seed, &b, contentUnitDerivationDBTypes, false, contentUnitDerivationColumnsWithDefault...)
-	randomize.Struct(seed, &c, contentUnitDerivationDBTypes, false, contentUnitDerivationColumnsWithDefault...)
-
-	b.SourceID = a.ID
-	c.SourceID = a.ID
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	contentUnitDerivation, err := a.SourceContentUnitDerivations(tx).All()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bFound, cFound := false, false
-	for _, v := range contentUnitDerivation {
-		if v.SourceID == b.SourceID {
-			bFound = true
-		}
-		if v.SourceID == c.SourceID {
-			cFound = true
-		}
-	}
-
-	if !bFound {
-		t.Error("expected to find b")
-	}
-	if !cFound {
-		t.Error("expected to find c")
-	}
-
-	slice := ContentUnitSlice{&a}
-	if err = a.L.LoadSourceContentUnitDerivations(tx, false, (*[]*ContentUnit)(&slice)); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.SourceContentUnitDerivations); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	a.R.SourceContentUnitDerivations = nil
-	if err = a.L.LoadSourceContentUnitDerivations(tx, true, &a); err != nil {
-		t.Fatal(err)
-	}
-	if got := len(a.R.SourceContentUnitDerivations); got != 2 {
-		t.Error("number of eager loaded records wrong, got:", got)
-	}
-
-	if t.Failed() {
-		t.Logf("%#v", contentUnitDerivation)
-	}
-}
-
 func testContentUnitToManyDerivedContentUnitDerivations(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
@@ -532,6 +460,78 @@ func testContentUnitToManyDerivedContentUnitDerivations(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := len(a.R.DerivedContentUnitDerivations); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", contentUnitDerivation)
+	}
+}
+
+func testContentUnitToManySourceContentUnitDerivations(t *testing.T) {
+	var err error
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a ContentUnit
+	var b, c ContentUnitDerivation
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, contentUnitDBTypes, true, contentUnitColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	randomize.Struct(seed, &b, contentUnitDerivationDBTypes, false, contentUnitDerivationColumnsWithDefault...)
+	randomize.Struct(seed, &c, contentUnitDerivationDBTypes, false, contentUnitDerivationColumnsWithDefault...)
+
+	b.SourceID = a.ID
+	c.SourceID = a.ID
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	contentUnitDerivation, err := a.SourceContentUnitDerivations(tx).All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range contentUnitDerivation {
+		if v.SourceID == b.SourceID {
+			bFound = true
+		}
+		if v.SourceID == c.SourceID {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := ContentUnitSlice{&a}
+	if err = a.L.LoadSourceContentUnitDerivations(tx, false, (*[]*ContentUnit)(&slice)); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.SourceContentUnitDerivations); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.SourceContentUnitDerivations = nil
+	if err = a.L.LoadSourceContentUnitDerivations(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.SourceContentUnitDerivations); got != 2 {
 		t.Error("number of eager loaded records wrong, got:", got)
 	}
 
@@ -1141,80 +1141,6 @@ func testContentUnitToManyAddOpCollectionsContentUnits(t *testing.T) {
 		}
 	}
 }
-func testContentUnitToManyAddOpSourceContentUnitDerivations(t *testing.T) {
-	var err error
-
-	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
-
-	var a ContentUnit
-	var b, c, d, e ContentUnitDerivation
-
-	seed := randomize.NewSeed()
-	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
-		t.Fatal(err)
-	}
-	foreigners := []*ContentUnitDerivation{&b, &c, &d, &e}
-	for _, x := range foreigners {
-		if err = randomize.Struct(seed, x, contentUnitDerivationDBTypes, false, strmangle.SetComplement(contentUnitDerivationPrimaryKeyColumns, contentUnitDerivationColumnsWithoutDefault)...); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := a.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = b.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-	if err = c.Insert(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	foreignersSplitByInsertion := [][]*ContentUnitDerivation{
-		{&b, &c},
-		{&d, &e},
-	}
-
-	for i, x := range foreignersSplitByInsertion {
-		err = a.AddSourceContentUnitDerivations(tx, i != 0, x...)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		first := x[0]
-		second := x[1]
-
-		if a.ID != first.SourceID {
-			t.Error("foreign key was wrong value", a.ID, first.SourceID)
-		}
-		if a.ID != second.SourceID {
-			t.Error("foreign key was wrong value", a.ID, second.SourceID)
-		}
-
-		if first.R.Source != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-		if second.R.Source != &a {
-			t.Error("relationship was not added properly to the foreign slice")
-		}
-
-		if a.R.SourceContentUnitDerivations[i*2] != first {
-			t.Error("relationship struct slice not set to correct value")
-		}
-		if a.R.SourceContentUnitDerivations[i*2+1] != second {
-			t.Error("relationship struct slice not set to correct value")
-		}
-
-		count, err := a.SourceContentUnitDerivations(tx).Count()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if want := int64((i + 1) * 2); count != want {
-			t.Error("want", want, "got", count)
-		}
-	}
-}
 func testContentUnitToManyAddOpDerivedContentUnitDerivations(t *testing.T) {
 	var err error
 
@@ -1281,6 +1207,80 @@ func testContentUnitToManyAddOpDerivedContentUnitDerivations(t *testing.T) {
 		}
 
 		count, err := a.DerivedContentUnitDerivations(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+func testContentUnitToManyAddOpSourceContentUnitDerivations(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a ContentUnit
+	var b, c, d, e ContentUnitDerivation
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, contentUnitDBTypes, false, strmangle.SetComplement(contentUnitPrimaryKeyColumns, contentUnitColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*ContentUnitDerivation{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, contentUnitDerivationDBTypes, false, strmangle.SetComplement(contentUnitDerivationPrimaryKeyColumns, contentUnitDerivationColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*ContentUnitDerivation{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddSourceContentUnitDerivations(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.SourceID {
+			t.Error("foreign key was wrong value", a.ID, first.SourceID)
+		}
+		if a.ID != second.SourceID {
+			t.Error("foreign key was wrong value", a.ID, second.SourceID)
+		}
+
+		if first.R.Source != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.Source != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.SourceContentUnitDerivations[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.SourceContentUnitDerivations[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.SourceContentUnitDerivations(tx).Count()
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -472,6 +472,80 @@ func testUserToManyContentUnitI18ns(t *testing.T) {
 	}
 }
 
+func testUserToManyLabelI18ns(t *testing.T) {
+	var err error
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a User
+	var b, c LabelI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, userDBTypes, true, userColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize User struct: %s", err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	randomize.Struct(seed, &b, labelI18nDBTypes, false, labelI18nColumnsWithDefault...)
+	randomize.Struct(seed, &c, labelI18nDBTypes, false, labelI18nColumnsWithDefault...)
+
+	b.UserID.Valid = true
+	c.UserID.Valid = true
+	b.UserID.Int64 = a.ID
+	c.UserID.Int64 = a.ID
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	labelI18n, err := a.LabelI18ns(tx).All()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range labelI18n {
+		if v.UserID.Int64 == b.UserID.Int64 {
+			bFound = true
+		}
+		if v.UserID.Int64 == c.UserID.Int64 {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := UserSlice{&a}
+	if err = a.L.LoadLabelI18ns(tx, false, (*[]*User)(&slice)); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.LabelI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.LabelI18ns = nil
+	if err = a.L.LoadLabelI18ns(tx, true, &a); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.LabelI18ns); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", labelI18n)
+	}
+}
+
 func testUserToManyOperations(t *testing.T) {
 	var err error
 	tx := MustTx(boil.Begin())
@@ -1260,6 +1334,254 @@ func testUserToManyRemoveOpContentUnitI18ns(t *testing.T) {
 		t.Error("relationship to d should have been preserved")
 	}
 	if a.R.ContentUnitI18ns[0] != &e {
+		t.Error("relationship to e should have been preserved")
+	}
+}
+
+func testUserToManyAddOpLabelI18ns(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a User
+	var b, c, d, e LabelI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*LabelI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, labelI18nDBTypes, false, strmangle.SetComplement(labelI18nPrimaryKeyColumns, labelI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*LabelI18n{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddLabelI18ns(tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.UserID.Int64 {
+			t.Error("foreign key was wrong value", a.ID, first.UserID.Int64)
+		}
+		if a.ID != second.UserID.Int64 {
+			t.Error("foreign key was wrong value", a.ID, second.UserID.Int64)
+		}
+
+		if first.R.User != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.User != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.LabelI18ns[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.LabelI18ns[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.LabelI18ns(tx).Count()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
+
+func testUserToManySetOpLabelI18ns(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a User
+	var b, c, d, e LabelI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*LabelI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, labelI18nDBTypes, false, strmangle.SetComplement(labelI18nPrimaryKeyColumns, labelI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.SetLabelI18ns(tx, false, &b, &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.LabelI18ns(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.SetLabelI18ns(tx, true, &d, &e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.LabelI18ns(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if b.UserID.Valid {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if c.UserID.Valid {
+		t.Error("want c's foreign key value to be nil")
+	}
+	if a.ID != d.UserID.Int64 {
+		t.Error("foreign key was wrong value", a.ID, d.UserID.Int64)
+	}
+	if a.ID != e.UserID.Int64 {
+		t.Error("foreign key was wrong value", a.ID, e.UserID.Int64)
+	}
+
+	if b.R.User != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.User != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.User != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+	if e.R.User != &a {
+		t.Error("relationship was not added properly to the foreign struct")
+	}
+
+	if a.R.LabelI18ns[0] != &d {
+		t.Error("relationship struct slice not set to correct value")
+	}
+	if a.R.LabelI18ns[1] != &e {
+		t.Error("relationship struct slice not set to correct value")
+	}
+}
+
+func testUserToManyRemoveOpLabelI18ns(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a User
+	var b, c, d, e LabelI18n
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*LabelI18n{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, labelI18nDBTypes, false, strmangle.SetComplement(labelI18nPrimaryKeyColumns, labelI18nColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	err = a.AddLabelI18ns(tx, true, foreigners...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := a.LabelI18ns(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 4 {
+		t.Error("count was wrong:", count)
+	}
+
+	err = a.RemoveLabelI18ns(tx, foreigners[:2]...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	count, err = a.LabelI18ns(tx).Count()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 2 {
+		t.Error("count was wrong:", count)
+	}
+
+	if b.UserID.Valid {
+		t.Error("want b's foreign key value to be nil")
+	}
+	if c.UserID.Valid {
+		t.Error("want c's foreign key value to be nil")
+	}
+
+	if b.R.User != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if c.R.User != nil {
+		t.Error("relationship was not removed properly from the foreign struct")
+	}
+	if d.R.User != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+	if e.R.User != &a {
+		t.Error("relationship to a should have been preserved")
+	}
+
+	if len(a.R.LabelI18ns) != 2 {
+		t.Error("should have preserved two relationships")
+	}
+
+	// Removal doesn't do a stable deletion for performance so we have to flip the order
+	if a.R.LabelI18ns[1] != &d {
+		t.Error("relationship to d should have been preserved")
+	}
+	if a.R.LabelI18ns[0] != &e {
 		t.Error("relationship to e should have been preserved")
 	}
 }

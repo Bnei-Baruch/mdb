@@ -494,9 +494,21 @@ type (
 		CollectionUID null.String `json:"collectionUid,omitempty"`
 	}
 
+	LabelI18n struct {
+		models.LabelI18n
+		Author *models.User `json:"author"`
+	}
+
 	Label struct {
 		models.Label
-		I18n map[string]*models.LabelI18n `json:"i18n,required"`
+		I18n map[string]*LabelI18n `json:"i18n,required"`
+	}
+
+	LabelResponse struct {
+		models.Label
+		Tags        []string              `json:"tags"`
+		ContentUnit string                `json:"content_unit"`
+		I18n        map[string]*LabelI18n `json:"i18n"`
 	}
 
 	CreateLabelRequest struct {
@@ -505,19 +517,19 @@ type (
 		Tags        []string `json:"tags"`
 	}
 
-	LabelResponse struct {
-		models.Label
-		Tags        []string                     `json:"tags"`
-		ContentUnit string                       `json:"content_unit"`
-		I18n        map[string]*models.LabelI18n `json:"i18n"`
+	AddLabelI18nRequest struct {
+		I18n *LabelI18n `json:"i18n"`
+	}
+
+	UpdateApproveStateRequest struct {
+		ApproveState int16 `json:"state"`
 	}
 
 	LabelsRequest struct {
 		ListRequest
 		IDsFilter
 		DateRangeFilter
-		SecureFilter
-		PublishedFilter
+		ApproveState null.Int16 `json:"approve_state"`
 	}
 
 	LabelsResponse struct {

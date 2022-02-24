@@ -59,6 +59,7 @@ var UserColumns = struct {
 type userR struct {
 	CollectionI18ns  CollectionI18nSlice
 	ContentUnitI18ns ContentUnitI18nSlice
+	LabelI18ns       LabelI18nSlice
 	Operations       OperationSlice
 	PersonI18ns      PersonI18nSlice
 	PublisherI18ns   PublisherI18nSlice
@@ -251,6 +252,32 @@ func (o *User) ContentUnitI18ns(exec boil.Executor, mods ...qm.QueryMod) content
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"\"content_unit_i18n\".*"})
+	}
+
+	return query
+}
+
+// LabelI18nsG retrieves all the label_i18n's label i18n.
+func (o *User) LabelI18nsG(mods ...qm.QueryMod) labelI18nQuery {
+	return o.LabelI18ns(boil.GetDB(), mods...)
+}
+
+// LabelI18ns retrieves all the label_i18n's label i18n with an executor.
+func (o *User) LabelI18ns(exec boil.Executor, mods ...qm.QueryMod) labelI18nQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"label_i18n\".\"user_id\"=?", o.ID),
+	)
+
+	query := LabelI18ns(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"label_i18n\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"label_i18n\".*"})
 	}
 
 	return query
@@ -482,6 +509,71 @@ func (userL) LoadContentUnitI18ns(e boil.Executor, singular bool, maybeUser inte
 		for _, local := range slice {
 			if local.ID == foreign.UserID.Int64 {
 				local.R.ContentUnitI18ns = append(local.R.ContentUnitI18ns, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadLabelI18ns allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (userL) LoadLabelI18ns(e boil.Executor, singular bool, maybeUser interface{}) error {
+	var slice []*User
+	var object *User
+
+	count := 1
+	if singular {
+		object = maybeUser.(*User)
+	} else {
+		slice = *maybeUser.(*[]*User)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &userR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &userR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from \"label_i18n\" where \"user_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load label_i18n")
+	}
+	defer results.Close()
+
+	var resultSlice []*LabelI18n
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice label_i18n")
+	}
+
+	if singular {
+		object.R.LabelI18ns = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.UserID.Int64 {
+				local.R.LabelI18ns = append(local.R.LabelI18ns, foreign)
 				break
 			}
 		}
@@ -1185,6 +1277,227 @@ func (o *User) RemoveContentUnitI18ns(exec boil.Executor, related ...*ContentUni
 				o.R.ContentUnitI18ns[i] = o.R.ContentUnitI18ns[ln-1]
 			}
 			o.R.ContentUnitI18ns = o.R.ContentUnitI18ns[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
+// AddLabelI18nsG adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.LabelI18ns.
+// Sets related.R.User appropriately.
+// Uses the global database handle.
+func (o *User) AddLabelI18nsG(insert bool, related ...*LabelI18n) error {
+	return o.AddLabelI18ns(boil.GetDB(), insert, related...)
+}
+
+// AddLabelI18nsP adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.LabelI18ns.
+// Sets related.R.User appropriately.
+// Panics on error.
+func (o *User) AddLabelI18nsP(exec boil.Executor, insert bool, related ...*LabelI18n) {
+	if err := o.AddLabelI18ns(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddLabelI18nsGP adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.LabelI18ns.
+// Sets related.R.User appropriately.
+// Uses the global database handle and panics on error.
+func (o *User) AddLabelI18nsGP(insert bool, related ...*LabelI18n) {
+	if err := o.AddLabelI18ns(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddLabelI18ns adds the given related objects to the existing relationships
+// of the user, optionally inserting them as new records.
+// Appends related to o.R.LabelI18ns.
+// Sets related.R.User appropriately.
+func (o *User) AddLabelI18ns(exec boil.Executor, insert bool, related ...*LabelI18n) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.UserID.Int64 = o.ID
+			rel.UserID.Valid = true
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"label_i18n\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"user_id"}),
+				strmangle.WhereClause("\"", "\"", 2, labelI18nPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.LabelID, rel.Language}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.UserID.Int64 = o.ID
+			rel.UserID.Valid = true
+		}
+	}
+
+	if o.R == nil {
+		o.R = &userR{
+			LabelI18ns: related,
+		}
+	} else {
+		o.R.LabelI18ns = append(o.R.LabelI18ns, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &labelI18nR{
+				User: o,
+			}
+		} else {
+			rel.R.User = o
+		}
+	}
+	return nil
+}
+
+// SetLabelI18nsG removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's LabelI18ns accordingly.
+// Replaces o.R.LabelI18ns with related.
+// Sets related.R.User's LabelI18ns accordingly.
+// Uses the global database handle.
+func (o *User) SetLabelI18nsG(insert bool, related ...*LabelI18n) error {
+	return o.SetLabelI18ns(boil.GetDB(), insert, related...)
+}
+
+// SetLabelI18nsP removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's LabelI18ns accordingly.
+// Replaces o.R.LabelI18ns with related.
+// Sets related.R.User's LabelI18ns accordingly.
+// Panics on error.
+func (o *User) SetLabelI18nsP(exec boil.Executor, insert bool, related ...*LabelI18n) {
+	if err := o.SetLabelI18ns(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetLabelI18nsGP removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's LabelI18ns accordingly.
+// Replaces o.R.LabelI18ns with related.
+// Sets related.R.User's LabelI18ns accordingly.
+// Uses the global database handle and panics on error.
+func (o *User) SetLabelI18nsGP(insert bool, related ...*LabelI18n) {
+	if err := o.SetLabelI18ns(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// SetLabelI18ns removes all previously related items of the
+// user replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.User's LabelI18ns accordingly.
+// Replaces o.R.LabelI18ns with related.
+// Sets related.R.User's LabelI18ns accordingly.
+func (o *User) SetLabelI18ns(exec boil.Executor, insert bool, related ...*LabelI18n) error {
+	query := "update \"label_i18n\" set \"user_id\" = null where \"user_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	if o.R != nil {
+		for _, rel := range o.R.LabelI18ns {
+			rel.UserID.Valid = false
+			if rel.R == nil {
+				continue
+			}
+
+			rel.R.User = nil
+		}
+
+		o.R.LabelI18ns = nil
+	}
+	return o.AddLabelI18ns(exec, insert, related...)
+}
+
+// RemoveLabelI18nsG relationships from objects passed in.
+// Removes related items from R.LabelI18ns (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Uses the global database handle.
+func (o *User) RemoveLabelI18nsG(related ...*LabelI18n) error {
+	return o.RemoveLabelI18ns(boil.GetDB(), related...)
+}
+
+// RemoveLabelI18nsP relationships from objects passed in.
+// Removes related items from R.LabelI18ns (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Panics on error.
+func (o *User) RemoveLabelI18nsP(exec boil.Executor, related ...*LabelI18n) {
+	if err := o.RemoveLabelI18ns(exec, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveLabelI18nsGP relationships from objects passed in.
+// Removes related items from R.LabelI18ns (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+// Uses the global database handle and panics on error.
+func (o *User) RemoveLabelI18nsGP(related ...*LabelI18n) {
+	if err := o.RemoveLabelI18ns(boil.GetDB(), related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// RemoveLabelI18ns relationships from objects passed in.
+// Removes related items from R.LabelI18ns (uses pointer comparison, removal does not keep order)
+// Sets related.R.User.
+func (o *User) RemoveLabelI18ns(exec boil.Executor, related ...*LabelI18n) error {
+	var err error
+	for _, rel := range related {
+		rel.UserID.Valid = false
+		if rel.R != nil {
+			rel.R.User = nil
+		}
+		if err = rel.Update(exec, "user_id"); err != nil {
+			return err
+		}
+	}
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.LabelI18ns {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.LabelI18ns)
+			if ln > 1 && i < ln-1 {
+				o.R.LabelI18ns[i] = o.R.LabelI18ns[ln-1]
+			}
+			o.R.LabelI18ns = o.R.LabelI18ns[:ln-1]
 			break
 		}
 	}

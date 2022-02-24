@@ -374,6 +374,58 @@ func testLabelI18nToOneLabelUsingLabel(t *testing.T) {
 	}
 }
 
+func testLabelI18nToOneUserUsingUser(t *testing.T) {
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var local LabelI18n
+	var foreign User
+
+	seed := randomize.NewSeed()
+	if err := randomize.Struct(seed, &local, labelI18nDBTypes, true, labelI18nColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize LabelI18n struct: %s", err)
+	}
+	if err := randomize.Struct(seed, &foreign, userDBTypes, false, userColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize User struct: %s", err)
+	}
+
+	local.UserID.Valid = true
+
+	if err := foreign.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	local.UserID.Int64 = foreign.ID
+	if err := local.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := local.User(tx).One()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if check.ID != foreign.ID {
+		t.Errorf("want: %v, got %v", foreign.ID, check.ID)
+	}
+
+	slice := LabelI18nSlice{&local}
+	if err = local.L.LoadUser(tx, false, (*[]*LabelI18n)(&slice)); err != nil {
+		t.Fatal(err)
+	}
+	if local.R.User == nil {
+		t.Error("struct should have been eager loaded")
+	}
+
+	local.R.User = nil
+	if err = local.L.LoadUser(tx, true, &local); err != nil {
+		t.Fatal(err)
+	}
+	if local.R.User == nil {
+		t.Error("struct should have been eager loaded")
+	}
+}
+
 func testLabelI18nToOneSetOpLabelUsingLabel(t *testing.T) {
 	var err error
 
@@ -426,6 +478,113 @@ func testLabelI18nToOneSetOpLabelUsingLabel(t *testing.T) {
 
 	}
 }
+func testLabelI18nToOneSetOpUserUsingUser(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a LabelI18n
+	var b, c User
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, labelI18nDBTypes, false, strmangle.SetComplement(labelI18nPrimaryKeyColumns, labelI18nColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &b, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	for i, x := range []*User{&b, &c} {
+		err = a.SetUser(tx, i != 0, x)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if a.R.User != x {
+			t.Error("relationship struct not set to correct value")
+		}
+
+		if x.R.LabelI18ns[0] != &a {
+			t.Error("failed to append to foreign relationship struct")
+		}
+		if a.UserID.Int64 != x.ID {
+			t.Error("foreign key was wrong value", a.UserID.Int64)
+		}
+
+		zero := reflect.Zero(reflect.TypeOf(a.UserID.Int64))
+		reflect.Indirect(reflect.ValueOf(&a.UserID.Int64)).Set(zero)
+
+		if err = a.Reload(tx); err != nil {
+			t.Fatal("failed to reload", err)
+		}
+
+		if a.UserID.Int64 != x.ID {
+			t.Error("foreign key was wrong value", a.UserID.Int64, x.ID)
+		}
+	}
+}
+
+func testLabelI18nToOneRemoveOpUserUsingUser(t *testing.T) {
+	var err error
+
+	tx := MustTx(boil.Begin())
+	defer tx.Rollback()
+
+	var a LabelI18n
+	var b User
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, labelI18nDBTypes, false, strmangle.SetComplement(labelI18nPrimaryKeyColumns, labelI18nColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &b, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = a.Insert(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = a.SetUser(tx, true, &b); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = a.RemoveUser(tx, &b); err != nil {
+		t.Error("failed to remove relationship")
+	}
+
+	count, err := a.User(tx).Count()
+	if err != nil {
+		t.Error(err)
+	}
+	if count != 0 {
+		t.Error("want no relationships remaining")
+	}
+
+	if a.R.User != nil {
+		t.Error("R struct entry should be nil")
+	}
+
+	if a.UserID.Valid {
+		t.Error("foreign key value should be nil")
+	}
+
+	if len(b.R.LabelI18ns) != 0 {
+		t.Error("failed to remove a from b's relationships")
+	}
+}
+
 func testLabelI18nsReload(t *testing.T) {
 	t.Parallel()
 
@@ -496,7 +655,7 @@ func testLabelI18nsSelect(t *testing.T) {
 }
 
 var (
-	labelI18nDBTypes = map[string]string{`Author`: `character varying`, `CreatedAt`: `timestamp with time zone`, `LabelID`: `bigint`, `Language`: `character`, `Name`: `text`}
+	labelI18nDBTypes = map[string]string{`CreatedAt`: `timestamp with time zone`, `LabelID`: `bigint`, `Language`: `character`, `Name`: `text`, `UserID`: `bigint`}
 	_                = bytes.MinRead
 )
 

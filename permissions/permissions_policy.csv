@@ -16,4 +16,8 @@ p, bb_user, data_public, read
 g, data_sensitive, data_private
 g, data_public, data_sensitive
 
-p, bb_user, label, write
+p, bb_user, data_public, label_write
+p, bb_user, data_public, label_i18n_write
+
+p, archive_label-moderation, data_public, label_read
+p, archive_label-moderation, data_public, label_moderate
