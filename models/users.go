@@ -22,37 +22,43 @@ import (
 
 // User is an object representing the database table.
 type User struct {
-	ID        int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
-	Email     string      `boil:"email" json:"email" toml:"email" yaml:"email"`
-	Name      null.String `boil:"name" json:"name,omitempty" toml:"name" yaml:"name,omitempty"`
-	Phone     null.String `boil:"phone" json:"phone,omitempty" toml:"phone" yaml:"phone,omitempty"`
-	Comments  null.String `boil:"comments" json:"comments,omitempty" toml:"comments" yaml:"comments,omitempty"`
-	CreatedAt time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
-	UpdatedAt null.Time   `boil:"updated_at" json:"updated_at,omitempty" toml:"updated_at" yaml:"updated_at,omitempty"`
-	DeletedAt null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	ID         int64       `boil:"id" json:"id" toml:"id" yaml:"id"`
+	Email      string      `boil:"email" json:"email" toml:"email" yaml:"email"`
+	Name       null.String `boil:"name" json:"name,omitempty" toml:"name" yaml:"name,omitempty"`
+	Phone      null.String `boil:"phone" json:"phone,omitempty" toml:"phone" yaml:"phone,omitempty"`
+	Comments   null.String `boil:"comments" json:"comments,omitempty" toml:"comments" yaml:"comments,omitempty"`
+	CreatedAt  time.Time   `boil:"created_at" json:"created_at" toml:"created_at" yaml:"created_at"`
+	UpdatedAt  null.Time   `boil:"updated_at" json:"updated_at,omitempty" toml:"updated_at" yaml:"updated_at,omitempty"`
+	DeletedAt  null.Time   `boil:"deleted_at" json:"deleted_at,omitempty" toml:"deleted_at" yaml:"deleted_at,omitempty"`
+	AccountsID null.String `boil:"accounts_id" json:"accounts_id,omitempty" toml:"accounts_id" yaml:"accounts_id,omitempty"`
+	Disabled   bool        `boil:"disabled" json:"disabled" toml:"disabled" yaml:"disabled"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
 }
 
 var UserColumns = struct {
-	ID        string
-	Email     string
-	Name      string
-	Phone     string
-	Comments  string
-	CreatedAt string
-	UpdatedAt string
-	DeletedAt string
+	ID         string
+	Email      string
+	Name       string
+	Phone      string
+	Comments   string
+	CreatedAt  string
+	UpdatedAt  string
+	DeletedAt  string
+	AccountsID string
+	Disabled   string
 }{
-	ID:        "id",
-	Email:     "email",
-	Name:      "name",
-	Phone:     "phone",
-	Comments:  "comments",
-	CreatedAt: "created_at",
-	UpdatedAt: "updated_at",
-	DeletedAt: "deleted_at",
+	ID:         "id",
+	Email:      "email",
+	Name:       "name",
+	Phone:      "phone",
+	Comments:   "comments",
+	CreatedAt:  "created_at",
+	UpdatedAt:  "updated_at",
+	DeletedAt:  "deleted_at",
+	AccountsID: "accounts_id",
+	Disabled:   "disabled",
 }
 
 // userR is where relationships are stored.
@@ -69,9 +75,9 @@ type userR struct {
 type userL struct{}
 
 var (
-	userColumns               = []string{"id", "email", "name", "phone", "comments", "created_at", "updated_at", "deleted_at"}
-	userColumnsWithoutDefault = []string{"email", "name", "phone", "comments", "updated_at", "deleted_at"}
-	userColumnsWithDefault    = []string{"id", "created_at"}
+	userColumns               = []string{"id", "email", "name", "phone", "comments", "created_at", "updated_at", "deleted_at", "accounts_id", "disabled"}
+	userColumnsWithoutDefault = []string{"email", "name", "phone", "comments", "updated_at", "deleted_at", "accounts_id"}
+	userColumnsWithDefault    = []string{"id", "created_at", "disabled"}
 	userPrimaryKeyColumns     = []string{"id"}
 )
 
