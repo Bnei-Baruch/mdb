@@ -1,7 +1,7 @@
 -- MDB generated migration file
 -- rambler up
 ALTER TABLE users
-    ADD COLUMN accounts_id VARCHAR(36) UNIQUE,
+    ADD COLUMN accounts_id VARCHAR(36),
     ADD COLUMN disabled    BOOLEAN DEFAULT FALSE NOT NULL;
 
 -- rambler down

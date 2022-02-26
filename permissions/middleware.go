@@ -74,7 +74,7 @@ func AuthenticationMiddleware() gin.HandlerFunc {
 				mdb := c.MustGet("MDB").(*sql.DB)
 				user, err := getOrCreateUser(mdb, &claims)
 				if err != nil {
-					c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePublic)
+					c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePrivate)
 					return
 				}
 
@@ -100,13 +100,9 @@ func getOrCreateUser(mdb *sql.DB, claims *IDTokenClaims) (*models.User, error) {
 
 	tx, err := mdb.Begin()
 	utils.Must(err)
-	// check if not unique on DB - "23505": "unique_violation",
-	errDB := user.Insert(tx)
-	if errDB != nil {
+
+	if err := user.Insert(tx); err != nil {
 		utils.Must(tx.Rollback())
-		if !strings.Contains(errDB.Error(), "pq: duplicate key value violates unique constraint \"users_accounts_id_key\"") {
-			return nil, errDB
-		}
 	} else {
 		utils.Must(tx.Commit())
 	}
