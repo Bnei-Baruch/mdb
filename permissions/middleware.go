@@ -93,9 +93,9 @@ func getOrCreateUser(mdb *sql.DB, claims *IDTokenClaims) (*models.User, error) {
 	}
 
 	user = &models.User{
-		AccountsID: null.StringFrom(claims.Sub),
-		Email:      claims.Email,
-		Name:       null.StringFrom(fmt.Sprintf("% %", claims.GivenName, claims.FamilyName)),
+		AccountID: null.StringFrom(claims.Sub),
+		Email:     claims.Email,
+		Name:      null.StringFrom(fmt.Sprintf("% %", claims.GivenName, claims.FamilyName)),
 	}
 
 	tx, err := mdb.Begin()

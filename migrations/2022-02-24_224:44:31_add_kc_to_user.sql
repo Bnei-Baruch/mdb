@@ -1,10 +1,13 @@
 -- MDB generated migration file
 -- rambler up
+
 ALTER TABLE users
-    ADD COLUMN accounts_id VARCHAR(36),
-    ADD COLUMN disabled    BOOLEAN DEFAULT FALSE NOT NULL;
+    ALTER COLUMN name TYPE VARCHAR(255),
+    ADD COLUMN account_id VARCHAR(36),
+    ADD COLUMN disabled   BOOLEAN DEFAULT FALSE NOT NULL;
 
 -- rambler down
 ALTER TABLE users
-    DROP COLUMN accounts_id,
+    ALTER COLUMN name TYPE VARCHAR(32),
+    DROP COLUMN account_id,
     DROP COLUMN disabled;
