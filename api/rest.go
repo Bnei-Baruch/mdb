@@ -1461,7 +1461,7 @@ func LabelListHandler(c *gin.Context) {
 		if c.Bind(&r) != nil {
 			return
 		}
-		resp, err = handleGetLabelList(c.MustGet("MDB").(*sql.DB), &r)
+		resp, err = handleGetLabelList(c, c.MustGet("MDB").(*sql.DB), &r)
 	}
 	if c.Request.Method == http.MethodPost {
 		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_LABEL_WRITE) {
@@ -4321,8 +4321,10 @@ func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.Pub
 }
 
 //Labels
-func handleGetLabelList(exec boil.Executor, r *LabelsRequest) (*LabelsResponse, *HttpError) {
-	mods := make([]qm.QueryMod, 0)
+func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsRequest) (*LabelsResponse, *HttpError) {
+	mods := []qm.QueryMod{
+		qm.InnerJoin("content_units cu on cu.content_unit_id=id and and cu.secure <= ?", allowedRead(cp)),
+	}
 
 	// filters
 	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
