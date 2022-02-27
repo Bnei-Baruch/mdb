@@ -94,12 +94,7 @@ func (e *ExportKC) useEmailAsAccountId(users []*models.User) {
 			wasAdded: true,
 			error:    nil,
 		}
-		id := u.Email
-		llen := len(id)
-		if llen > 36 {
-			id = id[0:36]
-		}
-		u.AccountID = null.StringFrom(id)
+		u.AccountID = null.StringFrom(u.Email)
 		if err := u.Update(e.mdb); err != nil {
 			r.wasAdded = false
 			r.error = err
