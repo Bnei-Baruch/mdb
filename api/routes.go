@@ -97,7 +97,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.GET("/labels/:id/", LabelHandler)
 	rest.PUT("/labels/:id/", LabelHandler)
 	rest.PUT("/labels/:id/i18n/", LabelI18nHandler)
-	rest.PUT("/labels/:uid/i18n/", LabelAddI18nHandler)
+	rest.POST("/labels/:uid/i18n/", LabelAddI18nHandler)
 
 	hierarchy := router.Group("hierarchy")
 	hierarchy.GET("/sources/", SourcesHierarchyHandler)
