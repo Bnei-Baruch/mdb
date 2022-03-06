@@ -3,11 +3,9 @@
 
 ALTER TABLE users
     ALTER COLUMN name TYPE VARCHAR(255),
-    ADD COLUMN account_id VARCHAR(36),
-    ADD COLUMN disabled   BOOLEAN DEFAULT FALSE NOT NULL;
+    ADD COLUMN account_id VARCHAR(36);
 
 -- rambler down
 ALTER TABLE users
     ALTER COLUMN name TYPE VARCHAR(32),
-    DROP COLUMN account_id,
-    DROP COLUMN disabled;
+    DROP COLUMN account_id;

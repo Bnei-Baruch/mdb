@@ -74,7 +74,7 @@ func AuthenticationMiddleware() gin.HandlerFunc {
 				mdb := c.MustGet("MDB").(*sql.DB)
 				user, err := getOrCreateUser(mdb, &claims)
 				if err != nil {
-					c.AbortWithError(http.StatusBadRequest, err).SetType(gin.ErrorTypePrivate)
+					c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
 					return
 				}
 
@@ -87,7 +87,7 @@ func AuthenticationMiddleware() gin.HandlerFunc {
 }
 
 func getOrCreateUser(mdb *sql.DB, claims *IDTokenClaims) (*models.User, error) {
-	user, err := fetchUserFromDB(mdb, claims.Sub)
+	user, err := models.Users(mdb, qm.Where("account_id = ?", claims.Sub)).One()
 	if err != nil || user != nil {
 		return user, err
 	}
@@ -101,20 +101,13 @@ func getOrCreateUser(mdb *sql.DB, claims *IDTokenClaims) (*models.User, error) {
 	tx, err := mdb.Begin()
 	utils.Must(err)
 
-	if err := user.Insert(tx); err != nil {
+	err = user.Insert(tx)
+	if err != nil {
 		utils.Must(tx.Rollback())
 	} else {
 		utils.Must(tx.Commit())
 	}
-	return fetchUserFromDB(mdb, claims.Sub)
-}
-
-func fetchUserFromDB(mdb *sql.DB, accountID string) (*models.User, error) {
-	user, err := models.Users(mdb, qm.Where("account_id = ?", accountID)).One()
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-	return user, nil
+	return user, err
 }
 
 func verifyWithFallback(verifiers []*oidc.IDTokenVerifier, tokenStr string) (*oidc.IDToken, error) {
