@@ -88,14 +88,14 @@ func AuthenticationMiddleware() gin.HandlerFunc {
 
 func getOrCreateUser(mdb *sql.DB, claims *IDTokenClaims) (*models.User, error) {
 	user, err := models.Users(mdb, qm.Where("account_id = ?", claims.Sub)).One()
-	if err != nil || user != nil {
+	if (err != nil && err != sql.ErrNoRows) || user != nil {
 		return user, err
 	}
 
 	user = &models.User{
 		AccountID: null.StringFrom(claims.Sub),
 		Email:     claims.Email,
-		Name:      null.StringFrom(fmt.Sprintf("% %", claims.GivenName, claims.FamilyName)),
+		Name:      null.StringFrom(fmt.Sprintf("%s %s", claims.GivenName, claims.FamilyName)),
 	}
 
 	tx, err := mdb.Begin()
