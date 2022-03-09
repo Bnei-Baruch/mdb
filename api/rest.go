@@ -1473,13 +1473,13 @@ func LabelListHandler(c *gin.Context) {
 			return
 		}
 		tx := mustBeginTx(c)
-		resp, err = handleCreateLabel(c, tx, &r)
+		label, err := handleCreateLabel(c, tx, &r)
 		mustConcludeTx(tx, err)
 
 		if err == nil {
-			emitEvents(c, events.LabelCreateEvent(&resp.(*LabelResponse).Label))
+			emitEvents(c, events.LabelCreateEvent(label))
 		}
-
+		resp = label.UID
 	}
 	concludeRequest(c, resp, err)
 }
@@ -4375,13 +4375,13 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 	}, nil
 }
 
-func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLabelRequest) (string, *HttpError) {
+func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLabelRequest) (*models.Label, *HttpError) {
 	cu, err := models.ContentUnits(exec,
 		qm.WhereIn("uid = ?", r.ContentUnit),
 		qm.Where("secure <= ?", allowedRead(cp)),
 	).One()
 	if err != nil {
-		return "", NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
 	label := &models.Label{
@@ -4393,7 +4393,7 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 	// save label to DB
 	uid, err := GetFreeUID(exec, new(LabelUIDChecker))
 	if err != nil {
-		return "", NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 	label.UID = uid
 
@@ -4403,7 +4403,7 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 
 	err = label.Insert(exec)
 	if err != nil {
-		return "", NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 	user := cp.MustGet("USER").(*models.User)
 	// save i18n
@@ -4416,20 +4416,20 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 		i18n.UserID = null.Int64From(user.ID)
 		err := label.AddLabelI18ns(exec, true, i18n)
 		if err != nil {
-			return "", NewInternalError(err)
+			return nil, NewInternalError(err)
 		}
 	}
 
 	// save tags connection
 	tags, err := models.Tags(exec, qm.WhereIn("uid IN ?", utils.ConvertArgsString(r.Tags)...)).All()
 	if err != nil {
-		return "", NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
 	if err = label.AddTags(exec, false, tags...); err != nil {
-		return "", NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
-	return label.UID, nil
+	return label, nil
 }
 
 func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64) (*LabelResponse, *HttpError) {
