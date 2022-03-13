@@ -4410,7 +4410,7 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 	return label, nil
 }
 
-func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64, perm string) (*LabelResponse, *HttpError) {
+func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64, act string) (*LabelResponse, *HttpError) {
 	label, err := models.Labels(exec,
 		qm.Where("id = ?", id),
 		qm.Load("LabelI18ns", "Tags", "ContentUnit", "User")).
@@ -4423,7 +4423,7 @@ func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64, perm 
 		}
 	}
 
-	if !can(c, secureToPermission(label.R.ContentUnit.Secure), perm) {
+	if !can(c, secureToPermission(label.R.ContentUnit.Secure), act) {
 		return nil, NewForbiddenError()
 	}
 
