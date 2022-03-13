@@ -1453,10 +1453,6 @@ func LabelListHandler(c *gin.Context) {
 	var err *HttpError
 	var resp interface{}
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_LABEL_READ) {
-			NewForbiddenError().Abort(c)
-			return
-		}
 		var r LabelsRequest
 		if c.Bind(&r) != nil {
 			return
@@ -1464,10 +1460,6 @@ func LabelListHandler(c *gin.Context) {
 		resp, err = handleGetLabelList(c, c.MustGet("MDB").(*sql.DB), &r)
 	}
 	if c.Request.Method == http.MethodPost {
-		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_LABEL_WRITE) {
-			NewForbiddenError().Abort(c)
-			return
-		}
 		var r CreateLabelRequest
 		if c.Bind(&r) != nil {
 			return
@@ -1494,15 +1486,11 @@ func LabelHandler(c *gin.Context) {
 	var err *HttpError
 	var resp interface{}
 	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
-		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_LABEL_READ) {
-			NewForbiddenError().Abort(c)
-			return
-		}
-		resp, err = handleGetLabel(c, c.MustGet("MDB").(*sql.DB), id)
+		resp, err = handleGetLabel(c, c.MustGet("MDB").(*sql.DB), id, common.PERM_LABEL_READ)
 	}
 
 	if c.Request.Method == http.MethodPut {
-		if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_LABEL_MODERATE) {
+		if !can(c, secureToPermission(common.SEC_SENSITIVE), common.PERM_LABEL_MODERATE) {
 			NewForbiddenError().Abort(c)
 			return
 		}
@@ -1522,12 +1510,6 @@ func LabelHandler(c *gin.Context) {
 }
 
 func LabelI18nHandler(c *gin.Context) {
-	//moderator only can change and remove translations
-	if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_LABEL_MODERATE) {
-		NewForbiddenError().Abort(c)
-		return
-	}
-
 	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
 	if e != nil {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
@@ -1557,10 +1539,6 @@ func LabelI18nHandler(c *gin.Context) {
 }
 
 func LabelAddI18nHandler(c *gin.Context) {
-	if !can(c, secureToPermission(common.SEC_PUBLIC), common.PERM_LABEL_I18N_WRITE) {
-		NewForbiddenError().Abort(c)
-		return
-	}
 	uid := c.Param("uid")
 
 	var r *AddLabelI18nRequest
@@ -1569,7 +1547,7 @@ func LabelAddI18nHandler(c *gin.Context) {
 	}
 	user := c.MustGet("USER").(*models.User)
 	tx := mustBeginTx(c)
-	label, err := handleAddLabelI18n(tx, uid, r, user)
+	label, err := handleAddLabelI18n(c, tx, uid, r, user)
 	mustConcludeTx(tx, err)
 
 	if err == nil {
@@ -4323,7 +4301,7 @@ func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.Pub
 //Labels
 func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsRequest) (*LabelsResponse, *HttpError) {
 	mods := []qm.QueryMod{
-		qm.InnerJoin("content_units cu on cu.content_unit_id=id and and cu.secure <= ?", allowedRead(cp)),
+		qm.InnerJoin("content_units cu on cu.id=content_unit_id and and cu.secure <= ?", allowedSecure(cp, common.PERM_LABEL_READ)),
 	}
 
 	// filters
@@ -4378,7 +4356,7 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLabelRequest) (*models.Label, *HttpError) {
 	cu, err := models.ContentUnits(exec,
 		qm.WhereIn("uid = ?", r.ContentUnit),
-		qm.Where("secure <= ?", allowedRead(cp)),
+		qm.Where("secure <= ?", allowedSecure(cp, common.PERM_LABEL_WRITE)),
 	).One()
 	if err != nil {
 		return nil, NewInternalError(err)
@@ -4432,7 +4410,7 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 	return label, nil
 }
 
-func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64) (*LabelResponse, *HttpError) {
+func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64, perm string) (*LabelResponse, *HttpError) {
 	label, err := models.Labels(exec,
 		qm.Where("id = ?", id),
 		qm.Load("LabelI18ns", "Tags", "ContentUnit", "User")).
@@ -4445,7 +4423,7 @@ func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64) (*Lab
 		}
 	}
 
-	if !can(c, secureToPermission(label.R.ContentUnit.Secure), common.PERM_LABEL_MODERATE) {
+	if !can(c, secureToPermission(label.R.ContentUnit.Secure), perm) {
 		return nil, NewForbiddenError()
 	}
 
@@ -4483,7 +4461,7 @@ func handleUpdateLabelState(exec boil.Executor, id int64, r UpdateApproveStateRe
 }
 
 func handleUpdateLabelI18n(c utils.ContextProvider, exec boil.Executor, id int64, i18ns []*models.LabelI18n) (*LabelResponse, *HttpError) {
-	label, err := handleGetLabel(c, exec, id)
+	label, err := handleGetLabel(c, exec, id, common.PERM_LABEL_I18N_WRITE)
 	if err != nil {
 		return nil, err
 	}
@@ -4511,15 +4489,18 @@ func handleUpdateLabelI18n(c utils.ContextProvider, exec boil.Executor, id int64
 		}
 	}
 
-	return handleGetLabel(c, exec, id)
+	return handleGetLabel(c, exec, id, common.PERM_LABEL_I18N_WRITE)
 }
 
-func handleAddLabelI18n(exec boil.Executor, uid string, r *AddLabelI18nRequest, user *models.User) (*models.Label, *HttpError) {
+func handleAddLabelI18n(cp utils.ContextProvider, exec boil.Executor, uid string, r *AddLabelI18nRequest, user *models.User) (*models.Label, *HttpError) {
 	if common.StdLang(r.I18n.Language) == common.LANG_UNKNOWN {
 		return nil, NewBadRequestError(errors.Errorf("Unknown language %s", r.I18n.Language))
 	}
 
-	label, err := models.Labels(exec, qm.Where("uid = ?", uid)).One()
+	label, err := models.Labels(exec,
+		qm.Where("uid = ?", uid),
+		qm.InnerJoin("content_units cu on cu.id=content_unit_id and and cu.secure <= ?", allowedSecure(cp, common.PERM_LABEL_I18N_WRITE)),
+	).One()
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
