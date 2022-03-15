@@ -74,7 +74,8 @@ func (e *ExportKC) updateUser(u *models.User) error {
 	if err = json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return errors.Wrap(err, "error on decode response")
 	}
-	u.AccountID = null.StringFrom(data.AccountID)
+	//code based on prev migration
+	//u.AccountID = null.StringFrom(data.AccountID)
 	if !u.Name.Valid {
 		u.Name = null.StringFrom(strings.Join([]string{data.FName, data.LName}, " "))
 	}
@@ -94,7 +95,8 @@ func (e *ExportKC) useEmailAsAccountId(users []*models.User) {
 			wasAdded: true,
 			error:    nil,
 		}
-		u.AccountID = null.StringFrom(u.Email)
+		//code based on prev migration
+		//u.AccountID = null.StringFrom(u.Email)
 		if err := u.Update(e.mdb); err != nil {
 			r.wasAdded = false
 			r.error = err
