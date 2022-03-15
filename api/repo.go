@@ -154,7 +154,8 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 		if err == sql.ErrNoRows {
 			log.Debugf("Unknown User [%s]. Creating new.", o.User)
 			user = &models.User{
-				Email: o.User,
+				Email:     o.User,
+				AccountID: o.User,
 			}
 			if err := user.Insert(exec); err != nil {
 				return nil, errors.Wrap(err, "Create new user")
@@ -178,8 +179,9 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 		}
 		operation.Properties = null.JSONFrom(props)
 	}
-
-	return &operation, operation.Insert(exec)
+	err = operation.Insert(exec)
+	op, err := models.Operations(exec, qm.Load("User"), qm.Where("id = ?", operation.ID)).One()
+	return op, err
 }
 
 func FindUpChainOperation(exec boil.Executor, fileID int64, opType string) (*models.Operation, error) {
