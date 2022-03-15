@@ -493,6 +493,49 @@ type (
 		TypeID        int64       `json:"typeId"`
 		CollectionUID null.String `json:"collectionUid,omitempty"`
 	}
+
+	LabelI18n struct {
+		models.LabelI18n
+		Author *models.User `json:"author"`
+	}
+
+	Label struct {
+		models.Label
+		I18n map[string]*LabelI18n `json:"i18n,required"`
+	}
+
+	LabelResponse struct {
+		models.Label
+		Tags        []string              `json:"tags"`
+		ContentUnit string                `json:"content_unit"`
+		I18n        map[string]*LabelI18n `json:"i18n"`
+	}
+
+	CreateLabelRequest struct {
+		Label
+		ContentUnit string   `json:"content_unit"`
+		Tags        []string `json:"tags"`
+	}
+
+	AddLabelI18nRequest struct {
+		I18n *LabelI18n `json:"i18n"`
+	}
+
+	UpdateApproveStateRequest struct {
+		ApproveState int16 `json:"state"`
+	}
+
+	LabelsRequest struct {
+		ListRequest
+		IDsFilter
+		DateRangeFilter
+		ApproveState null.Int16 `json:"approve_state"`
+	}
+
+	LabelsResponse struct {
+		ListResponse
+		Labels []*Label `json:"data"`
+	}
 )
 
 func NewCollectionsResponse() *CollectionsResponse {
@@ -537,6 +580,10 @@ func NewStoragesResponse() *StoragesResponse {
 
 func NewPublishersResponse() *PublishersResponse {
 	return &PublishersResponse{Publishers: make([]*Publisher, 0)}
+}
+
+func NewLabelsResponse() *LabelsResponse {
+	return &LabelsResponse{Labels: make([]*Label, 0)}
 }
 
 func (mf MaybeFile) AsFile() File {

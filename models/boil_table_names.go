@@ -24,6 +24,9 @@ var TableNames = struct {
 	Files                   string
 	FilesOperations         string
 	FilesStorages           string
+	LabelI18n               string
+	LabelTag                string
+	Labels                  string
 	OperationTypes          string
 	Operations              string
 	PersonI18n              string
@@ -60,6 +63,9 @@ var TableNames = struct {
 	Files:                   "files",
 	FilesOperations:         "files_operations",
 	FilesStorages:           "files_storages",
+	LabelI18n:               "label_i18n",
+	LabelTag:                "label_tag",
+	Labels:                  "labels",
 	OperationTypes:          "operation_types",
 	Operations:              "operations",
 	PersonI18n:              "person_i18n",

@@ -93,7 +93,7 @@ func getOrCreateUser(mdb *sql.DB, claims *IDTokenClaims) (*models.User, error) {
 	}
 
 	user = &models.User{
-		AccountID: null.StringFrom(claims.Sub),
+		AccountID: claims.Sub,
 		Email:     claims.Email,
 		Name:      null.StringFrom(fmt.Sprintf("%s %s", claims.GivenName, claims.FamilyName)),
 	}

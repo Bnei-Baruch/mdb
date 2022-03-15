@@ -64,6 +64,7 @@ type contentUnitR struct {
 	Sources                       SourceSlice
 	Tags                          TagSlice
 	Files                         FileSlice
+	Labels                        LabelSlice
 }
 
 // contentUnitL is where Load methods for each relationship are stored.
@@ -456,6 +457,32 @@ func (o *ContentUnit) Files(exec boil.Executor, mods ...qm.QueryMod) fileQuery {
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"\"files\".*"})
+	}
+
+	return query
+}
+
+// LabelsG retrieves all the label's labels.
+func (o *ContentUnit) LabelsG(mods ...qm.QueryMod) labelQuery {
+	return o.Labels(boil.GetDB(), mods...)
+}
+
+// Labels retrieves all the label's labels with an executor.
+func (o *ContentUnit) Labels(exec boil.Executor, mods ...qm.QueryMod) labelQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"labels\".\"content_unit_id\"=?", o.ID),
+	)
+
+	query := Labels(exec, queryMods...)
+	queries.SetFrom(query.Query, "\"labels\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"labels\".*"})
 	}
 
 	return query
@@ -1156,6 +1183,71 @@ func (contentUnitL) LoadFiles(e boil.Executor, singular bool, maybeContentUnit i
 		for _, local := range slice {
 			if local.ID == foreign.ContentUnitID.Int64 {
 				local.R.Files = append(local.R.Files, foreign)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadLabels allows an eager lookup of values, cached into the
+// loaded structs of the objects.
+func (contentUnitL) LoadLabels(e boil.Executor, singular bool, maybeContentUnit interface{}) error {
+	var slice []*ContentUnit
+	var object *ContentUnit
+
+	count := 1
+	if singular {
+		object = maybeContentUnit.(*ContentUnit)
+	} else {
+		slice = *maybeContentUnit.(*[]*ContentUnit)
+		count = len(slice)
+	}
+
+	args := make([]interface{}, count)
+	if singular {
+		if object.R == nil {
+			object.R = &contentUnitR{}
+		}
+		args[0] = object.ID
+	} else {
+		for i, obj := range slice {
+			if obj.R == nil {
+				obj.R = &contentUnitR{}
+			}
+			args[i] = obj.ID
+		}
+	}
+
+	query := fmt.Sprintf(
+		"select * from \"labels\" where \"content_unit_id\" in (%s)",
+		strmangle.Placeholders(dialect.IndexPlaceholders, count, 1, 1),
+	)
+	if boil.DebugMode {
+		fmt.Fprintf(boil.DebugWriter, "%s\n%v\n", query, args)
+	}
+
+	results, err := e.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load labels")
+	}
+	defer results.Close()
+
+	var resultSlice []*Label
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice labels")
+	}
+
+	if singular {
+		object.R.Labels = resultSlice
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ContentUnitID {
+				local.R.Labels = append(local.R.Labels, foreign)
 				break
 			}
 		}
@@ -2586,6 +2678,90 @@ func (o *ContentUnit) RemoveFiles(exec boil.Executor, related ...*File) error {
 		}
 	}
 
+	return nil
+}
+
+// AddLabelsG adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.Labels.
+// Sets related.R.ContentUnit appropriately.
+// Uses the global database handle.
+func (o *ContentUnit) AddLabelsG(insert bool, related ...*Label) error {
+	return o.AddLabels(boil.GetDB(), insert, related...)
+}
+
+// AddLabelsP adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.Labels.
+// Sets related.R.ContentUnit appropriately.
+// Panics on error.
+func (o *ContentUnit) AddLabelsP(exec boil.Executor, insert bool, related ...*Label) {
+	if err := o.AddLabels(exec, insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddLabelsGP adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.Labels.
+// Sets related.R.ContentUnit appropriately.
+// Uses the global database handle and panics on error.
+func (o *ContentUnit) AddLabelsGP(insert bool, related ...*Label) {
+	if err := o.AddLabels(boil.GetDB(), insert, related...); err != nil {
+		panic(boil.WrapErr(err))
+	}
+}
+
+// AddLabels adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.Labels.
+// Sets related.R.ContentUnit appropriately.
+func (o *ContentUnit) AddLabels(exec boil.Executor, insert bool, related ...*Label) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ContentUnitID = o.ID
+			if err = rel.Insert(exec); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"labels\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"content_unit_id"}),
+				strmangle.WhereClause("\"", "\"", 2, labelPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ContentUnitID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &contentUnitR{
+			Labels: related,
+		}
+	} else {
+		o.R.Labels = append(o.R.Labels, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &labelR{
+				ContentUnit: o,
+			}
+		} else {
+			rel.R.ContentUnit = o
+		}
+	}
 	return nil
 }
 

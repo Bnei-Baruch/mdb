@@ -2,6 +2,9 @@ p, archive_editor, data_sensitive, read
 p, archive_editor, data_sensitive, write
 p, archive_editor, data_sensitive, i18n_write
 p, archive_editor, data_sensitive, metadata_write
+p, archive_editor, data_sensitive, label_read
+p, archive_editor, data_sensitive, label_write
+p, archive_editor, data_sensitive, label_i18n_write
 
 p, archive_tagger, data_sensitive, read
 p, archive_tagger, data_sensitive, i18n_write
@@ -15,3 +18,12 @@ p, bb_user, data_public, read
 
 g, data_sensitive, data_private
 g, data_public, data_sensitive
+
+p, bb_user, data_public, label_read
+p, bb_user, data_public, label_write
+p, bb_user, data_public, label_i18n_write
+
+p, archive_label-moderation, data_sensitive, label_read
+p, archive_label-moderation, data_sensitive, label_write
+p, archive_label-moderation, data_sensitive, label_i18n_write
+p, archive_label-moderation, data_sensitive, label_moderate
