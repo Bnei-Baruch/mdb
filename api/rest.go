@@ -1490,6 +1490,8 @@ func LabelHandler(c *gin.Context) {
 	}
 
 	if c.Request.Method == http.MethodPut {
+		//using SEC_SENSITIVE depended on definitions on permissions_policy.csv
+		//for archive_editor and archive_label-moderation roles
 		if !can(c, secureToPermission(common.SEC_SENSITIVE), common.PERM_LABEL_MODERATE) {
 			NewForbiddenError().Abort(c)
 			return
@@ -4358,6 +4360,9 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 		qm.WhereIn("uid = ?", r.ContentUnit),
 		qm.Where("secure <= ?", allowedSecure(cp, common.PERM_LABEL_WRITE)),
 	).One()
+	if err == sql.ErrNoRows {
+		return nil, NewNotFoundError()
+	}
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4501,6 +4506,9 @@ func handleAddLabelI18n(cp utils.ContextProvider, exec boil.Executor, uid string
 		qm.Where("uid = ?", uid),
 		qm.InnerJoin("content_units cu on cu.id=content_unit_id and and cu.secure <= ?", allowedSecure(cp, common.PERM_LABEL_I18N_WRITE)),
 	).One()
+	if err == sql.ErrNoRows {
+		return nil, NewNotFoundError()
+	}
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
