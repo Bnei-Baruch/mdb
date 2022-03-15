@@ -160,6 +160,7 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 			if err := user.Insert(exec); err != nil {
 				return nil, errors.Wrap(err, "Create new user")
 			}
+			operation.UserID = null.Int64From(user.ID)
 		} else {
 			return nil, errors.Wrap(err, "Check user exists")
 		}
