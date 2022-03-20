@@ -64,12 +64,6 @@ func (suite *RepoSuite) TestCreateOperation() {
 	user, err := models.Users(suite.tx, qm.Where("email=?", o.User)).One()
 	suite.Equal(user.ID, op.UserID.Int64, "User")
 
-	// test with unknown user
-	o.User = "unknown@example.com"
-	op, err = CreateOperation(suite.tx, common.OP_CAPTURE_START, o, nil)
-	suite.Require().Nil(err)
-	suite.Require().Nil(op.Reload(suite.tx))
-	suite.False(op.UserID.Valid)
 	o.User = "operator@dev.com"
 
 	// test with workflow_id
