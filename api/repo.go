@@ -168,9 +168,8 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 		}
 		operation.Properties = null.JSONFrom(props)
 	}
-	err = operation.Insert(exec)
-	op, err := models.Operations(exec, qm.Load("User"), qm.Where("id = ?", operation.ID)).One()
-	return op, err
+
+	return &operation, operation.Insert(exec)
 }
 
 func FindUpChainOperation(exec boil.Executor, fileID int64, opType string) (*models.Operation, error) {
