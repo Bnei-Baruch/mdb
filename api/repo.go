@@ -146,24 +146,12 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 		Station: null.StringFrom(o.Station),
 	}
 
-	// Lookup user, create new if missing
+	// Lookup user
 	user, err := models.Users(exec, qm.Where("email=?", o.User)).One()
 	if err == nil {
 		operation.UserID = null.Int64From(user.ID)
 	} else {
-		if err == sql.ErrNoRows {
-			log.Debugf("Unknown User [%s]. Creating new.", o.User)
-			user = &models.User{
-				Email:     o.User,
-				AccountID: o.User,
-			}
-			if err := user.Insert(exec); err != nil {
-				return nil, errors.Wrap(err, "Create new user")
-			}
-			operation.UserID = null.Int64From(user.ID)
-		} else {
-			return nil, errors.Wrap(err, "Check user exists")
-		}
+		return nil, errors.Wrap(err, "Check user exists")
 	}
 
 	// Handle properties
