@@ -96,6 +96,7 @@ func SetupRoutes(router *gin.Engine) {
 	rest.POST("/labels/", LabelListHandler)
 	rest.GET("/labels/:id/", LabelHandler)
 	rest.PUT("/labels/:id/", LabelHandler)
+	rest.DELETE("/labels/:id/", LabelHandler)
 	rest.PUT("/labels/:id/i18n/", LabelI18nHandler)
 	rest.POST("/labels/:uid/i18n/", LabelAddI18nHandler)
 
