@@ -1508,6 +1508,22 @@ func LabelHandler(c *gin.Context) {
 			emitEvents(c, events.LabelUpdateEvent(l))
 		}
 	}
+
+	if c.Request.Method == http.MethodDelete {
+		//using SEC_SENSITIVE depended on definitions on permissions_policy.csv
+		//for archive_editor and archive_label-moderation roles
+		if !can(c, secureToPermission(common.SEC_SENSITIVE), common.PERM_LABEL_MODERATE) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+		tx := mustBeginTx(c)
+		l, err := handleDeleteLabelState(tx, id)
+		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.LabelDeleteEvent(l))
+		}
+	}
 	concludeRequest(c, resp, err)
 }
 
@@ -4303,7 +4319,7 @@ func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.Pub
 //Labels
 func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsRequest) (*LabelsResponse, *HttpError) {
 	mods := []qm.QueryMod{
-		qm.InnerJoin("content_units cu on cu.id=content_unit_id and and cu.secure <= ?", allowedSecure(cp, common.PERM_LABEL_READ)),
+		qm.InnerJoin("content_units cu on cu.id=content_unit_id and cu.secure <= ?", allowedSecure(cp, common.PERM_LABEL_READ)),
 	}
 
 	// filters
@@ -4320,7 +4336,7 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 
 	// count query
 	var total int64
-	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT \"labels\".id)")}, mods...)
 	err := models.Labels(exec, countMods...).QueryRow().Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
@@ -4329,7 +4345,7 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 		return NewLabelsResponse(), nil
 	}
 
-	labels, err := models.Labels(exec, qm.Load("LabelI18ns", "LabelI18ns.Author", "Tags")).All()
+	labels, err := models.Labels(exec, qm.Load("LabelI18ns", "LabelI18ns.User", "Tags")).All()
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -4418,7 +4434,7 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64, act string) (*LabelResponse, *HttpError) {
 	label, err := models.Labels(exec,
 		qm.Where("id = ?", id),
-		qm.Load("LabelI18ns", "Tags", "ContentUnit", "User")).
+		qm.Load("LabelI18ns", "Tags", "ContentUnit", "LabelI18ns.User")).
 		One()
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -4534,6 +4550,23 @@ func handleAddLabelI18n(cp utils.ContextProvider, exec boil.Executor, uid string
 	}
 	return label, nil
 
+}
+
+func handleDeleteLabelState(exec boil.Executor, id int64) (*models.Label, *HttpError) {
+	label, err := models.FindLabel(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	if err = label.Delete(exec); err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return label, nil
 }
 
 // Query Helpers
