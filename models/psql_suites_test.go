@@ -34,6 +34,10 @@ func TestUpsert(t *testing.T) {
 
 	t.Run("Files", testFilesUpsert)
 
+	t.Run("LabelI18ns", testLabelI18nsUpsert)
+
+	t.Run("Labels", testLabelsUpsert)
+
 	t.Run("OperationTypes", testOperationTypesUpsert)
 
 	t.Run("Operations", testOperationsUpsert)

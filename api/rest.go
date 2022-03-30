@@ -4333,7 +4333,7 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT \"labels\".id)")}, mods...)
-	err := models.Labels(exec, countMods...).QueryRow().Scan(&total)
+	err := models.Labels(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4341,7 +4341,9 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 		return NewLabelsResponse(), nil
 	}
 
-	labels, err := models.Labels(exec, qm.Load("LabelI18ns", "LabelI18ns.User", "Tags")).All()
+	labels, err := models.Labels(qm.Load("LabelI18ns"),
+		qm.Load("LabelI18ns.User"),
+		qm.Load("Tags")).All(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -4368,10 +4370,10 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 }
 
 func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLabelRequest) (*models.Label, *HttpError) {
-	cu, err := models.ContentUnits(exec,
+	cu, err := models.ContentUnits(
 		qm.WhereIn("uid = ?", r.ContentUnit),
 		qm.Where("secure <= ?", allowedSecure(cp, common.PERM_LABEL_WRITE)),
-	).One()
+	).One(exec)
 	if err == sql.ErrNoRows {
 		return nil, NewNotFoundError()
 	}
@@ -4396,7 +4398,7 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 		label.Properties = r.Properties
 	}
 
-	err = label.Insert(exec)
+	err = label.Insert(exec, boil.Infer())
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4416,7 +4418,7 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 	}
 
 	// save tags connection
-	tags, err := models.Tags(exec, qm.WhereIn("uid IN ?", utils.ConvertArgsString(r.Tags)...)).All()
+	tags, err := models.Tags(qm.WhereIn("uid IN ?", utils.ConvertArgsString(r.Tags)...)).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4428,10 +4430,13 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 }
 
 func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64, act string) (*LabelResponse, *HttpError) {
-	label, err := models.Labels(exec,
+	label, err := models.Labels(
 		qm.Where("id = ?", id),
-		qm.Load("LabelI18ns", "Tags", "ContentUnit", "LabelI18ns.User")).
-		One()
+		qm.Load("LabelI18ns"),
+		qm.Load("Tags"),
+		qm.Load("ContentUnit"),
+		qm.Load("LabelI18ns.User")).
+		One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -4469,7 +4474,7 @@ func handleUpdateLabelState(exec boil.Executor, id int64, r UpdateApproveStateRe
 	}
 
 	label.ApproveState = r.ApproveState
-	err = label.Update(exec, "ApproveState")
+	_, err = label.Update(exec, boil.Whitelist("ApproveState"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4490,7 +4495,8 @@ func handleUpdateLabelI18n(c utils.ContextProvider, exec boil.Executor, id int64
 		nI18n[i18n.Language] = i18n
 		err := i18n.Upsert(exec, true,
 			[]string{"label_id", "language"},
-			[]string{"name", "author"})
+			boil.Infer(),
+			boil.Infer())
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -4499,7 +4505,7 @@ func handleUpdateLabelI18n(c utils.ContextProvider, exec boil.Executor, id int64
 	// Delete old i18ns not in new i18ns
 	for k, v := range label.I18n {
 		if _, ok := nI18n[k]; !ok {
-			err := v.Delete(exec)
+			_, err := v.Delete(exec)
 			if err != nil {
 				return nil, NewInternalError(err)
 			}
@@ -4514,10 +4520,10 @@ func handleAddLabelI18n(cp utils.ContextProvider, exec boil.Executor, uid string
 		return nil, NewBadRequestError(errors.Errorf("Unknown language %s", r.I18n.Language))
 	}
 
-	label, err := models.Labels(exec,
+	label, err := models.Labels(
 		qm.Where("uid = ?", uid),
 		qm.InnerJoin("content_units cu on cu.id=content_unit_id and and cu.secure <= ?", allowedSecure(cp, common.PERM_LABEL_I18N_WRITE)),
-	).One()
+	).One(exec)
 	if err == sql.ErrNoRows {
 		return nil, NewNotFoundError()
 	}
@@ -4525,7 +4531,7 @@ func handleAddLabelI18n(cp utils.ContextProvider, exec boil.Executor, uid string
 		return nil, NewInternalError(err)
 	}
 
-	has, err := models.LabelI18ns(exec, qm.Where("label_id = ? AND language = ?", label.ID, r.I18n.Language)).Exists()
+	has, err := models.LabelI18ns(qm.Where("label_id = ? AND language = ?", label.ID, r.I18n.Language)).Exists(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4558,7 +4564,7 @@ func handleDeleteLabelState(exec boil.Executor, id int64) (*models.Label, *HttpE
 		}
 	}
 
-	if err = label.Delete(exec); err != nil {
+	if _, err = label.Delete(exec); err != nil {
 		return nil, NewInternalError(err)
 	}
 
@@ -4951,9 +4957,9 @@ func mustConcludeTx(tx *sql.Tx, err *HttpError) {
 func mdbReplicationLocation(c utils.ContextProvider) (string, error) {
 	var loc string
 	db := c.MustGet("MDB").(*sql.DB)
-	err := db.QueryRow("SELECT pg_current_wal_insert_lsn();").Scan(&loc) // postgres version > 9.x
+	err := db.QueryRow("SELECT pg_current_xlog_insert_location();").Scan(&loc) // postgres version <= 9.x
 	if err != nil {
-		err = db.QueryRow("SELECT pg_current_xlog_insert_location();").Scan(&loc) // postgres version <= 9.x
+		err = db.QueryRow("SELECT pg_current_wal_insert_lsn();").Scan(&loc) // postgres version > 9.x
 		if err != nil {
 			return "", errors.Wrap(err, "Fetch Replication Position")
 		}

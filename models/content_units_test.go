@@ -1062,8 +1062,9 @@ func testContentUnitToManyFiles(t *testing.T) {
 
 func testContentUnitToManyLabels(t *testing.T) {
 	var err error
+
 	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var a ContentUnit
 	var b, c Label
@@ -1073,29 +1074,34 @@ func testContentUnitToManyLabels(t *testing.T) {
 		t.Errorf("Unable to randomize ContentUnit struct: %s", err)
 	}
 
-	if err := a.Insert(tx); err != nil {
+	if err := a.Insert(tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
 
-	randomize.Struct(seed, &b, labelDBTypes, false, labelColumnsWithDefault...)
-	randomize.Struct(seed, &c, labelDBTypes, false, labelColumnsWithDefault...)
+	if err = randomize.Struct(seed, &b, labelDBTypes, false, labelColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, labelDBTypes, false, labelColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
 
 	b.ContentUnitID = a.ID
 	c.ContentUnitID = a.ID
-	if err = b.Insert(tx); err != nil {
+
+	if err = b.Insert(tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
-	if err = c.Insert(tx); err != nil {
+	if err = c.Insert(tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
 
-	label, err := a.Labels(tx).All()
+	check, err := a.Labels().All(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	bFound, cFound := false, false
-	for _, v := range label {
+	for _, v := range check {
 		if v.ContentUnitID == b.ContentUnitID {
 			bFound = true
 		}
@@ -1112,7 +1118,7 @@ func testContentUnitToManyLabels(t *testing.T) {
 	}
 
 	slice := ContentUnitSlice{&a}
-	if err = a.L.LoadLabels(tx, false, (*[]*ContentUnit)(&slice)); err != nil {
+	if err = a.L.LoadLabels(tx, false, (*[]*ContentUnit)(&slice), nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := len(a.R.Labels); got != 2 {
@@ -1120,7 +1126,7 @@ func testContentUnitToManyLabels(t *testing.T) {
 	}
 
 	a.R.Labels = nil
-	if err = a.L.LoadLabels(tx, true, &a); err != nil {
+	if err = a.L.LoadLabels(tx, true, &a, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := len(a.R.Labels); got != 2 {
@@ -1128,7 +1134,7 @@ func testContentUnitToManyLabels(t *testing.T) {
 	}
 
 	if t.Failed() {
-		t.Logf("%#v", label)
+		t.Logf("%#v", check)
 	}
 }
 
@@ -2429,7 +2435,7 @@ func testContentUnitToManyAddOpLabels(t *testing.T) {
 	var err error
 
 	tx := MustTx(boil.Begin())
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var a ContentUnit
 	var b, c, d, e Label
@@ -2445,13 +2451,13 @@ func testContentUnitToManyAddOpLabels(t *testing.T) {
 		}
 	}
 
-	if err := a.Insert(tx); err != nil {
+	if err := a.Insert(tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
-	if err = b.Insert(tx); err != nil {
+	if err = b.Insert(tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
-	if err = c.Insert(tx); err != nil {
+	if err = c.Insert(tx, boil.Infer()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2490,7 +2496,7 @@ func testContentUnitToManyAddOpLabels(t *testing.T) {
 			t.Error("relationship struct slice not set to correct value")
 		}
 
-		count, err := a.Labels(tx).Count()
+		count, err := a.Labels().Count(tx)
 		if err != nil {
 			t.Fatal(err)
 		}

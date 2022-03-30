@@ -4,15 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
 	"net/http"
 	"strings"
 
 	"github.com/coreos/go-oidc"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
+
+	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type Roles struct {
@@ -87,7 +89,7 @@ func AuthenticationMiddleware() gin.HandlerFunc {
 }
 
 func getOrCreateUser(mdb *sql.DB, claims *IDTokenClaims) (*models.User, error) {
-	user, err := models.Users(mdb, qm.Where("account_id = ?", claims.Sub)).One()
+	user, err := models.Users(qm.Where("account_id = ?", claims.Sub)).One(mdb)
 	if (err != nil && err != sql.ErrNoRows) || user != nil {
 		return user, err
 	}
@@ -101,7 +103,7 @@ func getOrCreateUser(mdb *sql.DB, claims *IDTokenClaims) (*models.User, error) {
 	tx, err := mdb.Begin()
 	utils.Must(err)
 
-	err = user.Insert(tx)
+	err = user.Insert(tx, boil.Infer())
 	if err != nil {
 		utils.Must(tx.Rollback())
 	} else {

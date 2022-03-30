@@ -81,11 +81,13 @@ var TagWhere = struct {
 var TagRels = struct {
 	Parent       string
 	ContentUnits string
+	Labels       string
 	TagI18ns     string
 	ParentTags   string
 }{
 	Parent:       "Parent",
 	ContentUnits: "ContentUnits",
+	Labels:       "Labels",
 	TagI18ns:     "TagI18ns",
 	ParentTags:   "ParentTags",
 }
@@ -94,6 +96,7 @@ var TagRels = struct {
 type tagR struct {
 	Parent       *Tag             `boil:"Parent" json:"Parent" toml:"Parent" yaml:"Parent"`
 	ContentUnits ContentUnitSlice `boil:"ContentUnits" json:"ContentUnits" toml:"ContentUnits" yaml:"ContentUnits"`
+	Labels       LabelSlice       `boil:"Labels" json:"Labels" toml:"Labels" yaml:"Labels"`
 	TagI18ns     TagI18nSlice     `boil:"TagI18ns" json:"TagI18ns" toml:"TagI18ns" yaml:"TagI18ns"`
 	ParentTags   TagSlice         `boil:"ParentTags" json:"ParentTags" toml:"ParentTags" yaml:"ParentTags"`
 }
@@ -236,6 +239,28 @@ func (o *Tag) ContentUnits(mods ...qm.QueryMod) contentUnitQuery {
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"\"content_units\".*"})
+	}
+
+	return query
+}
+
+// Labels retrieves all the label's Labels with an executor.
+func (o *Tag) Labels(mods ...qm.QueryMod) labelQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.InnerJoin("\"label_tag\" on \"labels\".\"id\" = \"label_tag\".\"label_id\""),
+		qm.Where("\"label_tag\".\"tag_id\"=?", o.ID),
+	)
+
+	query := Labels(queryMods...)
+	queries.SetFrom(query.Query, "\"labels\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"labels\".*"})
 	}
 
 	return query
@@ -481,6 +506,114 @@ func (tagL) LoadContentUnits(e boil.Executor, singular bool, maybeTag interface{
 				local.R.ContentUnits = append(local.R.ContentUnits, foreign)
 				if foreign.R == nil {
 					foreign.R = &contentUnitR{}
+				}
+				foreign.R.Tags = append(foreign.R.Tags, local)
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+// LoadLabels allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (tagL) LoadLabels(e boil.Executor, singular bool, maybeTag interface{}, mods queries.Applicator) error {
+	var slice []*Tag
+	var object *Tag
+
+	if singular {
+		object = maybeTag.(*Tag)
+	} else {
+		slice = *maybeTag.(*[]*Tag)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &tagR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &tagR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.Select("\"labels\".id, \"labels\".uid, \"labels\".content_unit_id, \"labels\".media_type, \"labels\".properties, \"labels\".approve_state, \"labels\".created_at, \"a\".\"tag_id\""),
+		qm.From("\"labels\""),
+		qm.InnerJoin("\"label_tag\" as \"a\" on \"labels\".\"id\" = \"a\".\"label_id\""),
+		qm.WhereIn("\"a\".\"tag_id\" in ?", args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.Query(e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load labels")
+	}
+
+	var resultSlice []*Label
+
+	var localJoinCols []int64
+	for results.Next() {
+		one := new(Label)
+		var localJoinCol int64
+
+		err = results.Scan(&one.ID, &one.UID, &one.ContentUnitID, &one.MediaType, &one.Properties, &one.ApproveState, &one.CreatedAt, &localJoinCol)
+		if err != nil {
+			return errors.Wrap(err, "failed to scan eager loaded results for labels")
+		}
+		if err = results.Err(); err != nil {
+			return errors.Wrap(err, "failed to plebian-bind eager loaded slice labels")
+		}
+
+		resultSlice = append(resultSlice, one)
+		localJoinCols = append(localJoinCols, localJoinCol)
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on labels")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for labels")
+	}
+
+	if singular {
+		object.R.Labels = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &labelR{}
+			}
+			foreign.R.Tags = append(foreign.R.Tags, object)
+		}
+		return nil
+	}
+
+	for i, foreign := range resultSlice {
+		localJoinCol := localJoinCols[i]
+		for _, local := range slice {
+			if local.ID == localJoinCol {
+				local.R.Labels = append(local.R.Labels, foreign)
+				if foreign.R == nil {
+					foreign.R = &labelR{}
 				}
 				foreign.R.Tags = append(foreign.R.Tags, local)
 				break
@@ -874,6 +1007,147 @@ func (o *Tag) RemoveContentUnits(exec boil.Executor, related ...*ContentUnit) er
 }
 
 func removeContentUnitsFromTagsSlice(o *Tag, related []*ContentUnit) {
+	for _, rel := range related {
+		if rel.R == nil {
+			continue
+		}
+		for i, ri := range rel.R.Tags {
+			if o.ID != ri.ID {
+				continue
+			}
+
+			ln := len(rel.R.Tags)
+			if ln > 1 && i < ln-1 {
+				rel.R.Tags[i] = rel.R.Tags[ln-1]
+			}
+			rel.R.Tags = rel.R.Tags[:ln-1]
+			break
+		}
+	}
+}
+
+// AddLabels adds the given related objects to the existing relationships
+// of the tag, optionally inserting them as new records.
+// Appends related to o.R.Labels.
+// Sets related.R.Tags appropriately.
+func (o *Tag) AddLabels(exec boil.Executor, insert bool, related ...*Label) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			if err = rel.Insert(exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		}
+	}
+
+	for _, rel := range related {
+		query := "insert into \"label_tag\" (\"tag_id\", \"label_id\") values ($1, $2)"
+		values := []interface{}{o.ID, rel.ID}
+
+		if boil.DebugMode {
+			fmt.Fprintln(boil.DebugWriter, query)
+			fmt.Fprintln(boil.DebugWriter, values)
+		}
+		_, err = exec.Exec(query, values...)
+		if err != nil {
+			return errors.Wrap(err, "failed to insert into join table")
+		}
+	}
+	if o.R == nil {
+		o.R = &tagR{
+			Labels: related,
+		}
+	} else {
+		o.R.Labels = append(o.R.Labels, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &labelR{
+				Tags: TagSlice{o},
+			}
+		} else {
+			rel.R.Tags = append(rel.R.Tags, o)
+		}
+	}
+	return nil
+}
+
+// SetLabels removes all previously related items of the
+// tag replacing them completely with the passed
+// in related items, optionally inserting them as new records.
+// Sets o.R.Tags's Labels accordingly.
+// Replaces o.R.Labels with related.
+// Sets related.R.Tags's Labels accordingly.
+func (o *Tag) SetLabels(exec boil.Executor, insert bool, related ...*Label) error {
+	query := "delete from \"label_tag\" where \"tag_id\" = $1"
+	values := []interface{}{o.ID}
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+	_, err := exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+
+	removeLabelsFromTagsSlice(o, related)
+	if o.R != nil {
+		o.R.Labels = nil
+	}
+	return o.AddLabels(exec, insert, related...)
+}
+
+// RemoveLabels relationships from objects passed in.
+// Removes related items from R.Labels (uses pointer comparison, removal does not keep order)
+// Sets related.R.Tags.
+func (o *Tag) RemoveLabels(exec boil.Executor, related ...*Label) error {
+	if len(related) == 0 {
+		return nil
+	}
+
+	var err error
+	query := fmt.Sprintf(
+		"delete from \"label_tag\" where \"tag_id\" = $1 and \"label_id\" in (%s)",
+		strmangle.Placeholders(dialect.UseIndexPlaceholders, len(related), 2, 1),
+	)
+	values := []interface{}{o.ID}
+	for _, rel := range related {
+		values = append(values, rel.ID)
+	}
+
+	if boil.DebugMode {
+		fmt.Fprintln(boil.DebugWriter, query)
+		fmt.Fprintln(boil.DebugWriter, values)
+	}
+	_, err = exec.Exec(query, values...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove relationships before set")
+	}
+	removeLabelsFromTagsSlice(o, related)
+	if o.R == nil {
+		return nil
+	}
+
+	for _, rel := range related {
+		for i, ri := range o.R.Labels {
+			if rel != ri {
+				continue
+			}
+
+			ln := len(o.R.Labels)
+			if ln > 1 && i < ln-1 {
+				o.R.Labels[i] = o.R.Labels[ln-1]
+			}
+			o.R.Labels = o.R.Labels[:ln-1]
+			break
+		}
+	}
+
+	return nil
+}
+
+func removeLabelsFromTagsSlice(o *Tag, related []*Label) {
 	for _, rel := range related {
 		if rel.R == nil {
 			continue

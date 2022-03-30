@@ -103,6 +103,7 @@ var ContentUnitRels = struct {
 	Sources                       string
 	Tags                          string
 	Files                         string
+	Labels                        string
 }{
 	Type:                          "Type",
 	CollectionsContentUnits:       "CollectionsContentUnits",
@@ -114,6 +115,7 @@ var ContentUnitRels = struct {
 	Sources:                       "Sources",
 	Tags:                          "Tags",
 	Files:                         "Files",
+	Labels:                        "Labels",
 }
 
 // contentUnitR is where relationships are stored.
@@ -128,6 +130,7 @@ type contentUnitR struct {
 	Sources                       SourceSlice                 `boil:"Sources" json:"Sources" toml:"Sources" yaml:"Sources"`
 	Tags                          TagSlice                    `boil:"Tags" json:"Tags" toml:"Tags" yaml:"Tags"`
 	Files                         FileSlice                   `boil:"Files" json:"Files" toml:"Files" yaml:"Files"`
+	Labels                        LabelSlice                  `boil:"Labels" json:"Labels" toml:"Labels" yaml:"Labels"`
 }
 
 // NewStruct creates a new relationship struct
@@ -438,6 +441,27 @@ func (o *ContentUnit) Files(mods ...qm.QueryMod) fileQuery {
 
 	if len(queries.GetSelect(query.Query)) == 0 {
 		queries.SetSelect(query.Query, []string{"\"files\".*"})
+	}
+
+	return query
+}
+
+// Labels retrieves all the label's Labels with an executor.
+func (o *ContentUnit) Labels(mods ...qm.QueryMod) labelQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"labels\".\"content_unit_id\"=?", o.ID),
+	)
+
+	query := Labels(queryMods...)
+	queries.SetFrom(query.Query, "\"labels\"")
+
+	if len(queries.GetSelect(query.Query)) == 0 {
+		queries.SetSelect(query.Query, []string{"\"labels\".*"})
 	}
 
 	return query
@@ -1409,6 +1433,97 @@ func (contentUnitL) LoadFiles(e boil.Executor, singular bool, maybeContentUnit i
 	return nil
 }
 
+// LoadLabels allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (contentUnitL) LoadLabels(e boil.Executor, singular bool, maybeContentUnit interface{}, mods queries.Applicator) error {
+	var slice []*ContentUnit
+	var object *ContentUnit
+
+	if singular {
+		object = maybeContentUnit.(*ContentUnit)
+	} else {
+		slice = *maybeContentUnit.(*[]*ContentUnit)
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &contentUnitR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &contentUnitR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`labels`),
+		qm.WhereIn(`labels.content_unit_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.Query(e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load labels")
+	}
+
+	var resultSlice []*Label
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice labels")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on labels")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for labels")
+	}
+
+	if singular {
+		object.R.Labels = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &labelR{}
+			}
+			foreign.R.ContentUnit = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.ContentUnitID {
+				local.R.Labels = append(local.R.Labels, foreign)
+				if foreign.R == nil {
+					foreign.R = &labelR{}
+				}
+				foreign.R.ContentUnit = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetType of the contentUnit to the related item.
 // Sets o.R.Type to related.
 // Adds o to related.R.TypeContentUnits.
@@ -2260,6 +2375,58 @@ func (o *ContentUnit) RemoveFiles(exec boil.Executor, related ...*File) error {
 		}
 	}
 
+	return nil
+}
+
+// AddLabels adds the given related objects to the existing relationships
+// of the content_unit, optionally inserting them as new records.
+// Appends related to o.R.Labels.
+// Sets related.R.ContentUnit appropriately.
+func (o *ContentUnit) AddLabels(exec boil.Executor, insert bool, related ...*Label) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.ContentUnitID = o.ID
+			if err = rel.Insert(exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"labels\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"content_unit_id"}),
+				strmangle.WhereClause("\"", "\"", 2, labelPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.DebugMode {
+				fmt.Fprintln(boil.DebugWriter, updateQuery)
+				fmt.Fprintln(boil.DebugWriter, values)
+			}
+			if _, err = exec.Exec(updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.ContentUnitID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &contentUnitR{
+			Labels: related,
+		}
+	} else {
+		o.R.Labels = append(o.R.Labels, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &labelR{
+				ContentUnit: o,
+			}
+		} else {
+			rel.R.ContentUnit = o
+		}
+	}
 	return nil
 }
 
