@@ -13,9 +13,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
@@ -51,9 +51,10 @@ func RenameUnits() {
 	utils.Must(common.InitTypeRegistries(mdb))
 
 	log.Info("Loading all units")
-	units, err := models.ContentUnits(mdb,
-		qm.Load("CollectionsContentUnits", "CollectionsContentUnits.Collection")).
-		All()
+	units, err := models.ContentUnits(
+		qm.Load("CollectionsContentUnits"),
+		qm.Load("CollectionsContentUnits.Collection")).
+		All(mdb)
 	utils.Must(err)
 	log.Infof("Got %d units", len(units))
 

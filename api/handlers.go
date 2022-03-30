@@ -10,12 +10,12 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
 	"gopkg.in/gin-gonic/gin.v1/binding"
-	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
@@ -168,11 +168,11 @@ func DescendantUnitsHandler(c *gin.Context) {
   FILTER (WHERE rf.content_unit_id IS NOT NULL)
   FROM rf 
 	INNER JOIN content_units cu ON rf.content_unit_id = cu.id AND NOT (cu.type_id = ANY($2))`
-	err = queries.Raw(mdb, q, f.ID, pq.Array([]int64{
+	err = queries.Raw(q, f.ID, pq.Array([]int64{
 		//CONTENT_TYPE_REGISTRY.ByName[CT_KITEI_MAKOR].ID,  // created in workflow
 		//CONTENT_TYPE_REGISTRY.ByName[CT_LELO_MIKUD].ID,   // created in workflow
 		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_PUBLICATION].ID,
-	})).QueryRow().Scan(&cuIDs)
+	})).QueryRow(mdb).Scan(&cuIDs)
 	if err != nil {
 		NewInternalError(err).Abort(c)
 		return
@@ -184,10 +184,10 @@ func DescendantUnitsHandler(c *gin.Context) {
 	}
 
 	// fetch units by previously found IDs
-	units, err := models.ContentUnits(mdb,
+	units, err := models.ContentUnits(
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(cuIDs)...),
 		qm.Load("ContentUnitI18ns")).
-		All()
+		All(mdb)
 	if err != nil {
 		NewInternalError(err).Abort(c)
 		return
@@ -255,13 +255,13 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 	log.Info("Looking up parent file, workflow_id=", r.Operation.WorkflowID)
 	var parent *models.File
 	var parentID int64
-	err = queries.Raw(exec,
+	err = queries.Raw(
 		`SELECT file_id FROM files_operations
 		 INNER JOIN operations ON operation_id = id
 		 WHERE type_id=$1 AND properties -> 'workflow_id' ? $2`,
 		common.OPERATION_TYPE_REGISTRY.ByName[common.OP_CAPTURE_START].ID,
 		r.Operation.WorkflowID).
-		QueryRow().
+		QueryRow(exec).
 		Scan(&parentID)
 	if err == nil {
 		parent = &models.File{ID: parentID}
@@ -409,7 +409,7 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	} else {
 		log.Info("Renaming original")
 		original.Name = r.Original.FileName
-		err = original.Update(exec, "name")
+		_, err = original.Update(exec, boil.Whitelist("name"))
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Rename original file")
 		}
@@ -430,7 +430,7 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 		} else {
 			log.Info("Renaming proxy")
 			proxy.Name = r.Proxy.FileName
-			err = proxy.Update(exec, "name")
+			_, err = proxy.Update(exec, boil.Whitelist("name"))
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "Rename proxy file")
 			}
@@ -476,7 +476,7 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	}
 
 	log.Infof("Updating unit workflow_id to: %s", r.WorkflowID)
-	err = original.L.LoadContentUnit(exec, true, original)
+	err = original.L.LoadContentUnit(exec, true, original, nil)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "refresh original's unit: %d", original.ContentUnitID.Int64)
 	}
@@ -557,7 +557,7 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []
 			// they were probably removed in update mode to send operation, aka fix.
 			if f.RemovedAt.Valid {
 				f.RemovedAt = null.NewTime(time.Unix(0, 0), false)
-				err = f.Update(exec, "removed_at")
+				_, err = f.Update(exec, boil.Whitelist("removed_at"))
 				if err != nil {
 					return nil, nil, errors.Wrap(err, "Restore file")
 				}
@@ -619,7 +619,7 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []e
 	file.Properties = null.JSONFrom(fpa)
 
 	log.Info("Saving changes to DB")
-	err = file.Update(exec, "properties")
+	_, err = file.Update(exec, boil.Whitelist("properties"))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -668,7 +668,7 @@ func handleSirtutim(exec boil.Executor, input interface{}) (*models.Operation, [
 			if original.ContentUnitID.Valid {
 				log.Infof("Associating to content_unit [%d]", original.ContentUnitID.Int64)
 				file.ContentUnitID = original.ContentUnitID
-				err = file.Update(exec, "content_unit_id")
+				_, err = file.Update(exec, boil.Whitelist("content_unit_id"))
 				if err != nil {
 					return nil, nil, errors.Wrap(err, "Save file.content_unit_id to DB")
 				}
@@ -731,10 +731,11 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 
 	if r.ContentUnitUID != "" {
 		log.Infof("Lookup content unit by uid %s", r.ContentUnitUID)
-		cu, err = models.ContentUnits(exec,
+		cu, err = models.ContentUnits(
 			qm.Where("uid = ?", r.ContentUnitUID),
-			qm.Load("SourceContentUnitDerivations", "SourceContentUnitDerivations.Derived"),
-		).One()
+			qm.Load("SourceContentUnitDerivations"),
+			qm.Load("SourceContentUnitDerivations.Derived"),
+		).One(exec)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Fetch unit from mdb")
 		}
@@ -814,7 +815,7 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 		file.ParentID = mf.ParentID
 
 		// save
-		err = file.Update(exec)
+		_, err = file.Update(exec, boil.Infer())
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Update file")
 		}
@@ -874,18 +875,18 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 	} else if r.InsertType == "publication" {
 		log.Infof("Publication, associating to derived unit")
 
-		publisher, err := models.Publishers(exec, qm.Where("uid = ?", r.PublisherUID)).One()
+		publisher, err := models.Publishers(qm.Where("uid = ?", r.PublisherUID)).One(exec)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Fetch publisher from mdb")
 		}
 
 		var cudID int64
-		err = queries.Raw(exec, `SELECT cu.id
+		err = queries.Raw(`SELECT cu.id
 FROM content_units cu
   INNER JOIN content_unit_derivations cud ON cu.id = cud.derived_id AND cud.source_id = $1 AND cu.type_id = $2
   INNER JOIN content_units_publishers cup ON cud.derived_id = cup.content_unit_id AND cup.publisher_id = $3`,
 			cu.ID, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_PUBLICATION].ID, publisher.ID).
-			QueryRow().
+			QueryRow(exec).
 			Scan(&cudID)
 		if err != nil && err != sql.ErrNoRows {
 			return nil, nil, errors.Wrap(err, "Lookup existing cud from mdb")
@@ -952,7 +953,7 @@ FROM content_units cu
 
 	log.Infof("Associating file [%d] to content_unit [%d]", file.ID, cuID)
 	file.ContentUnitID = null.Int64From(cuID)
-	err = file.Update(exec, "content_unit_id")
+	_, err = file.Update(exec, boil.Whitelist("content_unit_id"))
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Save file.content_unit_id to DB")
 	}
@@ -978,9 +979,10 @@ FROM content_units cu
 	// Set unit duration if not already set
 	// This is here for units not created via send operation of some trimmed file.
 	if r.AVFile.Duration > 0 {
-		cu, err := models.ContentUnits(exec,
+		cu, err := models.ContentUnits(
 			qm.Where("id = ?", cuID),
-			qm.Load("Files")).One()
+			qm.Load("Files")).
+			One(exec)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "Refresh CU [%d] from DB", cuID)
 		}
@@ -1039,7 +1041,8 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 		}
 
 		log.Info("Updating queue table")
-		_, err = queries.Raw(exec, "update batch_convert set operation_id=$1 where file_id=$2", operation.ID, original.ID).Exec()
+		_, err = queries.Raw("update batch_convert set operation_id=$1 where file_id=$2", operation.ID, original.ID).
+			Exec(exec)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Update queue table")
 		}
@@ -1090,13 +1093,14 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 	if original != nil {
 		file.Secure = original.Secure
 	}
-	err = file.Update(exec, "secure", "published")
+	_, err = file.Update(exec, boil.Whitelist("secure", "published"))
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "Update secure published [%d]", file.ID)
 	}
 
 	log.Info("Updating queue table")
-	_, err = queries.Raw(exec, "update batch_convert set operation_id=$1 where file_id=$2", operation.ID, original.ID).Exec()
+	_, err = queries.Raw("update batch_convert set operation_id=$1 where file_id=$2", operation.ID, original.ID).
+		Exec(exec)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Update queue table")
 	}
@@ -1104,7 +1108,7 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 	opFiles := []*models.File{original, file}
 
 	log.Info("Loading original's children")
-	err = original.L.LoadParentFiles(exec, true, original)
+	err = original.L.LoadParentFiles(exec, true, original, nil)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Load original children")
 	}
@@ -1118,7 +1122,7 @@ func handleTranscode(exec boil.Executor, input interface{}) (*models.Operation, 
 
 		log.Infof("Removing child file [%d]", child.ID)
 		child.RemovedAt = null.TimeFrom(time.Now().UTC())
-		err := child.Update(exec, "removed_at")
+		_, err := child.Update(exec, boil.Whitelist("removed_at"))
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "Save file to DB: %d", child.ID)
 		}

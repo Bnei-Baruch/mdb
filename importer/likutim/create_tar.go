@@ -12,8 +12,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -54,9 +54,10 @@ func (c *CreateTar) Run() {
 
 func (c *CreateTar) buildFolder() error {
 	for _, d := range c.duplicates {
-		f, err := models.Files(c.mdb,
+		f, err := models.Files(
 			qm.Load("ContentUnit"),
-			qm.Where("uid = ?", d.Save)).One()
+			qm.Where("uid = ?", d.Save)).
+			One(c.mdb)
 		if err != nil {
 			return err
 		}

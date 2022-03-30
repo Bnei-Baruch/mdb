@@ -9,8 +9,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
@@ -47,12 +47,12 @@ func EventsSubcollections() {
 func doEventsSubcollections(cIDs []int64) error {
 	for _, cID := range cIDs {
 
-		c, err := models.CollectionsG(
+		c, err := models.Collections(
 			qm.Where("id=?", cID),
-			qm.Load("CollectionsContentUnits",
-				"CollectionsContentUnits.ContentUnit",
-				"CollectionsContentUnits.ContentUnit.ContentUnitI18ns"),
-		).One()
+			qm.Load("CollectionsContentUnits"),
+			qm.Load("CollectionsContentUnits.ContentUnit"),
+			qm.Load("CollectionsContentUnits.ContentUnit.ContentUnitI18ns"),
+		).One(mdb)
 		if err != nil {
 			return errors.Wrapf(err, "Load collection %d", cID)
 		}
@@ -101,14 +101,14 @@ func doEventsSubcollections(cIDs []int64) error {
 				continue
 			}
 
-			err = cu.L.LoadFiles(boil.GetDB(), true, cu)
+			err = cu.L.LoadFiles(mdb, true, cu, nil)
 			if err != nil {
 				return errors.Wrapf(err, "Load CU files %d", cu.ID)
 			}
 
 			for _, f := range cu.R.Files {
 				if f.Type == "video" {
-					op, err := api.FindUpChainOperation(boil.GetDB(), f.ID, common.OP_CAPTURE_STOP)
+					op, err := api.FindUpChainOperation(mdb, f.ID, common.OP_CAPTURE_STOP)
 					if err != nil {
 						return errors.Wrapf(err, "find upchain op for file %d", f.ID)
 					}
@@ -139,7 +139,7 @@ func doEventsSubcollections(cIDs []int64) error {
 		log.Infof("len(cuByCaptureID) %d", len(cuByCaptureID))
 		for k, v := range cuByCaptureID {
 			// see if we already have this collection
-			cc, err := api.FindCollectionByCaptureID(boil.GetDB(), k)
+			cc, err := api.FindCollectionByCaptureID(mdb, k)
 			if err != nil {
 				if _, ok := err.(api.CollectionNotFound); !ok {
 					return errors.Wrapf(err, "FindCollectionByCaptureID %s", k)
@@ -181,7 +181,7 @@ func doEventsSubcollections(cIDs []int64) error {
 			log.Infof("Created collection %d", c.ID)
 
 			c.Published = true
-			if err := c.Update(tx, "published"); err != nil {
+			if _, err := c.Update(tx, boil.Whitelist("published")); err != nil {
 				return errors.Wrapf(err, "update collection published cID %d", c.ID)
 			}
 
@@ -194,7 +194,7 @@ func doEventsSubcollections(cIDs []int64) error {
 					}
 				}
 
-				if err := cu.L.LoadCollectionsContentUnits(tx, true, cu); err != nil {
+				if err := cu.L.LoadCollectionsContentUnits(tx, true, cu, nil); err != nil {
 					utils.Must(tx.Rollback())
 					return errors.Wrapf(err, "Load CCU's for cu %d", cu.ID)
 				}

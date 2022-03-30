@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/models"
 )
@@ -179,7 +179,7 @@ type ContentTypeRegistry struct {
 }
 
 func (r *ContentTypeRegistry) Init(exec boil.Executor) error {
-	types, err := models.ContentTypes(exec).All()
+	types, err := models.ContentTypes().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load content_types from DB")
 	}
@@ -199,7 +199,7 @@ type OperationTypeRegistry struct {
 }
 
 func (r *OperationTypeRegistry) Init(exec boil.Executor) error {
-	types, err := models.OperationTypes(exec).All()
+	types, err := models.OperationTypes().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load operation_types from DB")
 	}
@@ -217,7 +217,7 @@ type ContentRoleTypeRegistry struct {
 }
 
 func (r *ContentRoleTypeRegistry) Init(exec boil.Executor) error {
-	types, err := models.ContentRoleTypes(exec).All()
+	types, err := models.ContentRoleTypes().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load content_role_types from DB")
 	}
@@ -235,7 +235,7 @@ type PersonRegistry struct {
 }
 
 func (r *PersonRegistry) Init(exec boil.Executor) error {
-	types, err := models.Persons(exec, qm.Where("pattern is not null")).All()
+	types, err := models.Persons(qm.Where("pattern is not null")).All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load persons from DB")
 	}
@@ -253,7 +253,7 @@ type AuthorRegistry struct {
 }
 
 func (r *AuthorRegistry) Init(exec boil.Executor) error {
-	authors, err := models.Authors(exec).All()
+	authors, err := models.Authors().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load authors from DB")
 	}
@@ -272,7 +272,7 @@ type SourceTypeRegistry struct {
 }
 
 func (r *SourceTypeRegistry) Init(exec boil.Executor) error {
-	types, err := models.SourceTypes(exec).All()
+	types, err := models.SourceTypes().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load source_types from DB")
 	}
@@ -310,7 +310,7 @@ type TwitterUsersRegistry struct {
 }
 
 func (r *TwitterUsersRegistry) Init(exec boil.Executor) error {
-	users, err := models.TwitterUsers(exec).All()
+	users, err := models.TwitterUsers().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load twitter users from DB")
 	}

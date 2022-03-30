@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/types"
-	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 )

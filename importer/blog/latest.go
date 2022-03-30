@@ -9,8 +9,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/robbiet480/go-wordpress"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/events"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -29,7 +30,7 @@ func ImportLatest() {
 
 func importLatest(emitter *events.BufferedEmitter) error {
 	// load blogs
-	blogs, err := models.Blogs(mdb).All()
+	blogs, err := models.Blogs().All(mdb)
 	if err != nil {
 		return errors.Wrap(err, "load blogs")
 	}
@@ -92,9 +93,9 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time, emitter *events.Buffer
 
 		for _, post := range posts {
 
-			exist, err := models.BlogPosts(mdb,
+			exist, err := models.BlogPosts(
 				qm.Where("blog_id = ? and wp_id = ?", b.ID, post.ID)).
-				Exists()
+				Exists(mdb)
 			if err != nil {
 				log.Errorf("Check exists %d %d: %s", b.ID, post.ID, err.Error())
 				continue
@@ -114,7 +115,7 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time, emitter *events.Buffer
 			log.Infof("Insert new post %s [%d]", post.Title.Rendered, post.ID)
 			blogPost.BlogID = b.ID
 			blogPost.Filtered = !postFilter.IsPass(post)
-			err = blogPost.Insert(mdb)
+			err = blogPost.Insert(mdb, boil.Infer())
 			if err != nil {
 				log.Errorf("Insert post to DB %d %d: %s", b.ID, post.ID, err.Error())
 				continue
@@ -147,12 +148,12 @@ func importLastFromBlog(b *models.Blog, lastTS time.Time, emitter *events.Buffer
 }
 
 func getLastImported() (map[int64]time.Time, error) {
-	rows, err := queries.Raw(mdb, `select distinct on (b.id)
+	rows, err := queries.Raw(`select distinct on (b.id)
   b.id,
   p.posted_at
 from blog_posts p
   inner join blogs b on p.blog_id = b.id
-order by b.id, p.posted_at desc`).Query()
+order by b.id, p.posted_at desc`).Query(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "queries.Raw")
 	}

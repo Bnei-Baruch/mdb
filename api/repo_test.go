@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -61,7 +62,7 @@ func (suite *RepoSuite) TestCreateOperation() {
 	suite.Regexp(utils.UID_REGEX, op.UID, "UID")
 	suite.True(op.Station.Valid, "Station.Valid")
 	suite.Equal(o.Station, op.Station.String, "Station.String")
-	user, err := models.Users(suite.tx, qm.Where("email=?", o.User)).One()
+	user, err := models.Users(qm.Where("email=?", o.User)).One(suite.tx)
 	suite.Equal(user.ID, op.UserID.Int64, "User")
 
 	// test with unknown user
@@ -238,17 +239,20 @@ func (suite *RepoSuite) TestRemoveFile() {
 	file, err := CreateFile(suite.tx, nil, f, nil)
 	suite.Require().Nil(err)
 	file.Published = true
-	suite.Require().Nil(file.Update(suite.tx, "published"))
+	_, err = file.Update(suite.tx, boil.Whitelist("published"))
+	suite.Require().Nil(err)
 	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 	cu.Published = true
-	suite.Require().Nil(cu.Update(suite.tx, "published"))
+	_, err = cu.Update(suite.tx, boil.Whitelist("published"))
+	suite.Require().Nil(err)
 	err = file.SetContentUnit(suite.tx, false, cu)
 	suite.Require().Nil(err)
 	c, err := CreateCollection(suite.tx, common.CT_DAILY_LESSON, nil)
 	suite.Require().Nil(err)
 	c.Published = true
-	suite.Require().Nil(c.Update(suite.tx, "published"))
+	_, err = c.Update(suite.tx, boil.Whitelist("published"))
+	suite.Require().Nil(err)
 	err = c.AddCollectionsContentUnits(suite.tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID})
 	suite.Require().Nil(err)
 

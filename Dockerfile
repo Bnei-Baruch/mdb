@@ -1,7 +1,7 @@
 ARG work_dir=/go/src/github.com/Bnei-Baruch/mdb
 ARG build_number=dev
-ARG mdb_url="postgres://user:password@host.docker.internal/mdb?sslmode=disable"
-ARG mdb_test_url="postgres://user:password@host.docker.internal/%s?sslmode=disable"
+ARG mdb_url="postgres://user:password@host.docker.internal:5435/mdb?sslmode=disable"
+ARG mdb_test_url="postgres://user:password@host.docker.internal:5435/%s?sslmode=disable"
 
 FROM golang:1.17-alpine3.15 as build
 

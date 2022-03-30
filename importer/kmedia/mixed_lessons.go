@@ -4,17 +4,18 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/common"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/Bnei-Baruch/mdb/common"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/emirpasic/gods/maps/treemap"
 	godsutil "github.com/emirpasic/gods/utils"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -129,9 +130,9 @@ func analyzeNewMixedContainer(cn *kmodels.Container) (bool, error) {
 	if cn.VirtualLessonID.Valid && cn.VirtualLessonID.Int != 0 {
 		log.Warnf("New container %d %s has virtual_lesson_id %d", cn.ID, cn.Name.String, cn.VirtualLessonID.Int)
 
-		c, err := models.Collections(mdb,
+		c, err := models.Collections(
 			qm.Where("(properties->>'kmedia_id')::int = ?", cn.VirtualLessonID.Int)).
-			One()
+			One(mdb)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				log.Warnf("No collection with kmedia_id %d", cn.VirtualLessonID.Int)
@@ -224,12 +225,12 @@ func lessonReconciler(jobs <-chan *kmodels.Container, wg *sync.WaitGroup) {
 			log.Infof("%d\t%s", cn.ID, cn.Name.String)
 		}
 
-		cus, err := models.ContentUnits(mdb,
+		cus, err := models.ContentUnits(
 			qm.Where("type_id = ?", 1),
 			qm.Where("properties->>'film_date' = ?", filmDate),
 			qm.Load("ContentUnitI18ns"),
 		).
-			All()
+			All(mdb)
 		if err != nil {
 			log.Errorf("Load CUs in %s: %s", filmDate, err.Error())
 			return

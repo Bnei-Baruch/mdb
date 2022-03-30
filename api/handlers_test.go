@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -76,11 +77,11 @@ func (suite *HandlersSuite) TestHandleCaptureStart() {
 	suite.Equal(input.CollectionUID, props["collection_uid"], "properties: collection_uid")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 1, "Number of files")
 	f := op.R.Files[0]
 	suite.Equal(input.FileName, f.Name, "File: Name")
@@ -101,7 +102,7 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 	})
 	suite.Require().Nil(err)
 	suite.Require().Nil(evnts)
-	suite.Require().Nil(opStart.L.LoadFiles(suite.tx, true, opStart))
+	suite.Require().Nil(opStart.L.LoadFiles(suite.tx, true, opStart, nil))
 	parent := opStart.R.Files[0]
 
 	// Do capture_stop operation
@@ -142,11 +143,11 @@ func (suite *HandlersSuite) TestHandleCaptureStop() {
 	suite.Equal(input.Part, props["part"], "properties: part")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 1, "Number of files")
 	f := op.R.Files[0]
 	suite.Equal(input.FileName, f.Name, "File: Name")
@@ -212,11 +213,11 @@ func (suite *HandlersSuite) TestHandleDemux() {
 	suite.Equal(input.CaptureSource, props["capture_source"], "properties: capture_source")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 3, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -291,11 +292,11 @@ func (suite *HandlersSuite) TestHandleDemuxNoProxy() {
 	suite.Equal(input.CaptureSource, props["capture_source"], "properties: capture_source")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 2, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -386,11 +387,11 @@ func (suite *HandlersSuite) TestHandleTrim() {
 	}
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 4, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -474,11 +475,11 @@ func (suite *HandlersSuite) TestHandleTrimNoProxy() {
 	}
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 2, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -552,11 +553,11 @@ func (suite *HandlersSuite) TestHandleSend() {
 	suite.Equal(input.Operation.WorkflowID, props["workflow_id"], "properties: workflow_id")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 2, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -614,11 +615,11 @@ func (suite *HandlersSuite) TestHandleSendNoProxy() {
 	suite.Equal(input.Operation.WorkflowID, props["workflow_id"], "properties: workflow_id")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 1, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -715,11 +716,11 @@ func (suite *HandlersSuite) TestHandleConvert() {
 	suite.False(op.Properties.Valid, "Operation properties")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 4, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -778,7 +779,7 @@ func (suite *HandlersSuite) TestHandleConvert() {
 	suite.Require().NotEmpty(evnts)
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 2, "Number of files")
 	fm = make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -832,7 +833,7 @@ func (suite *HandlersSuite) TestHandleUpload() {
 	suite.False(op.Properties.Valid, "Operation properties")
 
 	// Check file
-	err = op.L.LoadFiles(suite.tx, true, op)
+	err = op.L.LoadFiles(suite.tx, true, op, nil)
 	suite.Require().Nil(err)
 	suite.Require().Len(op.R.Files, 1, "Operation Files length")
 	f := op.R.Files[0]
@@ -889,7 +890,7 @@ func (suite *HandlersSuite) TestHandleUpload() {
 	suite.False(op.Properties.Valid, "Operation properties")
 
 	// Check file
-	err = op.L.LoadFiles(suite.tx, true, op)
+	err = op.L.LoadFiles(suite.tx, true, op, nil)
 	suite.Require().Nil(err)
 	suite.Require().Len(op.R.Files, 1, "Operation Files length")
 	f = op.R.Files[0]
@@ -931,7 +932,7 @@ func (suite *HandlersSuite) TestHandleSirtutim() {
 
 	// associate original and content unit
 	original.ContentUnitID = null.Int64From(cu.ID)
-	err = original.Update(suite.tx, "content_unit_id")
+	_, err = original.Update(suite.tx, boil.Whitelist("content_unit_id"))
 	suite.Require().Nil(err)
 
 	// Do sirtutim operation
@@ -959,11 +960,11 @@ func (suite *HandlersSuite) TestHandleSirtutim() {
 	suite.False(op.Properties.Valid, "properties.Valid")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 2, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -1028,11 +1029,11 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 1, "Number of files")
 
 	// check inserted file
@@ -1076,7 +1077,7 @@ func (suite *HandlersSuite) TestHandleInsert() {
 	suite.Require().NotEmpty(evnts)
 
 	// check file's ParentID has changed
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 2, "Number of files")
 	f = op.R.Files[0]
 	if op.R.Files[1].Language.String != "" {
@@ -1145,11 +1146,11 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 		suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 		// Check user
-		suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+		suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 		suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 		// Check associated files
-		suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+		suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 		suite.Len(op.R.Files, 1, "Number of files")
 
 		// check inserted file
@@ -1168,10 +1169,10 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 		suite.Nil(props["duration"], "File duration")
 
 		// check content unit association
-		suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f))
+		suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f, nil))
 		ktCU := f.R.ContentUnit
 		suite.Equal(cType, common.CONTENT_TYPE_REGISTRY.ByID[ktCU.TypeID].Name, "KT CU type")
-		suite.Require().Nil(ktCU.L.LoadDerivedContentUnitDerivations(suite.tx, true, ktCU))
+		suite.Require().Nil(ktCU.L.LoadDerivedContentUnitDerivations(suite.tx, true, ktCU, nil))
 		suite.Equal(cu.ID, ktCU.R.DerivedContentUnitDerivations[0].SourceID, "KT CU source CU")
 
 		// test when KT cu exists
@@ -1192,11 +1193,11 @@ func (suite *HandlersSuite) TestHandleInsertKiteiMakor() {
 		suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 		// Check user
-		suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+		suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 		suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 		// Check associated files
-		suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+		suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 		suite.Len(op.R.Files, 1, "Number of files")
 
 		// check inserted file
@@ -1229,7 +1230,7 @@ func (suite *HandlersSuite) TestHandleInsertPublication() {
 	publisher := models.Publisher{
 		UID: "12345678",
 	}
-	suite.Require().Nil(publisher.Insert(suite.tx))
+	suite.Require().Nil(publisher.Insert(suite.tx, boil.Infer()))
 
 	// Do insert operation
 	input := InsertRequest{
@@ -1269,11 +1270,11 @@ func (suite *HandlersSuite) TestHandleInsertPublication() {
 	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 1, "Number of files")
 
 	// check inserted file
@@ -1292,10 +1293,10 @@ func (suite *HandlersSuite) TestHandleInsertPublication() {
 	suite.Nil(props["duration"], "File duration")
 
 	// check content unit association
-	suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f))
+	suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f, nil))
 	pCU := f.R.ContentUnit
 	suite.Equal(common.CT_PUBLICATION, common.CONTENT_TYPE_REGISTRY.ByID[pCU.TypeID].Name, "Publication CU type")
-	suite.Require().Nil(pCU.L.LoadDerivedContentUnitDerivations(suite.tx, true, pCU))
+	suite.Require().Nil(pCU.L.LoadDerivedContentUnitDerivations(suite.tx, true, pCU, nil))
 	suite.Equal(cu.ID, pCU.R.DerivedContentUnitDerivations[0].SourceID, "Publication CU source CU")
 
 	// test when Publication cu exists
@@ -1316,11 +1317,11 @@ func (suite *HandlersSuite) TestHandleInsertPublication() {
 	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 1, "Number of files")
 
 	// check inserted file
@@ -1388,11 +1389,11 @@ func (suite *HandlersSuite) TestHandleInsertDeclamation() {
 	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 1, "Number of files")
 
 	// check inserted file
@@ -1411,7 +1412,7 @@ func (suite *HandlersSuite) TestHandleInsertDeclamation() {
 	suite.Equal(input.AVFile.Duration, props["duration"], "File duration")
 
 	// check content unit association
-	suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f))
+	suite.Require().Nil(f.L.LoadContentUnit(suite.tx, true, f, nil))
 	cu := f.R.ContentUnit
 	suite.Equal(common.CT_BLOG_POST, common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name, "CU type")
 	suite.Require().True(cu.Properties.Valid)
@@ -1478,11 +1479,11 @@ func (suite *HandlersSuite) TestHandleInsertUpdateMode() {
 	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 2, "Number of files")
 	f, of := op.R.Files[0], op.R.Files[1]
 	if f.Name != "akladot.doc" {
@@ -1573,11 +1574,11 @@ func (suite *HandlersSuite) TestHandleInsertRenameMode() {
 	suite.Equal(input.Mode, props["mode"].(string), "Operation mode")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 1, "Number of files")
 	f := op.R.Files[0]
 
@@ -1622,7 +1623,7 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 
 	// associate original and content unit
 	original.ContentUnitID = null.Int64From(cu.ID)
-	err = original.Update(suite.tx, "content_unit_id")
+	_, err = original.Update(suite.tx, boil.Whitelist("content_unit_id"))
 	suite.Require().Nil(err)
 
 	// Do transcode operation
@@ -1650,11 +1651,11 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 	suite.False(op.Properties.Valid, "properties.Valid")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 2, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -1698,7 +1699,7 @@ func (suite *HandlersSuite) TestHandleTranscodeSuccess() {
 	suite.Require().Nil(evnts)
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 3, "Number of files")
 	fm = make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -1765,11 +1766,11 @@ func (suite *HandlersSuite) TestHandleTranscodeError() {
 	suite.Equal(input.Message, props["message"], "op properties message")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 1, "Number of files")
 	originalParent := op.R.Files[0]
 	suite.Equal(original.ID, originalParent.ID, "original <-> operation")
@@ -1850,11 +1851,11 @@ func (suite *HandlersSuite) TestHandleJoin() {
 	}
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 8, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {
@@ -1932,11 +1933,11 @@ func (suite *HandlersSuite) TestHandleJoinNoProxy() {
 	suite.Empty(props["proxy_shas"], "properties: proxy_shas should be empty")
 
 	// Check user
-	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
 	suite.Equal(input.Operation.User, op.R.User.Email, "Operation User")
 
 	// Check associated files
-	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op))
+	suite.Require().Nil(op.L.LoadFiles(suite.tx, true, op, nil))
 	suite.Len(op.R.Files, 4, "Number of files")
 	fm := make(map[string]*models.File)
 	for _, x := range op.R.Files {

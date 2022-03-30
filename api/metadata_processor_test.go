@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -95,10 +95,10 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu := original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu := cu.R.CollectionsContentUnits[0]
@@ -106,7 +106,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.Equal(0, ccu.Position, "ccu.Position")
 
 	// collection
-	err = ccu.L.LoadCollection(suite.tx, true, ccu)
+	err = ccu.L.LoadCollection(suite.tx, true, ccu, nil)
 	suite.Require().Nil(err)
 	c := ccu.R.Collection
 	suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
@@ -140,10 +140,10 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// collection association
-		err = original.L.LoadContentUnit(suite.tx, true, original)
+		err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 		suite.Require().Nil(err)
 		cu := original.R.ContentUnit
-		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 		suite.Require().Nil(err)
 		suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 		ccu := cu.R.CollectionsContentUnits[0]
@@ -173,10 +173,10 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu = original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu = cu.R.CollectionsContentUnits[0]
@@ -220,10 +220,10 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// associated to "main" content unit
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu = original.R.ContentUnit
-	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
+	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
 	cud := cu.R.DerivedContentUnitDerivations[0]
@@ -235,7 +235,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.False(ok, "cu.properties[\"artifact_type\"]")
 
 	// not associated with collection
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Empty(cu.R.CollectionsContentUnits, "cu.R.CollectionsContentUnits empty")
 
@@ -271,10 +271,10 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// associated to "main" content unit
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu = original.R.ContentUnit
-	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
+	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
 	cud = cu.R.DerivedContentUnitDerivations[0]
@@ -286,7 +286,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	suite.False(ok, "cu.properties[\"artifact_type\"]")
 
 	// associated with collection
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu = cu.R.CollectionsContentUnits[0]
@@ -332,10 +332,10 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu := original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu := cu.R.CollectionsContentUnits[0]
@@ -343,7 +343,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	suite.Equal(0, ccu.Position, "ccu.Position")
 
 	// collection
-	err = ccu.L.LoadCollection(suite.tx, true, ccu)
+	err = ccu.L.LoadCollection(suite.tx, true, ccu, nil)
 	suite.Require().Nil(err)
 	c := ccu.R.Collection
 	suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
@@ -377,10 +377,10 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// collection association
-		err = original.L.LoadContentUnit(suite.tx, true, original)
+		err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 		suite.Require().Nil(err)
 		cu := original.R.ContentUnit
-		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 		suite.Require().Nil(err)
 		suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 		ccu := cu.R.CollectionsContentUnits[0]
@@ -410,10 +410,10 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu = original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu = cu.R.CollectionsContentUnits[0]
@@ -442,10 +442,10 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// associated to "main" content unit
-		err = original.L.LoadContentUnit(suite.tx, true, original)
+		err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 		suite.Require().Nil(err)
 		cu = original.R.ContentUnit
-		err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
+		err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu, nil)
 		suite.Require().Nil(err)
 		suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
 		cud := cu.R.DerivedContentUnitDerivations[0]
@@ -457,7 +457,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		suite.False(ok, "cu.properties[\"artifact_type\"]")
 
 		// not associated with collection
-		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 		suite.Require().Nil(err)
 		suite.Empty(cu.R.CollectionsContentUnits, "cu.R.CollectionsContentUnits empty")
 
@@ -495,10 +495,10 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// associated to "main" content unit
-		err = original.L.LoadContentUnit(suite.tx, true, original)
+		err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 		suite.Require().Nil(err)
 		cu = original.R.ContentUnit
-		err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
+		err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu, nil)
 		suite.Require().Nil(err)
 		suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
 		cud := cu.R.DerivedContentUnitDerivations[0]
@@ -510,7 +510,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		suite.False(ok, "cu.properties[\"artifact_type\"]")
 
 		// not associated with collection
-		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 		suite.Require().Nil(err)
 		suite.Empty(cu.R.CollectionsContentUnits, "cu.R.CollectionsContentUnits empty")
 
@@ -564,15 +564,15 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// not associated with collection
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu := original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Empty(cu.R.CollectionsContentUnits, "cu.R.CollectionsContentUnits empty")
 
 	// not associated to "main" content unit
-	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
+	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Empty(cu.R.DerivedContentUnitDerivations, "cu.R.DerivationContentUnitDerivations empty")
 	var props map[string]interface{}
@@ -596,7 +596,7 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// reload cu cu association
-	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu)
+	err = cu.L.LoadDerivedContentUnitDerivations(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Require().Len(cu.R.DerivedContentUnitDerivations, 1, "cu.R.DerivationContentUnitDerivations length")
 	cud := cu.R.DerivedContentUnitDerivations[0]
@@ -612,10 +612,10 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	suite.False(ok, "cu.propeties[\"artifact_type\"] presence")
 
 	// main cu collection association
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu = original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu := cu.R.CollectionsContentUnits[0]
@@ -623,7 +623,7 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	suite.Equal(0, ccu.Position, "ccu.Position")
 
 	// collection
-	err = ccu.L.LoadCollection(suite.tx, true, ccu)
+	err = ccu.L.LoadCollection(suite.tx, true, ccu, nil)
 	suite.Require().Nil(err)
 	c := ccu.R.Collection
 	suite.Equal(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID, c.TypeID, "c.TypeID")
@@ -670,10 +670,10 @@ func (suite *MetadataProcessorSuite) TestVideoProgram() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu := original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu := cu.R.CollectionsContentUnits[0]
@@ -731,10 +731,10 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 			suite.assertContentUnit(metadata, original, proxy, false)
 
 			// collection association
-			err = original.L.LoadContentUnit(suite.tx, true, original)
+			err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 			suite.Require().Nil(err)
 			cu := original.R.ContentUnit
-			err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+			err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 			suite.Require().Nil(err)
 			suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 			ccu := cu.R.CollectionsContentUnits[0]
@@ -790,10 +790,10 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu := original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(2, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 
@@ -801,7 +801,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	var lccu, eccu *models.CollectionsContentUnit
 	for i := range cu.R.CollectionsContentUnits {
 		ccu := cu.R.CollectionsContentUnits[i]
-		err = ccu.L.LoadCollection(suite.tx, true, ccu)
+		err = ccu.L.LoadCollection(suite.tx, true, ccu, nil)
 		suite.Require().Nil(err)
 		switch common.CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
 		case common.CT_DAILY_LESSON:
@@ -852,10 +852,10 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// collection association
-		err = original.L.LoadContentUnit(suite.tx, true, original)
+		err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 		suite.Require().Nil(err)
 		cu := original.R.ContentUnit
-		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 		suite.Require().Nil(err)
 		suite.Equal(2, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 
@@ -863,7 +863,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 		var lccu, eccu *models.CollectionsContentUnit
 		for j := range cu.R.CollectionsContentUnits {
 			ccu := cu.R.CollectionsContentUnits[j]
-			err = ccu.L.LoadCollection(suite.tx, true, ccu)
+			err = ccu.L.LoadCollection(suite.tx, true, ccu, nil)
 			suite.Require().Nil(err)
 			switch common.CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
 			case common.CT_DAILY_LESSON:
@@ -906,10 +906,10 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu = original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(2, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 
@@ -918,7 +918,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	eccu = nil
 	for j := range cu.R.CollectionsContentUnits {
 		ccu := cu.R.CollectionsContentUnits[j]
-		err = ccu.L.LoadCollection(suite.tx, true, ccu)
+		err = ccu.L.LoadCollection(suite.tx, true, ccu, nil)
 		suite.Require().Nil(err)
 		switch common.CONTENT_TYPE_REGISTRY.ByID[ccu.R.Collection.TypeID].Name {
 		case common.CT_DAILY_LESSON:
@@ -1023,7 +1023,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	tf = originals["part2"]
 	convertFiles := suite.simulateConvertUpload(tf.Original)
 
-	cu, err := tf.Original.ContentUnit(suite.tx).One()
+	cu, err := tf.Original.ContentUnit().One(suite.tx)
 	suite.Require().Nil(err)
 
 	metadata.UnitToFixUID = null.StringFrom(cu.UID)
@@ -1103,10 +1103,10 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 		suite.assertContentUnit(metadata, original, proxy, false)
 
 		// collection association
-		err = original.L.LoadContentUnit(suite.tx, true, original)
+		err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 		suite.Require().Nil(err)
 		cu := original.R.ContentUnit
-		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 		suite.Require().Nil(err)
 		suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 		ccu := cu.R.CollectionsContentUnits[0]
@@ -1140,10 +1140,10 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 	suite.assertContentUnit(metadata, original, proxy, false)
 
 	// collection association
-	err = original.L.LoadContentUnit(suite.tx, true, original)
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu := original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu)
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
 	ccu := cu.R.CollectionsContentUnits[0]
@@ -1954,7 +1954,7 @@ func (suite *MetadataProcessorSuite) simulateConvertUpload(original *models.File
 
 		op, _, err := handleConvert(suite.tx, input)
 		suite.Require().Nil(err)
-		err = op.L.LoadFiles(suite.tx, true, op)
+		err = op.L.LoadFiles(suite.tx, true, op, nil)
 		suite.Require().Nil(err)
 
 		for _, f := range op.R.Files {
@@ -2112,7 +2112,7 @@ func (suite *MetadataProcessorSuite) opFilesBySHA1(o *models.Operation) map[stri
 }
 
 func (suite *MetadataProcessorSuite) someSources() []string {
-	items, err := models.Sources(suite.tx, qm.Limit(1+rand.Intn(10))).All()
+	items, err := models.Sources(qm.Limit(1 + rand.Intn(10))).All(suite.tx)
 	suite.Require().Nil(err)
 	uids := make([]string, len(items))
 	for i, x := range items {
@@ -2122,7 +2122,7 @@ func (suite *MetadataProcessorSuite) someSources() []string {
 }
 
 func (suite *MetadataProcessorSuite) someTags() []string {
-	items, err := models.Tags(suite.tx, qm.Limit(1+rand.Intn(10))).All()
+	items, err := models.Tags(qm.Limit(1 + rand.Intn(10))).All(suite.tx)
 	suite.Require().Nil(err)
 	uids := make([]string, len(items))
 	for i, x := range items {
@@ -2167,7 +2167,7 @@ func (suite *MetadataProcessorSuite) assertFiles(metadata CITMetadata, original,
 
 func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, original, proxy *models.File, isUpdate bool) {
 	// reload unit
-	err := original.L.LoadContentUnit(suite.tx, true, original)
+	err := original.L.LoadContentUnit(suite.tx, true, original, nil)
 	suite.Require().Nil(err)
 	cu := original.R.ContentUnit
 
@@ -2200,7 +2200,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	suite.EqualValues(int(originalProps["duration"].(float64)), props["duration"], "cu.Properties[\"duration\"]")
 
 	// files in unit
-	err = cu.L.LoadFiles(suite.tx, true, cu)
+	err = cu.L.LoadFiles(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	filesInUnit := []*models.File{original, proxy}
 
@@ -2210,7 +2210,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 			ancestors, err := FindFileAncestors(suite.tx, original.ID)
 			suite.Require().Nil(err)
 			filesInUnit = append(filesInUnit, ancestors...)
-			proxy.L.LoadParent(suite.tx, true, proxy)
+			proxy.L.LoadParent(suite.tx, true, proxy, nil)
 			suite.Require().Nil(err)
 			filesInUnit = append(filesInUnit, proxy.R.Parent)
 
@@ -2226,7 +2226,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 					if capture.ID == captureStop.ID {
 						continue
 					}
-					err = capture.L.LoadFiles(suite.tx, true, capture)
+					err = capture.L.LoadFiles(suite.tx, true, capture, nil)
 					suite.Require().Nil(err)
 					captureFile := capture.R.Files[0]
 					filesInUnit = append(filesInUnit, captureFile)
@@ -2245,7 +2245,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	}
 
 	// sources
-	err = cu.L.LoadSources(suite.tx, true, cu)
+	err = cu.L.LoadSources(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(len(metadata.Sources), len(cu.R.Sources), "len(cu.R.Sources)")
 	for _, x := range metadata.Sources {
@@ -2260,7 +2260,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	}
 
 	// tags
-	err = cu.L.LoadTags(suite.tx, true, cu)
+	err = cu.L.LoadTags(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	suite.Equal(len(metadata.Tags), len(cu.R.Tags), "len(cu.R.Tags)")
 	for _, x := range metadata.Tags {
@@ -2275,9 +2275,11 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	}
 
 	// likutim
-	likutim, err := models.ContentUnits(suite.tx,
+	likutim, err := models.ContentUnits(
 		qm.InnerJoin("content_unit_derivations cud ON cud.derived_id = \"content_units\".id"),
-		qm.Where("cud.source_id = ? AND \"content_units\".type_id = ? AND published IS TRUE", cu.ID, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID)).All()
+		qm.Where("cud.source_id = ? AND \"content_units\".type_id = ? AND published IS TRUE",
+			cu.ID, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID)).
+		All(suite.tx)
 	suite.Require().Nil(err)
 	suite.Equal(len(metadata.Likutim), len(likutim), "len(likutim)")
 	for _, x := range metadata.Likutim {
@@ -2292,7 +2294,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 	}
 
 	// persons
-	err = cu.L.LoadContentUnitsPersons(suite.tx, true, cu)
+	err = cu.L.LoadContentUnitsPersons(suite.tx, true, cu, nil)
 	suite.Require().Nil(err)
 	if metadata.Lecturer == "rav" {
 		suite.Require().Len(cu.R.ContentUnitsPersons, 1, "cu.R.ContentUnitsPersons Length")
@@ -2305,7 +2307,7 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 }
 
 func SomeLikutim(exec boil.Executor) ([]*models.ContentUnit, error) {
-	sources, err := models.Sources(exec, qm.Limit(1+rand.Intn(10))).All()
+	sources, err := models.Sources(qm.Limit(1 + rand.Intn(10))).All(exec)
 	if err != nil {
 		return nil, err
 	}
@@ -2316,7 +2318,7 @@ func SomeLikutim(exec boil.Executor) ([]*models.ContentUnit, error) {
 			TypeID:    common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
 			Published: true,
 		}
-		err = likutim[i].Insert(exec)
+		err = likutim[i].Insert(exec, boil.Infer())
 		if err != nil {
 			return nil, err
 		}

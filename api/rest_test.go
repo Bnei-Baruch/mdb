@@ -10,9 +10,9 @@ import (
 
 	"github.com/casbin/casbin"
 	"github.com/stretchr/testify/suite"
-	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -400,7 +400,7 @@ func createDummyCollections(exec boil.Executor, n int) []*models.Collection {
 			UID:    utils.GenerateUID(8),
 			TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.ALL_CONTENT_TYPES[rand.Intn(len(common.ALL_CONTENT_TYPES))]].ID,
 		}
-		utils.Must(collections[j].Insert(exec))
+		utils.Must(collections[j].Insert(exec, boil.Infer()))
 
 		i18ns := []*models.CollectionI18n{
 			{Language: common.LANG_HEBREW, Name: null.StringFrom("name")},
@@ -421,7 +421,7 @@ func createDummyContentUnits(exec boil.Executor, n int) []*models.ContentUnit {
 			UID:    utils.GenerateUID(8),
 			TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.ALL_CONTENT_TYPES[rand.Intn(len(common.ALL_CONTENT_TYPES))]].ID,
 		}
-		utils.Must(units[j].Insert(exec))
+		utils.Must(units[j].Insert(exec, boil.Infer()))
 
 		i18ns := []*models.ContentUnitI18n{
 			{Language: common.LANG_HEBREW, Name: null.StringFrom("name")},
@@ -446,7 +446,7 @@ func createDummyFiles(exec boil.Executor, n int) []*models.File {
 			Size: rand.Int63(),
 			Sha1: null.BytesFrom(sha1),
 		}
-		utils.Must(files[j].Insert(exec))
+		utils.Must(files[j].Insert(exec, boil.Infer()))
 	}
 
 	return files
@@ -465,7 +465,7 @@ func createDummyOperations(exec boil.Executor, n int) []*models.Operation {
 			TypeID: common.OPERATION_TYPE_REGISTRY.
 				ByName[common.ALL_OPERATION_TYPES[rand.Intn(len(common.ALL_OPERATION_TYPES))]].ID,
 		}
-		utils.Must(operations[j].Insert(exec))
+		utils.Must(operations[j].Insert(exec, boil.Infer()))
 	}
 
 	return operations
