@@ -146,22 +146,12 @@ func CreateOperation(exec boil.Executor, name string, o Operation, properties ma
 		Station: null.StringFrom(o.Station),
 	}
 
-	// Lookup user, create new if missing
+	// Lookup user
 	user, err := models.Users(qm.Where("email=?", o.User)).One(exec)
 	if err == nil {
 		operation.UserID = null.Int64From(user.ID)
 	} else {
-		if err == sql.ErrNoRows {
-			log.Debugf("Unknown User [%s]. Creating new.", o.User)
-			user = &models.User{
-				Email: o.User,
-			}
-			if err := user.Insert(exec, boil.Infer()); err != nil {
-				return nil, errors.Wrap(err, "Create new user")
-			}
-		} else {
-			return nil, errors.Wrap(err, "Check user exists")
-		}
+		return nil, errors.Wrap(err, "Check user exists")
 	}
 
 	// Handle properties
@@ -855,6 +845,12 @@ type PublisherUIDChecker struct{}
 
 func (c *PublisherUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
 	return models.Publishers(qm.Where("uid = ?", uid)).Exists(exec)
+}
+
+type LabelUIDChecker struct{}
+
+func (c *LabelUIDChecker) Check(exec boil.Executor, uid string) (exists bool, err error) {
+	return models.Labels(qm.Where("uid = ?", uid)).Exists(exec)
 }
 
 func GetFreeUID(exec boil.Executor, checker UIDChecker) (uid string, err error) {

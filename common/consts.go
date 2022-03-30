@@ -85,10 +85,19 @@ const (
 	SEC_PRIVATE   = int16(2)
 
 	// Permissions
-	PERM_READ           = "read"
-	PERM_WRITE          = "write"
-	PERM_I18N_WRITE     = "i18n_write"
-	PERM_METADATA_WRITE = "metadata_write"
+	PERM_READ             = "read"
+	PERM_WRITE            = "write"
+	PERM_I18N_WRITE       = "i18n_write"
+	PERM_METADATA_WRITE   = "metadata_write"
+	PERM_LABEL_WRITE      = "label_write"
+	PERM_LABEL_I18N_WRITE = "label_i18n_write"
+	PERM_LABEL_READ       = "label_read"
+	PERM_LABEL_MODERATE   = "label_moderate"
+
+	// Approve state levels
+	APR_NONE     = int16(0)
+	APR_APPROVED = int16(1)
+	APR_DECLINED = int16(2)
 
 	// Languages
 	LANG_ENGLISH    = "en"

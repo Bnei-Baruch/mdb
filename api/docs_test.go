@@ -305,7 +305,7 @@ func (suite *DocsSuite) Test7UploadHandler() {
 	input := UploadRequest{
 		Operation: Operation{
 			Station: "Upload station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		AVFile: AVFile{
 			File: File{
@@ -328,7 +328,7 @@ func (suite *DocsSuite) Test8SirtutimHandler() {
 	input := SirtutimRequest{
 		Operation: Operation{
 			Station: "Upload station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		File: File{
 			FileName:  "heb_o_rav_2016-09-14_lesson_o.zip",
@@ -356,7 +356,7 @@ func (suite *DocsSuite) Test9InsertHandler() {
 	input := InsertRequest{
 		Operation: Operation{
 			Station: "Insert station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		InsertType:     "akladot",
 		ContentUnitUID: cu.UID,
@@ -382,7 +382,7 @@ func (suite *DocsSuite) Test91InsertHandlerNewUnit() {
 	input := InsertRequest{
 		Operation: Operation{
 			Station: "Insert station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		InsertType: "declamation",
 		AVFile: AVFile{
@@ -423,7 +423,7 @@ func (suite *DocsSuite) Test92TranscodeHandler() {
 	input := TranscodeRequest{
 		Operation: Operation{
 			Station: "Insert station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
 		MaybeFile: MaybeFile{
@@ -443,7 +443,7 @@ func (suite *DocsSuite) Test922TranscodeHandlerError() {
 	input := TranscodeRequest{
 		Operation: Operation{
 			Station: "Insert station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
 		Message:      "Some transcoding error message",

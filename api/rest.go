@@ -1446,6 +1446,133 @@ func StoragesHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
+//Labels
+func LabelListHandler(c *gin.Context) {
+	var err *HttpError
+	var resp interface{}
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		var r LabelsRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+		resp, err = handleGetLabelList(c, c.MustGet("MDB").(*sql.DB), &r)
+	}
+	if c.Request.Method == http.MethodPost {
+		var r CreateLabelRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+		tx := mustBeginTx(c)
+		label, err := handleCreateLabel(c, tx, &r)
+		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.LabelCreateEvent(label))
+		}
+		resp = label.UID
+	}
+	concludeRequest(c, resp, err)
+}
+
+func LabelHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var err *HttpError
+	var resp interface{}
+	if c.Request.Method == http.MethodGet || c.Request.Method == "" {
+		resp, err = handleGetLabel(c, c.MustGet("MDB").(*sql.DB), id, common.PERM_LABEL_READ)
+	}
+
+	if c.Request.Method == http.MethodPut {
+		//using SEC_SENSITIVE depended on definitions on permissions_policy.csv
+		//for archive_editor and archive_label-moderation roles
+		if !can(c, secureToPermission(common.SEC_SENSITIVE), common.PERM_LABEL_MODERATE) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+		var r UpdateApproveStateRequest
+		if c.Bind(&r) != nil {
+			return
+		}
+		tx := mustBeginTx(c)
+		l, err := handleUpdateLabelState(tx, id, r)
+		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.LabelUpdateEvent(l))
+		}
+	}
+
+	if c.Request.Method == http.MethodDelete {
+		//using SEC_SENSITIVE depended on definitions on permissions_policy.csv
+		//for archive_editor and archive_label-moderation roles
+		if !can(c, secureToPermission(common.SEC_SENSITIVE), common.PERM_LABEL_MODERATE) {
+			NewForbiddenError().Abort(c)
+			return
+		}
+		tx := mustBeginTx(c)
+		l, err := handleDeleteLabelState(tx, id)
+		mustConcludeTx(tx, err)
+
+		if err == nil {
+			emitEvents(c, events.LabelDeleteEvent(l))
+		}
+	}
+	concludeRequest(c, resp, err)
+}
+
+func LabelI18nHandler(c *gin.Context) {
+	id, e := strconv.ParseInt(c.Param("id"), 10, 0)
+	if e != nil {
+		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
+		return
+	}
+
+	var i18ns []*models.LabelI18n
+	if c.Bind(&i18ns) != nil {
+		return
+	}
+	for _, x := range i18ns {
+		if common.StdLang(x.Language) == common.LANG_UNKNOWN {
+			NewBadRequestError(errors.Errorf("Unknown language %s", x.Language)).Abort(c)
+			return
+		}
+	}
+
+	tx := mustBeginTx(c)
+	resp, err := handleUpdateLabelI18n(c, tx, id, i18ns)
+	mustConcludeTx(tx, err)
+
+	if err == nil {
+		emitEvents(c, events.LabelUpdateEvent(&resp.Label))
+	}
+
+	concludeRequest(c, resp, err)
+}
+
+func LabelAddI18nHandler(c *gin.Context) {
+	uid := c.Param("uid")
+
+	var r *AddLabelI18nRequest
+	if c.Bind(&r) != nil {
+		return
+	}
+	user := c.MustGet("USER").(*models.User)
+	tx := mustBeginTx(c)
+	label, err := handleAddLabelI18n(c, tx, uid, r, user)
+	mustConcludeTx(tx, err)
+
+	if err == nil {
+		emitEvents(c, events.LabelUpdateEvent(label))
+	}
+
+	concludeRequest(c, nil, err)
+}
+
 // Handlers Logic
 
 func handleCollectionsList(cp utils.ContextProvider, exec boil.Executor, r CollectionsRequest) (*CollectionsResponse, *HttpError) {
@@ -4183,6 +4310,259 @@ func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.Pub
 	}
 
 	return handleGetPublisher(exec, id)
+}
+
+//Labels
+func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsRequest) (*LabelsResponse, *HttpError) {
+	mods := []qm.QueryMod{
+		qm.InnerJoin("content_units cu on cu.id=content_unit_id and cu.secure <= ?", allowedSecure(cp, common.PERM_LABEL_READ)),
+	}
+
+	// filters
+	if err := appendIDsFilterMods(&mods, r.IDsFilter); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	if err := appendDateRangeFilterMods(&mods, r.DateRangeFilter, "created_at"); err != nil {
+		return nil, NewBadRequestError(err)
+	}
+	//append approve state filter
+	if r.ApproveState.Valid {
+		mods = append(mods, qm.Where("approve_state = ?", r.ApproveState))
+	}
+
+	// count query
+	var total int64
+	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT \"labels\".id)")}, mods...)
+	err := models.Labels(exec, countMods...).QueryRow().Scan(&total)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	if total == 0 {
+		return NewLabelsResponse(), nil
+	}
+
+	labels, err := models.Labels(exec, qm.Load("LabelI18ns", "LabelI18ns.User", "Tags")).All()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// i18n
+	data := make([]*Label, len(labels))
+	for i, pr := range labels {
+		x := &Label{Label: *pr}
+		data[i] = x
+		x.I18n = make(map[string]*LabelI18n, len(pr.R.LabelI18ns))
+		for _, i18n := range pr.R.LabelI18ns {
+			x.I18n[i18n.Language] = &LabelI18n{LabelI18n: *i18n, Author: i18n.R.User}
+		}
+	}
+
+	return &LabelsResponse{
+		ListResponse: ListResponse{Total: total},
+		Labels:       data,
+	}, nil
+}
+
+func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLabelRequest) (*models.Label, *HttpError) {
+	cu, err := models.ContentUnits(exec,
+		qm.WhereIn("uid = ?", r.ContentUnit),
+		qm.Where("secure <= ?", allowedSecure(cp, common.PERM_LABEL_WRITE)),
+	).One()
+	if err == sql.ErrNoRows {
+		return nil, NewNotFoundError()
+	}
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	label := &models.Label{
+		MediaType:     r.MediaType,
+		ApproveState:  common.APR_NONE,
+		ContentUnitID: cu.ID,
+	}
+
+	// save label to DB
+	uid, err := GetFreeUID(exec, new(LabelUIDChecker))
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	label.UID = uid
+
+	if r.Properties.Valid {
+		label.Properties = r.Properties
+	}
+
+	err = label.Insert(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	user := cp.MustGet("USER").(*models.User)
+	// save i18n
+	for _, v := range r.I18n {
+		i18n := &models.LabelI18n{
+			Language: v.Language,
+			Name:     v.Name,
+			UserID:   null.Int64From(user.ID),
+		}
+		i18n.UserID = null.Int64From(user.ID)
+		err := label.AddLabelI18ns(exec, true, i18n)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// save tags connection
+	tags, err := models.Tags(exec, qm.WhereIn("uid IN ?", utils.ConvertArgsString(r.Tags)...)).All()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	if err = label.AddTags(exec, false, tags...); err != nil {
+		return nil, NewInternalError(err)
+	}
+	return label, nil
+}
+
+func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64, act string) (*LabelResponse, *HttpError) {
+	label, err := models.Labels(exec,
+		qm.Where("id = ?", id),
+		qm.Load("LabelI18ns", "Tags", "ContentUnit", "LabelI18ns.User")).
+		One()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	if !can(c, secureToPermission(label.R.ContentUnit.Secure), act) {
+		return nil, NewForbiddenError()
+	}
+
+	// i18n
+	resp := &LabelResponse{Label: *label, ContentUnit: label.R.ContentUnit.UID}
+	resp.I18n = make(map[string]*LabelI18n, len(label.R.LabelI18ns))
+	for _, i18n := range label.R.LabelI18ns {
+		resp.I18n[i18n.Language] = &LabelI18n{LabelI18n: *i18n, Author: i18n.R.User}
+	}
+	resp.Tags = make([]string, len(label.R.Tags))
+	for i, t := range label.R.Tags {
+		resp.Tags[i] = t.UID
+	}
+
+	return resp, nil
+}
+
+func handleUpdateLabelState(exec boil.Executor, id int64, r UpdateApproveStateRequest) (*models.Label, *HttpError) {
+	label, err := models.FindLabel(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	label.ApproveState = r.ApproveState
+	err = label.Update(exec, "ApproveState")
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return label, nil
+}
+
+func handleUpdateLabelI18n(c utils.ContextProvider, exec boil.Executor, id int64, i18ns []*models.LabelI18n) (*LabelResponse, *HttpError) {
+	label, err := handleGetLabel(c, exec, id, common.PERM_LABEL_I18N_WRITE)
+	if err != nil {
+		return nil, err
+	}
+
+	// Upsert all new i18ns
+	nI18n := make(map[string]*models.LabelI18n, len(i18ns))
+	for _, i18n := range i18ns {
+		i18n.LabelID = id
+		nI18n[i18n.Language] = i18n
+		err := i18n.Upsert(exec, true,
+			[]string{"label_id", "language"},
+			[]string{"name", "author"})
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	// Delete old i18ns not in new i18ns
+	for k, v := range label.I18n {
+		if _, ok := nI18n[k]; !ok {
+			err := v.Delete(exec)
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+		}
+	}
+
+	return handleGetLabel(c, exec, id, common.PERM_LABEL_I18N_WRITE)
+}
+
+func handleAddLabelI18n(cp utils.ContextProvider, exec boil.Executor, uid string, r *AddLabelI18nRequest, user *models.User) (*models.Label, *HttpError) {
+	if common.StdLang(r.I18n.Language) == common.LANG_UNKNOWN {
+		return nil, NewBadRequestError(errors.Errorf("Unknown language %s", r.I18n.Language))
+	}
+
+	label, err := models.Labels(exec,
+		qm.Where("uid = ?", uid),
+		qm.InnerJoin("content_units cu on cu.id=content_unit_id and and cu.secure <= ?", allowedSecure(cp, common.PERM_LABEL_I18N_WRITE)),
+	).One()
+	if err == sql.ErrNoRows {
+		return nil, NewNotFoundError()
+	}
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	has, err := models.LabelI18ns(exec, qm.Where("label_id = ? AND language = ?", label.ID, r.I18n.Language)).Exists()
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	if has {
+		err = errors.Errorf("translation for label %s for language %s is contained", uid, r.I18n.Language)
+		return nil, NewBadRequestError(err)
+	}
+
+	i18n := &models.LabelI18n{
+		Language: r.I18n.Language,
+		Name:     r.I18n.Name,
+		UserID:   null.Int64From(user.ID),
+	}
+
+	if err := label.AddLabelI18ns(exec, true, i18n); err != nil {
+		return nil, NewInternalError(err)
+	}
+	return label, nil
+
+}
+
+func handleDeleteLabelState(exec boil.Executor, id int64) (*models.Label, *HttpError) {
+	label, err := models.FindLabel(exec, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewNotFoundError()
+		} else {
+			return nil, NewInternalError(err)
+		}
+	}
+
+	if err = label.Delete(exec); err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	return label, nil
 }
 
 // Query Helpers
