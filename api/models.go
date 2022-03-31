@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/volatiletech/null/v8"
-	"github.com/volatiletech/sqlboiler/types"
+	"github.com/volatiletech/sqlboiler/v4/types"
 
 	"github.com/Bnei-Baruch/mdb/models"
 )
@@ -389,7 +389,7 @@ type (
 
 	ContentUnit struct {
 		models.ContentUnit
-		Collections []*Collection                      `json:"collections, omitempty"`
+		Collections []*Collection                      `json:"collections,omitempty"`
 		I18n        map[string]*models.ContentUnitI18n `json:"i18n"`
 	}
 
@@ -411,7 +411,7 @@ type (
 		Name    string       `json:"name"`
 	}
 
-	// Marshalable File
+	// MFile - Marshalable File
 	MFile struct {
 		models.File
 		Sha1Str      string           `json:"sha1"`

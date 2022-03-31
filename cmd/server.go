@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stvp/rollbar"
-	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"gopkg.in/gin-contrib/cors.v1"
 	"gopkg.in/gin-gonic/gin.v1"
 
