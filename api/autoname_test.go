@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -214,7 +215,7 @@ func (suite *AutonameSuite) TestDescribeCollection() {
 
 	err = DescribeCollection(suite.tx, c)
 	suite.Require().Nil(err)
-	err = c.L.LoadCollectionI18ns(suite.tx, true, c)
+	err = c.L.LoadCollectionI18ns(suite.tx, true, c, nil)
 	suite.Require().Nil(err)
 	i18ns := c.R.CollectionI18ns
 
@@ -228,7 +229,7 @@ func (suite *AutonameSuite) TestDescribeCollection() {
 
 func (suite *AutonameSuite) TestSourceNamers() {
 	author := &models.Author{ID: -1}
-	author.L.LoadAuthorI18ns(suite.tx, true, author) // dummy call to initialize R
+	author.L.LoadAuthorI18ns(suite.tx, true, author, nil) // dummy call to initialize R
 	author.R.AuthorI18ns = make(models.AuthorI18nSlice, 0)
 	author.R.AuthorI18ns = append(author.R.AuthorI18ns,
 		&models.AuthorI18n{
@@ -244,7 +245,7 @@ func (suite *AutonameSuite) TestSourceNamers() {
 	path := make([]*models.Source, 4)
 	for i := 1; i < 5; i++ {
 		s := &models.Source{ID: -1}
-		s.L.LoadSourceI18ns(suite.tx, true, s) // dummy call to initialize R
+		s.L.LoadSourceI18ns(suite.tx, true, s, nil) // dummy call to initialize R
 		s.R.SourceI18ns = make(models.SourceI18nSlice, 0)
 		s.R.SourceI18ns = append(s.R.SourceI18ns,
 			&models.SourceI18n{
@@ -313,7 +314,7 @@ func (suite *AutonameSuite) TestSourceNamers() {
 
 func (suite *AutonameSuite) TestNameByTag() {
 	t := &models.Tag{ID: 88, UID: "1nyptSIo"}
-	suite.Require().Nil(t.Insert(suite.tx))
+	suite.Require().Nil(t.Insert(suite.tx, boil.Infer()))
 	for _, lang := range [...]string{
 		common.LANG_HEBREW,
 		common.LANG_ENGLISH,
@@ -328,7 +329,7 @@ func (suite *AutonameSuite) TestNameByTag() {
 			Language: lang,
 			Label:    null.StringFrom(fmt.Sprintf("tag lang %s", lang)),
 		}
-		suite.Require().Nil(i18n.Insert(suite.tx))
+		suite.Require().Nil(i18n.Insert(suite.tx, boil.Infer()))
 	}
 
 	cNumber := new(int)

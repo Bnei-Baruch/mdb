@@ -12,10 +12,10 @@ import (
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
@@ -87,7 +87,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		original.Language = null.StringFrom(l)
 	}
 	log.Infof("Updating original.Language to %s", original.Language.String)
-	err = original.Update(exec, "language")
+	_, err = original.Update(exec, boil.Whitelist("language"))
 	if err != nil {
 		return nil, errors.Wrap(err, "Save original to DB")
 	}
@@ -128,7 +128,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		} else if ctVal.ID != cu.TypeID {
 			// update unit's content type
 			cu.TypeID = ctVal.ID
-			err = cu.Update(exec, "type_id")
+			_, err = cu.Update(exec, boil.Whitelist("type_id"))
 			if err != nil {
 				return nil, errors.Wrap(err, "Update unit type in DB")
 			}
@@ -140,7 +140,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 			return nil, errors.Wrap(err, "json Marshal")
 		}
 		cu.Properties = null.JSONFrom(propsBytes)
-		err = cu.Update(exec, "properties")
+		_, err = cu.Update(exec, boil.Whitelist("properties"))
 		if err != nil {
 			return nil, errors.Wrap(err, "Update unit properties in DB")
 		}
@@ -197,7 +197,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		}
 
 		if proxy != nil {
-			err = proxy.L.LoadParent(exec, true, proxy)
+			err = proxy.L.LoadParent(exec, true, proxy, nil)
 			if err != nil {
 				return nil, errors.Wrap(err, "Load proxy's parent")
 			}
@@ -231,7 +231,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 				if capture.ID == captureStop.ID {
 					continue
 				}
-				if err := capture.L.LoadFiles(exec, true, capture); err != nil {
+				if err := capture.L.LoadFiles(exec, true, capture, nil); err != nil {
 					return nil, errors.Wrapf(err, "load related capture files %d", capture.ID)
 				}
 				captureFile := capture.R.Files[0]
@@ -260,9 +260,9 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 	// Associate unit with sources, tags, and persons
 	if len(metadata.Sources) > 0 {
 		log.Infof("Associating %d sources", len(metadata.Sources))
-		sources, err := models.Sources(exec,
+		sources, err := models.Sources(
 			qm.WhereIn("uid in ?", utils.ConvertArgsString(metadata.Sources)...)).
-			All()
+			All(exec)
 		if err != nil {
 			return nil, errors.Wrap(err, "Lookup sources in DB")
 		}
@@ -293,9 +293,9 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 
 	if len(metadata.Tags) > 0 {
 		log.Infof("Associating %d tags", len(metadata.Tags))
-		tags, err := models.Tags(exec,
+		tags, err := models.Tags(
 			qm.WhereIn("uid in ?", utils.ConvertArgsString(metadata.Tags)...)).
-			All()
+			All(exec)
 		if err != nil {
 			return nil, errors.Wrap(err, "Lookup tags  in DB")
 		}
@@ -324,11 +324,11 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 	}
 	if len(metadata.Likutim) > 0 {
 		log.Infof("Associating %d likutim", len(metadata.Likutim))
-		likutim, err := models.ContentUnits(exec,
+		likutim, err := models.ContentUnits(
 			qm.Select("distinct on (\"content_units\".id) \"content_units\".*"),
 			qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID),
 			qm.WhereIn("uid in ?", utils.ConvertArgsString(metadata.Likutim)...)).
-			All()
+			All(exec)
 		if err != nil {
 			return nil, errors.Wrap(err, "Lookup tags  in DB")
 		}
@@ -379,7 +379,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		}
 
 		// upsert make sure we either have such relation or insert a new one
-		err = cup.Upsert(exec, false, nil, nil)
+		err = cup.Upsert(exec, false, nil, boil.Infer(), boil.Infer())
 		if err != nil {
 			return nil, errors.Wrap(err, "Associate persons")
 		}
@@ -389,7 +389,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 			ContentUnitID: cu.ID,
 			PersonID:      common.PERSON_REGISTRY.ByPattern[common.P_RAV].ID,
 		}
-		err = cup.Delete(exec)
+		_, err = cup.Delete(exec)
 		if err != nil {
 			return nil, errors.Wrap(err, "Delete Rav association")
 		}
@@ -402,7 +402,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 		log.Infof("Specific collection %s", metadata.CollectionUID.String)
 
 		// find collection
-		c, err := models.Collections(exec, qm.Where("uid = ?", metadata.CollectionUID.String)).One()
+		c, err := models.Collections(qm.Where("uid = ?", metadata.CollectionUID.String)).One(exec)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				log.Warnf("No such collection %s", metadata.CollectionUID.String)
@@ -472,7 +472,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 				if c.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[cct].ID {
 					log.Infof("Full lesson, content_type changed to %s", cct)
 					c.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[cct].ID
-					err = c.Update(exec, "type_id")
+					_, err = c.Update(exec, boil.Whitelist("type_id"))
 					if err != nil {
 						return nil, errors.Wrap(err, "Update collection type in DB")
 					}
@@ -504,7 +504,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 	// Associate unit and derived units
 	// We take into account that a derived content unit arrives before it's source content unit.
 	// Such cases are possible due to the studio operator actions sequence.
-	err = original.L.LoadParent(exec, true, original)
+	err = original.L.LoadParent(exec, true, original, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load original's parent")
 	}
@@ -536,9 +536,8 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 					return nil, errors.Wrap(err, "Save derived unit association in DB")
 				}
 
-				_, err = queries.Raw(exec,
-					`UPDATE content_units SET properties = properties - 'artifact_type' WHERE id = $1`,
-					k).Exec()
+				_, err = queries.Raw(`UPDATE content_units SET properties = properties - 'artifact_type' WHERE id = $1`, k).
+					Exec(exec)
 				if err != nil {
 					return nil, errors.Wrap(err, "Delete derived unit artifact_type property from DB")
 				}
@@ -645,7 +644,8 @@ func associateUnitToCollection(exec boil.Executor, cu *models.ContentUnit, c *mo
 	log.Infof("Association name: %s", ccu.Name)
 	err = ccu.Upsert(exec, true,
 		[]string{"collection_id", "content_unit_id"},
-		[]string{"name", "position"})
+		boil.Whitelist("name", "position"),
+		boil.Infer())
 	if err != nil {
 		return errors.Wrap(err, "Save collection and content unit association in DB")
 	}
@@ -662,7 +662,7 @@ func mainToDerived(exec boil.Executor, metadata CITMetadata, original *models.Fi
 	// We lookup original's siblings for derived content units that arrived before us.
 	// We then associate them with us and remove their "unprocessed" mark.
 	// Meaning, the presence of "artifact_type" property
-	rows, err := queries.Raw(exec,
+	rows, err := queries.Raw(
 		`SELECT
   cu.id,
   cu.properties ->> 'artifact_type'
@@ -670,7 +670,7 @@ FROM content_units cu
   INNER JOIN files f ON f.content_unit_id = cu.id AND f.parent_id = $1
 WHERE cu.properties ? 'artifact_type' AND (cu.properties ->> 'part') :: INT = $2`,
 		original.ParentID.Int64, part).
-		Query()
+		Query(exec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load derived content units")
 	}
@@ -711,12 +711,12 @@ func derivedToMain(exec boil.Executor, metadata CITMetadata, cu *models.ContentU
 	}
 
 	var cuID int64
-	err := queries.Raw(exec, `
+	err := queries.Raw(`
 SELECT cu.id
 FROM content_units cu
   INNER JOIN files f ON f.content_unit_id = cu.id AND f.parent_id = $1 AND cu.id != $2 AND cu.type_id = $3
 WHERE (cu.properties ->> 'part') :: INT = $4`,
-		original.ParentID.Int64, cu.ID, mainCT.ID, part).QueryRow().Scan(&cuID)
+		original.ParentID.Int64, cu.ID, mainCT.ID, part).QueryRow(exec).Scan(&cuID)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -747,7 +747,7 @@ We should:
 
 */
 func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) ([]events.Event, error) {
-	unit, err := models.ContentUnits(exec, qm.Where("uid = ?", metadata.UnitToFixUID.String)).One()
+	unit, err := models.ContentUnits(qm.Where("uid = ?", metadata.UnitToFixUID.String)).One(exec)
 	if err != nil {
 		return nil, errors.Wrapf(err, "lookup unit UID %s", metadata.UnitToFixUID.String)
 	}
@@ -802,10 +802,10 @@ FROM files f
   INNER JOIN operations o ON fo.operation_id = o.id AND o.type_id = ANY($1)
 WHERE f.content_unit_id = $2 AND NOT f.id = ANY($3) 
 `
-	err = queries.Raw(exec, q, pq.Array([]int64{
+	err = queries.Raw(q, pq.Array([]int64{
 		common.OPERATION_TYPE_REGISTRY.ByName[common.OP_TRIM].ID,
 		common.OPERATION_TYPE_REGISTRY.ByName[common.OP_CONVERT].ID,
-	}), unit.ID, pq.Array(ancestorsIDs)).QueryRow().Scan(&fIDs)
+	}), unit.ID, pq.Array(ancestorsIDs)).QueryRow(exec).Scan(&fIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetch file IDs to remove")
 	}
@@ -814,9 +814,9 @@ WHERE f.content_unit_id = $2 AND NOT f.id = ANY($3)
 	wasPublished := false
 	if len(fIDs) > 0 {
 		// actual removal
-		err = models.Files(exec,
+		_, err = models.Files(
 			qm.WhereIn("id in ?", utils.ConvertArgsInt64(fIDs)...)).
-			UpdateAll(models.M{
+			UpdateAll(exec, models.M{
 				"removed_at": null.TimeFrom(time.Now().UTC()),
 			})
 		if err != nil {
@@ -824,10 +824,10 @@ WHERE f.content_unit_id = $2 AND NOT f.id = ANY($3)
 		}
 
 		// file removed events
-		removedFiles, err := models.Files(exec,
+		removedFiles, err := models.Files(
 			qm.Select("id", "uid", "published"),
 			qm.WhereIn("id in ?", utils.ConvertArgsInt64(fIDs)...)).
-			All()
+			All(exec)
 		if err != nil {
 			return nil, errors.Wrap(err, "Refresh files to remove")
 		}

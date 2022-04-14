@@ -8,7 +8,7 @@ import (
 	"github.com/360EntSecGroup-Skylar/excelize"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -26,13 +26,13 @@ func ExportTVShows() {
 }
 
 func doExportTVShows() error {
-	cs, err := models.Collections(mdb,
+	cs, err := models.Collections(
 		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_VIDEO_PROGRAM].ID),
-		qm.Load("CollectionsContentUnits",
-			"CollectionsContentUnits.ContentUnit",
-			"CollectionsContentUnits.ContentUnit.ContentUnitI18ns",
-			"CollectionI18ns"),
-	).All()
+		qm.Load("CollectionsContentUnits"),
+		qm.Load("CollectionsContentUnits.ContentUnit"),
+		qm.Load("CollectionsContentUnits.ContentUnit.ContentUnitI18ns"),
+		qm.Load("CollectionI18ns"),
+	).All(mdb)
 	if err != nil {
 		return errors.Wrap(err, "Load collections")
 	}

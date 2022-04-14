@@ -9,9 +9,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -179,7 +179,7 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 		// no Major info from metadata
 		// give names by what we have in DB
 		// may be used by batch processes
-		err = cu.L.LoadTags(exec, true, cu)
+		err = cu.L.LoadTags(exec, true, cu, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "Load tags from DB")
 		}
@@ -189,7 +189,7 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 				return nil, errors.Wrap(err, "Name by tag")
 			}
 		} else {
-			err = cu.L.LoadSources(exec, true, cu)
+			err = cu.L.LoadSources(exec, true, cu, nil)
 			if err != nil {
 				return nil, errors.Wrap(err, "Load sources from DB")
 			}
@@ -252,9 +252,10 @@ func (d CollectionNameDescriber) DescribeContentUnit(exec boil.Executor,
 		return new(GenericDescriber).DescribeContentUnit(exec, cu, metadata)
 	}
 
-	collection, err := models.Collections(exec,
+	collection, err := models.Collections(
 		qm.Where("uid=?", metadata.CollectionUID.String),
-		qm.Load("CollectionI18ns")).One()
+		qm.Load("CollectionI18ns")).
+		One(exec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Lookup collection in DB")
 	}
@@ -322,9 +323,10 @@ func (d EventPartDescriber) DescribeContentUnit(exec boil.Executor,
 	cu *models.ContentUnit,
 	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
 
-	collection, err := models.Collections(exec,
+	collection, err := models.Collections(
 		qm.Where("uid=?", metadata.CollectionUID.String),
-		qm.Load("CollectionI18ns")).One()
+		qm.Load("CollectionI18ns")).
+		One(exec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Lookup collection in DB")
 	}
@@ -376,8 +378,9 @@ func GetCUDescriber(exec boil.Executor, cu *models.ContentUnit, metadata CITMeta
 
 	// do we need a special describer based on collection ?
 	if metadata.CollectionUID.Valid {
-		collection, err := models.Collections(exec,
-			qm.Where("uid=?", metadata.CollectionUID.String)).One()
+		collection, err := models.Collections(
+			models.CollectionWhere.UID.EQ(metadata.CollectionUID.String)).
+			One(exec)
 		if err != nil {
 			return nil, errors.Wrap(err, "Lookup collection in DB")
 		}
@@ -490,7 +493,7 @@ func nameBySourceUID(exec boil.Executor, uid string) (map[string]string, error) 
 		return nil, errors.Wrapf(err, "Load source path from DB")
 	}
 
-	err = s.L.LoadSourceI18ns(exec, false, &path)
+	err = s.L.LoadSourceI18ns(exec, false, &path, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load sources i18ns from DB")
 	}
@@ -815,7 +818,7 @@ func nameByTagUID(exec boil.Executor, uid string, cNumber *int) (map[string]stri
 		return nil, errors.Wrapf(err, "Load tag path from DB")
 	}
 
-	err = t.L.LoadTagI18ns(exec, false, &path)
+	err = t.L.LoadTagI18ns(exec, false, &path, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load tag i18ns from DB")
 	}
@@ -860,7 +863,10 @@ func nameByTagUID(exec boil.Executor, uid string, cNumber *int) (map[string]stri
 func nameByUnitUID(exec boil.Executor, uid string) (map[string]string, error) {
 
 	// Load Unit details from DB
-	cu, err := models.ContentUnits(exec, qm.Load("ContentUnitI18ns"), qm.Where("uid = ?", uid)).One()
+	cu, err := models.ContentUnits(
+		qm.Where("uid = ?", uid),
+		qm.Load("ContentUnitI18ns")).
+		One(exec)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Find Unit in DB")
 	}

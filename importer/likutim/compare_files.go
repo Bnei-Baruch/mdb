@@ -14,8 +14,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -71,15 +71,17 @@ func (c *Compare) Run() []*Double {
 	//uids = append(uids, uids3...)
 	//uids = append(uids, uids4...)
 
-	cus, err := models.ContentUnits(mdb,
+	cus, err := models.ContentUnits(
 		qm.Select("distinct on (\"content_units\".id) \"content_units\".*"),
 		qm.InnerJoin("files f ON f.content_unit_id = \"content_units\".id"),
 		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_KITEI_MAKOR].ID),
-		qm.Load("Files", "Tags", "Tags.TagI18ns"),
+		qm.Load("Files"),
+		qm.Load("Tags"),
+		qm.Load("Tags.TagI18ns"),
 		//qm.Offset(20),
 		//qm.WhereIn("\"content_units\".uid in ?", utils.ConvertArgsString(uids)...),
 		//qm.Limit(10),
-	).All()
+	).All(mdb)
 	if err != nil {
 		log.Fatalf("Can't load units: %s", err)
 		return c.result

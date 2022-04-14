@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -17,10 +17,10 @@ import (
 
 func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 
-	rows, err := queries.Raw(mdb,
+	rows, err := queries.Raw(
 		`SELECT cu.properties->>'source_id' FROM content_units cu WHERE cu.type_id = $1`,
 		common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID,
-	).Query()
+	).Query(mdb)
 
 	utils.Must(err)
 	defer rows.Close()
@@ -36,7 +36,7 @@ func BuildCUSources(mdb *sql.DB) ([]*models.Source, []*models.ContentUnit) {
 		mods = append(mods, qm.WhereIn("uid NOT IN ?", utils.ConvertArgsString(uids)...))
 	}
 
-	sources, err := models.Sources(mdb, mods...).All()
+	sources, err := models.Sources(mods...).All(mdb)
 	utils.Must(err)
 
 	for _, s := range sources {
@@ -66,7 +66,7 @@ func createCU(s *models.Source, mdb boil.Executor) (*models.ContentUnit, error) 
 		Properties: null.JSONFrom(props),
 	}
 
-	err := cu.Insert(mdb)
+	err := cu.Insert(mdb, boil.Infer())
 	if err != nil {
 		return nil, err
 	}

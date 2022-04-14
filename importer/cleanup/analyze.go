@@ -9,8 +9,9 @@ import (
 	"github.com/360EntSecGroup-Skylar/excelize"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
@@ -92,7 +93,7 @@ func doImport() error {
 }
 
 func loadUnits() (map[int64]*CUAnalysis, error) {
-	cuCount, err := models.ContentUnits(mdb).Count()
+	cuCount, err := models.ContentUnits().Count(mdb)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load content units count")
 	}
@@ -105,12 +106,12 @@ func loadUnits() (map[int64]*CUAnalysis, error) {
 		log.Infof("Loading page #%d", page)
 		s := page * pageSize
 
-		cus, err := models.ContentUnits(mdb,
+		cus, err := models.ContentUnits(
 			qm.Offset(s),
 			qm.Limit(pageSize),
 			qm.Load("Files"),
 			qm.Load("ContentUnitI18ns")).
-			All()
+			All(mdb)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Load content units page %d", page)
 		}
@@ -252,7 +253,7 @@ func doImportAlert(cu *CUAnalysis, clipsCollection *models.Collection) error {
 		log.Infof("New CU ID is %d", clipCU.ID)
 
 		clipCU.Secure = common.SEC_SENSITIVE
-		err = clipCU.Update(tx, "secure")
+		_, err = clipCU.Update(tx, boil.Whitelist("secure"))
 		if err != nil {
 			utils.Must(tx.Rollback())
 			log.Error(err)

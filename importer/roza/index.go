@@ -3,14 +3,14 @@ package roza
 import (
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"encoding/json"
 	"github.com/emirpasic/gods/maps/treemap"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 )
 
 type IdxFile struct {
@@ -75,7 +75,7 @@ func (idx *RozaIndex) Load(db *sql.DB) error {
 	idx.Roots = make(map[string]*IdxDirectory)
 	idx.FileCount = 0
 
-	rows, err := queries.Raw(db, "select path, sha1, size, last_modified from roza_index").Query()
+	rows, err := queries.Raw("select path, sha1, size, last_modified from roza_index").Query(db)
 	if err != nil {
 		return errors.Wrap(err, "Load roza_index table")
 	}

@@ -2,8 +2,13 @@ package kmedia
 
 import (
 	"encoding/json"
-	"github.com/Bnei-Baruch/mdb/common"
 	"time"
+
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
+
+	"github.com/Bnei-Baruch/mdb/common"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
@@ -75,9 +80,9 @@ func ImportVLs() {
 
 func loadAndImportMissingVLCollections() (map[int]*models.Collection, error) {
 
-	cs, err := models.Collections(mdb,
-		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_VIRTUAL_LESSONS].ID)).
-		All()
+	cs, err := models.Collections(
+		qm4.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_VIRTUAL_LESSONS].ID)).
+		All(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load collections")
 	}
@@ -106,7 +111,7 @@ func loadAndImportMissingVLCollections() (map[int]*models.Collection, error) {
 
 		props := map[string]interface{}{
 			"kmedia_id": kmID,
-			"active": false,
+			"active":    false,
 		}
 		log.Infof("Create collection %v", props)
 		c, err := api.CreateCollection(mdb, common.CT_VIRTUAL_LESSONS, props)
@@ -126,12 +131,13 @@ func loadAndImportMissingVLCollections() (map[int]*models.Collection, error) {
 				ci18n := models.CollectionI18n{
 					CollectionID: c.ID,
 					Language:     common.LANG_MAP[d.LangID.String],
-					Name:         d.Name,
+					Name:         null.NewString(d.Name.String, d.Name.Valid),
 				}
 				err = ci18n.Upsert(mdb,
 					true,
 					[]string{"collection_id", "language"},
-					[]string{"name"})
+					boil.Whitelist("name"),
+					boil.Infer())
 				if err != nil {
 					return nil, errors.Wrapf(err, "Upsert collection i18n, collection [%d]", c.ID)
 				}
@@ -166,7 +172,7 @@ func importVLsContainers(csMap map[int]*models.Collection) error {
 
 			if common.CT_VIRTUAL_LESSON != common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name {
 				cu.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[common.CT_VIRTUAL_LESSON].ID
-				err = cu.Update(tx, "type_id")
+				_, err = cu.Update(tx, boil.Whitelist("type_id"))
 				if err != nil {
 					utils.Must(tx.Rollback())
 					return errors.Wrapf(err, "Update CU type %d", cu.ID)
@@ -194,7 +200,7 @@ func importVLsContainers(csMap map[int]*models.Collection) error {
 				continue
 			}
 
-			if cu.Published && !c.Published{
+			if cu.Published && !c.Published {
 				csToPublish[c.ID] = c
 			}
 
@@ -223,7 +229,7 @@ func importVLsContainers(csMap map[int]*models.Collection) error {
 	// publish collections
 	for _, v := range csToPublish {
 		v.Published = true
-		if err :=v.Update(mdb,"published"); err != nil {
+		if _, err := v.Update(mdb, boil.Whitelist("published")); err != nil {
 			return errors.Wrapf(err, "Publish collection %d", v.ID)
 		}
 	}

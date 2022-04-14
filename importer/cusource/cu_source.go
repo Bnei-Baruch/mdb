@@ -3,10 +3,11 @@ package cusource
 import (
 	"database/sql"
 
+	"github.com/spf13/viper"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/utils"
-	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
 )
 
 func InitBuildCUSources() {

@@ -8,9 +8,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -96,10 +96,10 @@ func doConvention(exec boil.Executor, header map[string]int, record []string) er
 	// Get or create convention
 	ctID := common.CONTENT_TYPE_REGISTRY.ByName[common.CT_CONGRESS].ID
 	var convention models.Collection
-	err := queries.Raw(exec,
+	err := queries.Raw(
 		`select * from collections where type_id=$1 and properties -> 'pattern' ? $2 limit 1`,
 		ctID, record[header["pattern"]],
-	).Bind(&convention)
+	).Bind(nil, exec, &convention)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Create
@@ -107,7 +107,7 @@ func doConvention(exec boil.Executor, header map[string]int, record []string) er
 				UID:    utils.GenerateUID(8),
 				TypeID: ctID,
 			}
-			err = convention.Insert(exec)
+			err = convention.Insert(exec, boil.Infer())
 			if err != nil {
 				return errors.Wrapf(err, "Insert convention [%s]", record)
 			}
@@ -143,7 +143,7 @@ func doConvention(exec boil.Executor, header map[string]int, record []string) er
 	}
 	convention.Properties = null.JSONFrom(p)
 
-	err = convention.Update(exec)
+	_, err = convention.Update(exec, boil.Infer())
 	if err != nil {
 		return errors.Wrap(err, "Update convention properties")
 	}
@@ -162,7 +162,8 @@ func doConvention(exec boil.Executor, header map[string]int, record []string) er
 		}
 		err = ci18n.Upsert(exec, true,
 			[]string{"collection_id", "language"},
-			[]string{"name"})
+			boil.Whitelist("name"),
+			boil.Infer())
 		if err != nil {
 			return errors.Wrapf(err, "Upsert convention i18n")
 		}

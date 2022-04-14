@@ -10,8 +10,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -94,7 +94,7 @@ func MatchUnits() {
 
 func loadMDBFiles() (map[string]*models.File, error) {
 	//files, err := models.Files(mdb, qm.InnerJoin("roza_index r on files.sha1=r.sha1")).All()
-	files, err := models.Files(mdb, qm.Where("sha1 is not null")).All()
+	files, err := models.Files(qm.Where("sha1 is not null")).All(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load MDB files")
 	}
@@ -109,12 +109,12 @@ func loadMDBFiles() (map[string]*models.File, error) {
 }
 
 func loadKMFiles() (map[string]*MiniKMFile, error) {
-	rows, err := queries.Raw(kmdb, `SELECT
+	rows, err := queries.Raw(`SELECT
   fa.id,
   fa.sha1,
   array_agg(DISTINCT cfa.container_id)
 FROM file_assets fa INNER JOIN containers_file_assets cfa ON fa.id = cfa.file_asset_id AND fa.sha1 IS NOT NULL
-GROUP BY fa.id`).Query()
+GROUP BY fa.id`).Query(kmdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load KMedia files")
 	}
@@ -145,7 +145,7 @@ GROUP BY fa.id`).Query()
 }
 
 func loadCUDs() (map[int64]int64, error) {
-	cuds, err := models.ContentUnitDerivations(mdb).All()
+	cuds, err := models.ContentUnitDerivations().All(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load MDB CUDs")
 	}

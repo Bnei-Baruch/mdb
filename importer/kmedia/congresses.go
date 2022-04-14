@@ -3,7 +3,6 @@ package kmedia
 import (
 	"database/sql"
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/common"
 	"io/ioutil"
 	"runtime/debug"
 	"sort"
@@ -12,10 +11,13 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -287,10 +289,11 @@ func analyzeExisting(congresses map[int]*Congress) error {
 		//log.Infof("MDB Collection [%d] kmedia_id %d", collection.ID, kmid)
 
 		for _, event := range congress.Events {
-			cu, err := models.ContentUnits(mdb,
-				qm.Where("(properties->>'kmedia_id')::int = ?", event.KMediaID),
-				qm.Load("ContentUnitI18ns", "CollectionsContentUnits"),
-			).One()
+			cu, err := models.ContentUnits(
+				qm4.Where("(properties->>'kmedia_id')::int = ?", event.KMediaID),
+				qm4.Load("ContentUnitI18ns"),
+				qm4.Load("CollectionsContentUnits"),
+			).One(mdb)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					cu = nil
@@ -348,10 +351,11 @@ func importNewCongresses(congresses map[int]*Congress) error {
 		}
 		stats.CatalogsProcessed.Inc(1)
 
-		collection, err := models.Collections(mdb,
-			qm.Where("(properties->>'kmedia_id')::int = ?", kmid),
-			qm.Load("CollectionsContentUnits", "CollectionsContentUnits.ContentUnit"),
-		).One()
+		collection, err := models.Collections(
+			qm4.Where("(properties->>'kmedia_id')::int = ?", kmid),
+			qm4.Load("CollectionsContentUnits"),
+			qm4.Load("CollectionsContentUnits.ContentUnit"),
+		).One(mdb)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				// create new congress
@@ -379,12 +383,13 @@ func importNewCongresses(congresses map[int]*Congress) error {
 						ci18n := models.CollectionI18n{
 							CollectionID: collection.ID,
 							Language:     common.LANG_MAP[d.LangID.String],
-							Name:         d.Name,
+							Name:         null.NewString(d.Name.String, d.Name.Valid),
 						}
 						err = ci18n.Upsert(mdb,
 							true,
 							[]string{"collection_id", "language"},
-							[]string{"name"})
+							boil.Whitelist("name"),
+							boil.Infer())
 						if err != nil {
 							return errors.Wrapf(err, "Upsert collection i18n, collection [%d]", collection.ID)
 						}
@@ -459,8 +464,8 @@ func doNewUnit(exec boil.Executor, h map[string]int, x []string) error {
 		return errors.Wrapf(err, "bad container_id %s", containerID)
 	}
 
-	exists, err := models.ContentUnits(exec,
-		qm.Where("(properties->>'kmedia_id')::int = ?", cnID)).Exists()
+	exists, err := models.ContentUnits(
+		qm4.Where("(properties->>'kmedia_id')::int = ?", cnID)).Exists(exec)
 	if err != nil {
 		return errors.Wrapf(err, "Check unit exists in mdb [kmid %d]", cnID)
 	}
@@ -475,9 +480,9 @@ func doNewUnit(exec boil.Executor, h map[string]int, x []string) error {
 		return errors.Wrapf(err, "bad catalog_id %s", catalogID)
 	}
 
-	collection, err := models.Collections(exec,
-		qm.Where("(properties->>'kmedia_id')::int = ?", ctID),
-	).One()
+	collection, err := models.Collections(
+		qm4.Where("(properties->>'kmedia_id')::int = ?", ctID),
+	).One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return errors.Wrapf(err, "Collection not found [kmid %d]", ctID)
@@ -537,7 +542,7 @@ func doNewUnit(exec boil.Executor, h map[string]int, x []string) error {
 
 	if unit.Published {
 		collection.Published = true
-		err = unit.Update(exec, "published")
+		_, err = unit.Update(exec, boil.Whitelist("published"))
 		if err != nil {
 			return errors.Wrapf(err, "Update unit published column %d", cnID)
 		}
@@ -600,9 +605,9 @@ func doExistingUnit(exec boil.Executor, h map[string]int, x []string) error {
 	if err != nil {
 		return errors.Wrapf(err, "bad catalog_id %s", catalogID)
 	}
-	collection, err := models.Collections(exec,
-		qm.Where("(properties->>'kmedia_id')::int = ?", ctID),
-	).One()
+	collection, err := models.Collections(
+		qm4.Where("(properties->>'kmedia_id')::int = ?", ctID),
+	).One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return errors.Wrapf(err, "Collection not found [kmid %d]", ctID)
@@ -630,8 +635,8 @@ func doExistingUnit(exec boil.Executor, h map[string]int, x []string) error {
 	log.Infof("Associating unit %d [kmid %d] with collection %d [kmid %s] ccuName: %s",
 		unit.ID, container.ID, collection.ID, catalogID, ccuName)
 
-	_, err = models.CollectionsContentUnits(exec,
-		qm.Where("collection_id = ? and content_unit_id = ?", collection.ID, unit.ID)).One()
+	_, err = models.CollectionsContentUnits(
+		qm4.Where("collection_id = ? and content_unit_id = ?", collection.ID, unit.ID)).One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// create new association

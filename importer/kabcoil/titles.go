@@ -8,8 +8,10 @@ import (
 	"github.com/360EntSecGroup-Skylar/excelize"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
@@ -123,13 +125,13 @@ func linkToCU(link string) (*models.ContentUnit, error) {
 		return nil, errors.Wrapf(err, "Find KM file %s", fname)
 	}
 
-	mFile, err := models.Files(mdb, qm.Where("(properties->>'kmedia_id')::int = ?", kmFile.ID)).One()
+	mFile, err := models.Files(qm4.Where("(properties->>'kmedia_id')::int = ?", kmFile.ID)).One(mdb)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Find MDB file %d", kmFile.ID)
 	}
 
 	if mFile.ContentUnitID.Valid {
-		err = mFile.L.LoadContentUnit(mdb, true, mFile)
+		err = mFile.L.LoadContentUnit(mdb, true, mFile, nil)
 		if err != nil {
 			return nil, errors.Wrapf(err, "mFile.L.LoadContentUnit %d", mFile.ContentUnitID.Int64)
 		}
@@ -148,7 +150,9 @@ func updateCU(ut *UnitTitle) error {
 	}
 
 	err := i18n.Upsert(mdb, true,
-		[]string{"content_unit_id", "language"}, []string{"name", "description"})
+		[]string{"content_unit_id", "language"},
+		boil.Whitelist("name", "description"),
+		boil.Infer())
 	if err != nil {
 		return errors.Wrapf(err, "i18n.Upsert %d", ut.cu.ID)
 	}

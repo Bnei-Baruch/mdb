@@ -8,7 +8,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -63,7 +63,7 @@ func MatchDirectories() {
 }
 
 func loadMDBPublishedFiles() (map[string]*models.File, error) {
-	files, err := models.Files(mdb, qm.Where("sha1 is not null and content_unit_id is not null and published is true")).All()
+	files, err := models.Files(qm.Where("sha1 is not null and content_unit_id is not null and published is true")).All(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load MDB files")
 	}

@@ -5,18 +5,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/casbin/casbin"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/volatiletech/null.v6"
-	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
@@ -803,9 +804,7 @@ func FilesWithOperationsTreeHandler(c *gin.Context) {
 		i++
 	}
 
-	ops, err := models.Operations(db,
-		qm.WhereIn("id in ?", utils.ConvertArgsInt64(opIds)...)).
-		All()
+	ops, err := models.Operations(qm.WhereIn("id in ?", utils.ConvertArgsInt64(opIds)...)).All(db)
 	if err != nil {
 		NewInternalError(err).Abort(c)
 		return
@@ -883,9 +882,8 @@ func AuthorsHandler(c *gin.Context) {
 		return
 	}
 
-	authors, err := models.Authors(c.MustGet("MDB").(*sql.DB),
-		qm.Load("AuthorI18ns", "Sources")).
-		All()
+	authors, err := models.Authors(qm.Load("AuthorI18ns"), qm.Load("Sources")).
+		All(c.MustGet("MDB").(*sql.DB))
 	if err != nil {
 		NewInternalError(errors.Wrap(err, "Load authors from DB")).Abort(c)
 		return
@@ -1607,7 +1605,7 @@ func handleCollectionsList(cp utils.ContextProvider, exec boil.Executor, r Colle
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
-	err := models.Collections(exec, countMods...).QueryRow().Scan(&total)
+	err := models.Collections(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -1624,7 +1622,7 @@ func handleCollectionsList(cp utils.ContextProvider, exec boil.Executor, r Colle
 	mods = append(mods, qm.Load("CollectionI18ns"))
 
 	// data query
-	collections, err := models.Collections(exec, mods...).All()
+	collections, err := models.Collections(mods...).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -1680,10 +1678,8 @@ func handleCreateCollection(cp utils.ContextProvider, exec boil.Executor, c Coll
 }
 
 func handleGetCollection(cp utils.ContextProvider, exec boil.Executor, id int64) (*Collection, *HttpError) {
-	collection, err := models.Collections(exec,
-		qm.Where("id = ?", id),
-		qm.Load("CollectionI18ns")).
-		One()
+	collection, err := models.Collections(qm.Where("id = ?", id), qm.Load("CollectionI18ns")).
+		One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -1725,7 +1721,7 @@ func handleUpdateCollection(cp utils.ContextProvider, exec boil.Executor, c *Par
 	// update entity attributes
 	if c.Secure.Valid {
 		collection.Secure = c.Secure.Int16
-		err = collection.Update(exec, "secure")
+		_, err = collection.Update(exec, boil.Whitelist("secure"))
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -1755,7 +1751,7 @@ func handleCollectionContentUnitsPosition(exec boil.Executor, id int64) (*events
 		return &event, NewInternalError(err)
 	}
 
-	_, err = queries.Raw(exec,
+	_, err = queries.Raw(
 		`UPDATE collections_content_units
 		SET position = s.row_number 
 		FROM (
@@ -1766,7 +1762,7 @@ func handleCollectionContentUnitsPosition(exec boil.Executor, id int64) (*events
 				order by cu.properties ->> 'film_date'
 		) AS s 
 		WHERE content_unit_id = s.id and collection_id = $1;`,
-		id).Exec()
+		id).Exec(exec)
 	if err != nil {
 		return &event, NewInternalError(err)
 	}
@@ -1790,17 +1786,17 @@ func handleDeleteCollection(cp utils.ContextProvider, exec boil.Executor, id int
 		return nil, NewForbiddenError()
 	}
 
-	err = models.CollectionsContentUnits(exec, qm.Where("collection_id = ?", id)).DeleteAll()
+	_, err = models.CollectionsContentUnits(qm.Where("collection_id = ?", id)).DeleteAll(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
 
-	err = models.CollectionI18ns(exec, qm.Where("collection_id = ?", id)).DeleteAll()
+	_, err = models.CollectionI18ns(qm.Where("collection_id = ?", id)).DeleteAll(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
 
-	err = collection.Delete(exec)
+	_, err = collection.Delete(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -1826,7 +1822,8 @@ func handleUpdateCollectionI18n(cp utils.ContextProvider, exec boil.Executor, id
 		nI18n[i18n.Language] = i18n
 		err := i18n.Upsert(exec, true,
 			[]string{"collection_id", "language"},
-			[]string{"name", "description"})
+			boil.Whitelist("name", "description"),
+			boil.Infer())
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -1835,7 +1832,7 @@ func handleUpdateCollectionI18n(cp utils.ContextProvider, exec boil.Executor, id
 	// Delete old i18ns not in new i18ns
 	for k, v := range collection.I18n {
 		if _, ok := nI18n[k]; !ok {
-			err := v.Delete(exec)
+			_, err := v.Delete(exec)
 			if err != nil {
 				return nil, NewInternalError(err)
 			}
@@ -1877,7 +1874,7 @@ func handleCollectionActivate(cp utils.ContextProvider, exec boil.Executor, id i
 		return nil, NewInternalError(err)
 	}
 	collection.Properties = null.JSONFrom(pbytes)
-	err = collection.Update(exec, "properties")
+	_, err = collection.Update(exec, boil.Whitelist("properties"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -1900,10 +1897,10 @@ func handleCollectionCCU(cp utils.ContextProvider, exec boil.Executor, id int64)
 		return nil, NewForbiddenError()
 	}
 
-	ccus, err := models.CollectionsContentUnits(exec,
+	ccus, err := models.CollectionsContentUnits(
 		qm.Where("collection_id = ?", id),
 		qm.OrderBy("position")).
-		All()
+		All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	} else if len(ccus) == 0 {
@@ -1914,11 +1911,11 @@ func handleCollectionCCU(cp utils.ContextProvider, exec boil.Executor, id int64)
 	for i, ccu := range ccus {
 		ids[i] = ccu.ContentUnitID
 	}
-	cus, err := models.ContentUnits(exec,
+	cus, err := models.ContentUnits(
 		qm.Where("secure <= ?", allowedRead(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("ContentUnitI18ns")).
-		All()
+		All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -1976,9 +1973,9 @@ func handleCollectionAddCCU(cp utils.ContextProvider, exec boil.Executor, id int
 			}
 		}
 
-		exists, err := models.CollectionsContentUnits(exec,
+		exists, err := models.CollectionsContentUnits(
 			qm.Where("collection_id = ? AND content_unit_id = ?", id, ccu.ContentUnitID)).
-			Exists()
+			Exists(exec)
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -1993,7 +1990,7 @@ func handleCollectionAddCCU(cp utils.ContextProvider, exec boil.Executor, id int
 
 		if cu.Published && !c.Published {
 			c.Published = true
-			if err := c.Update(exec, "published"); err != nil {
+			if _, err := c.Update(exec, boil.Whitelist("published")); err != nil {
 				return nil, NewInternalError(err)
 			}
 			evnts = append(evnts, events.CollectionPublishedChangeEvent(c))
@@ -2029,7 +2026,7 @@ func handleCollectionUpdateCCU(cp utils.ContextProvider, exec boil.Executor, id 
 
 	mCCU.Name = ccu.Name
 	mCCU.Position = ccu.Position
-	err = mCCU.Update(exec, "name", "position")
+	_, err = mCCU.Update(exec, boil.Whitelist("name", "position"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2063,7 +2060,7 @@ func handleCollectionRemoveCCU(cp utils.ContextProvider, exec boil.Executor, id 
 		}
 	}
 
-	err = ccu.Delete(exec)
+	_, err = ccu.Delete(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2076,13 +2073,13 @@ func handleCollectionRemoveCCU(cp utils.ContextProvider, exec boil.Executor, id 
 		query := `SELECT count(*) > 0
                  FROM collections_content_units ccu INNER JOIN content_units cu
                      ON ccu.content_unit_id = cu.id AND ccu.collection_id = $1 AND cu.published IS TRUE`
-		if err := queries.Raw(exec, query, id).QueryRow().Scan(&hasPublishedCUs); err != nil {
+		if err := queries.Raw(query, id).QueryRow(exec).Scan(&hasPublishedCUs); err != nil {
 			return nil, NewInternalError(err)
 		}
 
 		if !hasPublishedCUs {
 			c.Published = false
-			if err := c.Update(exec, "published"); err != nil {
+			if _, err := c.Update(exec, boil.Whitelist("published")); err != nil {
 				return nil, NewInternalError(err)
 			}
 			evnts = append(evnts, events.CollectionPublishedChangeEvent(c))
@@ -2137,7 +2134,7 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
-	err := models.ContentUnits(exec, countMods...).QueryRow().Scan(&total)
+	err := models.ContentUnits(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2153,19 +2150,19 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 	// Eager loading
 
 	// Eager loading
-	loadTables := []string{"ContentUnitI18ns"}
+	loadTables := []qm.QueryMod{qm.Load("ContentUnitI18ns")}
 
 	if r.WithCollections {
 		loadTables = append(loadTables,
-			"CollectionsContentUnits",
-			"CollectionsContentUnits.Collection",
-			"CollectionsContentUnits.Collection.CollectionI18ns",
+			qm.Load("CollectionsContentUnits"),
+			qm.Load("CollectionsContentUnits.Collection"),
+			qm.Load("CollectionsContentUnits.Collection.CollectionI18ns"),
 		)
 	}
-	mods = append(mods, qm.Load(loadTables...))
+	mods = append(mods, loadTables...)
 
 	// data query
-	units, err := models.ContentUnits(exec, mods...).All()
+	units, err := models.ContentUnits(mods...).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2200,10 +2197,7 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 }
 
 func handleGetContentUnit(cp utils.ContextProvider, exec boil.Executor, id int64) (*ContentUnit, *HttpError) {
-	unit, err := models.ContentUnits(exec,
-		qm.Where("id = ?", id),
-		qm.Load("ContentUnitI18ns")).
-		One()
+	unit, err := models.ContentUnits(qm.Where("id = ?", id), qm.Load("ContentUnitI18ns")).One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -2281,7 +2275,7 @@ func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *P
 
 	if cu.Secure.Valid {
 		unit.Secure = cu.Secure.Int16
-		err = unit.Update(exec, "secure")
+		_, err = unit.Update(exec, boil.Whitelist("secure"))
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -2342,7 +2336,8 @@ func handleUpdateContentUnitI18n(cp utils.ContextProvider, exec boil.Executor, i
 		nI18n[i18n.Language] = i18n
 		err := i18n.Upsert(exec, true,
 			[]string{"content_unit_id", "language"},
-			[]string{"name", "description"})
+			boil.Whitelist("name", "description"),
+			boil.Infer())
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -2351,7 +2346,7 @@ func handleUpdateContentUnitI18n(cp utils.ContextProvider, exec boil.Executor, i
 	// Delete old i18ns not in new i18ns
 	for k, v := range unit.I18n {
 		if _, ok := nI18n[k]; !ok {
-			err := v.Delete(exec)
+			_, err := v.Delete(exec)
 			if err != nil {
 				return nil, NewInternalError(err)
 			}
@@ -2376,10 +2371,10 @@ func handleContentUnitFiles(cp utils.ContextProvider, exec boil.Executor, id int
 		return nil, NewForbiddenError()
 	}
 
-	files, err := models.Files(exec,
+	files, err := models.Files(
 		qm.Where("secure <= ?", allowedRead(cp)),
 		qm.Where("content_unit_id = ?", id)).
-		All()
+		All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2409,10 +2404,10 @@ func handleContentUnitAddFiles(cp utils.ContextProvider, exec boil.Executor, id 
 
 	// fetch files
 	// With respect to write permissions (as we're about to modify them)
-	files, err := models.Files(exec,
+	files, err := models.Files(
 		qm.Where("secure <= ?", allowedWrite(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(fileIDs)...)).
-		All()
+		All(exec)
 	if err != nil {
 		return nil, nil, NewInternalError(err)
 	}
@@ -2448,9 +2443,8 @@ func handleContentUnitAddFiles(cp utils.ContextProvider, exec boil.Executor, id 
 	}
 
 	// actual update of files that needs to be changed
-	err = models.Files(exec,
-		qm.WhereIn("id in ?", changedIDs...),
-	).UpdateAll(models.M{"content_unit_id": id})
+	_, err = models.Files(qm.WhereIn("id in ?", changedIDs...)).
+		UpdateAll(exec, models.M{"content_unit_id": id})
 	if err != nil {
 		return nil, nil, NewInternalError(err)
 	}
@@ -2491,9 +2485,7 @@ func handleContentUnitCCU(cp utils.ContextProvider, exec boil.Executor, id int64
 		return nil, NewForbiddenError()
 	}
 
-	ccus, err := models.CollectionsContentUnits(exec,
-		qm.Where("content_unit_id = ?", id)).
-		All()
+	ccus, err := models.CollectionsContentUnits(qm.Where("content_unit_id = ?", id)).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	} else if len(ccus) == 0 {
@@ -2504,11 +2496,11 @@ func handleContentUnitCCU(cp utils.ContextProvider, exec boil.Executor, id int64
 	for i, ccu := range ccus {
 		ids[i] = ccu.CollectionID
 	}
-	cs, err := models.Collections(exec,
+	cs, err := models.Collections(
 		qm.Where("secure <= ?", allowedRead(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("CollectionI18ns")).
-		All()
+		All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2550,9 +2542,7 @@ func handleContentUnitCUD(cp utils.ContextProvider, exec boil.Executor, id int64
 		return nil, NewForbiddenError()
 	}
 
-	cuds, err := models.ContentUnitDerivations(exec,
-		qm.Where("source_id = ?", id)).
-		All()
+	cuds, err := models.ContentUnitDerivations(qm.Where("source_id = ?", id)).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	} else if len(cuds) == 0 {
@@ -2563,11 +2553,11 @@ func handleContentUnitCUD(cp utils.ContextProvider, exec boil.Executor, id int64
 	for i := range cuds {
 		ids[i] = cuds[i].DerivedID
 	}
-	cus, err := models.ContentUnits(exec,
+	cus, err := models.ContentUnits(
 		qm.Where("secure <= ?", allowedRead(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("ContentUnitI18ns")).
-		All()
+		All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2608,9 +2598,7 @@ func handleContentUnitAddCUD(cp utils.ContextProvider, exec boil.Executor, id in
 		return nil, NewForbiddenError()
 	}
 
-	exists, err := models.ContentUnits(exec,
-		qm.Where("id = ?", cud.DerivedID)).
-		Exists()
+	exists, err := models.ContentUnits(qm.Where("id = ?", cud.DerivedID)).Exists(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2618,9 +2606,8 @@ func handleContentUnitAddCUD(cp utils.ContextProvider, exec boil.Executor, id in
 		return nil, NewBadRequestError(errors.Errorf("Unknown content unit id %d", cud.DerivedID))
 	}
 
-	exists, err = models.ContentUnitDerivations(exec,
-		qm.Where("source_id = ? AND derived_id = ?", id, cud.DerivedID)).
-		Exists()
+	exists, err = models.ContentUnitDerivations(qm.Where("source_id = ? AND derived_id = ?", id, cud.DerivedID)).
+		Exists(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2661,7 +2648,7 @@ func handleContentUnitUpdateCUD(cp utils.ContextProvider, exec boil.Executor, id
 	}
 
 	mCUD.Name = cud.Name
-	err = mCUD.Update(exec, "name")
+	_, err = mCUD.Update(exec, boil.Whitelist("name"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2693,7 +2680,7 @@ func handleContentUnitRemoveCUD(cp utils.ContextProvider, exec boil.Executor, id
 		}
 	}
 
-	err = cud.Delete(exec)
+	_, err = cud.Delete(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2716,9 +2703,7 @@ func handleContentUnitOrigins(cp utils.ContextProvider, exec boil.Executor, id i
 		return nil, NewForbiddenError()
 	}
 
-	cuds, err := models.ContentUnitDerivations(exec,
-		qm.Where("derived_id = ?", id)).
-		All()
+	cuds, err := models.ContentUnitDerivations(qm.Where("derived_id = ?", id)).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	} else if len(cuds) == 0 {
@@ -2729,11 +2714,11 @@ func handleContentUnitOrigins(cp utils.ContextProvider, exec boil.Executor, id i
 	for i := range cuds {
 		ids[i] = cuds[i].SourceID
 	}
-	cus, err := models.ContentUnits(exec,
+	cus, err := models.ContentUnits(
 		qm.Where("secure <= ?", allowedRead(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...),
 		qm.Load("ContentUnitI18ns")).
-		All()
+		All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -2760,10 +2745,11 @@ func handleContentUnitOrigins(cp utils.ContextProvider, exec boil.Executor, id i
 }
 
 func handleGetContentUnitSources(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*Source, *HttpError) {
-	unit, err := models.ContentUnits(exec,
+	unit, err := models.ContentUnits(
 		qm.Where("id = ?", id),
-		qm.Load("Sources", "Sources.SourceI18ns")).
-		One()
+		qm.Load("Sources"),
+		qm.Load("Sources.SourceI18ns")).
+		One(exec)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2816,10 +2802,10 @@ func handleContentUnitAddSource(cp utils.ContextProvider, exec boil.Executor, id
 	}
 
 	var count int64
-	err = queries.Raw(exec,
+	err = queries.Raw(
 		`SELECT COUNT(1) FROM content_units_sources WHERE content_unit_id=$1 AND source_id=$2`,
 		cu.ID, source.ID).
-		QueryRow().
+		QueryRow(exec).
 		Scan(&count)
 	if err != nil {
 		return nil, NewInternalError(err)
@@ -2869,10 +2855,11 @@ func handleContentUnitRemoveSource(cp utils.ContextProvider, exec boil.Executor,
 }
 
 func handleGetContentUnitTags(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*Tag, *HttpError) {
-	unit, err := models.ContentUnits(exec,
+	unit, err := models.ContentUnits(
 		qm.Where("id = ?", id),
-		qm.Load("Tags", "Tags.TagI18ns")).
-		One()
+		qm.Load("Tags"),
+		qm.Load("Tags.TagI18ns")).
+		One(exec)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2925,10 +2912,10 @@ func handleContentUnitAddTag(cp utils.ContextProvider, exec boil.Executor, id in
 	}
 
 	var count int64
-	err = queries.Raw(exec,
+	err = queries.Raw(
 		`SELECT COUNT(1) FROM content_units_tags WHERE content_unit_id=$1 AND tag_id=$2`,
 		cu.ID, tag.ID).
-		QueryRow().
+		QueryRow(exec).
 		Scan(&count)
 	if err != nil {
 		return nil, NewInternalError(err)
@@ -2978,12 +2965,12 @@ func handleContentUnitRemoveTag(cp utils.ContextProvider, exec boil.Executor, id
 }
 
 func handleGetContentUnitPersons(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*ContentUnitPerson, *HttpError) {
-	unit, err := models.ContentUnits(exec,
+	unit, err := models.ContentUnits(
 		qm.Where("id = ?", id),
-		qm.Load("ContentUnitsPersons",
-			"ContentUnitsPersons.Person",
-			"ContentUnitsPersons.Person.PersonI18ns")).
-		One()
+		qm.Load("ContentUnitsPersons"),
+		qm.Load("ContentUnitsPersons.Person"),
+		qm.Load("ContentUnitsPersons.Person.PersonI18ns")).
+		One(exec)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -3047,7 +3034,7 @@ func handleContentUnitAddPerson(cp utils.ContextProvider, exec boil.Executor, id
 		if err == sql.ErrNoRows {
 			// create new
 			cup.ContentUnitID = id
-			err = cup.Insert(exec)
+			err = cup.Insert(exec, boil.Infer())
 			if err != nil {
 				return nil, NewInternalError(err)
 			}
@@ -3059,7 +3046,7 @@ func handleContentUnitAddPerson(cp utils.ContextProvider, exec boil.Executor, id
 
 	// update role
 	existingCUP.RoleID = cup.RoleID
-	err = existingCUP.Update(exec, "role_id")
+	_, err = existingCUP.Update(exec, boil.Whitelist("role_id"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3091,7 +3078,7 @@ func handleContentUnitRemovePerson(cp utils.ContextProvider, exec boil.Executor,
 		}
 	}
 
-	err = cup.Delete(exec)
+	_, err = cup.Delete(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3100,10 +3087,11 @@ func handleContentUnitRemovePerson(cp utils.ContextProvider, exec boil.Executor,
 }
 
 func handleGetContentUnitPublishers(cp utils.ContextProvider, exec boil.Executor, id int64) ([]*Publisher, *HttpError) {
-	unit, err := models.ContentUnits(exec,
+	unit, err := models.ContentUnits(
 		qm.Where("id = ?", id),
-		qm.Load("Publishers", "Publishers.PublisherI18ns")).
-		One()
+		qm.Load("Publishers"),
+		qm.Load("Publishers.PublisherI18ns")).
+		One(exec)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -3156,10 +3144,10 @@ func handleContentUnitAddPublisher(cp utils.ContextProvider, exec boil.Executor,
 	}
 
 	var count int64
-	err = queries.Raw(exec,
+	err = queries.Raw(
 		`SELECT COUNT(1) FROM content_units_publishers WHERE content_unit_id=$1 AND publisher_id=$2`,
 		cu.ID, publisher.ID).
-		QueryRow().
+		QueryRow(exec).
 		Scan(&count)
 	if err != nil {
 		return nil, NewInternalError(err)
@@ -3225,11 +3213,13 @@ func handleContentUnitMerge(cp utils.ContextProvider, exec boil.Executor, id int
 
 	// fetch units to be merged
 	// With respect to write permissions (as we're about to modify them)
-	units, err := models.ContentUnits(exec,
+	units, err := models.ContentUnits(
 		qm.Where("secure <= ?", allowedWrite(cp)),
 		qm.WhereIn("id in ?", utils.ConvertArgsInt64(cuIDs)...),
-		qm.Load("Files", "DerivedContentUnitDerivations", "SourceContentUnitDerivations")).
-		All()
+		qm.Load("Files"),
+		qm.Load("DerivedContentUnitDerivations"),
+		qm.Load("SourceContentUnitDerivations")).
+		All(exec)
 	if err != nil {
 		return nil, nil, NewInternalError(err)
 	}
@@ -3254,7 +3244,7 @@ func handleContentUnitMerge(cp utils.ContextProvider, exec boil.Executor, id int
 		}
 
 		// move files
-		err := cu.R.Files.UpdateAll(exec, models.M{"content_unit_id": unit.ID})
+		_, err := cu.R.Files.UpdateAll(exec, models.M{"content_unit_id": unit.ID})
 		if err != nil {
 			return nil, nil, NewInternalError(err)
 		}
@@ -3263,19 +3253,19 @@ func handleContentUnitMerge(cp utils.ContextProvider, exec boil.Executor, id int
 		}
 
 		// move derivations
-		err = cu.R.DerivedContentUnitDerivations.UpdateAll(exec, models.M{"derived_id": unit.ID})
+		_, err = cu.R.DerivedContentUnitDerivations.UpdateAll(exec, models.M{"derived_id": unit.ID})
 		if err != nil {
 			return nil, nil, NewInternalError(err)
 		}
 		for i := range cu.R.DerivedContentUnitDerivations {
-			sourceCU, err := cu.R.DerivedContentUnitDerivations[i].Source(exec).One()
+			sourceCU, err := cu.R.DerivedContentUnitDerivations[i].Source().One(exec)
 			if err != nil {
 				return nil, nil, NewInternalError(err)
 			}
 			evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(sourceCU))
 		}
 
-		err = cu.R.SourceContentUnitDerivations.UpdateAll(exec, models.M{"source_id": unit.ID})
+		_, err = cu.R.SourceContentUnitDerivations.UpdateAll(exec, models.M{"source_id": unit.ID})
 		if err != nil {
 			return nil, nil, NewInternalError(err)
 		}
@@ -3340,7 +3330,7 @@ func handleFilesList(cp utils.ContextProvider, exec boil.Executor, r FilesReques
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
-	err := models.Files(exec, countMods...).QueryRow().Scan(&total)
+	err := models.Files(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3354,7 +3344,7 @@ func handleFilesList(cp utils.ContextProvider, exec boil.Executor, r FilesReques
 	}
 
 	// data query
-	files, err := models.Files(exec, mods...).All()
+	files, err := models.Files(mods...).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3429,7 +3419,7 @@ func handleUpdateFile(cp utils.ContextProvider, exec boil.Executor, f *PartialFi
 		file.ContentUnitID = f.ContentUnitID
 	}
 
-	err = file.Update(exec)
+	_, err = file.Update(exec, boil.Infer())
 	if err != nil {
 		return nil, nil, NewInternalError(err)
 	}
@@ -3476,9 +3466,9 @@ func handleFileStorages(cp utils.ContextProvider, exec boil.Executor, id int64) 
 		return nil, NewForbiddenError()
 	}
 
-	storages, err := models.Storages(exec,
+	storages, err := models.Storages(
 		qm.InnerJoin("files_storages fs on fs.storage_id=id and fs.file_id = ?", id)).
-		All()
+		All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3505,7 +3495,7 @@ func handleOperationsList(exec boil.Executor, r OperationsRequest) (*OperationsR
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
-	err := models.Operations(exec, countMods...).QueryRow().Scan(&total)
+	err := models.Operations(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3519,7 +3509,7 @@ func handleOperationsList(exec boil.Executor, r OperationsRequest) (*OperationsR
 	}
 
 	// data query
-	data, err := models.Operations(exec, mods...).All()
+	data, err := models.Operations(mods...).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3552,10 +3542,10 @@ func handleOperationFiles(cp utils.ContextProvider, exec boil.Executor, id int64
 		return nil, NewNotFoundError()
 	}
 
-	files, err := models.Files(exec,
+	files, err := models.Files(
 		qm.InnerJoin("files_operations fo on fo.file_id=id and fo.operation_id = ? and secure <= ?",
 			id, allowedRead(cp))).
-		All()
+		All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3574,7 +3564,7 @@ func handleGetSources(exec boil.Executor, r SourcesRequest) (*SourcesResponse, *
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
-	err := models.Sources(exec, countMods...).QueryRow().Scan(&total)
+	err := models.Sources(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3591,7 +3581,7 @@ func handleGetSources(exec boil.Executor, r SourcesRequest) (*SourcesResponse, *
 	mods = append(mods, qm.Load("SourceI18ns"))
 
 	// data query
-	sources, err := models.Sources(exec, mods...).All()
+	sources, err := models.Sources(mods...).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3618,7 +3608,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 
 	// check pattern unique constraint
 	if s.Pattern.Valid {
-		ok, err := models.Sources(exec, qm.Where("pattern = ?", s.Pattern.String)).Exists()
+		ok, err := models.Sources(qm.Where("pattern = ?", s.Pattern.String)).Exists(exec)
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -3630,7 +3620,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 
 	// make sure parent source exists if given
 	if s.ParentID.Valid {
-		ok, err := models.Sources(exec, qm.Where("id = ?", s.ParentID.Int64)).Exists()
+		ok, err := models.Sources(qm.Where("id = ?", s.ParentID.Int64)).Exists(exec)
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -3642,7 +3632,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 
 	// make sure author exists if given
 	if r.AuthorID.Valid {
-		ok, err := models.Authors(exec, qm.Where("id = ?", r.AuthorID.Int64)).Exists()
+		ok, err := models.Authors(qm.Where("id = ?", r.AuthorID.Int64)).Exists(exec)
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -3659,7 +3649,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 	}
 	s.UID = uid
 
-	err = s.Source.Insert(exec)
+	err = s.Source.Insert(exec, boil.Infer())
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3690,7 +3680,7 @@ func handleCreateSource(exec boil.Executor, r CreateSourceRequest) (*Source, *Ht
 		Properties: null.JSONFrom(props),
 	}
 
-	err = cu.Insert(exec)
+	err = cu.Insert(exec, boil.Infer())
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3706,7 +3696,7 @@ func getUniqSourceAndCUUID(exec boil.Executor, attempts int64) (string, error) {
 	if err != nil {
 		return "", NewInternalError(err)
 	}
-	hasCU, err := models.ContentUnits(exec, qm.Where("uid = ?", uid)).Exists()
+	hasCU, err := models.ContentUnits(qm.Where("uid = ?", uid)).Exists(exec)
 	if err != nil {
 		return "", NewInternalError(err)
 	}
@@ -3718,10 +3708,10 @@ func getUniqSourceAndCUUID(exec boil.Executor, attempts int64) (string, error) {
 }
 
 func handleGetSource(exec boil.Executor, id int64) (*Source, *HttpError) {
-	source, err := models.Sources(exec,
+	source, err := models.Sources(
 		qm.Where("id = ?", id),
 		qm.Load("SourceI18ns")).
-		One()
+		One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -3754,7 +3744,7 @@ func handleUpdateSource(exec boil.Executor, s *Source) (*Source, *HttpError) {
 	}
 	source.Pattern = s.Pattern
 	source.Description = s.Description
-	err = s.Update(exec, "pattern", "description", "type_id")
+	_, err = s.Update(exec, boil.Whitelist("pattern", "description", "type_id"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3775,7 +3765,8 @@ func handleUpdateSourceI18n(exec boil.Executor, id int64, i18ns []*models.Source
 		nI18n[i18n.Language] = i18n
 		err := i18n.Upsert(exec, true,
 			[]string{"source_id", "language"},
-			[]string{"name", "description"})
+			boil.Whitelist("name", "description"),
+			boil.Infer())
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -3784,7 +3775,7 @@ func handleUpdateSourceI18n(exec boil.Executor, id int64, i18ns []*models.Source
 	// Delete old i18ns not in new i18ns
 	for k, v := range source.I18n {
 		if _, ok := nI18n[k]; !ok {
-			err := v.Delete(exec)
+			_, err := v.Delete(exec)
 			if err != nil {
 				return nil, NewInternalError(err)
 			}
@@ -3800,7 +3791,7 @@ func handleGetTags(exec boil.Executor, r TagsRequest) (*TagsResponse, *HttpError
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
-	err := models.Tags(exec, countMods...).QueryRow().Scan(&total)
+	err := models.Tags(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3817,7 +3808,7 @@ func handleGetTags(exec boil.Executor, r TagsRequest) (*TagsResponse, *HttpError
 	mods = append(mods, qm.Load("TagI18ns"))
 
 	// data query
-	tags, err := models.Tags(exec, mods...).All()
+	tags, err := models.Tags(mods...).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3842,7 +3833,7 @@ func handleGetTags(exec boil.Executor, r TagsRequest) (*TagsResponse, *HttpError
 func handleCreateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
 	// make sure parent tag exists if given
 	if t.ParentID.Valid {
-		ok, err := models.Tags(exec, qm.Where("id = ?", t.ParentID.Int64)).Exists()
+		ok, err := models.Tags(qm.Where("id = ?", t.ParentID.Int64)).Exists(exec)
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -3858,7 +3849,7 @@ func handleCreateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
 	}
 	t.UID = uid
 
-	err = t.Tag.Insert(exec)
+	err = t.Tag.Insert(exec, boil.Infer())
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3875,10 +3866,10 @@ func handleCreateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
 }
 
 func handleGetTag(exec boil.Executor, id int64) (*Tag, *HttpError) {
-	tag, err := models.Tags(exec,
+	tag, err := models.Tags(
 		qm.Where("id = ?", id),
 		qm.Load("TagI18ns")).
-		One()
+		One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -3909,7 +3900,7 @@ func handleUpdateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
 
 	tag.Pattern = t.Pattern
 	tag.Description = t.Description
-	err = t.Update(exec, "pattern", "description")
+	_, err = t.Update(exec, boil.Whitelist("pattern", "description"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3928,7 +3919,10 @@ func handleUpdateTagI18n(exec boil.Executor, id int64, i18ns []*models.TagI18n) 
 	for _, i18n := range i18ns {
 		i18n.TagID = id
 		nI18n[i18n.Language] = i18n
-		err := i18n.Upsert(exec, true, []string{"tag_id", "language"}, []string{"label"})
+		err := i18n.Upsert(exec, true,
+			[]string{"tag_id", "language"},
+			boil.Whitelist("label"),
+			boil.Infer())
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -3937,7 +3931,7 @@ func handleUpdateTagI18n(exec boil.Executor, id int64, i18ns []*models.TagI18n) 
 	// Delete old i18ns not in new i18ns
 	for k, v := range tag.I18n {
 		if _, ok := nI18n[k]; !ok {
-			err := v.Delete(exec)
+			_, err := v.Delete(exec)
 			if err != nil {
 				return nil, NewInternalError(err)
 			}
@@ -3964,7 +3958,7 @@ func handlePersonsList(exec boil.Executor, r PersonsRequest) (*PersonsResponse, 
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
-	err := models.Persons(exec, countMods...).QueryRow().Scan(&total)
+	err := models.Persons(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -3981,7 +3975,7 @@ func handlePersonsList(exec boil.Executor, r PersonsRequest) (*PersonsResponse, 
 	mods = append(mods, qm.Load("PersonI18ns"))
 
 	// data query
-	persons, err := models.Persons(exec, mods...).All()
+	persons, err := models.Persons(mods...).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4012,7 +4006,7 @@ func handleCreatePerson(exec boil.Executor, p *Person) (*Person, *HttpError) {
 	}
 	p.UID = uid
 
-	err = p.Person.Insert(exec)
+	err = p.Person.Insert(exec, boil.Infer())
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4039,7 +4033,7 @@ func handleUpdatePerson(exec boil.Executor, p *Person) (*Person, *HttpError) {
 	}
 
 	person.Pattern = p.Pattern
-	err = p.Update(exec, "pattern")
+	_, err = p.Update(exec, boil.Whitelist("pattern"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4048,10 +4042,10 @@ func handleUpdatePerson(exec boil.Executor, p *Person) (*Person, *HttpError) {
 }
 
 func handleGetPerson(exec boil.Executor, id int64) (*Person, *HttpError) {
-	person, err := models.Persons(exec,
+	person, err := models.Persons(
 		qm.Where("id = ?", id),
 		qm.Load("PersonI18ns")).
-		One()
+		One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -4083,7 +4077,8 @@ func handleUpdatePersonI18n(exec boil.Executor, id int64, i18ns []*models.Person
 		nI18n[i18n.Language] = i18n
 		err := i18n.Upsert(exec, true,
 			[]string{"person_id", "language"},
-			[]string{"name", "description"})
+			boil.Whitelist("name", "description"),
+			boil.Infer())
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -4092,7 +4087,7 @@ func handleUpdatePersonI18n(exec boil.Executor, id int64, i18ns []*models.Person
 	// Delete old i18ns not in new i18ns
 	for k, v := range person.I18n {
 		if _, ok := nI18n[k]; !ok {
-			err := v.Delete(exec)
+			_, err := v.Delete(exec)
 			if err != nil {
 				return nil, NewInternalError(err)
 			}
@@ -4112,17 +4107,17 @@ func handleDeletePerson(exec boil.Executor, id int64) (*models.Person, *HttpErro
 		}
 	}
 
-	err = models.ContentUnitsPersons(exec, qm.Where("person_id = ?", id)).DeleteAll()
+	_, err = models.ContentUnitsPersons(qm.Where("person_id = ?", id)).DeleteAll(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
 
-	err = models.PersonI18ns(exec, qm.Where("person_id = ?", id)).DeleteAll()
+	_, err = models.PersonI18ns(qm.Where("person_id = ?", id)).DeleteAll(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
 
-	err = person.Delete(exec)
+	_, err = person.Delete(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4136,7 +4131,7 @@ func handleStoragesList(exec boil.Executor, r StoragesRequest) (*StoragesRespons
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
-	err := models.Storages(exec, countMods...).QueryRow().Scan(&total)
+	err := models.Storages(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4150,7 +4145,7 @@ func handleStoragesList(exec boil.Executor, r StoragesRequest) (*StoragesRespons
 	}
 
 	// data query
-	data, err := models.Storages(exec, mods...).All()
+	data, err := models.Storages(mods...).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4178,7 +4173,7 @@ func handlePublishersList(exec boil.Executor, r PublishersRequest) (*PublishersR
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
-	err := models.Publishers(exec, countMods...).QueryRow().Scan(&total)
+	err := models.Publishers(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4195,7 +4190,7 @@ func handlePublishersList(exec boil.Executor, r PublishersRequest) (*PublishersR
 	mods = append(mods, qm.Load("PublisherI18ns"))
 
 	// data query
-	publishers, err := models.Publishers(exec, mods...).All()
+	publishers, err := models.Publishers(mods...).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4226,7 +4221,7 @@ func handleCreatePublisher(exec boil.Executor, p *Publisher) (*Publisher, *HttpE
 	}
 	p.UID = uid
 
-	err = p.Publisher.Insert(exec)
+	err = p.Publisher.Insert(exec, boil.Infer())
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4243,10 +4238,10 @@ func handleCreatePublisher(exec boil.Executor, p *Publisher) (*Publisher, *HttpE
 }
 
 func handleGetPublisher(exec boil.Executor, id int64) (*Publisher, *HttpError) {
-	publisher, err := models.Publishers(exec,
+	publisher, err := models.Publishers(
 		qm.Where("id = ?", id),
 		qm.Load("PublisherI18ns")).
-		One()
+		One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -4276,7 +4271,7 @@ func handleUpdatePublisher(exec boil.Executor, p *Publisher) (*Publisher, *HttpE
 	}
 
 	publisher.Pattern = p.Pattern
-	err = p.Update(exec, "pattern")
+	_, err = p.Update(exec, boil.Whitelist("pattern"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4297,7 +4292,8 @@ func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.Pub
 		nI18n[i18n.Language] = i18n
 		err := i18n.Upsert(exec, true,
 			[]string{"publisher_id", "language"},
-			[]string{"name", "description"})
+			boil.Whitelist("name", "description"),
+			boil.Infer())
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -4306,7 +4302,7 @@ func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.Pub
 	// Delete old i18ns not in new i18ns
 	for k, v := range publisher.I18n {
 		if _, ok := nI18n[k]; !ok {
-			err := v.Delete(exec)
+			_, err := v.Delete(exec)
 			if err != nil {
 				return nil, NewInternalError(err)
 			}
@@ -4337,7 +4333,7 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT \"labels\".id)")}, mods...)
-	err := models.Labels(exec, countMods...).QueryRow().Scan(&total)
+	err := models.Labels(countMods...).QueryRow(exec).Scan(&total)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4345,7 +4341,9 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 		return NewLabelsResponse(), nil
 	}
 
-	labels, err := models.Labels(exec, qm.Load("LabelI18ns", "LabelI18ns.User", "Tags")).All()
+	labels, err := models.Labels(qm.Load("LabelI18ns"),
+		qm.Load("LabelI18ns.User"),
+		qm.Load("Tags")).All(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -4372,10 +4370,10 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 }
 
 func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLabelRequest) (*models.Label, *HttpError) {
-	cu, err := models.ContentUnits(exec,
+	cu, err := models.ContentUnits(
 		qm.WhereIn("uid = ?", r.ContentUnit),
 		qm.Where("secure <= ?", allowedSecure(cp, common.PERM_LABEL_WRITE)),
-	).One()
+	).One(exec)
 	if err == sql.ErrNoRows {
 		return nil, NewNotFoundError()
 	}
@@ -4400,7 +4398,7 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 		label.Properties = r.Properties
 	}
 
-	err = label.Insert(exec)
+	err = label.Insert(exec, boil.Infer())
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4420,7 +4418,7 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 	}
 
 	// save tags connection
-	tags, err := models.Tags(exec, qm.WhereIn("uid IN ?", utils.ConvertArgsString(r.Tags)...)).All()
+	tags, err := models.Tags(qm.WhereIn("uid IN ?", utils.ConvertArgsString(r.Tags)...)).All(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4432,10 +4430,13 @@ func handleCreateLabel(cp utils.ContextProvider, exec boil.Executor, r *CreateLa
 }
 
 func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64, act string) (*LabelResponse, *HttpError) {
-	label, err := models.Labels(exec,
+	label, err := models.Labels(
 		qm.Where("id = ?", id),
-		qm.Load("LabelI18ns", "Tags", "ContentUnit", "LabelI18ns.User")).
-		One()
+		qm.Load("LabelI18ns"),
+		qm.Load("Tags"),
+		qm.Load("ContentUnit"),
+		qm.Load("LabelI18ns.User")).
+		One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, NewNotFoundError()
@@ -4473,7 +4474,7 @@ func handleUpdateLabelState(exec boil.Executor, id int64, r UpdateApproveStateRe
 	}
 
 	label.ApproveState = r.ApproveState
-	err = label.Update(exec, "ApproveState")
+	_, err = label.Update(exec, boil.Whitelist("ApproveState"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4494,7 +4495,8 @@ func handleUpdateLabelI18n(c utils.ContextProvider, exec boil.Executor, id int64
 		nI18n[i18n.Language] = i18n
 		err := i18n.Upsert(exec, true,
 			[]string{"label_id", "language"},
-			[]string{"name", "author"})
+			boil.Infer(),
+			boil.Infer())
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
@@ -4503,7 +4505,7 @@ func handleUpdateLabelI18n(c utils.ContextProvider, exec boil.Executor, id int64
 	// Delete old i18ns not in new i18ns
 	for k, v := range label.I18n {
 		if _, ok := nI18n[k]; !ok {
-			err := v.Delete(exec)
+			_, err := v.Delete(exec)
 			if err != nil {
 				return nil, NewInternalError(err)
 			}
@@ -4518,10 +4520,10 @@ func handleAddLabelI18n(cp utils.ContextProvider, exec boil.Executor, uid string
 		return nil, NewBadRequestError(errors.Errorf("Unknown language %s", r.I18n.Language))
 	}
 
-	label, err := models.Labels(exec,
+	label, err := models.Labels(
 		qm.Where("uid = ?", uid),
 		qm.InnerJoin("content_units cu on cu.id=content_unit_id and and cu.secure <= ?", allowedSecure(cp, common.PERM_LABEL_I18N_WRITE)),
-	).One()
+	).One(exec)
 	if err == sql.ErrNoRows {
 		return nil, NewNotFoundError()
 	}
@@ -4529,7 +4531,7 @@ func handleAddLabelI18n(cp utils.ContextProvider, exec boil.Executor, uid string
 		return nil, NewInternalError(err)
 	}
 
-	has, err := models.LabelI18ns(exec, qm.Where("label_id = ? AND language = ?", label.ID, r.I18n.Language)).Exists()
+	has, err := models.LabelI18ns(qm.Where("label_id = ? AND language = ?", label.ID, r.I18n.Language)).Exists(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -4562,7 +4564,7 @@ func handleDeleteLabelState(exec boil.Executor, id int64) (*models.Label, *HttpE
 		}
 	}
 
-	if err = label.Delete(exec); err != nil {
+	if _, err = label.Delete(exec); err != nil {
 		return nil, NewInternalError(err)
 	}
 
@@ -4655,7 +4657,7 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 			  from content_units cu 
 			  left join content_unit_i18n cui on cu.id = cui.content_unit_id
 			  where cui.name ~ $1 or cui .description ~ $1 limit $2`
-		err := queries.Raw(exec, q, f.Query, MAX_PAGE_SIZE).QueryRow().Scan(&ids)
+		err := queries.Raw(q, f.Query, MAX_PAGE_SIZE).QueryRow(exec).Scan(&ids)
 		if err != nil {
 			return err
 		}
@@ -4673,7 +4675,7 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 			  from sources s 
 			  left join source_i18n si on s.id = si.source_id
 			  where si.name ~ $1 limit $2`
-		err := queries.Raw(exec, q, f.Query, MAX_PAGE_SIZE).QueryRow().Scan(&uids)
+		err := queries.Raw(q, f.Query, MAX_PAGE_SIZE).QueryRow(exec).Scan(&uids)
 		if err != nil {
 			return err
 		}
@@ -4691,7 +4693,7 @@ func appendSearchTermFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f Searc
 				from collections c 
 				left join collection_i18n ci on c.id = ci.collection_id
 				where ci.name ~ $1 or ci.description ~ $1 limit $2`
-		err := queries.Raw(exec, q, f.Query, MAX_PAGE_SIZE).QueryRow().Scan(&ids)
+		err := queries.Raw(q, f.Query, MAX_PAGE_SIZE).QueryRow(exec).Scan(&ids)
 		if err != nil {
 			return err
 		}
@@ -4872,7 +4874,7 @@ func appendSourcesFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SourcesF
 		q := `SELECT array_agg(DISTINCT "as".source_id)
 		      FROM authors a INNER JOIN authors_sources "as" ON a.id = "as".author_id
 		      WHERE a.code = ANY($1)`
-		err := queries.Raw(exec, q, pq.Array(f.Authors)).QueryRow().Scan(&ids)
+		err := queries.Raw(q, pq.Array(f.Authors)).QueryRow(exec).Scan(&ids)
 		if err != nil {
 			return err
 		}
@@ -4890,7 +4892,7 @@ func appendSourcesFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f SourcesF
 	      )
 	      SELECT array_agg(distinct id) FROM rec_sources`
 	var ids pq.Int64Array
-	err := queries.Raw(exec, q, pq.Array(source_ids)).QueryRow().Scan(&ids)
+	err := queries.Raw(q, pq.Array(source_ids)).QueryRow(exec).Scan(&ids)
 	if err != nil {
 		return err
 	}
@@ -4919,7 +4921,7 @@ func appendTagsFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f TagsFilter)
 	      )
 	      SELECT array_agg(distinct id) FROM rec_tags`
 	var ids pq.Int64Array
-	err := queries.Raw(exec, q, pq.Array(f.Tags)).QueryRow().Scan(&ids)
+	err := queries.Raw(q, pq.Array(f.Tags)).QueryRow(exec).Scan(&ids)
 	if err != nil {
 		return err
 	}
@@ -4954,11 +4956,13 @@ func mustConcludeTx(tx *sql.Tx, err *HttpError) {
 
 func mdbReplicationLocation(c utils.ContextProvider) (string, error) {
 	var loc string
-	err := c.MustGet("MDB").(*sql.DB).
-		QueryRow("SELECT pg_current_xlog_insert_location();").
-		Scan(&loc)
+	db := c.MustGet("MDB").(*sql.DB)
+	err := db.QueryRow("SELECT pg_current_xlog_insert_location();").Scan(&loc) // postgres version <= 9.x
 	if err != nil {
-		return "", errors.Wrap(err, "Fetch Replication Position")
+		err = db.QueryRow("SELECT pg_current_wal_insert_lsn();").Scan(&loc) // postgres version > 9.x
+		if err != nil {
+			return "", errors.Wrap(err, "Fetch Replication Position")
+		}
 	}
 	return loc, nil
 }

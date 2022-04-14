@@ -11,8 +11,8 @@ import (
 
 	"github.com/adams-sarah/test2doc/test"
 	"github.com/stretchr/testify/suite"
+	"github.com/volatiletech/null/v8"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"

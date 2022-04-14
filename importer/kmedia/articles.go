@@ -8,8 +8,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
@@ -86,9 +88,9 @@ func ImportArticles() {
 
 func loadAndImportMissingArticlesCollections() (map[int]*models.Collection, error) {
 
-	cs, err := models.Collections(mdb,
-		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_ARTICLES].ID)).
-		All()
+	cs, err := models.Collections(
+		qm4.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_ARTICLES].ID)).
+		All(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load collections")
 	}
@@ -136,12 +138,13 @@ func loadAndImportMissingArticlesCollections() (map[int]*models.Collection, erro
 				ci18n := models.CollectionI18n{
 					CollectionID: c.ID,
 					Language:     common.LANG_MAP[d.LangID.String],
-					Name:         d.Name,
+					Name:         null.NewString(d.Name.String, d.Name.Valid),
 				}
 				err = ci18n.Upsert(mdb,
 					true,
 					[]string{"collection_id", "language"},
-					[]string{"name"})
+					boil.Whitelist("name"),
+					boil.Infer())
 				if err != nil {
 					return nil, errors.Wrapf(err, "Upsert collection i18n, collection [%d]", c.ID)
 				}
@@ -216,7 +219,7 @@ func importArticlesContainers(csMap map[int]*models.Collection) error {
 	// publish collections
 	for _, v := range csToPublish {
 		v.Published = true
-		if err := v.Update(mdb, "published"); err != nil {
+		if _, err := v.Update(mdb, boil.Whitelist("published")); err != nil {
 			return errors.Wrapf(err, "Publish collection %d", v.ID)
 		}
 	}
@@ -226,7 +229,7 @@ func importArticlesContainers(csMap map[int]*models.Collection) error {
 
 func createMissingPublishers() (map[string]*models.Publisher, error) {
 	pMap := make(map[string]*models.Publisher)
-	publishers, err := models.Publishers(mdb).All()
+	publishers, err := models.Publishers().All(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load publishers")
 	}
@@ -252,7 +255,7 @@ func createMissingPublishers() (map[string]*models.Publisher, error) {
 				Pattern: null.StringFrom(pattern),
 			}
 
-			err = p.Insert(tx)
+			err = p.Insert(tx, boil.Infer())
 			if err != nil {
 				utils.Must(tx.Rollback())
 				return nil, errors.Wrapf(err, "save publisher %s", pattern)
@@ -264,7 +267,7 @@ func createMissingPublishers() (map[string]*models.Publisher, error) {
 					Language:    lang,
 					Name:        null.StringFrom(pattern),
 				}
-				err = pI18n.Insert(tx)
+				err = pI18n.Insert(tx, boil.Infer())
 				if err != nil {
 					utils.Must(tx.Rollback())
 					return nil, errors.Wrapf(err, "save publisher  I18n %s %s", pattern, lang)
@@ -281,10 +284,10 @@ func createMissingPublishers() (map[string]*models.Publisher, error) {
 }
 
 func splitArticlesToPublications(publishersMap map[string]*models.Publisher) error {
-	cus, err := models.ContentUnits(mdb,
-		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_ARTICLE].ID),
-		qm.Load("Files")).
-		All()
+	cus, err := models.ContentUnits(
+		qm4.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_ARTICLE].ID),
+		qm4.Load("Files")).
+		All(mdb)
 	if err != nil {
 		return errors.Wrap(err, "fetch content units")
 	}
@@ -330,7 +333,7 @@ func splitArticlesToPublications(publishersMap map[string]*models.Publisher) err
 			}
 
 			pCU.Published = f.Published
-			err = pCU.Update(tx, "published")
+			_, err = pCU.Update(tx, boil.Whitelist("published"))
 			if err != nil {
 				utils.Must(tx.Rollback())
 				log.Error(err)
@@ -359,7 +362,7 @@ func splitArticlesToPublications(publishersMap map[string]*models.Publisher) err
 			}
 
 			f.ContentUnitID = null.Int64From(pCU.ID)
-			err = f.Update(tx, "content_unit_id")
+			_, err = f.Update(tx, boil.Whitelist("content_unit_id"))
 			if err != nil {
 				utils.Must(tx.Rollback())
 				log.Error(err)

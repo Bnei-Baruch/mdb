@@ -4,19 +4,21 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/common"
-	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
-	log "github.com/Sirupsen/logrus"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
 	"io/ioutil"
 	"net/http"
 	"path"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+
+	"github.com/Bnei-Baruch/mdb/common"
+	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type ExportKC struct {
@@ -40,7 +42,7 @@ func (e *ExportKC) Run() {
 	e.mdb = e.openDB()
 	defer e.mdb.Close()
 
-	users, err := models.Users(e.mdb, qm.Where("account_id IS NULL")).All()
+	users, err := models.Users(qm.Where("account_id IS NULL")).All(e.mdb)
 	utils.Must(err)
 	e.resp = make([]*RespItem, len(users))
 	withErr := make([]*models.User, 0)
@@ -79,7 +81,8 @@ func (e *ExportKC) updateUser(u *models.User) error {
 	if !u.Name.Valid {
 		u.Name = null.StringFrom(strings.Join([]string{data.FName, data.LName}, " "))
 	}
-	return u.Update(e.mdb)
+	_, err = u.Update(e.mdb, boil.Infer())
+	return err
 }
 
 func (e *ExportKC) useEmailAsAccountId(users []*models.User) {
@@ -97,7 +100,7 @@ func (e *ExportKC) useEmailAsAccountId(users []*models.User) {
 		}
 		//code based on prev migration
 		//u.AccountID = null.StringFrom(u.Email)
-		if err := u.Update(e.mdb); err != nil {
+		if _, err := u.Update(e.mdb, boil.Infer()); err != nil {
 			r.wasAdded = false
 			r.error = err
 			log.Debugf("Error for email: %s Error: %v ", u.Email, err)
