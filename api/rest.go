@@ -3742,9 +3742,12 @@ func handleUpdateSource(exec boil.Executor, s *Source) (*Source, *HttpError) {
 	if s.TypeID != 0 { // to allow partial updates
 		source.TypeID = s.TypeID
 	}
+	if s.Position.Valid {
+		source.Position = s.Position
+	}
 	source.Pattern = s.Pattern
 	source.Description = s.Description
-	_, err = s.Update(exec, boil.Whitelist("pattern", "description", "type_id"))
+	_, err = s.Update(exec, boil.Whitelist("pattern", "description", "type_id", "position"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
