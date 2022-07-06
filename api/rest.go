@@ -3903,7 +3903,8 @@ func handleUpdateTag(exec boil.Executor, t *Tag) (*Tag, *HttpError) {
 
 	tag.Pattern = t.Pattern
 	tag.Description = t.Description
-	_, err = t.Update(exec, boil.Whitelist("pattern", "description"))
+	tag.ParentID = t.ParentID
+	_, err = t.Update(exec, boil.Whitelist("pattern", "description", "parent_id"))
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
