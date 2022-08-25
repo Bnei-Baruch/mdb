@@ -2281,6 +2281,17 @@ func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *P
 		}
 	}
 
+	if cu.TypeID.Valid {
+		if _, ok := common.CONTENT_TYPE_REGISTRY.ByID[int64(cu.TypeID.Int16)]; !ok {
+			return nil, NewBadRequestError(nil)
+		}
+		unit.TypeID = int64(cu.TypeID.Int16)
+		_, err = unit.Update(exec, boil.Whitelist("type_id"))
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
 	// update properties bag
 	if cu.Properties.Valid {
 		var props map[string]interface{}

@@ -396,6 +396,7 @@ type (
 	PartialContentUnit struct {
 		models.ContentUnit
 		Secure null.Int16 `json:"secure"`
+		TypeID null.Int16 `json:"type_id"`
 	}
 
 	CollectionContentUnit struct {
