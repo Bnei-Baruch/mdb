@@ -2282,12 +2282,19 @@ func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *P
 	}
 
 	if cu.TypeID.Valid {
-		if !isAdmin(cp) {
-			return nil, NewForbiddenError()
+		canChangeFrom := false
+		canChangeTo := false
+		for _, n := range common.UNIT_CONTENT_TYPE_CAN_CHANGE {
+			if int64(cu.TypeID.Int16) == common.CONTENT_TYPE_REGISTRY.ByName[n].ID {
+				canChangeTo = true
+			}
+			if unit.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[n].ID {
+				canChangeFrom = true
+			}
 		}
 
-		if _, ok := common.CONTENT_TYPE_REGISTRY.ByID[int64(cu.TypeID.Int16)]; !ok {
-			return nil, NewBadRequestError(nil)
+		if !canChangeFrom || !canChangeTo || !isAdmin(cp) {
+			return nil, NewForbiddenError()
 		}
 
 		unit.TypeID = int64(cu.TypeID.Int16)

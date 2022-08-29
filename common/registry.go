@@ -87,6 +87,23 @@ var (
 		OP_SIRTUTIM, OP_INSERT, OP_TRANSCODE, OP_JOIN,
 	}
 
+	UNIT_CONTENT_TYPE_CAN_CHANGE = []string{
+		CT_LESSON_PART,
+		CT_LECTURE,
+		CT_VIRTUAL_LESSON,
+		CT_CHILDREN_LESSON,
+		CT_WOMEN_LESSON,
+		CT_FRIENDS_GATHERING,
+		CT_MEAL,
+		CT_VIDEO_PROGRAM_CHAPTER,
+		CT_EVENT_PART,
+		CT_UNKNOWN,
+		CT_CLIP,
+		CT_TRAINING,
+		CT_LELO_MIKUD,
+		CT_KTAIM_NIVCHARIM,
+	}
+
 	// Types of various, secondary, content slots in big events like congress, unity day, etc...
 	// This list is not part of content_types to prevent explosion of that list.
 	// This came to life for mdb-cit UI only Ease of Use. (prevent typing errors and keep consistency)
