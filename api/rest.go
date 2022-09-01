@@ -2281,6 +2281,29 @@ func handleUpdateContentUnit(cp utils.ContextProvider, exec boil.Executor, cu *P
 		}
 	}
 
+	if cu.TypeID.Valid {
+		canChangeFrom := false
+		canChangeTo := false
+		for _, n := range common.UNIT_CONTENT_TYPE_CAN_CHANGE {
+			if int64(cu.TypeID.Int16) == common.CONTENT_TYPE_REGISTRY.ByName[n].ID {
+				canChangeTo = true
+			}
+			if unit.TypeID == common.CONTENT_TYPE_REGISTRY.ByName[n].ID {
+				canChangeFrom = true
+			}
+		}
+
+		if !canChangeFrom || !canChangeTo || !isAdmin(cp) {
+			return nil, NewForbiddenError()
+		}
+
+		unit.TypeID = int64(cu.TypeID.Int16)
+		_, err = unit.Update(exec, boil.Whitelist("type_id"))
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
+
 	// update properties bag
 	if cu.Properties.Valid {
 		var props map[string]interface{}
