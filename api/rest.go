@@ -1818,6 +1818,9 @@ func handleUpdateCollectionI18n(cp utils.ContextProvider, exec boil.Executor, id
 	// Upsert all new i18ns
 	nI18n := make(map[string]*models.CollectionI18n, len(i18ns))
 	for _, i18n := range i18ns {
+		if (i18n.Name.Valid && strings.TrimSpace(i18n.Name.String) == "") || (i18n.Description.Valid && strings.TrimSpace(i18n.Description.String) == "") {
+			return nil, NewBadRequestError(errors.New("name and description can't be white space only"))
+		}
 		i18n.CollectionID = id
 		nI18n[i18n.Language] = i18n
 		err := i18n.Upsert(exec, true,
