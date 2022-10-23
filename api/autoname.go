@@ -267,7 +267,7 @@ func (d CollectionNameDescriber) DescribeContentUnit(exec boil.Executor,
 			continue
 		}
 		n := i18n.Description
-		if !n.Valid {
+		if !n.Valid || strings.TrimSpace(n.String) == "" {
 			n = i18n.Name
 		}
 		names[language] = fmt.Sprintf("%s", n.String)
