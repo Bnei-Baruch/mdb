@@ -497,7 +497,7 @@ type (
 
 	LabelI18n struct {
 		models.LabelI18n
-		Author *models.User `json:"author"`
+		Author string `json:"author"`
 	}
 
 	Label struct {

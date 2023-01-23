@@ -4392,7 +4392,7 @@ func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsR
 		data[i] = x
 		x.I18n = make(map[string]*LabelI18n, len(pr.R.LabelI18ns))
 		for _, i18n := range pr.R.LabelI18ns {
-			x.I18n[i18n.Language] = &LabelI18n{LabelI18n: *i18n, Author: i18n.R.User}
+			x.I18n[i18n.Language] = &LabelI18n{LabelI18n: *i18n, Author: i18n.R.User.Name.String}
 		}
 	}
 
@@ -4486,7 +4486,7 @@ func handleGetLabel(c utils.ContextProvider, exec boil.Executor, id int64, act s
 	resp := &LabelResponse{Label: *label, ContentUnit: label.R.ContentUnit.UID}
 	resp.I18n = make(map[string]*LabelI18n, len(label.R.LabelI18ns))
 	for _, i18n := range label.R.LabelI18ns {
-		resp.I18n[i18n.Language] = &LabelI18n{LabelI18n: *i18n, Author: i18n.R.User}
+		resp.I18n[i18n.Language] = &LabelI18n{LabelI18n: *i18n, Author: i18n.R.User.Name.String}
 	}
 	resp.Tags = make([]string, len(label.R.Tags))
 	for i, t := range label.R.Tags {
