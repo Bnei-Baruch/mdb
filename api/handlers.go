@@ -615,6 +615,13 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []e
 	}
 	fileProps["url"] = r.Url
 	fileProps["duration"] = r.Duration
+	languages := make([]string, len(r.Languages))
+	for i, l := range r.Languages {
+		languages[i] = common.StdLang(l)
+	}
+	if r.Qualities != nil {
+		fileProps["video_qualities"] = r.Qualities
+	}
 	fpa, _ := json.Marshal(fileProps)
 	file.Properties = null.JSONFrom(fpa)
 

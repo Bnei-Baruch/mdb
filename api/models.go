@@ -51,6 +51,12 @@ type (
 		VideoSize string  `json:"video_size"`
 	}
 
+	HLSFile struct {
+		AVFile
+		Languages []string `json:"languages" binding:"omitempty,min=2,max=3"`
+		Qualities []string `json:"video_qualities" binding:"omitempty"`
+	}
+
 	CITMetadataMajor struct {
 		Type string `json:"type" binding:"omitempty,eq=source|eq=tag|eq=likutim"`
 		Idx  int    `json:"idx" binding:"omitempty,gte=0"`
@@ -139,7 +145,7 @@ type (
 
 	UploadRequest struct {
 		Operation
-		AVFile
+		HLSFile
 		Url string `json:"url" binding:"required"`
 	}
 
