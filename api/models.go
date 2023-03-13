@@ -145,7 +145,7 @@ type (
 
 	UploadRequest struct {
 		Operation
-		HLSFile
+		AVFile
 		Url string `json:"url" binding:"required"`
 	}
 
