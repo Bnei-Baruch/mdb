@@ -139,13 +139,13 @@ type (
 
 	ConvertRequest struct {
 		Operation
-		Sha1   string   `json:"sha1" binding:"required,len=40,hexadecimal"`
-		Output []AVFile `json:"output"`
+		Sha1   string    `json:"sha1" binding:"required,len=40,hexadecimal"`
+		Output []HLSFile `json:"output"`
 	}
 
 	UploadRequest struct {
 		Operation
-		HLSFile
+		AVFile
 		Url string `json:"url" binding:"required"`
 	}
 

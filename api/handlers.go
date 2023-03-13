@@ -544,6 +544,16 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []
 			props["video_size"] = x.VideoSize
 		}
 
+		if x.Languages != nil {
+			languages := make([]string, len(x.Languages))
+			for i, l := range x.Languages {
+				languages[i] = common.StdLang(l)
+			}
+			props["languages"] = languages
+		}
+		if x.Qualities != nil {
+			props["video_qualities"] = x.Qualities
+		}
 		// lookup by sha1 as it might be a "reconvert"
 		f, _, err := FindFileBySHA1(exec, x.Sha1)
 		if err == nil {
@@ -615,16 +625,6 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []e
 	}
 	fileProps["url"] = r.Url
 	fileProps["duration"] = r.Duration
-	if r.Languages != nil {
-		languages := make([]string, len(r.Languages))
-		for i, l := range r.Languages {
-			languages[i] = common.StdLang(l)
-		}
-		fileProps["languages"] = languages
-	}
-	if r.Qualities != nil {
-		fileProps["video_qualities"] = r.Qualities
-	}
 	fpa, _ := json.Marshal(fileProps)
 	file.Properties = null.JSONFrom(fpa)
 

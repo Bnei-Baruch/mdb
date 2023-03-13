@@ -650,58 +650,69 @@ func (suite *HandlersSuite) TestHandleConvert() {
 			User:    "operator@dev.com",
 		},
 		Sha1: fi.Sha1,
-		Output: []AVFile{
+		Output: []HLSFile{
 			{
-				File: File{
-					FileName:  "heb_file.mp4",
-					Sha1:      "0987654321fedcba0987654321fedcba33333333",
-					Size:      694,
-					CreatedAt: &Timestamp{Time: time.Now()},
-					Type:      "type1",
-					SubType:   "subtype1",
-					MimeType:  "mime_type1",
-					Language:  common.LANG_HEBREW,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "heb_file.mp4",
+						Sha1:      "0987654321fedcba0987654321fedcba33333333",
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "type1",
+						SubType:   "subtype1",
+						MimeType:  "mime_type1",
+						Language:  common.LANG_HEBREW,
+					},
+					Duration: 871,
 				},
-				Duration: 871,
 			},
+
 			{
-				File: File{
-					FileName:  "eng_file.mp4",
-					Sha1:      "0987654321fedcba0987654321fedcba44444444",
-					Size:      694,
-					CreatedAt: &Timestamp{Time: time.Now()},
-					Type:      "type2",
-					SubType:   "subtype2",
-					MimeType:  "mime_type2",
-					Language:  common.LANG_ENGLISH,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "eng_file.mp4",
+						Sha1:      "0987654321fedcba0987654321fedcba44444444",
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "type2",
+						SubType:   "subtype2",
+						MimeType:  "mime_type2",
+						Language:  common.LANG_ENGLISH,
+					},
+					Duration: 871,
 				},
-				Duration: 871,
 			},
+
 			{
-				File: File{
-					FileName:  "rus_file.mp4",
-					Sha1:      "0987654321fedcba0987654321fedcba55555555",
-					Size:      694,
-					CreatedAt: &Timestamp{Time: time.Now()},
-					Type:      "type3",
-					SubType:   "subtype3",
-					MimeType:  "mime_type3",
-					Language:  common.LANG_RUSSIAN,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "rus_file.mp4",
+						Sha1:      "0987654321fedcba0987654321fedcba55555555",
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "type3",
+						SubType:   "subtype3",
+						MimeType:  "mime_type3",
+						Language:  common.LANG_RUSSIAN,
+					},
+					Duration: 871,
 				},
-				Duration: 871,
 			},
+
 			{
-				File: File{
-					FileName:  "duplicate_rus_file.mp4",
-					Sha1:      "0987654321fedcba0987654321fedcba55555555",
-					Size:      694,
-					CreatedAt: &Timestamp{Time: time.Now()},
-					Type:      "type3",
-					SubType:   "subtype3",
-					MimeType:  "mime_type3",
-					Language:  common.LANG_RUSSIAN,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "duplicate_rus_file.mp4",
+						Sha1:      "0987654321fedcba0987654321fedcba55555555",
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "type3",
+						SubType:   "subtype3",
+						MimeType:  "mime_type3",
+						Language:  common.LANG_RUSSIAN,
+					},
+					Duration: 871,
 				},
-				Duration: 871,
 			},
 		},
 	}
@@ -759,19 +770,22 @@ func (suite *HandlersSuite) TestHandleConvert() {
 	_, err = CreateFile(suite.tx, nil, efi, nil)
 	suite.Require().Nil(err)
 
-	input.Output = []AVFile{
+	input.Output = []HLSFile{
+
 		{
-			File: File{
-				FileName:  "heb_file.mp4",
-				Sha1:      "012356789abcdef012356789abcdef9999999999",
-				Size:      math.MaxInt64,
-				CreatedAt: &Timestamp{Time: time.Now()},
-				Type:      "type1",
-				SubType:   "subtype1",
-				MimeType:  "mime_type1",
-				Language:  common.LANG_HEBREW,
+			AVFile: AVFile{
+				File: File{
+					FileName:  "heb_file.mp4",
+					Sha1:      "012356789abcdef012356789abcdef9999999999",
+					Size:      math.MaxInt64,
+					CreatedAt: &Timestamp{Time: time.Now()},
+					Type:      "type1",
+					SubType:   "subtype1",
+					MimeType:  "mime_type1",
+					Language:  common.LANG_HEBREW,
+				},
+				Duration: 871,
 			},
-			Duration: 871,
 		},
 	}
 	op, evnts, err = handleConvert(suite.tx, input)

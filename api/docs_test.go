@@ -253,45 +253,51 @@ func (suite *DocsSuite) Test6ConvertHandler() {
 			User:    "operator@dev.com",
 		},
 		Sha1: "0987654321fedcba0987654321fedcba11111111",
-		Output: []AVFile{
+		Output: []HLSFile{
 			{
-				File: File{
-					FileName:  "heb_file.mp4",
-					Sha1:      "0987654321fedcba0987654321fedcba33333333",
-					Size:      694,
-					CreatedAt: &Timestamp{Time: time.Now()},
-					Type:      "type",
-					SubType:   "subtype",
-					MimeType:  "mime_type",
-					Language:  common.LANG_HEBREW,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "heb_file.mp4",
+						Sha1:      "0987654321fedcba0987654321fedcba33333333",
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "type",
+						SubType:   "subtype",
+						MimeType:  "mime_type",
+						Language:  common.LANG_HEBREW,
+					},
+					Duration: 871,
 				},
-				Duration: 871,
 			},
 			{
-				File: File{
-					FileName:  "eng_file.mp4",
-					Sha1:      "0987654321fedcba0987654321fedcba44444444",
-					Size:      694,
-					CreatedAt: &Timestamp{Time: time.Now()},
-					Type:      "type",
-					SubType:   "subtype",
-					MimeType:  "mime_type",
-					Language:  common.LANG_ENGLISH,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "eng_file.mp4",
+						Sha1:      "0987654321fedcba0987654321fedcba44444444",
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "type",
+						SubType:   "subtype",
+						MimeType:  "mime_type",
+						Language:  common.LANG_ENGLISH,
+					},
+					Duration: 871,
 				},
-				Duration: 871,
 			},
 			{
-				File: File{
-					FileName:  "rus_file.mp4",
-					Sha1:      "0987654321fedcba0987654321fedcba55555555",
-					Size:      694,
-					CreatedAt: &Timestamp{Time: time.Now()},
-					Type:      "type",
-					SubType:   "subtype",
-					MimeType:  "mime_type",
-					Language:  common.LANG_RUSSIAN,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "rus_file.mp4",
+						Sha1:      "0987654321fedcba0987654321fedcba55555555",
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "type",
+						SubType:   "subtype",
+						MimeType:  "mime_type",
+						Language:  common.LANG_RUSSIAN,
+					},
+					Duration: 871,
 				},
-				Duration: 871,
 			},
 		},
 	}
