@@ -1924,30 +1924,35 @@ func (suite *MetadataProcessorSuite) simulateConvertUpload(original *models.File
 				User:    "operator@dev.com",
 			},
 			Sha1: originalSha1,
-			Output: []AVFile{
+			Output: []HLSFile{
 				{
-					File: File{
-						FileName:  fmt.Sprintf("%s_test_file.mp4", lang),
-						Sha1:      utils.RandomSHA1(),
-						Size:      694,
-						CreatedAt: &Timestamp{Time: time.Now()},
-						Type:      "video",
-						MimeType:  "video/mp4",
-						Language:  lang,
+					AVFile: AVFile{
+						File: File{
+							FileName:  fmt.Sprintf("%s_test_file.mp4", lang),
+							Sha1:      utils.RandomSHA1(),
+							Size:      694,
+							CreatedAt: &Timestamp{Time: time.Now()},
+							Type:      "video",
+							MimeType:  "video/mp4",
+							Language:  lang,
+						},
+						Duration: 871,
 					},
-					Duration: 871,
 				},
+
 				{
-					File: File{
-						FileName:  fmt.Sprintf("%s_test_file.mp3", lang),
-						Sha1:      utils.RandomSHA1(),
-						Size:      694,
-						CreatedAt: &Timestamp{Time: time.Now()},
-						Type:      "audio",
-						MimeType:  "audio/mpeg",
-						Language:  lang,
+					AVFile: AVFile{
+						File: File{
+							FileName:  fmt.Sprintf("%s_test_file.mp3", lang),
+							Sha1:      utils.RandomSHA1(),
+							Size:      694,
+							CreatedAt: &Timestamp{Time: time.Now()},
+							Type:      "audio",
+							MimeType:  "audio/mpeg",
+							Language:  lang,
+						},
+						Duration: 871,
 					},
-					Duration: 871,
 				},
 			},
 		}

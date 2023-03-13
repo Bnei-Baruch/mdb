@@ -544,6 +544,16 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []
 			props["video_size"] = x.VideoSize
 		}
 
+		if x.Languages != nil {
+			languages := make([]string, len(x.Languages))
+			for i, l := range x.Languages {
+				languages[i] = common.StdLang(l)
+			}
+			props["languages"] = languages
+		}
+		if x.Qualities != nil {
+			props["video_qualities"] = x.Qualities
+		}
 		// lookup by sha1 as it might be a "reconvert"
 		f, _, err := FindFileBySHA1(exec, x.Sha1)
 		if err == nil {
