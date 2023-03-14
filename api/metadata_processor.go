@@ -216,7 +216,9 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 			evnts = append(evnts, events.FileUpdateEvent(x))
 			log.Infof("%s [%d]", x.Name, x.ID)
 		}
+	}
 
+	if !isUpdate {
 		// Add peer ancestor (related captures)
 		if workflowID, ok := captureStopProps["workflow_id"]; ok {
 			// find other captures
