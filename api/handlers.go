@@ -447,12 +447,12 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 			return nil, nil, errors.Wrap(err, "Lookup source file")
 		}
 		opFiles = append(opFiles, source)
-		if proxy.Name == r.Source.FileName {
+		if source.Name == r.Source.FileName {
 			log.Info("Source's name hasn't change")
 		} else {
 			log.Info("Renaming source")
-			proxy.Name = r.Proxy.FileName
-			_, err = proxy.Update(exec, boil.Whitelist("name"))
+			source.Name = r.Source.FileName
+			_, err = source.Update(exec, boil.Whitelist("name"))
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "Rename source file")
 			}
