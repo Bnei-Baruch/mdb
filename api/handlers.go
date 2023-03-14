@@ -439,6 +439,28 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 		log.Info("Proxy not provided. Skipping possible rename")
 	}
 
+	// Source
+	var source *models.File
+	if r.Source != nil {
+		source, _, err = FindFileBySHA1(exec, r.Source.Sha1)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Lookup source file")
+		}
+		opFiles = append(opFiles, source)
+		if proxy.Name == r.Source.FileName {
+			log.Info("Source's name hasn't change")
+		} else {
+			log.Info("Renaming source")
+			proxy.Name = r.Proxy.FileName
+			_, err = proxy.Update(exec, boil.Whitelist("name"))
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "Rename source file")
+			}
+		}
+	} else {
+		log.Info("Source not provided. Skipping possible rename")
+	}
+
 	mode := "new"
 	if r.Mode.Valid {
 		mode = r.Mode.String
@@ -447,9 +469,9 @@ func handleSend(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	log.Infof("Processing CIT Metadata: %s mode", mode)
 	var evnts []events.Event
 	if mode == "new" {
-		evnts, err = ProcessCITMetadata(exec, r.Metadata, original, proxy)
+		evnts, err = ProcessCITMetadata(exec, r.Metadata, original, proxy, source)
 	} else {
-		evnts, err = ProcessCITMetadataUpdate(exec, r.Metadata, original, proxy)
+		evnts, err = ProcessCITMetadataUpdate(exec, r.Metadata, original, proxy, source)
 	}
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Process CIT Metadata")

@@ -23,8 +23,8 @@ import (
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
-func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) ([]events.Event, error) {
-	return doProcess(exec, metadata, original, proxy, nil)
+func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, proxy, source *models.File) ([]events.Event, error) {
+	return doProcess(exec, metadata, original, proxy, source, nil)
 }
 
 // Do all stuff for processing metadata coming from Content Identification Tool.
@@ -41,7 +41,7 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 // 	11. Associate collection and unit
 // 	12. Associate unit and derived units
 // 	13. Set default permissions ?!
-func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models.File, cu *models.ContentUnit) ([]events.Event, error) {
+func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source *models.File, cu *models.ContentUnit) ([]events.Event, error) {
 	isUpdate := cu != nil
 	log.Infof("Processing CITMetadata, isUpdate: %t", isUpdate)
 
@@ -187,6 +187,12 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 			return nil, errors.Wrap(err, "Add proxy to unit")
 		}
 	}
+	if source != nil {
+		err = cu.AddFiles(exec, false, source)
+		if err != nil {
+			return nil, errors.Wrap(err, "Add source to unit")
+		}
+	}
 
 	// Add ancestor files to unit (not for derived units)
 	if !isDerived && !isUpdate {
@@ -216,9 +222,7 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy *models
 			evnts = append(evnts, events.FileUpdateEvent(x))
 			log.Infof("%s [%d]", x.Name, x.ID)
 		}
-	}
 
-	if !isUpdate {
 		// Add peer ancestor (related captures)
 		if workflowID, ok := captureStopProps["workflow_id"]; ok {
 			// find other captures
@@ -748,13 +752,13 @@ We should:
 4. update the unit's published status
 
 */
-func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original, proxy *models.File) ([]events.Event, error) {
+func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original, proxy, source *models.File) ([]events.Event, error) {
 	unit, err := models.ContentUnits(qm.Where("uid = ?", metadata.UnitToFixUID.String)).One(exec)
 	if err != nil {
 		return nil, errors.Wrapf(err, "lookup unit UID %s", metadata.UnitToFixUID.String)
 	}
 
-	evnts, err := doProcess(exec, metadata, original, proxy, unit)
+	evnts, err := doProcess(exec, metadata, original, proxy, source, unit)
 	if err != nil {
 		return nil, errors.Wrap(err, "doProcess")
 	}
@@ -765,7 +769,7 @@ func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original
 	// to figure out what to do with them.
 
 	// Figure out merged set of file IDs
-	// which are either ancestor of original or proxy
+	// which are either ancestor of original or proxy of source
 	// These should be excluded from removal.
 	mutualAncestors := hashset.New()
 
@@ -784,6 +788,16 @@ func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original
 		}
 		for i := range pPath {
 			mutualAncestors.Add(pPath[i].ID)
+		}
+	}
+
+	if source != nil {
+		sPath, err := FindFileAncestors(exec, source.ID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "lookup source ancestors %d", original.ID)
+		}
+		for i := range sPath {
+			mutualAncestors.Add(sPath[i].ID)
 		}
 	}
 

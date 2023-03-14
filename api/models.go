@@ -133,6 +133,7 @@ type (
 		Operation
 		Original Rename      `json:"original"`
 		Proxy    *Rename     `json:"proxy"`
+		Source   *Rename     `json:"source"`
 		Metadata CITMetadata `json:"metadata"`
 		Mode     null.String `json:"mode"`
 	}
