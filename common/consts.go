@@ -136,4 +136,5 @@ const (
 	LANG_ARMENIAN   = "hy"
 	LANG_MULTI      = "zz"
 	LANG_UNKNOWN    = "xx"
+	LANG_ORIGINAL   = "or"
 )
