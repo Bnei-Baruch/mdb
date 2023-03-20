@@ -82,7 +82,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	}
 	original, proxy := chain["part0"].Original, chain["part0"].Proxy
 
-	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -127,7 +127,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 		tf := chain[fmt.Sprintf("part%d", i)]
 		original, proxy := tf.Original, tf.Proxy
 
-		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 		suite.Require().Nil(err)
 		suite.Require().NotNil(evnts)
 
@@ -160,7 +160,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	tf := chain["full"]
 	original, proxy = tf.Original, tf.Proxy
 
-	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -186,7 +186,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 
 	// full with week_date different from capture_date
 	metadata.WeekDate = &Date{Time: time.Now().AddDate(1, 0, 0)}
-	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 	err = c.Reload(suite.tx)
@@ -207,7 +207,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	metadata.WeekDate = nil
 	tf = chain["part1_kitei-makor"]
 	original, proxy = tf.Original, tf.Proxy
-	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -258,7 +258,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson() {
 	metadata.WeekDate = nil
 	tf = chain["ktaim-nivcharim"]
 	original, proxy = tf.Original, tf.Proxy
-	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -319,7 +319,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	}
 	original, proxy := chain["part0"].Original, chain["part0"].Proxy
 
-	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -364,7 +364,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		tf := chain[fmt.Sprintf("part%d", i)]
 		original, proxy := tf.Original, tf.Proxy
 
-		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 		suite.Require().Nil(err)
 		suite.Require().NotNil(evnts)
 
@@ -397,7 +397,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 	tf := chain["full"]
 	original, proxy = tf.Original, tf.Proxy
 
-	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -429,7 +429,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		metadata.WeekDate = nil
 		tf = chain[fmt.Sprintf("part%d_kitei-makor", i)]
 		original, proxy = tf.Original, tf.Proxy
-		evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 		suite.Require().Nil(err)
 		suite.Require().NotNil(evnts)
 
@@ -482,7 +482,7 @@ func (suite *MetadataProcessorSuite) TestSpecialLesson() {
 		metadata.WeekDate = nil
 		tf = chain[fmt.Sprintf("part%d_lelo-mikud", i)]
 		original, proxy = tf.Original, tf.Proxy
-		evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 		suite.Require().Nil(err)
 		suite.Require().NotNil(evnts)
 
@@ -551,7 +551,7 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	// process kitei makor for part 1
 	tf := chain["part1_kitei-makor"]
 	original, proxy := tf.Original, tf.Proxy
-	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -583,7 +583,7 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 	// process main part1
 	original, proxy = chain["part1"].Original, chain["part1"].Proxy
 	metadata.ArtifactType = null.NewString("", false)
-	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -657,7 +657,7 @@ func (suite *MetadataProcessorSuite) TestVideoProgram() {
 		RequireTest:    true,
 	}
 
-	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -718,7 +718,7 @@ func (suite *MetadataProcessorSuite) TestEventPart() {
 			//	metadata.Lecturer = "norav"
 			//}
 
-			evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+			evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 			suite.Require().Nil(err)
 			suite.Require().NotNil(evnts)
 
@@ -777,7 +777,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	}
 	original, proxy := chain["part0"].Original, chain["part0"].Proxy
 
-	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -839,7 +839,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 		tf := chain[fmt.Sprintf("part%d", i)]
 		original, proxy := tf.Original, tf.Proxy
 
-		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 		suite.Require().Nil(err)
 		suite.Require().NotNil(evnts)
 
@@ -893,7 +893,7 @@ func (suite *MetadataProcessorSuite) TestEventPartLesson() {
 	tf := chain["full"]
 	original, proxy = tf.Original, tf.Proxy
 
-	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err = ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -967,7 +967,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	tf := chain["part0"]
 	originals["part0"] = tf
 
-	_, err := ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+	_, err := ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 	suite.Require().Nil(err)
 
 	// process other parts
@@ -978,7 +978,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 		tf := chain[fmt.Sprintf("part%d", i)]
 		originals[fmt.Sprintf("part%d", i)] = tf
 
-		_, err := ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+		_, err := ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 		suite.Require().Nil(err)
 	}
 
@@ -990,7 +990,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	tf = chain["full"]
 	originals["full"] = tf
 
-	_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+	_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 	suite.Require().Nil(err)
 
 	// process kitei makor for all parts
@@ -1002,7 +1002,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 		tf = chain[fmt.Sprintf("part%d_kitei-makor", i)]
 		originals[fmt.Sprintf("part%d_kitei-makor", i)] = tf
 
-		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 		suite.Require().Nil(err)
 	}
 
@@ -1015,7 +1015,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 		tf = chain[fmt.Sprintf("part%d_lelo-mikud", i)]
 		originals[fmt.Sprintf("part%d_lelo-mikud", i)] = tf
 
-		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 		suite.Require().Nil(err)
 	}
 
@@ -1039,7 +1039,7 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 
 	suite.True(cu.Published, "cu.Published before fix")
 
-	evnts, err := ProcessCITMetadataUpdate(suite.tx, metadata, tf.Original, tf.Proxy)
+	evnts, err := ProcessCITMetadataUpdate(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -1090,7 +1090,7 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 		tf := chain[fmt.Sprintf("part%d", i)]
 		original, proxy := tf.Original, tf.Proxy
 
-		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 		suite.Require().Nil(err)
 		suite.Require().NotNil(evnts)
 
@@ -1127,7 +1127,7 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 	tf := chain["full"]
 	original, proxy := tf.Original, tf.Proxy
 
-	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy)
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
@@ -1157,7 +1157,7 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 	metadata.ArtifactType = null.StringFrom("kitei_makor")
 	metadata.WeekDate = nil
 	tf = chain["part1_kitei-makor"]
-	_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy)
+	_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 	suite.Require().Nil(err)
 
 	// verify source remains associated to main and not derived
@@ -1173,6 +1173,80 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 	suite.Require().Nil(err)
 	suite.Equal(tfOriginals.Original.ContentUnitID.Int64, tfSource.Original.ContentUnitID.Int64, "main and source unit")
 	suite.NotEqual(tfKtaim.Original.ContentUnitID.Int64, tfSource.Original.ContentUnitID.Int64, "derived and source unit")
+}
+
+func (suite *MetadataProcessorSuite) TestDailyLessonWithAdditionalCapture() {
+	chain := suite.simulateLessonChainWithSource()
+
+	metadata := CITMetadata{
+		ContentType:    common.CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       common.LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(0),
+		Sources:        suite.someSources(),
+		Tags:           suite.someTags(),
+		RequireTest:    false,
+	}
+
+	// process parts
+	var collectionID int64
+	for i := 0; i < 4; i++ {
+		metadata.Part = null.IntFrom(i)
+		metadata.Sources = suite.someSources()
+		metadata.Tags = suite.someTags()
+		tf := chain[fmt.Sprintf("part%d", i)]
+		original, proxy := tf.Original, tf.Proxy
+
+		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
+		suite.Require().Nil(err)
+		suite.Require().NotNil(evnts)
+
+		err = original.Reload(suite.tx)
+		suite.Require().Nil(err)
+		err = proxy.Reload(suite.tx)
+		suite.Require().Nil(err)
+
+		suite.assertFiles(metadata, original, proxy)
+		suite.assertContentUnit(metadata, original, proxy, false)
+
+		// collection association
+		err = original.L.LoadContentUnit(suite.tx, true, original, nil)
+		suite.Require().Nil(err)
+		cu := original.R.ContentUnit
+		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
+		suite.Require().Nil(err)
+		suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
+		ccu := cu.R.CollectionsContentUnits[0]
+		suite.Equal(strconv.Itoa(i), ccu.Name, "ccu.Name")
+		suite.Equal(i, ccu.Position, "ccu.Position")
+		if collectionID == 0 {
+			collectionID = ccu.CollectionID
+		} else {
+			suite.Equal(collectionID, ccu.CollectionID, "ccu.CollectionID")
+		}
+	}
+
+	// process kitei makor for part 1
+	metadata.ContentType = common.CT_LESSON_PART
+	metadata.Part = null.IntFrom(1)
+	metadata.ArtifactType = null.StringFrom("kitei_makor")
+	metadata.WeekDate = nil
+	tf := chain["part1_kitei-makor"]
+	souce := suite.simulateAdditionalCapture()
+	_, err := ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, souce)
+	suite.Require().Nil(err)
+
+	// verify add source
+	err = tf.Original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = souce.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.Equal(tf.Original.ContentUnitID.Int64, souce.ContentUnitID.Int64, "original and source unit")
 }
 
 // Helpers
@@ -1599,6 +1673,71 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 	}
 
 	return trimFiles
+}
+
+func (suite *MetadataProcessorSuite) simulateAdditionalCapture() *models.File {
+	CsSha1 := utils.RandomSHA1()
+	TrmSSha1 := utils.RandomSHA1()
+
+	// capture_start
+	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: "c987654321",
+		},
+		FileName:      "capture_start_source",
+		CaptureSource: "mltsource",
+		CollectionUID: "c987654321",
+	})
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	// capture_stop
+	_, evnts, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: "c987654321",
+		},
+		File: File{
+			FileName:  "capture_stop_source.mp4",
+			Sha1:      CsSha1,
+			Size:      98737,
+			CreatedAt: &Timestamp{Time: time.Now()},
+			Language:  common.LANG_MULTI,
+		},
+		CaptureSource: "mltsource",
+		CollectionUID: "c987654321",
+		Part:          "source",
+	})
+	suite.Require().Nil(err)
+
+	// trim
+	op, evnts, err := handleTrim(suite.tx, TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: CsSha1,
+		ProxySha1:    "",
+		Original: AVFile{
+			File: File{
+				FileName:  "trim_full_original.mp4",
+				Sha1:      TrmSSha1,
+				Size:      98000,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		Proxy:         nil,
+		CaptureSource: "mltbackup",
+		In:            []float64{10.05, 249.43},
+		Out:           []float64{240.51, 899.27},
+	})
+	suite.Require().Nil(err)
+	files := suite.opFilesBySHA1(op)
+	return files[TrmSSha1]
 }
 
 func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]TrimFiles {
