@@ -107,11 +107,12 @@ func doAuthor(exec boil.Executor, header map[string]int, record []string) error 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Create
-			author = &models.Author{
+			a := models.Author{
 				Code:     record[header["code"]],
 				Name:     record[header["name"]],
 				FullName: null.NewString(record[header["full name"]], record[header["full name"]] != ""),
 			}
+			author = &a
 			err = author.Insert(exec, boil.Infer())
 			if err != nil {
 				return errors.Wrapf(err, "Insert author [%s]", record)
