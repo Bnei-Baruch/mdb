@@ -1250,7 +1250,7 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithAdditionalCapture() {
 }
 
 func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries() {
-	chain := suite.simulateLessonChainWithSource()
+	tf := suite.simulateSimpleChain()
 	sUids := createDummySources(suite.tx)
 	metadata := CITMetadata{
 		ContentType:    common.CT_LESSON_PART,
@@ -1267,7 +1267,6 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 		RequireTest:    false,
 	}
 
-	tf := chain["source_part1"]
 	props := map[string]interface{}{"source": sUids[0]}
 	c, err := CreateCollection(suite.tx, common.CT_LESSONS_SERIES, props)
 	utils.Must(err)
@@ -1413,8 +1412,10 @@ func makePublishedLast(tx boil.Transactor) {
 
 func createDummySources(exec boil.Executor) []string {
 	uids := make([]string, rand.Intn(5)+2)
+	s, err := models.Sources(qm.OrderBy("id DESC")).One(exec)
+	utils.Must(err)
 	for i := range uids {
-		s := models.Source{UID: utils.GenerateUID(8), TypeID: 1, Name: "name"}
+		s := models.Source{ID: s.ID + int64(i) + 1, UID: utils.GenerateUID(8), TypeID: 1, Name: "name"}
 		utils.Must(s.Insert(exec, boil.Infer()))
 		uids[i] = s.UID
 	}
