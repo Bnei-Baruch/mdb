@@ -295,6 +295,13 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source
 		if err != nil {
 			return nil, errors.Wrap(err, "Associate sources")
 		}
+
+		seriesEvnts, err := associateLessonsSeriesSources(exec, cu, metadata.Sources)
+		if err != nil {
+			return nil, errors.Wrap(err, "Associate Lessons series collection by sources")
+		}
+
+		evnts = append(evnts, seriesEvnts...)
 	}
 
 	if len(metadata.Tags) > 0 {
@@ -373,6 +380,13 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source
 			evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(l))
 		}
 		evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(cu))
+		seriesEvnts, err := associateLessonsSeriesLikutim(exec, cu, metadata.Likutim)
+		if err != nil {
+			return nil, errors.Wrap(err, "Associate Lessons series collection by likutim")
+		}
+
+		evnts = append(evnts, seriesEvnts...)
+
 	}
 
 	// Handle persons ...
@@ -733,6 +747,311 @@ WHERE (cu.properties ->> 'part') :: INT = $4`,
 	}
 
 	return cuID, nil
+}
+
+var MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES = 3
+var DAYS_CHECK_FOR_LESSONS_SERIES = 30
+
+func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, sUids []string) ([]events.Event, error) {
+	evnts := make([]events.Event, 0)
+	_cus, _err := models.ContentUnits(
+		models.ContentUnitWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID),
+		qm.Limit(10),
+		qm.OrderBy("id DESC"),
+		qm.Load(models.ContentUnitRels.CollectionsContentUnits),
+	).All(exec)
+	print(_cus, _err)
+	q := fmt.Sprintf(`
+  SELECT DISTINCT ON(s.id) s.id, array_agg(DISTINCT cu.id)
+  FROM content_units cu
+  INNER JOIN content_units_sources cus ON cu.id = cus.content_unit_id
+  INNER JOIN sources s ON s.id = cus.source_id
+  WHERE cu.type_id = $1 
+  AND coalesce((cu.properties->>'film_date')::date, cu.created_at) > (CURRENT_DATE - '%d day'::interval)
+  AND cu.published = TRUE AND cu.secure = 0
+  AND s.uid IN (%s)
+  GROUP BY  s.id
+`, DAYS_CHECK_FOR_LESSONS_SERIES, fmt.Sprintf("'%s'", strings.Join(sUids, "','")))
+	rows, err := queries.Raw(q, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID).Query(exec)
+
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	defer rows.Close()
+
+	cuByS := make(map[int64][]int64)
+	var sId int64
+	var cuIdsByS pq.Int64Array
+	var cuIds []int64
+	for rows.Next() {
+		err = rows.Scan(&sId, &cuIdsByS)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		cuByS[sId] = cuIdsByS
+		cuIds = append(cuIds, cuIdsByS...)
+	}
+
+	boil.DebugMode = true
+	cus, err := models.ContentUnits(
+		models.ContentUnitWhere.ID.IN(cuIds),
+		qm.Load("Sources"),
+		qm.Load("CollectionsContentUnits"),
+		qm.Load("CollectionsContentUnits.Collection"),
+	).All(exec)
+
+	boil.DebugMode = false
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+
+	var cByS = make(map[string]*models.Collection)
+	var startDateByS = make(map[string]string)
+	//group lesson series by cus sources
+	for _, _cu := range append(cus, cu) {
+		for _, s := range _cu.R.Sources {
+			if _, ok := startDateByS[s.UID]; !ok && cuByS[s.ID] != nil && cuByS[s.ID][0] == _cu.ID {
+				var _props map[string]interface{}
+				if err := _cu.Properties.Unmarshal(&_props); err != nil {
+					continue
+				}
+				if fd, ok := _props["film_date"]; ok {
+					startDateByS[s.UID] = fd.(string)
+				}
+			}
+		}
+		for _, ccu := range _cu.R.CollectionsContentUnits {
+			if !ccu.R.Collection.Properties.Valid || ccu.R.Collection.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSONS_SERIES].ID {
+				continue
+			}
+			var props map[string]interface{}
+			if err := ccu.R.Collection.Properties.Unmarshal(&props); err != nil {
+				continue
+			}
+			_sUid := props["source"].(string)
+			if _, ok := cByS[_sUid]; ok {
+				continue
+			}
+			if _sUid != "" {
+				cByS[_sUid] = ccu.R.Collection
+			}
+		}
+	}
+
+	var cuProps map[string]interface{}
+	if err := cu.Properties.Unmarshal(&cuProps); err != nil {
+		return nil, err
+	}
+	needAddByC := make(map[int64][]*models.CollectionsContentUnit)
+
+	//find and if need create lessons series per new cu's sources
+	for _, s := range cu.R.Sources {
+		if _, ok := cByS[s.UID]; len(cuByS[s.ID]) < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES && !ok {
+			continue
+		}
+		if _, ok := cByS[s.UID]; !ok {
+			props := map[string]interface{}{
+				"source":     s.UID,
+				"end_date":   cuProps["film_date"],
+				"start_date": startDateByS[s.UID],
+			}
+			c, err := CreateCollection(exec, common.CT_LESSONS_SERIES, props)
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+			c.Published = true
+			_, err = c.Update(exec, boil.Whitelist("published"))
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+			cByS[s.UID] = c
+			//add prev cus to new lessons series
+			for i, id := range cuByS[s.ID] {
+				ccu := &models.CollectionsContentUnit{
+					ContentUnitID: id,
+					Position:      i,
+				}
+				needAddByC[cByS[s.UID].ID] = append(needAddByC[cByS[s.UID].ID], ccu)
+			}
+			evnts = append(evnts, events.CollectionCreateEvent(c))
+		}
+		ccu := &models.CollectionsContentUnit{
+			ContentUnitID: cu.ID,
+			Position:      len(cuByS[s.ID]) + 1,
+		}
+		needAddByC[cByS[s.UID].ID] = append(needAddByC[cByS[s.UID].ID], ccu)
+	}
+
+	for _, c := range cByS {
+		if err := c.AddCollectionsContentUnits(exec, true, needAddByC[c.ID]...); err != nil {
+			return nil, err
+		}
+		if err := UpdateCollectionProperties(exec, c, map[string]interface{}{"end_date": cuProps["film_date"]}); err != nil {
+			return nil, err
+		}
+		if _, err := c.Update(exec, boil.Infer()); err != nil {
+			return nil, err
+		}
+		c, _ := models.Collections(
+			models.CollectionWhere.ID.EQ(c.ID),
+			qm.Load("CollectionsContentUnits"),
+			qm.Load("CollectionsContentUnits.ContentUnit"),
+		).One(exec)
+		evnts = append(evnts, events.CollectionContentUnitsChangeEvent(c))
+	}
+	return evnts, nil
+}
+
+func associateLessonsSeriesLikutim(exec boil.Executor, cu *models.ContentUnit, lUids []string) ([]events.Event, error) {
+	evnts := make([]events.Event, 0)
+	_cus, _err := models.ContentUnits(
+		models.ContentUnitWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID),
+		qm.Limit(10),
+		qm.OrderBy("id DESC"),
+		qm.Load("CollectionsContentUnits"),
+		qm.Load("CollectionsContentUnits.Collection"),
+		qm.Load("SourceContentUnitDerivations"),
+		qm.Load("SourceContentUnitDerivations.Derived"),
+	).All(exec)
+	print(_cus, _err)
+	q := fmt.Sprintf(`
+  SELECT DISTINCT ON(lcu.id) lcu.id, array_agg(DISTINCT cu.id)
+  FROM content_units cu
+  INNER JOIN content_unit_derivations dcu ON cu.id = dcu.source_id
+  INNER JOIN content_units lcu ON lcu.id = dcu.derived_id
+  WHERE cu.type_id = $1
+  AND coalesce((cu.properties->>'film_date')::date, cu.created_at) > (CURRENT_DATE - '%d day'::interval)
+  AND cu.published = TRUE AND cu.secure = 0
+  AND lcu.uid IN (%s)
+  GROUP BY  lcu.id
+`, DAYS_CHECK_FOR_LESSONS_SERIES, fmt.Sprintf("'%s'", strings.Join(lUids, "','")))
+	rows, err := queries.Raw(q, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID).Query(exec)
+
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	defer rows.Close()
+
+	cuByL := make(map[int64][]int64)
+	var lId int64
+	var cuIdsByL pq.Int64Array
+	var cuIds []int64
+	for rows.Next() {
+		err = rows.Scan(&lId, &cuIdsByL)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		cuByL[lId] = cuIdsByL
+		cuIds = append(cuIds, cuIdsByL...)
+	}
+
+	cus, err := models.ContentUnits(
+		models.ContentUnitWhere.ID.IN(append(cuIds, cu.ID)),
+		qm.Load("CollectionsContentUnits"),
+		qm.Load("CollectionsContentUnits.Collection"),
+		qm.Load("SourceContentUnitDerivations"),
+		qm.Load("SourceContentUnitDerivations.Derived"),
+	).All(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	var cByL = make(map[string]*models.Collection)
+	var startDateByL = make(map[string]string)
+	//group lesson series by cus sources
+	for _, _cu := range cus {
+		for _, l := range _cu.R.SourceContentUnitDerivations {
+			if l.R.Derived == nil {
+				continue
+			}
+			if _, ok := startDateByL[l.R.Derived.UID]; !ok && cuByL[l.R.Derived.ID] != nil && cuByL[l.R.Derived.ID][0] == _cu.ID {
+				var _props map[string]interface{}
+				if err := _cu.Properties.Unmarshal(&_props); err != nil {
+					continue
+				}
+
+				if fd, ok := _props["film_date"]; ok {
+					startDateByL[l.R.Derived.UID] = fd.(string)
+				}
+			}
+		}
+		for _, ccu := range _cu.R.CollectionsContentUnits {
+			if !ccu.R.Collection.Properties.Valid || ccu.R.Collection.TypeID != common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSONS_SERIES].ID {
+				continue
+			}
+			var props map[string]interface{}
+			if err := ccu.R.Collection.Properties.Unmarshal(&props); err != nil {
+				continue
+			}
+			_sUid := props["source"].(string)
+			if _, ok := cByL[_sUid]; ok {
+				continue
+			}
+			if _sUid != "" {
+				cByL[_sUid] = ccu.R.Collection
+			}
+		}
+	}
+
+	var cuProps map[string]interface{}
+	if err := cu.Properties.Unmarshal(&cuProps); err != nil {
+		return nil, err
+	}
+	needAddByC := make(map[int64][]*models.CollectionsContentUnit)
+
+	//find and if need create lessons series per new cu's sources
+	for _, dcu := range cu.R.SourceContentUnitDerivations {
+		if err := dcu.L.LoadDerived(exec, true, dcu, nil); err != nil {
+			return nil, err
+		}
+		if _, ok := cByL[dcu.R.Derived.UID]; len(cuByL[dcu.DerivedID]) < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES && !ok {
+			continue
+		}
+		if _, ok := cByL[dcu.R.Derived.UID]; !ok {
+			props := map[string]interface{}{
+				"source":     dcu.R.Derived.UID,
+				"end_date":   cuProps["film_date"],
+				"start_date": startDateByL[dcu.R.Derived.UID],
+			}
+			c, err := CreateCollection(exec, common.CT_LESSONS_SERIES, props)
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+			c.Published = true
+			_, err = c.Update(exec, boil.Whitelist("published"))
+			if err != nil {
+				return nil, NewInternalError(err)
+			}
+			cByL[dcu.R.Derived.UID] = c
+			//add prev cus to new lessons series
+			for i, id := range cuByL[dcu.R.Derived.ID] {
+				ccu := &models.CollectionsContentUnit{
+					ContentUnitID: id,
+					Position:      i,
+				}
+				needAddByC[cByL[dcu.R.Derived.UID].ID] = append(needAddByC[cByL[dcu.R.Derived.UID].ID], ccu)
+			}
+			evnts = append(evnts, events.CollectionCreateEvent(c))
+		}
+		ccu := &models.CollectionsContentUnit{
+			ContentUnitID: cu.ID,
+			Position:      len(cuByL[dcu.R.Derived.ID]) + 1,
+		}
+		needAddByC[cByL[dcu.R.Derived.UID].ID] = append(needAddByC[cByL[dcu.R.Derived.UID].ID], ccu)
+	}
+
+	for _, c := range cByL {
+		if err := c.AddCollectionsContentUnits(exec, true, needAddByC[c.ID]...); err != nil {
+			return nil, err
+		}
+		if err := UpdateCollectionProperties(exec, c, map[string]interface{}{"end_date": cuProps["film_date"]}); err != nil {
+			return nil, err
+		}
+		if _, err := c.Update(exec, boil.Infer()); err != nil {
+			return nil, err
+		}
+		evnts = append(evnts, events.CollectionContentUnitsChangeEvent(c))
+	}
+	return evnts, nil
 }
 
 /* send-fix
