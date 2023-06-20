@@ -1293,7 +1293,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 		utils.Must(c.Reload(suite.tx))
 		_countCcu, err := models.Collections(qm.WhereIn(`properties->>'source' IN ?`, utils.ConvertArgsString(sUids)...)).Count(suite.tx)
 		utils.Must(err)
-		if i < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES-1 {
+		if i <= MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES {
 			suite.EqualValues(1, _countCcu)
 		} else {
 			suite.EqualValues(len(sUids), _countCcu)
@@ -1302,6 +1302,56 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 		utils.Must(err)
 		suite.EqualValues(i+int(countCcu)+1, countCu)
 	}
+}
+
+var tesPartByLeaf = map[string]string{"38p1N7aA": "UGcGGSpP", "1uquRur7": "NpLQT0LX", "jOttKP5x": "eNwJXy4s"}
+
+func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeries() {
+	tf := suite.simulateSimpleChain()
+
+	var sUids []string
+	for uid := range tesPartByLeaf {
+		sUids = append(sUids, uid)
+	}
+	metadata := CITMetadata{
+		ContentType:    common.CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       common.LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(0),
+		Sources:        sUids,
+		Tags:           suite.someTags(),
+		RequireTest:    false,
+	}
+	var collections []*models.Collection
+	for i, uid := range sUids {
+		props := map[string]interface{}{"source": tesPartByLeaf[uid]}
+		c, err := CreateCollection(suite.tx, common.CT_LESSONS_SERIES, props)
+		utils.Must(err)
+		c.Published = true
+		_, err = c.Update(suite.tx, boil.Infer())
+		utils.Must(err)
+		s, err := models.Sources(models.SourceWhere.UID.EQ(uid)).One(suite.tx)
+		utils.Must(err)
+		createCUWithSourceForLessonsSeries(suite.tx, s, c, i)
+		collections = append(collections, c)
+	}
+
+	for _, c := range collections {
+		utils.Must(c.L.LoadCollectionsContentUnits(suite.tx, true, c, nil))
+		suite.EqualValues(1, len(c.R.CollectionsContentUnits))
+	}
+	_, err := ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
+	suite.Require().Nil(err)
+	for _, c := range collections {
+		utils.Must(c.L.LoadCollectionsContentUnits(suite.tx, true, c, nil))
+		suite.EqualValues(2, len(c.R.CollectionsContentUnits))
+	}
+
 }
 
 func (suite *MetadataProcessorSuite) TestDailyLesson_LikutimsAttachLessonsSeries() {
@@ -1356,7 +1406,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_LikutimsAttachLessonsSeries
 		utils.Must(c.Reload(suite.tx))
 		_countCcu, err := models.Collections(qm.WhereIn(`properties->>'source' IN ?`, utils.ConvertArgsString(lUids)...)).Count(suite.tx)
 		utils.Must(err)
-		if i < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES-1 {
+		if i <= MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES {
 			suite.EqualValues(1, _countCcu)
 		} else {
 			suite.EqualValues(len(lUids), _countCcu)

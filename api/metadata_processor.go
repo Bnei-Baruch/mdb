@@ -754,15 +754,12 @@ var DAYS_CHECK_FOR_LESSONS_SERIES = 30
 
 func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, sUids []string) ([]events.Event, error) {
 	evnts := make([]events.Event, 0)
-	_cus, _err := models.ContentUnits(
-		models.ContentUnitWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID),
-		qm.Limit(10),
-		qm.OrderBy("id DESC"),
-		qm.Load(models.ContentUnitRels.CollectionsContentUnits),
-	).All(exec)
-	print(_cus, _err)
+	sByLeaf, err := mapTESPartByLeaf(exec, sUids)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
 	q := fmt.Sprintf(`
-  SELECT DISTINCT ON(s.id) s.id, array_agg(DISTINCT cu.id)
+  SELECT DISTINCT ON(s.id) s.uid, array_agg(DISTINCT cu.id)
   FROM content_units cu
   INNER JOIN content_units_sources cus ON cu.id = cus.content_unit_id
   INNER JOIN sources s ON s.id = cus.source_id
@@ -772,15 +769,15 @@ func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, s
   AND s.uid IN (%s)
   GROUP BY  s.id
 `, DAYS_CHECK_FOR_LESSONS_SERIES, fmt.Sprintf("'%s'", strings.Join(sUids, "','")))
-	rows, err := queries.Raw(q, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID).Query(exec)
 
+	rows, err := queries.Raw(q, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID).Query(exec)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
 	defer rows.Close()
 
-	cuByS := make(map[int64][]int64)
-	var sId int64
+	cuByS := make(map[string][]int64)
+	var sId string
 	var cuIdsByS pq.Int64Array
 	var cuIds []int64
 	for rows.Next() {
@@ -788,11 +785,10 @@ func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, s
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
-		cuByS[sId] = cuIdsByS
+		cuByS[sByLeaf[sId]] = cuIdsByS
 		cuIds = append(cuIds, cuIdsByS...)
 	}
 
-	boil.DebugMode = true
 	cus, err := models.ContentUnits(
 		models.ContentUnitWhere.ID.IN(cuIds),
 		qm.Load("Sources"),
@@ -800,7 +796,6 @@ func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, s
 		qm.Load("CollectionsContentUnits.Collection"),
 	).All(exec)
 
-	boil.DebugMode = false
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -810,7 +805,8 @@ func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, s
 	//group lesson series by cus sources
 	for _, _cu := range append(cus, cu) {
 		for _, s := range _cu.R.Sources {
-			if _, ok := startDateByS[s.UID]; !ok && cuByS[s.ID] != nil && cuByS[s.ID][0] == _cu.ID {
+			sUid := sByLeaf[s.UID]
+			if _, ok := startDateByS[s.UID]; !ok && cuByS[sUid] != nil && cuByS[sUid][0] == _cu.ID {
 				var _props map[string]interface{}
 				if err := _cu.Properties.Unmarshal(&_props); err != nil {
 					continue
@@ -846,7 +842,8 @@ func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, s
 
 	//find and if need create lessons series per new cu's sources
 	for _, s := range cu.R.Sources {
-		if _, ok := cByS[s.UID]; len(cuByS[s.ID]) < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES && !ok {
+		sUid := sByLeaf[s.UID]
+		if _, ok := cByS[s.UID]; len(cuByS[sUid]) < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES && !ok {
 			continue
 		}
 		if _, ok := cByS[s.UID]; !ok {
@@ -866,7 +863,7 @@ func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, s
 			}
 			cByS[s.UID] = c
 			//add prev cus to new lessons series
-			for i, id := range cuByS[s.ID] {
+			for i, id := range cuByS[sUid] {
 				ccu := &models.CollectionsContentUnit{
 					ContentUnitID: id,
 					Position:      i,
@@ -877,7 +874,7 @@ func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, s
 		}
 		ccu := &models.CollectionsContentUnit{
 			ContentUnitID: cu.ID,
-			Position:      len(cuByS[s.ID]) + 1,
+			Position:      len(cuByS[sUid]) + 1,
 		}
 		needAddByC[cByS[s.UID].ID] = append(needAddByC[cByS[s.UID].ID], ccu)
 	}
@@ -902,18 +899,48 @@ func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, s
 	return evnts, nil
 }
 
+var TES_PARTS_UIDS = []string{"9xNFLSSp", "XlukqLH8", "AerA1hNN", "1kDKQxJb", "o5lXptLo", "eNwJXy4s", "ahipVtPu", "Pscnn3pP", "Lfu7W3CD", "n03vXCJl", "UGcGGSpP", "NpLQT0LX", "AUArdCkH", "tit6XNAo", "FaKUG7ru", "mW6eON0z"}
+
+func mapTESPartByLeaf(exec boil.Executor, uids []string) (map[string]string, error) {
+
+	newByOldUid := make(map[string]string)
+	for _, uid := range uids {
+		newByOldUid[uid] = uid
+	}
+	q := fmt.Sprintf(`
+WITH RECURSIVE recurcive_s(id, uid, parent_id, start_uid) AS(
+	SELECT id, uid, parent_id, uid
+		FROM sources where uid IN (%s)
+	UNION
+	SELECT s.id, s.uid, s.parent_id, rs.start_uid
+		FROM recurcive_s rs, sources s where rs.parent_id = s.id
+)
+SELECT start_uid, uid FROM recurcive_s WHERE uid IN (%s)
+`,
+		fmt.Sprintf("'%s'", strings.Join(uids, "','")),
+		fmt.Sprintf("'%s'", strings.Join(TES_PARTS_UIDS, "','")),
+	)
+	rows, err := queries.Raw(q).Query(exec)
+	if err != nil {
+		return nil, NewInternalError(err)
+	}
+	defer rows.Close()
+
+	var uid string
+	var nUid string
+	for rows.Next() {
+		err = rows.Scan(&uid, &nUid)
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+		newByOldUid[uid] = nUid
+	}
+	return newByOldUid, nil
+}
+
 func associateLessonsSeriesLikutim(exec boil.Executor, cu *models.ContentUnit, lUids []string) ([]events.Event, error) {
 	evnts := make([]events.Event, 0)
-	_cus, _err := models.ContentUnits(
-		models.ContentUnitWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID),
-		qm.Limit(10),
-		qm.OrderBy("id DESC"),
-		qm.Load("CollectionsContentUnits"),
-		qm.Load("CollectionsContentUnits.Collection"),
-		qm.Load("SourceContentUnitDerivations"),
-		qm.Load("SourceContentUnitDerivations.Derived"),
-	).All(exec)
-	print(_cus, _err)
+
 	q := fmt.Sprintf(`
   SELECT DISTINCT ON(lcu.id) lcu.id, array_agg(DISTINCT cu.id)
   FROM content_units cu
