@@ -754,7 +754,7 @@ var DAYS_CHECK_FOR_LESSONS_SERIES = 30
 
 func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, sUids []string) ([]events.Event, error) {
 	evnts := make([]events.Event, 0)
-	sByLeaf, err := mapTESPartByLeaf(exec, sUids)
+	sByLeaf, err := mapParentByLeaf(exec, sUids)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -900,13 +900,11 @@ func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, s
 }
 
 var TES_PARTS_UIDS = []string{"9xNFLSSp", "XlukqLH8", "AerA1hNN", "1kDKQxJb", "o5lXptLo", "eNwJXy4s", "ahipVtPu", "Pscnn3pP", "Lfu7W3CD", "n03vXCJl", "UGcGGSpP", "NpLQT0LX", "AUArdCkH", "tit6XNAo", "FaKUG7ru", "mW6eON0z"}
+var ZOAR_UID = "AwGBQX2L"
+var ZOAR_PART_ONE_UID = "cSyh3vQM"
 
-func mapTESPartByLeaf(exec boil.Executor, uids []string) (map[string]string, error) {
+func mapParentByLeaf(exec boil.Executor, uids []string) (map[string]string, error) {
 
-	newByOldUid := make(map[string]string)
-	for _, uid := range uids {
-		newByOldUid[uid] = uid
-	}
 	q := fmt.Sprintf(`
 WITH RECURSIVE recurcive_s(id, uid, parent_id, start_uid) AS(
 	SELECT id, uid, parent_id, uid
@@ -918,7 +916,7 @@ WITH RECURSIVE recurcive_s(id, uid, parent_id, start_uid) AS(
 SELECT start_uid, uid FROM recurcive_s WHERE uid IN (%s)
 `,
 		fmt.Sprintf("'%s'", strings.Join(uids, "','")),
-		fmt.Sprintf("'%s'", strings.Join(TES_PARTS_UIDS, "','")),
+		fmt.Sprintf("'%s'", strings.Join(append(TES_PARTS_UIDS, ZOAR_UID, ZOAR_PART_ONE_UID), "','")),
 	)
 	rows, err := queries.Raw(q).Query(exec)
 	if err != nil {
@@ -928,12 +926,22 @@ SELECT start_uid, uid FROM recurcive_s WHERE uid IN (%s)
 
 	var uid string
 	var nUid string
+	newByOldUid := make(map[string]string)
 	for rows.Next() {
 		err = rows.Scan(&uid, &nUid)
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
-		newByOldUid[uid] = nUid
+
+		if _, ok := newByOldUid[uid]; !ok || nUid == ZOAR_PART_ONE_UID {
+			newByOldUid[uid] = nUid
+		}
+	}
+
+	for _, uid := range uids {
+		if _, ok := newByOldUid[uid]; !ok {
+			newByOldUid[uid] = uid
+		}
 	}
 	return newByOldUid, nil
 }
