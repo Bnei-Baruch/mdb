@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -36,7 +37,7 @@ func (a *RegexpReplacer) Init() error {
 		return fmt.Errorf("missing one of the fields: a.tableName = %s a.colName = %s a.NewStr = %s a.RegStr = %s", a.TableName, a.ColName, a.NewStr, a.RegStr)
 	}
 
-	mdb, err := sql.Open("postgres", viper.GetString("DB.url"))
+	mdb, err := sql.Open("postgres", viper.GetString("mdb.url"))
 	utils.Must(err)
 	utils.Must(mdb.Ping())
 	a.DB = mdb
@@ -85,6 +86,9 @@ func (a *RegexpReplacer) updateDB(iteration int) error {
 			update = append(update, e)
 		}
 	}
+	if err = rows.Err(); err != nil {
+		return err
+	}
 
 	for _, e := range update {
 
@@ -92,7 +96,9 @@ func (a *RegexpReplacer) updateDB(iteration int) error {
 		tx, err := a.DB.Begin()
 		utils.Must(err)
 
-		q := fmt.Sprintf(`UPDATE %s SET %s = '%s' WHERE id = %d`, a.TableName, a.ColName, e.content, e.id)
+		c := strings.Replace(e.content, "'", "''", -1)
+
+		q := fmt.Sprintf(`UPDATE %s SET %s = '%s' WHERE id = %d`, a.TableName, a.ColName, c, e.id)
 		_, err = queries.Raw(tx, q).Exec()
 		if err != nil {
 			log.Errorf("Error on Update post with id %d error %v", e.id, err)
@@ -113,7 +119,7 @@ func (a *RegexpReplacer) replace(cont string) (string, bool) {
 		return "", false
 	}
 	cont = re.ReplaceAllString(cont, a.NewStr)
-	log.Infof("New content %s", cont)
+	//log.Infof("New content %s", cont)
 	return cont, true
 }
 
