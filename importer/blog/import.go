@@ -16,7 +16,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/robbiet480/go-wordpress"
 	"github.com/tomnomnom/linkheader"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 
@@ -72,7 +73,7 @@ func doImport() error {
 
 		blogPost.BlogID = currentBlog.ID
 		blogPost.Filtered = !postFilter.IsPass(&post)
-		err = blogPost.Insert(mdb)
+		err = blogPost.Insert(mdb, boil.Infer())
 		if err != nil {
 			return errors.Wrapf(err, "blogPost.Insert %s", path)
 		}
@@ -205,7 +206,7 @@ func stdLink(link string) string {
 var linkPostMap map[string]*models.BlogPost
 
 func loadLinkMap() error {
-	posts, err := models.BlogPosts(mdb, qm.Select("id", "link", "wp_id", "blog_id")).All()
+	posts, err := models.BlogPosts(qm.Select("id", "link", "wp_id", "blog_id")).All(mdb)
 	if err != nil {
 		return errors.Wrap(err, "Load posts from DB")
 	}
@@ -225,7 +226,7 @@ func cleanAllPosts() error {
 		return errors.Wrap(err, "loadLinkMap")
 	}
 
-	posts, err := models.BlogPosts(mdb).All()
+	posts, err := models.BlogPosts().All(mdb)
 	if err != nil {
 		return errors.Wrap(err, "Load posts from DB")
 	}
@@ -263,7 +264,7 @@ func cleanPost(post *models.BlogPost) error {
 	}
 	post.Content = sb.String()
 
-	err = post.Update(mdb, "content")
+	_, err = post.Update(mdb, boil.Whitelist("content"))
 	if err != nil {
 		return errors.Wrapf(err, "post.Update %d", post.ID)
 	}

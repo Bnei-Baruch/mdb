@@ -1,0 +1,21 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:9
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: user
+      POSTGRES_DB: mdb
+    ports:
+      - "5432:5432"
+  db_new:
+    image: postgres:14
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: user
+      POSTGRES_DB: mdb
+    ports:
+      - "5435:5432"

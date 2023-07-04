@@ -11,7 +11,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
@@ -48,7 +48,7 @@ func Init() (time.Time, *events.BufferedEmitter) {
 	emitter, err := events.InitEmitter()
 	utils.Must(err)
 
-	blogs, err := models.Blogs(mdb).All()
+	blogs, err := models.Blogs().All(mdb)
 	utils.Must(err)
 	allBlogs = make(map[int64]*models.Blog, len(blogs))
 	for i := range blogs {

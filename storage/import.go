@@ -19,9 +19,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -228,7 +228,7 @@ func syncStorages(db *sql.DB) error {
 			mdbS.Location = s.Location
 			mdbS.Status = s.Status
 			mdbS.Access = s.Access
-			err = mdbS.Update(tx, "country", "location", "status", "access")
+			_, err = mdbS.Update(tx, boil.Whitelist("country", "location", "status", "access"))
 			if err != nil {
 				utils.Must(tx.Rollback())
 				return errors.Wrapf(err, "Update MDB storage %d %s", mdbS.ID, s.ID)
@@ -244,7 +244,7 @@ func syncStorages(db *sql.DB) error {
 				Status:   s.Status,
 				Access:   s.Access,
 			}
-			err = mdbS.Insert(tx)
+			err = mdbS.Insert(tx, boil.Infer())
 			if err != nil {
 				utils.Must(tx.Rollback())
 				return errors.Wrapf(err, "Create new MDB storage %s", s.ID)
@@ -268,7 +268,7 @@ func syncStorages(db *sql.DB) error {
 		tx, err = db.Begin()
 		utils.Must(err)
 
-		err = models.Storages(tx, qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...)).DeleteAll()
+		_, err = models.Storages(qm.WhereIn("id in ?", utils.ConvertArgsInt64(ids)...)).DeleteAll(tx)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrap(err, "Delete storages from MDB")
@@ -283,7 +283,7 @@ func syncStorages(db *sql.DB) error {
 }
 
 func loadMDBFiles(db *sql.DB) (map[string]int64, error) {
-	total, err := models.Files(db, qm.Where("sha1 IS NOT NULL")).Count()
+	total, err := models.Files(qm.Where("sha1 IS NOT NULL")).Count(db)
 	if err != nil {
 		return nil, errors.Wrap(err, "Get total files in MDB")
 	}
@@ -291,9 +291,9 @@ func loadMDBFiles(db *sql.DB) (map[string]int64, error) {
 
 	fileMap := make(map[string]int64, total)
 
-	rows, err := queries.Raw(db,
+	rows, err := queries.Raw(
 		`SELECT id, encode(sha1, 'hex') FROM files WHERE sha1 IS NOT NULL`).
-		Query()
+		Query(db)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load files")
 	}
@@ -322,7 +322,7 @@ func loadMDBFiles(db *sql.DB) (map[string]int64, error) {
 }
 
 func loadMDBFilesMappings(db *sql.DB) (m map[int64][]int64, err error) {
-	rows, err := queries.Raw(db, "SELECT * FROM files_storages").Query()
+	rows, err := queries.Raw("SELECT * FROM files_storages").Query(db)
 	if err != nil {
 		err = errors.Wrap(err, "Load files mappings from MDB")
 		return
@@ -487,9 +487,9 @@ func doFile(db *sql.DB, fID int64, current []int64, next map[int64]bool) error {
 		for sID := range next {
 			values = append(values, fmt.Sprintf("(%d,%d)", fID, sID))
 		}
-		res, err := queries.Raw(tx,
+		res, err := queries.Raw(
 			fmt.Sprintf("INSERT INTO files_storages (file_id, storage_id) VALUES %s",
-				strings.Join(values, ","))).Exec()
+				strings.Join(values, ","))).Exec(tx)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrap(err, "Insert mappings")
@@ -511,10 +511,10 @@ func doFile(db *sql.DB, fID int64, current []int64, next map[int64]bool) error {
 		for sID := range toDelete {
 			values = append(values, strconv.Itoa(sID))
 		}
-		res, err := queries.Raw(tx,
+		res, err := queries.Raw(
 			fmt.Sprintf("DELETE FROM files_storages WHERE file_id=%d AND storage_id IN (%s)",
 				fID, strings.Join(values, ","))).
-			Exec()
+			Exec(tx)
 		if err != nil {
 			utils.Must(tx.Rollback())
 			return errors.Wrapf(err, "Delete mappings")
@@ -587,7 +587,7 @@ func getDataDir() (string, error) {
 }
 
 func getMDBStorageMap(db *sql.DB) (m map[string]*models.Storage, err error) {
-	all, err := models.Storages(db).All()
+	all, err := models.Storages().All(db)
 	if err != nil {
 		return
 	}

@@ -14,8 +14,9 @@ import (
 	"github.com/ChimeraCoder/anaconda"
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -52,7 +53,7 @@ func importDump(username, dir string) error {
 	}
 	log.Infof("%s has %d tweets", username, len(tweets))
 
-	user, err := models.TwitterUsers(mdb, qm.Where("username = ?", username)).One()
+	user, err := models.TwitterUsers(qm.Where("username = ?", username)).One(mdb)
 	if err != nil {
 		return errors.Wrapf(err, "lookup username: %s", username)
 	}
@@ -88,7 +89,10 @@ func saveTweetToDB(t *anaconda.Tweet, user *models.TwitterUser) error {
 		Raw:       null.JSONFrom(jsonb),
 	}
 
-	err = mt.Upsert(tx, true, []string{"twitter_id"}, []string{"full_text", "tweet_at", "raw"})
+	err = mt.Upsert(tx, true,
+		[]string{"twitter_id"},
+		boil.Whitelist("full_text", "tweet_at", "raw"),
+		boil.Infer())
 	if err != nil {
 		utils.Must(tx.Rollback())
 		return errors.Wrapf(err, "Upsert to DB")

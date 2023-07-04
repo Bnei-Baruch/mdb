@@ -1,14 +1,15 @@
 package kmedia
 
 import (
-	"github.com/Bnei-Baruch/mdb/common"
 	"runtime/debug"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -37,9 +38,9 @@ func importLectures(catalogID int) error {
 		return errors.Wrapf(err, "Load catalog %d", catalogID)
 	}
 
-	collection, err := models.Collections(mdb,
-		qm.Where("(properties->>'kmedia_id')::int = ?", catalogID)).
-		One()
+	collection, err := models.Collections(
+		qm4.Where("(properties->>'kmedia_id')::int = ?", catalogID)).
+		One(mdb)
 	if err != nil {
 		return errors.Wrapf(err, "Lookup collection in mdb [kmid %d]", catalogID)
 	}

@@ -9,8 +9,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -42,8 +42,8 @@ type RFile struct {
 
 type MasterFile struct {
 	sha1   string
-	MDB    *MFile     `json:"m,omitempty"`
-	KMedia *KFile     `json:"k,omitempty"`
+	MDB    *MFile `json:"m,omitempty"`
+	KMedia *KFile `json:"k,omitempty"`
 	Roza   *RFile `json:"r,omitempty"`
 }
 
@@ -76,7 +76,7 @@ func MatchFiles() {
 }
 
 func loadMFiles(cudMap map[int64]int64) (map[string]*MFile, error) {
-	files, err := models.Files(mdb, qm.Where("sha1 is not null")).All()
+	files, err := models.Files(qm.Where("sha1 is not null")).All(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load MDB files")
 	}
@@ -106,13 +106,13 @@ func loadMFiles(cudMap map[int64]int64) (map[string]*MFile, error) {
 }
 
 func loadKFiles() (map[string]*KFile, error) {
-	rows, err := queries.Raw(kmdb, `SELECT
+	rows, err := queries.Raw(`SELECT
   fa.id,
   fa.sha1,
   fa.name,
   array_agg(DISTINCT cfa.container_id)
 FROM file_assets fa INNER JOIN containers_file_assets cfa ON fa.id = cfa.file_asset_id AND fa.sha1 IS NOT NULL
-GROUP BY fa.id`).Query()
+GROUP BY fa.id`).Query(kmdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load KMedia files")
 	}

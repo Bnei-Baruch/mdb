@@ -11,9 +11,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -103,7 +103,7 @@ func handleAuthors(db *sql.DB) error {
 
 func doAuthor(exec boil.Executor, header map[string]int, record []string) error {
 	// Get or create Author
-	author, err := models.Authors(exec, qm.Where("code = ?", record[header["code"]])).One()
+	author, err := models.Authors(qm.Where("code = ?", record[header["code"]])).One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Create
@@ -112,7 +112,7 @@ func doAuthor(exec boil.Executor, header map[string]int, record []string) error 
 				Name:     record[header["name"]],
 				FullName: null.NewString(record[header["full name"]], record[header["full name"]] != ""),
 			}
-			err = author.Insert(exec)
+			err = author.Insert(exec, boil.Infer())
 			if err != nil {
 				return errors.Wrapf(err, "Insert author [%s]", record)
 			}
@@ -122,7 +122,7 @@ func doAuthor(exec boil.Executor, header map[string]int, record []string) error 
 	} else {
 		author.Name = record[header["name"]]
 		author.FullName = null.NewString(record[header["full name"]], record[header["full name"]] != "")
-		err = author.Update(exec, "name", "full_name")
+		_, err = author.Update(exec, boil.Whitelist("name", "full_name"))
 		if err != nil {
 			return errors.Wrapf(err, "Update author [%d] [%s]", author.ID, record)
 		}
@@ -144,7 +144,8 @@ func doAuthor(exec boil.Executor, header map[string]int, record []string) error 
 		}
 		err = ai18n.Upsert(exec, true,
 			[]string{"author_id", "language"},
-			[]string{"name", "full_name"})
+			boil.Whitelist("name", "full_name"),
+			boil.Infer())
 		if err != nil {
 			return errors.Wrapf(err, "Upsert author i18n")
 		}
@@ -203,21 +204,21 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 	log.Infof("Author: %s, Name: %s", authorCode, name)
 
 	// Fetch author
-	author, err := models.Authors(exec, qm.Where("code = ?", authorCode)).One()
+	author, err := models.Authors(qm.Where("code = ?", authorCode)).One(exec)
 	if err != nil {
 		return errors.Wrapf(err, "Fetch author [%s]", authorCode)
 	}
 
 	// Get or create collection source
-	collection, err := models.Sources(exec,
+	collection, err := models.Sources(
 		qm.InnerJoin("authors_sources x on x.source_id = sources.id and author_id = ?", author.ID),
 		qm.Where("name = ? and parent_id is null", name)).
-		One()
+		One(exec)
 	if err == nil {
 		// update
 		if collection.Pattern.Valid || pattern != "" {
 			collection.Pattern = null.NewString(pattern, pattern != "")
-			err = collection.Update(exec, "pattern")
+			_, err = collection.Update(exec, boil.Whitelist("pattern"))
 			if err != nil {
 				return errors.Wrapf(err, "Update collection [%d]", collection.ID)
 			}
@@ -256,7 +257,8 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 		}
 		err = si18n.Upsert(exec, true,
 			[]string{"source_id", "language"},
-			[]string{"name", "description"})
+			boil.Whitelist("name", "description"),
+			boil.Infer())
 		if err != nil {
 			return errors.Wrapf(err, "Upsert collection i18n")
 		}
@@ -319,15 +321,15 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 
 		// Get or Create source
 		parent := parents[level-1]
-		source, err := models.Sources(exec,
+		source, err := models.Sources(
 			qm.Where("type_id = ? and parent_id = ? and name = ?", sType.ID, parent.ID, name)).
-			One()
+			One(exec)
 		if err == nil {
 			// update
 			source.Description = null.NewString(description, description != "")
 			source.Pattern = null.NewString(pattern, pattern != "")
 			source.Position = null.NewInt(position, position != -1)
-			err = source.Update(exec, "description", "pattern", "position")
+			_, err = source.Update(exec, boil.Whitelist("description", "pattern", "position"))
 			if err != nil {
 				return errors.Wrapf(err, "Update source [%d %d %s]", sType.ID, parent.ID, name)
 			}
@@ -343,7 +345,7 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 					ParentID:    null.Int64From(parent.ID),
 					Position:    null.NewInt(position, position != -1),
 				}
-				err = source.Insert(exec)
+				err = source.Insert(exec, boil.Infer())
 				if err != nil {
 					return errors.Wrapf(err, "Insert source [%s]", x)
 				}
@@ -368,7 +370,8 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 			}
 			err = si18n.Upsert(exec, true,
 				[]string{"source_id", "language"},
-				[]string{"name", "description"})
+				boil.Whitelist("name", "description"),
+				boil.Infer())
 			if err != nil {
 				return errors.Wrapf(err, "Upsert source [%d] i18n [%s]", source.ID, l)
 			}

@@ -3,16 +3,16 @@ package kmedia
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/Bnei-Baruch/mdb/common"
 	"runtime/debug"
 	"strconv"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -277,7 +277,7 @@ func importCustomContainers(dump []int) error {
 }
 
 func importNewCUBySettings(exec boil.Executor, settings *ImportSettings) error {
-	cu, err := models.ContentUnits(mdb, qm.Where("(properties->>'kmedia_id')::int = ?", settings.KmCNID)).One()
+	cu, err := models.ContentUnits(qm.Where("(properties->>'kmedia_id')::int = ?", settings.KmCNID)).One(mdb)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return errors.Wrapf(err, "Lookup content_unit kmedia_id=%d", settings.KmCNID)
@@ -295,7 +295,7 @@ func importNewCUBySettings(exec boil.Executor, settings *ImportSettings) error {
 	if settings.CollectionUIDs != nil {
 		for j := range settings.CollectionUIDs {
 			uid := settings.CollectionUIDs[j]
-			c, err := models.Collections(exec, qm.Where("uid = ?", uid)).One()
+			c, err := models.Collections(qm.Where("uid = ?", uid)).One(exec)
 			if err != nil {
 				return errors.Wrapf(err, "Lookup collection uid = %s", uid)
 			}
@@ -332,7 +332,7 @@ func importNewCUBySettings(exec boil.Executor, settings *ImportSettings) error {
 
 		if !c.Published && cu.Published {
 			c.Published = true
-			if err := c.Update(exec); err != nil {
+			if _, err := c.Update(exec, boil.Infer()); err != nil {
 				return errors.Wrapf(err, "Update collection.published %d", c.ID)
 			}
 		}

@@ -13,9 +13,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -53,7 +53,8 @@ func (c *CreateUnits) updateUnits() {
 			log.Error(err)
 			continue
 		}
-		cu, err := c.createUnit(tx, d.Save)
+		derived := make([]int64, len(d.Doubles))
+		cu, err := c.createUnit(tx, d.Save, derived)
 		if err != nil {
 			log.Error(err)
 			if err = tx.Rollback(); err != nil {
@@ -63,12 +64,12 @@ func (c *CreateUnits) updateUnits() {
 		}
 
 		// Derivation unit type LIKITIM to origins of doubles
-		for _, uid := range d.Doubles {
+		for i, uid := range d.Doubles {
 			if uid == d.Save {
 				continue
 			}
 
-			if err = moveData(tx, uid, cu); err != nil {
+			if err = moveData(tx, uid, cu, derived, i); err != nil {
 				log.Error(err)
 				if err = tx.Rollback(); err != nil {
 					log.Errorf("problem rollback transaction. Error: %s", err)
@@ -84,12 +85,15 @@ func (c *CreateUnits) updateUnits() {
 	}
 }
 
-func (c *CreateUnits) createUnit(tx *sql.Tx, uid string) (*models.ContentUnit, error) {
+func (c *CreateUnits) createUnit(tx *sql.Tx, uid string, derived []int64) (*models.ContentUnit, error) {
 	//fetch files and get origin unit
-	f, err := models.Files(tx,
+	f, err := models.Files(
 		qm.Where("uid = ?", uid),
-		qm.Load("ContentUnit", "ContentUnit.Files", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source"),
-	).One()
+		qm.Load("ContentUnit"),
+		qm.Load("ContentUnit.Files"),
+		qm.Load("ContentUnit.DerivedContentUnitDerivations"),
+		qm.Load("ContentUnit.DerivedContentUnitDerivations.Source"),
+	).One(tx)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Can't find base file by uid: %s.", uid)
 	}
@@ -105,10 +109,11 @@ func (c *CreateUnits) createUnit(tx *sql.Tx, uid string) (*models.ContentUnit, e
 		return nil, errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit)
 	}
 
-	cuo, err := models.ContentUnits(tx,
+	cuo, err := models.ContentUnits(
 		qm.Where("id = ?", f.R.ContentUnit.R.DerivedContentUnitDerivations[0].SourceID),
-		qm.Load("ContentUnitI18ns", "Tags"),
-	).One()
+		qm.Load("ContentUnitI18ns"),
+		qm.Load("Tags"),
+	).One(tx)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit)
 	}
@@ -131,6 +136,7 @@ func (c *CreateUnits) createUnit(tx *sql.Tx, uid string) (*models.ContentUnit, e
 		return nil, err
 	}
 	//derivation to origin
+	derived[0] = cuo.ID
 	cud := &models.ContentUnitDerivation{
 		SourceID:  cuo.ID,
 		DerivedID: cu.ID,
@@ -142,10 +148,13 @@ func (c *CreateUnits) createUnit(tx *sql.Tx, uid string) (*models.ContentUnit, e
 	return &cu, nil
 }
 
-func moveData(tx *sql.Tx, uid string, cu *models.ContentUnit) error {
+func moveData(tx *sql.Tx, uid string, cu *models.ContentUnit, derived []int64, pos int) error {
 
-	f, err := models.Files(tx, qm.Where("uid = ?", uid),
-		qm.Load("ContentUnit", "ContentUnit.DerivedContentUnitDerivations", "ContentUnit.DerivedContentUnitDerivations.Source")).One()
+	f, err := models.Files(qm.Where("uid = ?", uid),
+		qm.Load("ContentUnit"),
+		qm.Load("ContentUnit.DerivedContentUnitDerivations"),
+		qm.Load("ContentUnit.DerivedContentUnitDerivations.Source")).
+		One(tx)
 	if err != nil {
 		return errors.Wrapf(err, "Can't find file by uid: %s.", uid)
 	}
@@ -157,7 +166,13 @@ func moveData(tx *sql.Tx, uid string, cu *models.ContentUnit) error {
 	if len(f.R.ContentUnit.R.DerivedContentUnitDerivations) == 0 {
 		return errors.Wrapf(err, "Can't find origin unit by unit: %v.", f.R.ContentUnit)
 	}
-
+	//check if new unit was already derived (origins can be same)
+	for _, duid := range derived {
+		if duid == f.R.ContentUnit.R.DerivedContentUnitDerivations[0].SourceID {
+			return nil
+		}
+	}
+	derived[pos] = f.R.ContentUnit.R.DerivedContentUnitDerivations[0].SourceID
 	d := &models.ContentUnitDerivation{
 		SourceID:  f.R.ContentUnit.R.DerivedContentUnitDerivations[0].SourceID,
 		DerivedID: cu.ID,
@@ -175,7 +190,7 @@ func (c *CreateUnits) moveFiles(tx *sql.Tx, cukm, newu *models.ContentUnit) erro
 			continue
 		}
 		f.ContentUnitID = null.Int64{Int64: newu.ID, Valid: true}
-		if err := f.Update(tx, "content_unit_id"); err != nil {
+		if _, err := f.Update(tx, boil.Whitelist("content_unit_id")); err != nil {
 			return errors.Wrapf(err, "Can't insert files from kitvei makor unit: %s  to new CU: %s", cukm.UID, newu.UID)
 		}
 	}
@@ -191,7 +206,7 @@ func (c *CreateUnits) createCU(tx *sql.Tx, cuo *models.ContentUnit, filmDate str
 		Published:  true,
 		Properties: null.JSONFrom(props),
 	}
-	err := cu.Insert(tx)
+	err := cu.Insert(tx, boil.Infer())
 	if err != nil {
 		log.Errorf("Can't add tags for CU id %d. Error: %s", cu.ID, err)
 		return cu, err

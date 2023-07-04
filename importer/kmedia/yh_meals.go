@@ -7,8 +7,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
@@ -61,7 +62,7 @@ func importFlatCatalog(catalogID int, cuType string) error {
 func importFlatContainer(exec boil.Executor, container *kmodels.Container, cuType string) error {
 	stats.ContainersProcessed.Inc(1)
 
-	unit, err := models.ContentUnits(mdb, qm.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One()
+	unit, err := models.ContentUnits(qm4.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One(mdb)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Infof("New CU %d %s", container.ID, container.Name.String)
@@ -80,7 +81,7 @@ func importFlatContainer(exec boil.Executor, container *kmodels.Container, cuTyp
 	if cuType != common.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
 		log.Infof("Overriding CU Type to %s", cuType)
 		unit.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[cuType].ID
-		err = unit.Update(exec, "type_id")
+		_, err = unit.Update(exec, boil.Whitelist("type_id"))
 		if err != nil {
 			return errors.Wrapf(err, "Update CU type %d", unit.ID)
 		}

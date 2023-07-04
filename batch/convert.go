@@ -15,9 +15,9 @@ import (
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -67,7 +67,7 @@ func PrepareFilesForConvert() {
 	MT_FLV = common.MEDIA_TYPE_REGISTRY.ByExtension["flv"].MimeType
 
 	log.Info("Loading video files")
-	files, err := models.Files(mdb, qm.Where("type=?", "video")).All()
+	files, err := models.Files(qm.Where("type=?", "video")).All(mdb)
 	utils.Must(err)
 	log.Infof("Got %d video files", len(files))
 
@@ -256,9 +256,9 @@ func QueueWork() {
 
 func doQueueWork() error {
 	// clear previously rejected files
-	_, err := queries.Raw(mdb,
+	_, err := queries.Raw(
 		"update batch_convert set request_at = null, request_error = null where request_error=$1",
-		"Cannot start transcoding").Exec()
+		"Cannot start transcoding").Exec(mdb)
 	if err != nil {
 		return errors.Wrap(err, "clear previously rejected")
 	}
@@ -266,7 +266,7 @@ func doQueueWork() error {
 	// fetch next set of candidates and queue them up
 	pageSize := 100
 	query := `select f.id, encode(f.sha1,'hex') from batch_convert bc inner join files f on bc.file_id = f.id and bc.request_at is null and request_error is null limit $1`
-	rows, err := queries.Raw(mdb, query, pageSize).Query()
+	rows, err := queries.Raw(query, pageSize).Query(mdb)
 	if err != nil {
 		return errors.Wrap(err, "Load page")
 	}
@@ -312,12 +312,13 @@ func queueFile(id int64, sha1 string) error {
 		}
 		log.Warnf("HTTP Error [%d]: %s", resp.StatusCode, string(b))
 
-		_, err = queries.Raw(mdb, "update batch_convert set request_at=now_utc(), request_error=$1 where file_id=$2", string(b), id).Exec()
+		_, err = queries.Raw("update batch_convert set request_at=now_utc(), request_error=$1 where file_id=$2", string(b), id).
+			Exec(mdb)
 		if err != nil {
 			return errors.Wrapf(err, "Update db queue request_error [%d]: %s", id, string(b))
 		}
 	} else {
-		_, err := queries.Raw(mdb, "update batch_convert set request_at=now_utc() where file_id=$1", id).Exec()
+		_, err := queries.Raw("update batch_convert set request_at=now_utc() where file_id=$1", id).Exec(mdb)
 		if err != nil {
 			return errors.Wrapf(err, "Update db queue [%d]", id)
 		}

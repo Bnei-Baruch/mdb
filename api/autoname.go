@@ -1,6 +1,7 @@
 package api
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -8,28 +9,22 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
-	"github.com/Bnei-Baruch/mdb/bindata"
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
 )
 
+//go:embed i18n.json
+var i18nJson []byte
+
 var I18n map[string]map[string]string
 
 func init() {
-	data, err := bindata.Asset("data/i18n.json")
-	if err != nil {
-		panic(err)
-	}
-
-	err = json.Unmarshal(data, &I18n)
-	if err != nil {
-		panic(err)
-	}
+	utils.Must(json.Unmarshal(i18nJson, &I18n))
 }
 
 type MissingI18n struct {
@@ -167,6 +162,16 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 				return nil, errors.Wrap(err, "Name by tag")
 			}
 			break
+		case "likutim":
+			if idx >= len(metadata.Likutim) {
+				log.Warnf("metadata.major index out of bounds got %d but only %d elements in likutim",
+					idx, len(metadata.Likutim))
+			}
+			names, err = nameByUnitUID(exec, metadata.Likutim[idx])
+			if err != nil {
+				return nil, errors.Wrap(err, "Name by likutim")
+			}
+			break
 		default:
 			log.Warnf("Unknown metadata.major type %s", metadata.Major.Type)
 		}
@@ -174,7 +179,7 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 		// no Major info from metadata
 		// give names by what we have in DB
 		// may be used by batch processes
-		err = cu.L.LoadTags(exec, true, cu)
+		err = cu.L.LoadTags(exec, true, cu, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "Load tags from DB")
 		}
@@ -184,7 +189,7 @@ func (d LessonPartDescriber) DescribeContentUnit(exec boil.Executor,
 				return nil, errors.Wrap(err, "Name by tag")
 			}
 		} else {
-			err = cu.L.LoadSources(exec, true, cu)
+			err = cu.L.LoadSources(exec, true, cu, nil)
 			if err != nil {
 				return nil, errors.Wrap(err, "Load sources from DB")
 			}
@@ -247,9 +252,10 @@ func (d CollectionNameDescriber) DescribeContentUnit(exec boil.Executor,
 		return new(GenericDescriber).DescribeContentUnit(exec, cu, metadata)
 	}
 
-	collection, err := models.Collections(exec,
+	collection, err := models.Collections(
 		qm.Where("uid=?", metadata.CollectionUID.String),
-		qm.Load("CollectionI18ns")).One()
+		qm.Load("CollectionI18ns")).
+		One(exec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Lookup collection in DB")
 	}
@@ -260,7 +266,11 @@ func (d CollectionNameDescriber) DescribeContentUnit(exec boil.Executor,
 		if i18n == nil {
 			continue
 		}
-		names[language] = fmt.Sprintf("%s %s", i18n.Name.String, metadata.Episode.String)
+		n := i18n.Description
+		if !n.Valid || strings.TrimSpace(n.String) == "" {
+			n = i18n.Name
+		}
+		names[language] = fmt.Sprintf("%s", n.String)
 	}
 
 	return makeCUI18ns(cu.ID, names), nil
@@ -298,10 +308,11 @@ func (d BlogPostDescriber) DescribeContentUnit(exec boil.Executor,
 var CUDescribers = map[string]ContentUnitDescriber{
 	common.CT_LESSON_PART:           new(LessonPartDescriber),
 	common.CT_VIDEO_PROGRAM_CHAPTER: new(CollectionNameDescriber),
+	common.CT_CLIP:                  new(CollectionNameDescriber),
+	common.CT_VIRTUAL_LESSON:        new(CollectionNameDescriber),
 	common.CT_BLOG_POST:             new(BlogPostDescriber),
 	common.CT_MEAL:                  &FixedKeyDescriber{Key: "autoname.meal"},
 	common.CT_FRIENDS_GATHERING:     &FixedKeyDescriber{Key: "autoname.yh"},
-	common.CT_CLIP:                  new(CollectionNameDescriber),
 }
 
 var CDescribers = map[string]CollectionDescriber{}
@@ -312,9 +323,10 @@ func (d EventPartDescriber) DescribeContentUnit(exec boil.Executor,
 	cu *models.ContentUnit,
 	metadata CITMetadata) ([]*models.ContentUnitI18n, error) {
 
-	collection, err := models.Collections(exec,
+	collection, err := models.Collections(
 		qm.Where("uid=?", metadata.CollectionUID.String),
-		qm.Load("CollectionI18ns")).One()
+		qm.Load("CollectionI18ns")).
+		One(exec)
 	if err != nil {
 		return nil, errors.Wrap(err, "Lookup collection in DB")
 	}
@@ -366,8 +378,9 @@ func GetCUDescriber(exec boil.Executor, cu *models.ContentUnit, metadata CITMeta
 
 	// do we need a special describer based on collection ?
 	if metadata.CollectionUID.Valid {
-		collection, err := models.Collections(exec,
-			qm.Where("uid=?", metadata.CollectionUID.String)).One()
+		collection, err := models.Collections(
+			models.CollectionWhere.UID.EQ(metadata.CollectionUID.String)).
+			One(exec)
 		if err != nil {
 			return nil, errors.Wrap(err, "Lookup collection in DB")
 		}
@@ -480,7 +493,7 @@ func nameBySourceUID(exec boil.Executor, uid string) (map[string]string, error) 
 		return nil, errors.Wrapf(err, "Load source path from DB")
 	}
 
-	err = s.L.LoadSourceI18ns(exec, false, &path)
+	err = s.L.LoadSourceI18ns(exec, false, &path, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load sources i18ns from DB")
 	}
@@ -805,7 +818,7 @@ func nameByTagUID(exec boil.Executor, uid string, cNumber *int) (map[string]stri
 		return nil, errors.Wrapf(err, "Load tag path from DB")
 	}
 
-	err = t.L.LoadTagI18ns(exec, false, &path)
+	err = t.L.LoadTagI18ns(exec, false, &path, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load tag i18ns from DB")
 	}
@@ -841,6 +854,32 @@ func nameByTagUID(exec boil.Executor, uid string, cNumber *int) (map[string]stri
 			if i18n != nil && i18n.Label.Valid {
 				names[language] = i18n.Label.String
 			}
+		}
+	}
+
+	return names, nil
+}
+
+func nameByUnitUID(exec boil.Executor, uid string) (map[string]string, error) {
+
+	// Load Unit details from DB
+	cu, err := models.ContentUnits(
+		qm.Where("uid = ?", uid),
+		qm.Load("ContentUnitI18ns")).
+		One(exec)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Find Unit in DB")
+	}
+
+	// create names
+	names := make(map[string]string)
+	if cu.R.ContentUnitI18ns == nil {
+		return names, nil
+	}
+
+	for _, i18n := range cu.R.ContentUnitI18ns {
+		if i18n.Name.Valid {
+			names[i18n.Language] = i18n.Name.String
 		}
 	}
 

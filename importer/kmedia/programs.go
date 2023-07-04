@@ -2,16 +2,17 @@ package kmedia
 
 import (
 	"database/sql"
-	"github.com/Bnei-Baruch/mdb/common"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Bnei-Baruch/mdb/common"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
@@ -55,9 +56,9 @@ func importChapters() error {
 		log.Infof("Processing catalog %d", catalogID)
 		stats.CatalogsProcessed.Inc(1)
 
-		collection, err := models.Collections(mdb,
+		collection, err := models.Collections(
 			qm.Where("(properties->>'kmedia_id')::int = ?", catalogID)).
-			One()
+			One(mdb)
 		if err != nil {
 			return errors.Wrapf(err, "Lookup collection in mdb [kmid %d]", catalogID)
 		}
@@ -105,9 +106,9 @@ func importChapters() error {
 func importChapter(exec boil.Executor, collection *models.Collection, container *kmodels.Container) error {
 	stats.ContainersProcessed.Inc(1)
 
-	exists, err := models.ContentUnits(mdb,
+	exists, err := models.ContentUnits(
 		qm.Where("(properties->>'kmedia_id')::int = ?", container.ID),
-	).Exists()
+	).Exists(mdb)
 	if err != nil {
 		return errors.Wrapf(err, "Lookup content unit kmid %d", container.ID)
 	}
@@ -170,7 +171,7 @@ func importChapterNewUnit(exec boil.Executor, collection *models.Collection, con
 
 	if unit.Published {
 		collection.Published = true
-		err = unit.Update(exec, "published")
+		_, err = unit.Update(exec, boil.Whitelist("published"))
 		if err != nil {
 			return errors.Wrapf(err, "Update unit published column %d", container.ID)
 		}

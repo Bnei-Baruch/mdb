@@ -11,9 +11,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -36,10 +36,10 @@ func run(mdb *sql.DB) {
 	names := getNames()
 	log.Infof("Take file names from tar: %v\n", names)
 	// actual removal
-	files, err := models.Files(mdb,
+	files, err := models.Files(
 		qm.WhereIn("name in ?", utils.ConvertArgsString(names)...),
 		qm.Load("Operations"),
-	).All()
+	).All(mdb)
 	utils.Must(err)
 	log.Infof("Found %d files for remove", len(files))
 	removeCount := len(files)
@@ -67,7 +67,7 @@ func deleteFileOnTransaction(mdb *sql.DB, fId int64, oIds []int64) error {
 
 	log.Infof("Start remove files_operations with files ids:%v ", fId)
 	qfo := fmt.Sprintf("DELETE FROM files_operations fo where  fo.file_id = %d", fId)
-	_, err = queries.Raw(mdb, qfo).Exec()
+	_, err = queries.Raw(qfo).Exec(mdb)
 	if err != nil {
 		log.Errorf("Problem on delete files_operations: %s ", err)
 		errR := tx.Rollback()
@@ -81,7 +81,7 @@ func deleteFileOnTransaction(mdb *sql.DB, fId int64, oIds []int64) error {
 	log.Infof("Start remove operations with ids: %v ", oIds)
 
 	if len(oIds) > 0 {
-		err = models.Operations(mdb, qm.WhereIn("id IN ?", utils.ConvertArgsInt64(oIds)...)).DeleteAll()
+		_, err = models.Operations(qm.WhereIn("id IN ?", utils.ConvertArgsInt64(oIds)...)).DeleteAll(mdb)
 		if err != nil {
 			log.Errorf("Problem on delete operations: %s ", err)
 			errR := tx.Rollback()
@@ -94,7 +94,7 @@ func deleteFileOnTransaction(mdb *sql.DB, fId int64, oIds []int64) error {
 	}
 
 	qfs := fmt.Sprintf("DELETE FROM files_storages fs where  fs.file_id = %d", fId)
-	_, err = queries.Raw(mdb, qfs).Exec()
+	_, err = queries.Raw(qfs).Exec(mdb)
 	if err != nil {
 		log.Errorf("Problem on delete files_storages: %s ", err)
 		errR := tx.Rollback()
@@ -105,7 +105,7 @@ func deleteFileOnTransaction(mdb *sql.DB, fId int64, oIds []int64) error {
 		return err
 	}
 
-	err = models.Files(mdb, qm.WhereIn("id = ?", fId)).DeleteAll()
+	_, err = models.Files(qm.WhereIn("id = ?", fId)).DeleteAll(mdb)
 	if err != nil {
 		log.Errorf("Problem on delete files: %s ", err)
 		errR := tx.Rollback()

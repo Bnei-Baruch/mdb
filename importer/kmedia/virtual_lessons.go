@@ -10,9 +10,10 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
@@ -141,7 +142,7 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 					debug.PrintStack()
 					break
 				}
-				if file !=nil && file.Published {
+				if file != nil && file.Published {
 					unit.Published = true
 				}
 			}
@@ -150,7 +151,7 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 			}
 			if unit.Published {
 				collection.Published = true
-				err = unit.Update(tx, "published")
+				_, err = unit.Update(tx, boil.Whitelist("published"))
 			}
 			if err != nil {
 				break
@@ -158,7 +159,7 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 		}
 
 		if collection.Published {
-			err = collection.Update(tx, "published")
+			_, err = collection.Update(tx, boil.Whitelist("published"))
 		}
 		if err == nil {
 			utils.Must(tx.Commit())
@@ -173,7 +174,7 @@ func worker(jobs <-chan *kmodels.VirtualLesson, wg *sync.WaitGroup) {
 }
 
 func importVirtualLesson(exec boil.Executor, vl *kmodels.VirtualLesson) (*models.Collection, error) {
-	collection, err := models.Collections(exec, qm.Where("(properties->>'kmedia_id')::int = ?", vl.ID)).One()
+	collection, err := models.Collections(qm4.Where("(properties->>'kmedia_id')::int = ?", vl.ID)).One(exec)
 	if err == nil {
 		stats.CollectionsUpdated.Inc(1)
 	} else {
@@ -183,7 +184,7 @@ func importVirtualLesson(exec boil.Executor, vl *kmodels.VirtualLesson) (*models
 				UID:    utils.GenerateUID(8),
 				TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID,
 			}
-			err = collection.Insert(exec)
+			err = collection.Insert(exec, boil.Infer())
 			if err != nil {
 				return nil, errors.Wrapf(err, "Insert collection, virtual lesson [%d]", vl.ID)
 			}
@@ -209,8 +210,12 @@ func importVirtualLesson(exec boil.Executor, vl *kmodels.VirtualLesson) (*models
 	collection.Properties = null.JSONFrom(p)
 
 	// TODO: what to do with name and description ?
+	_, err = collection.Update(exec, boil.Infer())
+	if err != nil {
+		return nil, errors.Wrapf(err, "Update collection, virtual lesson [%d]", vl.ID)
+	}
 
-	return collection, collection.Update(exec)
+	return collection, nil
 }
 
 func getValidContainers(exec boil.Executor, vl *kmodels.VirtualLesson) ([]*kmodels.Container, error) {

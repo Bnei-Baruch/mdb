@@ -11,9 +11,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
@@ -42,10 +42,10 @@ func OrganizeKiteiMakor() {
 	utils.Must(common.InitTypeRegistries(mdb))
 
 	log.Info("Loading kitei-makor files")
-	ktFiles, err := models.Files(mdb,
+	ktFiles, err := models.Files(
 		qm.Where("name ~ ?", "kitei-makor"),
 		qm.Load("ContentUnit")).
-		All()
+		All(mdb)
 	utils.Must(err)
 	log.Infof("Got %d files", len(ktFiles))
 
@@ -101,7 +101,7 @@ func doOrganizeKiteiMakor(ktFiles []*models.File) error {
 		// 1. if KT CU doesn't exist then create it and link it
 		// 2. move all 'kitei-makor' files into KT CU
 		if common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name == common.CT_KITEI_MAKOR {
-			err := cu.L.LoadDerivedContentUnitDerivations(mdb, true, cu)
+			err := cu.L.LoadDerivedContentUnitDerivations(mdb, true, cu, nil)
 			if err != nil {
 				return errors.Wrapf(err, "Load Source CUs for %d", cu.ID)
 			}
@@ -119,7 +119,7 @@ func doOrganizeKiteiMakor(ktFiles []*models.File) error {
 				}
 			}
 		} else {
-			err := cu.L.LoadSourceContentUnitDerivations(mdb, true, cu)
+			err := cu.L.LoadSourceContentUnitDerivations(mdb, true, cu, nil)
 			if err != nil {
 				return errors.Wrapf(err, "Load Derived CUs for %d", cu.ID)
 			}
@@ -222,7 +222,7 @@ func createKTCU(exec boil.Executor, mainCU *models.ContentUnit, ktFiles []*model
 	}
 
 	ktCU.Published = true
-	err = ktCU.Update(exec, "published")
+	_, err = ktCU.Update(exec, boil.Whitelist("published"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Update KT CU published %d", ktCU.ID)
 	}
@@ -247,9 +247,9 @@ func moveKTFiles(exec boil.Executor, ktFiles []*models.File, cuID int64) error {
 		ids[i] = strconv.Itoa(int(ktFiles[i].ID))
 	}
 
-	_, err := queries.Raw(exec,
+	_, err := queries.Raw(
 		fmt.Sprintf("UPDATE files SET content_unit_id=%d WHERE id IN (%s)", cuID, strings.Join(ids, ","))).
-		Exec()
+		Exec(exec)
 	if err != nil {
 		return errors.Wrap(err, "move KT files")
 	}

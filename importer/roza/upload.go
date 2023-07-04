@@ -3,13 +3,13 @@ package roza
 import (
 	"fmt"
 	"os"
-	"time"
 	"sort"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 
 	"github.com/Bnei-Baruch/mdb/utils"
 )
@@ -20,7 +20,7 @@ type UploadFile struct {
 	KmCnName string
 }
 
-func PrepareUpoad() {
+func PrepareUpload() {
 	clock := Init()
 
 	idx := new(RozaIndex)
@@ -41,7 +41,7 @@ func PrepareUpoad() {
 }
 
 func loadKMContainers() (map[int]string, error) {
-	rows, err := queries.Raw(kmdb, "select id, name from containers").Query()
+	rows, err := queries.Raw("select id, name from containers").Query(kmdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load Kmedia containers")
 	}

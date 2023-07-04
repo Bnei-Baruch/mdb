@@ -2,18 +2,20 @@ package kmedia
 
 import (
 	"database/sql"
-	"github.com/Bnei-Baruch/mdb/common"
 	"runtime/debug"
 	"sync"
 	"time"
 
+	"github.com/Bnei-Baruch/mdb/common"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -62,10 +64,10 @@ func UpdateI18ns() {
 
 func doUnits() error {
 	log.Info("Loading all units with kmedia_id")
-	units, err := models.ContentUnits(mdb,
+	units, err := models.ContentUnits(
 		//qm.Where("created_at > '2018-01-01'"),
-		qm.Where("properties -> 'kmedia_id' is not null")).
-		All()
+		qm4.Where("properties -> 'kmedia_id' is not null")).
+		All(mdb)
 	if err != nil {
 		return errors.Wrap(err, "Load units from mdb")
 	}
@@ -95,9 +97,9 @@ func doUnits() error {
 
 func doCollections() error {
 	log.Info("Loading all collections with kmedia_id")
-	collections, err := models.Collections(mdb,
-		qm.Where("properties -> 'kmedia_id' is not null")).
-		All()
+	collections, err := models.Collections(
+		qm4.Where("properties -> 'kmedia_id' is not null")).
+		All(mdb)
 	if err != nil {
 		return errors.Wrap(err, "Load collections from mdb")
 	}
@@ -132,7 +134,7 @@ func updateUnitWorker(jobs <-chan *models.ContentUnit, wg *sync.WaitGroup) {
 		kID := props["kmedia_id"]
 
 		var lecturerID null.Int
-		err := queries.Raw(kmdb, "select lecturer_id from containers where id = $1", kID).QueryRow().Scan(&lecturerID)
+		err := queries.Raw("select lecturer_id from containers where id = $1", kID).QueryRow(kmdb).Scan(&lecturerID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				log.Warnf("no kmedia container ID: %d", int(kID.(float64)))
@@ -144,7 +146,7 @@ func updateUnitWorker(jobs <-chan *models.ContentUnit, wg *sync.WaitGroup) {
 		}
 		stats.ContainersVisited.Inc(1)
 
-		err = u.L.LoadContentUnitsPersons(mdb, true, u)
+		err = u.L.LoadContentUnitsPersons(mdb, true, u, nil)
 		if err != nil {
 			log.Error(err)
 			debug.PrintStack()
@@ -185,7 +187,7 @@ func updateUnitWorker(jobs <-chan *models.ContentUnit, wg *sync.WaitGroup) {
 					ContentUnitID: u.ID,
 					RoleID:        1, // lecturer
 				}
-				cup.Insert(tx)
+				cup.Insert(tx, boil.Infer())
 
 				utils.Must(tx.Commit())
 			} else {
@@ -255,12 +257,13 @@ func updateCollectionWorker(jobs <-chan *models.Collection, wg *sync.WaitGroup) 
 				ci18n := models.CollectionI18n{
 					CollectionID: u.ID,
 					Language:     common.LANG_MAP[d.LangID.String],
-					Name:         d.Name,
+					Name:         null.NewString(d.Name.String, d.Name.Valid),
 				}
 				err = ci18n.Upsert(tx,
 					true,
 					[]string{"collection_id", "language"},
-					[]string{"name"})
+					boil.Whitelist("name"),
+					boil.Infer())
 				if err != nil {
 					log.Error(err)
 					debug.PrintStack()

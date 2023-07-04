@@ -1,19 +1,19 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
 	"math"
 	"net/http"
 
-	"database/sql"
 	"github.com/lib/pq"
-	"github.com/volatiletech/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 	"gopkg.in/gin-gonic/gin.v1"
 
 	"github.com/Bnei-Baruch/mdb/common"
 )
 
-// args:
+// SOURCE_HIERARCHY_SQL args:
 // 0,1,3,4 language
 // 2 roots clause, "parent_id is NULL", "id = 8392", etc...
 // 5 depth (int)
@@ -54,7 +54,7 @@ SELECT
 FROM authors a;
 `
 
-// args:
+// TAG_HIERARCHY_SQL args:
 // 0,2 language
 // 1 roots clause, "parent_id is NULL", "id = 8392", etc...
 // 3 depth (int)
@@ -110,7 +110,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 	// Execute query
 	mdb := c.MustGet("MDB").(*sql.DB)
 	rsql := fmt.Sprintf(SOURCE_HIERARCHY_SQL, l, l, rootClause, l, l, depth)
-	rows, err := queries.Raw(mdb, rsql).Query()
+	rows, err := queries.Raw(rsql).Query(mdb)
 	if err != nil {
 		NewInternalError(err).Abort(c)
 		return
@@ -155,7 +155,7 @@ func SourcesHierarchyHandler(c *gin.Context) {
 
 	if r.RootUID == "" {
 		rsql = fmt.Sprintf(AUTHORS_SOURCES_SQL, l, l)
-		rows, err := queries.Raw(mdb, rsql).Query()
+		rows, err := queries.Raw(rsql).Query(mdb)
 		if err != nil {
 			NewInternalError(err).Abort(c)
 			return
@@ -221,7 +221,7 @@ func TagsHierarchyHandler(c *gin.Context) {
 	// Execute query
 	mdb := c.MustGet("MDB").(*sql.DB)
 	rsql := fmt.Sprintf(TAG_HIERARCHY_SQL, l, rootClause, l, depth)
-	rows, err := queries.Raw(mdb, rsql).Query()
+	rows, err := queries.Raw(rsql).Query(mdb)
 	if err != nil {
 		NewInternalError(err).Abort(c)
 		return

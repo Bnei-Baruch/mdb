@@ -1,18 +1,18 @@
 package permissions
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/casbin/casbin"
 	"github.com/stretchr/testify/suite"
 
-	"context"
-	"encoding/json"
-	"fmt"
-	"github.com/Bnei-Baruch/mdb/bindata"
-	"github.com/Bnei-Baruch/mdb/utils"
 	"github.com/coreos/go-oidc"
+
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type PermissionsSuite struct {
@@ -30,11 +30,8 @@ func (suite *PermissionsSuite) TestPermissions() {
 	e.EnableLog(false)
 
 	// load model
-	pModel, err := bindata.Asset("data/permissions_model.conf")
-	utils.Must(err)
-	e.SetModel(casbin.NewModel(string(pModel)))
-
-	e.InitWithModelAndAdapter(casbin.NewModel(string(pModel)), NewBindataPolicyAdapter())
+	e.SetModel(casbin.NewModel(permissionsModel))
+	e.InitWithModelAndAdapter(casbin.NewModel(permissionsModel), NewEmbeddedPolicyAdapter())
 
 	perms := [][]string{
 		{"archive_admin", "data_public", "read"},

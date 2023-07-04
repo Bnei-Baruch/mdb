@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/models"
 )
@@ -26,7 +26,8 @@ var (
 		LANG_GERMAN, LANG_DUTCH, LANG_FRENCH, LANG_PORTUGUESE, LANG_TURKISH, LANG_POLISH, LANG_ARABIC,
 		LANG_HUNGARIAN, LANG_FINNISH, LANG_LITHUANIAN, LANG_JAPANESE, LANG_BULGARIAN, LANG_GEORGIAN,
 		LANG_NORWEGIAN, LANG_SWEDISH, LANG_CROATIAN, LANG_CHINESE, LANG_PERSIAN, LANG_ROMANIAN, LANG_HINDI,
-		LANG_MACEDONIAN, LANG_SLOVENIAN, LANG_LATVIAN, LANG_SLOVAK, LANG_CZECH, LANG_UKRAINIAN, LANG_AMHARIC,
+		LANG_MACEDONIAN, LANG_SLOVENIAN, LANG_LATVIAN, LANG_CZECH, LANG_UKRAINIAN, LANG_AMHARIC,
+		LANG_INDONESIAN, LANG_ARMENIAN, LANG_ORIGINAL,
 	}
 
 	KNOWN_LANGS = regexp.MustCompile(strings.Join(ALL_LANGS, "|"))
@@ -45,8 +46,10 @@ var (
 		"FRE": LANG_FRENCH,
 		"POR": LANG_PORTUGUESE,
 		"TRK": LANG_TURKISH,
+		"TUR": LANG_TURKISH,
 		"POL": LANG_POLISH,
 		"ARB": LANG_ARABIC,
+		"ARA": LANG_ARABIC,
 		"HUN": LANG_HUNGARIAN,
 		"FIN": LANG_FINNISH,
 		"LIT": LANG_LITHUANIAN,
@@ -57,16 +60,19 @@ var (
 		"SWE": LANG_SWEDISH,
 		"HRV": LANG_CROATIAN,
 		"CHN": LANG_CHINESE,
+		"CHI": LANG_CHINESE,
 		"PER": LANG_PERSIAN,
 		"RON": LANG_ROMANIAN,
 		"HIN": LANG_HINDI,
 		"MKD": LANG_MACEDONIAN,
-		"SLV": LANG_SLOVENIAN,
 		"LAV": LANG_LATVIAN,
-		"SLK": LANG_SLOVAK,
-		"CZE": LANG_CZECH,
 		"UKR": LANG_UKRAINIAN,
 		"AMH": LANG_AMHARIC,
+		"IND": LANG_INDONESIAN,
+		"ARM": LANG_ARMENIAN,
+		"ORI": LANG_ORIGINAL,
+		"SLV": LANG_CZECH,
+		"CZE": LANG_CZECH,
 	}
 
 	ALL_CONTENT_TYPES = []string{
@@ -81,6 +87,23 @@ var (
 	ALL_OPERATION_TYPES = []string{
 		OP_CAPTURE_START, OP_CAPTURE_STOP, OP_DEMUX, OP_TRIM, OP_SEND, OP_CONVERT, OP_UPLOAD, OP_IMPORT_KMEDIA,
 		OP_SIRTUTIM, OP_INSERT, OP_TRANSCODE, OP_JOIN,
+	}
+
+	UNIT_CONTENT_TYPE_CAN_CHANGE = []string{
+		CT_LESSON_PART,
+		CT_LECTURE,
+		CT_VIRTUAL_LESSON,
+		CT_CHILDREN_LESSON,
+		CT_WOMEN_LESSON,
+		CT_FRIENDS_GATHERING,
+		CT_MEAL,
+		CT_VIDEO_PROGRAM_CHAPTER,
+		CT_EVENT_PART,
+		CT_UNKNOWN,
+		CT_CLIP,
+		CT_TRAINING,
+		CT_LELO_MIKUD,
+		CT_KTAIM_NIVCHARIM,
 	}
 
 	// Types of various, secondary, content slots in big events like congress, unity day, etc...
@@ -179,7 +202,7 @@ type ContentTypeRegistry struct {
 }
 
 func (r *ContentTypeRegistry) Init(exec boil.Executor) error {
-	types, err := models.ContentTypes(exec).All()
+	types, err := models.ContentTypes().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load content_types from DB")
 	}
@@ -199,7 +222,7 @@ type OperationTypeRegistry struct {
 }
 
 func (r *OperationTypeRegistry) Init(exec boil.Executor) error {
-	types, err := models.OperationTypes(exec).All()
+	types, err := models.OperationTypes().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load operation_types from DB")
 	}
@@ -217,7 +240,7 @@ type ContentRoleTypeRegistry struct {
 }
 
 func (r *ContentRoleTypeRegistry) Init(exec boil.Executor) error {
-	types, err := models.ContentRoleTypes(exec).All()
+	types, err := models.ContentRoleTypes().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load content_role_types from DB")
 	}
@@ -235,7 +258,7 @@ type PersonRegistry struct {
 }
 
 func (r *PersonRegistry) Init(exec boil.Executor) error {
-	types, err := models.Persons(exec, qm.Where("pattern is not null")).All()
+	types, err := models.Persons(qm.Where("pattern is not null")).All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load persons from DB")
 	}
@@ -253,7 +276,7 @@ type AuthorRegistry struct {
 }
 
 func (r *AuthorRegistry) Init(exec boil.Executor) error {
-	authors, err := models.Authors(exec).All()
+	authors, err := models.Authors().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load authors from DB")
 	}
@@ -272,7 +295,7 @@ type SourceTypeRegistry struct {
 }
 
 func (r *SourceTypeRegistry) Init(exec boil.Executor) error {
-	types, err := models.SourceTypes(exec).All()
+	types, err := models.SourceTypes().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load source_types from DB")
 	}
@@ -310,7 +333,7 @@ type TwitterUsersRegistry struct {
 }
 
 func (r *TwitterUsersRegistry) Init(exec boil.Executor) error {
-	users, err := models.TwitterUsers(exec).All()
+	users, err := models.TwitterUsers().All(exec)
 	if err != nil {
 		return errors.Wrap(err, "Load twitter users from DB")
 	}

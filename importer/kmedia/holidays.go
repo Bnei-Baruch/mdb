@@ -2,14 +2,17 @@ package kmedia
 
 import (
 	"encoding/json"
-	"github.com/Bnei-Baruch/mdb/common"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/hebcal"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -157,9 +160,9 @@ func loadAndImportMissingHolidayCollections() (map[int]*models.Collection, error
 		return nil, errors.Wrap(err, "Load hebcal")
 	}
 
-	cs, err := models.Collections(mdb,
-		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_HOLIDAY].ID)).
-		All()
+	cs, err := models.Collections(
+		qm4.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_HOLIDAY].ID)).
+		All(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load collections")
 	}
@@ -215,12 +218,13 @@ func loadAndImportMissingHolidayCollections() (map[int]*models.Collection, error
 				ci18n := models.CollectionI18n{
 					CollectionID: c.ID,
 					Language:     common.LANG_MAP[d.LangID.String],
-					Name:         d.Name,
+					Name:         null.NewString(d.Name.String, d.Name.Valid),
 				}
 				err = ci18n.Upsert(mdb,
 					true,
 					[]string{"collection_id", "language"},
-					[]string{"name"})
+					boil.Whitelist("name"),
+					boil.Infer())
 				if err != nil {
 					return nil, errors.Wrapf(err, "Upsert collection i18n, collection [%d]", c.ID)
 				}
