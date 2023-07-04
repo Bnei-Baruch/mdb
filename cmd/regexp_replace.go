@@ -23,7 +23,7 @@ func init() {
 func regexpReplacerFn(cmd *cobra.Command, args []string) {
 	//log.SetLevel(log.DebugLevel)
 	boil.DebugMode = true
-	if len(args) < 10 {
+	if len(args) < 4 {
 		fmt.Print(`You need enter 4 arguments:\n 
 			1 - table name,\n
 			2 - column name,\n
