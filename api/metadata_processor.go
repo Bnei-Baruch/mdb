@@ -754,7 +754,7 @@ var DAYS_CHECK_FOR_LESSONS_SERIES = 30
 
 func associateLessonsSeriesSources(exec boil.Executor, cu *models.ContentUnit, sUids []string) ([]events.Event, error) {
 	evnts := make([]events.Event, 0)
-	sByLeaf, err := mapParentByLeaf(exec, sUids)
+	sByLeaf, err := MapParentByLeaf(exec, sUids)
 	if err != nil {
 		return nil, NewInternalError(err)
 	}
@@ -903,7 +903,7 @@ var TES_PARTS_UIDS = []string{"9xNFLSSp", "XlukqLH8", "AerA1hNN", "1kDKQxJb", "o
 var ZOAR_UID = "AwGBQX2L"
 var ZOAR_PART_ONE_UID = "cSyh3vQM"
 
-func mapParentByLeaf(exec boil.Executor, uids []string) (map[string]string, error) {
+func MapParentByLeaf(exec boil.Executor, uids []string) (map[string]string, error) {
 
 	q := fmt.Sprintf(`
 WITH RECURSIVE recurcive_s(id, uid, parent_id, start_uid) AS(

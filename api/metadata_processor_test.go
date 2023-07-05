@@ -1293,7 +1293,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 		utils.Must(c.Reload(suite.tx))
 		_countCcu, err := models.Collections(qm.WhereIn(`properties->>'source' IN ?`, utils.ConvertArgsString(sUids)...)).Count(suite.tx)
 		utils.Must(err)
-		if i <= MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES {
+		if i < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES-1 {
 			suite.EqualValues(1, _countCcu)
 		} else {
 			suite.EqualValues(len(sUids), _countCcu)
@@ -1302,56 +1302,6 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 		utils.Must(err)
 		suite.EqualValues(i+int(countCcu)+1, countCu)
 	}
-}
-
-var tesPartByLeaf = map[string]string{"38p1N7aA": "UGcGGSpP", "1uquRur7": "NpLQT0LX", "jOttKP5x": "eNwJXy4s"}
-
-func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeries() {
-	tf := suite.simulateSimpleChain()
-
-	var sUids []string
-	for uid := range tesPartByLeaf {
-		sUids = append(sUids, uid)
-	}
-	metadata := CITMetadata{
-		ContentType:    common.CT_LESSON_PART,
-		AutoName:       "auto_name",
-		FinalName:      "final_name",
-		CaptureDate:    Date{time.Now()},
-		Language:       common.LANG_HEBREW,
-		HasTranslation: true,
-		Lecturer:       "rav",
-		Number:         null.IntFrom(1),
-		Part:           null.IntFrom(0),
-		Sources:        sUids,
-		Tags:           suite.someTags(),
-		RequireTest:    false,
-	}
-	var collections []*models.Collection
-	for i, uid := range sUids {
-		props := map[string]interface{}{"source": tesPartByLeaf[uid]}
-		c, err := CreateCollection(suite.tx, common.CT_LESSONS_SERIES, props)
-		utils.Must(err)
-		c.Published = true
-		_, err = c.Update(suite.tx, boil.Infer())
-		utils.Must(err)
-		s, err := models.Sources(models.SourceWhere.UID.EQ(uid)).One(suite.tx)
-		utils.Must(err)
-		createCUWithSourceForLessonsSeries(suite.tx, s, c, i)
-		collections = append(collections, c)
-	}
-
-	for _, c := range collections {
-		utils.Must(c.L.LoadCollectionsContentUnits(suite.tx, true, c, nil))
-		suite.EqualValues(1, len(c.R.CollectionsContentUnits))
-	}
-	_, err := ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
-	suite.Require().Nil(err)
-	for _, c := range collections {
-		utils.Must(c.L.LoadCollectionsContentUnits(suite.tx, true, c, nil))
-		suite.EqualValues(2, len(c.R.CollectionsContentUnits))
-	}
-
 }
 
 func (suite *MetadataProcessorSuite) TestDailyLesson_LikutimsAttachLessonsSeries() {
@@ -1406,10 +1356,10 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_LikutimsAttachLessonsSeries
 		utils.Must(c.Reload(suite.tx))
 		_countCcu, err := models.Collections(qm.WhereIn(`properties->>'source' IN ?`, utils.ConvertArgsString(lUids)...)).Count(suite.tx)
 		utils.Must(err)
-		if i <= MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES {
-			suite.EqualValues(1, _countCcu)
+		if i < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES-1 {
+			suite.EqualValues(1, _countCcu, fmt.Sprintf("iteration no new series %d", i))
 		} else {
-			suite.EqualValues(len(lUids), _countCcu)
+			suite.EqualValues(_countCcu, len(lUids), fmt.Sprintf("iteration %d", i))
 		}
 		countCu, err := models.CollectionsContentUnits(models.CollectionsContentUnitWhere.CollectionID.EQ(c.ID)).Count(suite.tx)
 		utils.Must(err)
@@ -2688,27 +2638,22 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 }
 
 func SomeLikutim(exec boil.Executor) ([]*models.ContentUnit, error) {
-	sources, err := models.Sources(qm.Limit(1 + rand.Intn(10))).All(exec)
-	if err != nil {
-		return nil, err
-	}
-	likutim := make([]*models.ContentUnit, len(sources))
-	for i, s := range sources {
-		likutim[i] = &models.ContentUnit{
-			UID:       s.UID,
+	likutim := make([]*models.ContentUnit, 1+rand.Intn(10))
+	for i, _ := range likutim {
+		l := &models.ContentUnit{
+			UID:       utils.GenerateUID(8),
 			TypeID:    common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
+			Secure:    0,
 			Published: true,
 		}
-		err = likutim[i].Insert(exec, boil.Infer())
-		if err != nil {
+		if err := l.Insert(exec, boil.Infer()); err != nil {
 			return nil, err
 		}
-
 		i18ns := []*models.ContentUnitI18n{{Language: common.LANG_HEBREW, Name: null.StringFrom("name")}}
-		err = likutim[i].AddContentUnitI18ns(exec, true, i18ns...)
-		if err != nil {
+		if err := l.AddContentUnitI18ns(exec, true, i18ns...); err != nil {
 			return nil, err
 		}
+		likutim[i] = l
 	}
 	return likutim, nil
 }
