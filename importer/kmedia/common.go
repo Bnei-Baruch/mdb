@@ -13,10 +13,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/common"
@@ -129,7 +130,7 @@ func importContainerWOCollectionNewCU(exec boil.Executor, container *kmodels.Con
 	}
 
 	if unit.Published {
-		err = unit.Update(exec, "published")
+		_, err = unit.Update(exec, boil.Whitelist("published"))
 		if err != nil {
 			return nil, errors.Wrapf(err, "Update unit published column %d", container.ID)
 		}
@@ -141,7 +142,7 @@ func importContainerWOCollectionNewCU(exec boil.Executor, container *kmodels.Con
 func importContainerWCollection(exec boil.Executor, container *kmodels.Container, collection *models.Collection, cuType string) error {
 	stats.ContainersProcessed.Inc(1)
 
-	unit, err := models.ContentUnits(mdb, qm.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One()
+	unit, err := models.ContentUnits(qm4.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One(mdb)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Infof("New CU %d %s", container.ID, container.Name.String)
@@ -160,7 +161,7 @@ func importContainerWCollection(exec boil.Executor, container *kmodels.Container
 	if cuType != common.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
 		log.Infof("Overriding CU Type to %s", cuType)
 		unit.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[cuType].ID
-		err = unit.Update(exec, "type_id")
+		_, err = unit.Update(exec, boil.Whitelist("type_id"))
 		if err != nil {
 			return errors.Wrapf(err, "Update CU type %d", unit.ID)
 		}
@@ -212,7 +213,7 @@ func importContainerWCollectionNewCU(exec boil.Executor, container *kmodels.Cont
 	}
 
 	if unit.Published {
-		err = unit.Update(exec, "published")
+		_, err = unit.Update(exec, boil.Whitelist("published"))
 		if err != nil {
 			return errors.Wrapf(err, "Update unit published column %d", container.ID)
 		}
@@ -230,7 +231,7 @@ func importContainer(exec boil.Executor,
 ) (*models.ContentUnit, error) {
 
 	// Get or create content unit by kmedia_id
-	unit, err := models.ContentUnits(exec, qm.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One()
+	unit, err := models.ContentUnits(qm4.Where("(properties->>'kmedia_id')::int = ?", container.ID)).One(exec)
 	if err == nil {
 		stats.ContentUnitsUpdated.Inc(1)
 		if contentType != "" && contentType != common.CONTENT_TYPE_REGISTRY.ByID[unit.TypeID].Name {
@@ -251,7 +252,7 @@ func importContainer(exec boil.Executor,
 
 	// Secure
 	unit.Secure = mapSecure(container.Secure)
-	err = unit.Update(exec, "secure")
+	_, err = unit.Update(exec, boil.Whitelist("secure"))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Update secure, unit [%d]", unit.ID)
 	}
@@ -292,13 +293,14 @@ func importContainer(exec boil.Executor,
 			cui18n := models.ContentUnitI18n{
 				ContentUnitID: unit.ID,
 				Language:      common.LANG_MAP[d.LangID.String],
-				Name:          d.ContainerDesc,
-				Description:   d.Descr,
+				Name:          null.NewString(d.ContainerDesc.String, d.ContainerDesc.Valid),
+				Description:   null.NewString(d.Descr.String, d.Descr.Valid),
 			}
 			err = cui18n.Upsert(exec,
 				true,
 				[]string{"content_unit_id", "language"},
-				[]string{"name", "description"})
+				boil.Whitelist("name", "description"),
+				boil.Infer())
 			if err != nil {
 				return nil, errors.Wrapf(err, "Upsert unit i18n, unit [%d]", unit.ID)
 			}
@@ -311,12 +313,13 @@ func importContainer(exec boil.Executor,
 			cui18n := models.ContentUnitI18n{
 				ContentUnitID: unit.ID,
 				Language:      lang,
-				Name:          container.Name,
+				Name:          null.NewString(container.Name.String, container.Name.Valid),
 			}
 			err = cui18n.Upsert(exec,
 				true,
 				[]string{"content_unit_id", "language"},
-				[]string{"name", "description"})
+				boil.Whitelist("name", "description"),
+				boil.Infer())
 			if err != nil {
 				return nil, errors.Wrapf(err, "Upsert unit i18n, unit [%d]", unit.ID)
 			}
@@ -342,12 +345,12 @@ func importContainer(exec boil.Executor,
 		return nil, errors.Wrapf(err, "Load catalogs, container [%d]", container.ID)
 	}
 
-	err = unit.L.LoadSources(exec, true, unit)
+	err = unit.L.LoadSources(exec, true, unit, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load CU sources %d", unit.ID)
 	}
 
-	err = unit.L.LoadTags(exec, true, unit)
+	err = unit.L.LoadTags(exec, true, unit, nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Load CU tags %d", unit.ID)
 	}
@@ -434,7 +437,7 @@ func createOrUpdateCCU(exec boil.Executor, unit *models.ContentUnit, ccu models.
 		if ccu.Name != x.Name || ccu.Position != x.Position {
 			x.Name = ccu.Name
 			x.Position = ccu.Position
-			err = x.Update(exec, "name", "position")
+			_, err = x.Update(exec, boil.Whitelist("name", "position"))
 			if err != nil {
 				return errors.Wrapf(err, "Update CCU [c,cu]=[%d,%d]", ccu.CollectionID, ccu.ContentUnitID)
 			}
@@ -545,7 +548,7 @@ func importFileAsset(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *mod
 	p, _ := json.Marshal(props)
 	file.Properties = null.JSONFrom(p)
 
-	err = file.Update(exec)
+	_, err = file.Update(exec, boil.Infer())
 	if err != nil {
 		return nil, errors.Wrapf(err, "Update file [%d]", file.ID)
 	}
@@ -566,9 +569,9 @@ func importFileAsset(exec boil.Executor, fileAsset *kmodels.FileAsset, unit *mod
 
 	// We use a raw query here to do nothing on conflicts
 	// These conflicts happen when different file_assets in the same lesson have identical SHA1
-	_, err = queries.Raw(exec,
+	_, err = queries.Raw(
 		`INSERT INTO files_operations (file_id, operation_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		file.ID, operation.ID).Exec()
+		file.ID, operation.ID).Exec(exec)
 
 	return file, err
 }
@@ -595,7 +598,7 @@ func initCatalogSourcesMappings() (map[int]*models.Source, error) {
 	log.Infof("Catalogs Sources Mappings has %d rows", len(records))
 
 	// read MDB sources
-	rows, err := queries.Raw(mdb, `WITH RECURSIVE rec_sources AS (
+	rows, err := queries.Raw(`WITH RECURSIVE rec_sources AS (
   SELECT
     s.id,
     concat(a.code, '/', s.name) path
@@ -609,7 +612,7 @@ func initCatalogSourcesMappings() (map[int]*models.Source, error) {
   FROM sources s INNER JOIN rec_sources rs ON s.parent_id = rs.id
 )
 SELECT *
-FROM rec_sources;`).Query()
+FROM rec_sources;`).Query(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Read MDB sources")
 	}
@@ -659,7 +662,7 @@ func initCatalogTagsMappings() (map[int]*models.Tag, error) {
 	log.Infof("Catalogs Tags Mappings has %d rows", len(records))
 
 	// Read all tags from MDB
-	tags, err := models.Tags(mdb).All()
+	tags, err := models.Tags().All(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Fetch tags from MDB")
 	}
@@ -724,7 +727,7 @@ FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id`
 		catIDs[i] = strconv.Itoa(catalogIDs[i])
 	}
 
-	rows, err := queries.Raw(kmdb, fmt.Sprintf(q, strings.Join(catIDs, ","))).Query()
+	rows, err := queries.Raw(fmt.Sprintf(q, strings.Join(catIDs, ","))).Query(kmdb)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Load containers")
 	}
@@ -765,9 +768,9 @@ FROM rec_catalogs rc INNER JOIN catalogs_containers cc ON rc.id = cc.catalog_id`
 			cnMap[cn.ID] = cn
 		}
 
-		cus, err := models.ContentUnits(mdb,
-			qm.WhereIn("(properties->>'kmedia_id')::int in ?", ids...)).
-			All()
+		cus, err := models.ContentUnits(
+			qm4.WhereIn("(properties->>'kmedia_id')::int in ?", ids...)).
+			All(mdb)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "Load content units page %d", page)
 		}
@@ -817,9 +820,9 @@ func loadContainersByTypeAndCUs(typeID int) (map[int]*kmodels.Container, map[int
 		s := page * pageSize
 		e := utils.Min(len(cnIDs), s+pageSize)
 
-		cus, err := models.ContentUnits(mdb,
-			qm.WhereIn("(properties->>'kmedia_id')::int in ?", cnIDs[s:e]...)).
-			All()
+		cus, err := models.ContentUnits(
+			qm4.WhereIn("(properties->>'kmedia_id')::int in ?", cnIDs[s:e]...)).
+			All(mdb)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "Load content units page %d", page)
 		}

@@ -9,7 +9,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/agnivade/levenshtein"
 	"github.com/pkg/errors"
-	"github.com/volatiletech/sqlboiler/queries/qm"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/importer"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -71,7 +71,7 @@ func doAnalyze() error {
 }
 
 func compareWithMDB(ffpData map[string]*FFPData) error {
-	fCount, err := models.Files(mdb).Count()
+	fCount, err := models.Files().Count(mdb)
 	if err != nil {
 		return errors.Wrapf(err, "Load files count")
 	}
@@ -85,10 +85,10 @@ func compareWithMDB(ffpData map[string]*FFPData) error {
 		log.Infof("Loading page #%d", page)
 		s := page * pageSize
 
-		files, err := models.Files(mdb,
+		files, err := models.Files(
 			qm.Offset(s),
 			qm.Limit(pageSize)).
-			All()
+			All(mdb)
 		if err != nil {
 			return errors.Wrapf(err, "Load files page %d", page)
 		}

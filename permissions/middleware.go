@@ -2,11 +2,19 @@ package permissions
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/coreos/go-oidc"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 	"gopkg.in/gin-gonic/gin.v1"
+
+	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type Roles struct {
@@ -64,11 +72,44 @@ func AuthenticationMiddleware() gin.HandlerFunc {
 				}
 
 				c.Set("ID_TOKEN_CLAIMS", claims)
+
+				mdb := c.MustGet("MDB").(*sql.DB)
+				user, err := getOrCreateUser(mdb, &claims)
+				if err != nil {
+					c.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
+					return
+				}
+
+				c.Set("USER", user)
 			}
 		}
 
 		c.Next()
 	}
+}
+
+func getOrCreateUser(mdb *sql.DB, claims *IDTokenClaims) (*models.User, error) {
+	user, err := models.Users(qm.Where("account_id = ?", claims.Sub)).One(mdb)
+	if (err != nil && err != sql.ErrNoRows) || user != nil {
+		return user, err
+	}
+
+	user = &models.User{
+		AccountID: claims.Sub,
+		Email:     claims.Email,
+		Name:      null.StringFrom(fmt.Sprintf("%s %s", claims.GivenName, claims.FamilyName)),
+	}
+
+	tx, err := mdb.Begin()
+	utils.Must(err)
+
+	err = user.Insert(tx, boil.Infer())
+	if err != nil {
+		utils.Must(tx.Rollback())
+	} else {
+		utils.Must(tx.Commit())
+	}
+	return user, err
 }
 
 func verifyWithFallback(verifiers []*oidc.IDTokenVerifier, tokenStr string) (*oidc.IDToken, error) {

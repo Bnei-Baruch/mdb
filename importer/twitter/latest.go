@@ -9,7 +9,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
@@ -75,12 +75,12 @@ func importLatestTweets(emitter *events.BufferedEmitter) error {
 }
 
 func getSinceIDs() (map[string]string, error) {
-	rows, err := queries.Raw(mdb, `select distinct on (u.id)
+	rows, err := queries.Raw(`select distinct on (u.id)
   u.username,
   t.twitter_id
 from twitter_tweets t
   inner join twitter_users u on t.user_id = u.id
-order by u.id, t.tweet_at desc`).Query()
+order by u.id, t.tweet_at desc`).Query(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "queries.Raw")
 	}

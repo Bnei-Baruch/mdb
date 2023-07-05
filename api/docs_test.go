@@ -11,8 +11,8 @@ import (
 
 	"github.com/adams-sarah/test2doc/test"
 	"github.com/stretchr/testify/suite"
+	"github.com/volatiletech/null/v8"
 	"gopkg.in/gin-gonic/gin.v1"
-	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/events"
@@ -38,8 +38,7 @@ func (suite *DocsSuite) SetupSuite() {
 	suite.Require().Nil(common.InitTypeRegistries(suite.DB))
 	//suite.Require().Nil(InitTypeRegistries(boil.GetDB()))
 
-	enforcer, err := permissions.NewEnforcer()
-	utils.Must(err)
+	enforcer := permissions.NewEnforcer()
 	enforcer.EnableEnforce(false)
 
 	gin.SetMode(gin.TestMode)
@@ -51,6 +50,7 @@ func (suite *DocsSuite) SetupSuite() {
 	SetupRoutes(suite.router)
 
 	test.RegisterURLVarExtractor(Vars)
+	var err error
 	suite.testServer, err = test.NewServer(suite.router)
 	if err != nil {
 		panic(err.Error())
@@ -253,45 +253,51 @@ func (suite *DocsSuite) Test6ConvertHandler() {
 			User:    "operator@dev.com",
 		},
 		Sha1: "0987654321fedcba0987654321fedcba11111111",
-		Output: []AVFile{
+		Output: []HLSFile{
 			{
-				File: File{
-					FileName:  "heb_file.mp4",
-					Sha1:      "0987654321fedcba0987654321fedcba33333333",
-					Size:      694,
-					CreatedAt: &Timestamp{Time: time.Now()},
-					Type:      "type",
-					SubType:   "subtype",
-					MimeType:  "mime_type",
-					Language:  common.LANG_HEBREW,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "heb_file.mp4",
+						Sha1:      "0987654321fedcba0987654321fedcba33333333",
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "type",
+						SubType:   "subtype",
+						MimeType:  "mime_type",
+						Language:  common.LANG_HEBREW,
+					},
+					Duration: 871,
 				},
-				Duration: 871,
 			},
 			{
-				File: File{
-					FileName:  "eng_file.mp4",
-					Sha1:      "0987654321fedcba0987654321fedcba44444444",
-					Size:      694,
-					CreatedAt: &Timestamp{Time: time.Now()},
-					Type:      "type",
-					SubType:   "subtype",
-					MimeType:  "mime_type",
-					Language:  common.LANG_ENGLISH,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "eng_file.mp4",
+						Sha1:      "0987654321fedcba0987654321fedcba44444444",
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "type",
+						SubType:   "subtype",
+						MimeType:  "mime_type",
+						Language:  common.LANG_ENGLISH,
+					},
+					Duration: 871,
 				},
-				Duration: 871,
 			},
 			{
-				File: File{
-					FileName:  "rus_file.mp4",
-					Sha1:      "0987654321fedcba0987654321fedcba55555555",
-					Size:      694,
-					CreatedAt: &Timestamp{Time: time.Now()},
-					Type:      "type",
-					SubType:   "subtype",
-					MimeType:  "mime_type",
-					Language:  common.LANG_RUSSIAN,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "rus_file.mp4",
+						Sha1:      "0987654321fedcba0987654321fedcba55555555",
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "type",
+						SubType:   "subtype",
+						MimeType:  "mime_type",
+						Language:  common.LANG_RUSSIAN,
+					},
+					Duration: 871,
 				},
-				Duration: 871,
 			},
 		},
 	}
@@ -305,7 +311,7 @@ func (suite *DocsSuite) Test7UploadHandler() {
 	input := UploadRequest{
 		Operation: Operation{
 			Station: "Upload station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		AVFile: AVFile{
 			File: File{
@@ -328,7 +334,7 @@ func (suite *DocsSuite) Test8SirtutimHandler() {
 	input := SirtutimRequest{
 		Operation: Operation{
 			Station: "Upload station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		File: File{
 			FileName:  "heb_o_rav_2016-09-14_lesson_o.zip",
@@ -356,7 +362,7 @@ func (suite *DocsSuite) Test9InsertHandler() {
 	input := InsertRequest{
 		Operation: Operation{
 			Station: "Insert station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		InsertType:     "akladot",
 		ContentUnitUID: cu.UID,
@@ -382,7 +388,7 @@ func (suite *DocsSuite) Test91InsertHandlerNewUnit() {
 	input := InsertRequest{
 		Operation: Operation{
 			Station: "Insert station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		InsertType: "declamation",
 		AVFile: AVFile{
@@ -423,7 +429,7 @@ func (suite *DocsSuite) Test92TranscodeHandler() {
 	input := TranscodeRequest{
 		Operation: Operation{
 			Station: "Insert station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
 		MaybeFile: MaybeFile{
@@ -443,7 +449,7 @@ func (suite *DocsSuite) Test922TranscodeHandlerError() {
 	input := TranscodeRequest{
 		Operation: Operation{
 			Station: "Insert station",
-			User:    "111operator@dev.com",
+			User:    "operator1@dev.com",
 		},
 		OriginalSha1: "0987654321fedcba0987654321fedcba11111111",
 		Message:      "Some transcoding error message",

@@ -7,13 +7,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/common"
-	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
-	log "github.com/Sirupsen/logrus"
-	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -21,6 +14,15 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/spf13/viper"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+
+	"github.com/Bnei-Baruch/mdb/common"
+	"github.com/Bnei-Baruch/mdb/models"
+	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type ComparatorDbVsFolder struct {
@@ -103,11 +105,11 @@ func (c *ComparatorDbVsFolder) untar() string {
 }
 
 func (c *ComparatorDbVsFolder) uploadData(mdb *sql.DB, dir string) {
-	units, err := models.ContentUnits(mdb,
+	units, err := models.ContentUnits(
 		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_SOURCE].ID),
 		qm.Load("Files"),
 		//qm.Limit(10),
-	).All()
+	).All(mdb)
 	utils.Must(err)
 	for _, u := range units {
 		c.unitDataFromDB(*u)

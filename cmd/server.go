@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stvp/rollbar"
-	"github.com/volatiletech/sqlboiler/boil"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"gopkg.in/gin-contrib/cors.v1"
 	"gopkg.in/gin-gonic/gin.v1"
 
@@ -76,8 +76,7 @@ func serverFn(cmd *cobra.Command, args []string) {
 	}
 
 	// casbin
-	enforcer, err := permissions.NewEnforcer()
-	utils.Must(err)
+	enforcer := permissions.NewEnforcer()
 	enforcer.EnableEnforce(viper.GetBool("permissions.enable"))
 	enforcer.EnableLog(viper.GetBool("permissions.log"))
 

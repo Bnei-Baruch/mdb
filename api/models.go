@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volatiletech/sqlboiler/types"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/types"
 
 	"github.com/Bnei-Baruch/mdb/models"
 )
@@ -49,6 +49,12 @@ type (
 		File
 		Duration  float64 `json:"duration"`
 		VideoSize string  `json:"video_size"`
+	}
+
+	HLSFile struct {
+		AVFile
+		Languages []string `json:"languages" binding:"omitempty,min=2,max=3"`
+		Qualities []string `json:"video_qualities" binding:"omitempty"`
 	}
 
 	CITMetadataMajor struct {
@@ -127,14 +133,15 @@ type (
 		Operation
 		Original Rename      `json:"original"`
 		Proxy    *Rename     `json:"proxy"`
+		Source   *Rename     `json:"source"`
 		Metadata CITMetadata `json:"metadata"`
 		Mode     null.String `json:"mode"`
 	}
 
 	ConvertRequest struct {
 		Operation
-		Sha1   string   `json:"sha1" binding:"required,len=40,hexadecimal"`
-		Output []AVFile `json:"output"`
+		Sha1   string    `json:"sha1" binding:"required,len=40,hexadecimal"`
+		Output []HLSFile `json:"output"`
 	}
 
 	UploadRequest struct {
@@ -272,6 +279,7 @@ type (
 		TagsFilter
 		SearchTermFilter
 		OriginalLanguageFilter
+		WithCollections bool `form:"with_collections" binding:"omitempty"`
 	}
 
 	ContentUnitsResponse struct {
@@ -393,12 +401,14 @@ type (
 
 	ContentUnit struct {
 		models.ContentUnit
-		I18n map[string]*models.ContentUnitI18n `json:"i18n"`
+		Collections []*Collection                      `json:"collections,omitempty"`
+		I18n        map[string]*models.ContentUnitI18n `json:"i18n"`
 	}
 
 	PartialContentUnit struct {
 		models.ContentUnit
 		Secure null.Int16 `json:"secure"`
+		TypeID null.Int16 `json:"type_id"`
 	}
 
 	CollectionContentUnit struct {
@@ -414,7 +424,7 @@ type (
 		Name    string       `json:"name"`
 	}
 
-	// Marshalable File
+	// MFile - Marshalable File
 	MFile struct {
 		models.File
 		Sha1Str      string           `json:"sha1"`
@@ -496,6 +506,49 @@ type (
 		TypeID        int64       `json:"typeId"`
 		CollectionUID null.String `json:"collectionUid,omitempty"`
 	}
+
+	LabelI18n struct {
+		models.LabelI18n
+		Author *models.User `json:"author"`
+	}
+
+	Label struct {
+		models.Label
+		I18n map[string]*LabelI18n `json:"i18n,required"`
+	}
+
+	LabelResponse struct {
+		models.Label
+		Tags        []string              `json:"tags"`
+		ContentUnit string                `json:"content_unit"`
+		I18n        map[string]*LabelI18n `json:"i18n"`
+	}
+
+	CreateLabelRequest struct {
+		Label
+		ContentUnit string   `json:"content_unit"`
+		Tags        []string `json:"tags"`
+	}
+
+	AddLabelI18nRequest struct {
+		I18n *LabelI18n `json:"i18n"`
+	}
+
+	UpdateApproveStateRequest struct {
+		ApproveState int16 `json:"state"`
+	}
+
+	LabelsRequest struct {
+		ListRequest
+		IDsFilter
+		DateRangeFilter
+		ApproveState null.Int16 `json:"approve_state"`
+	}
+
+	LabelsResponse struct {
+		ListResponse
+		Labels []*Label `json:"data"`
+	}
 )
 
 func NewCollectionsResponse() *CollectionsResponse {
@@ -540,6 +593,10 @@ func NewStoragesResponse() *StoragesResponse {
 
 func NewPublishersResponse() *PublishersResponse {
 	return &PublishersResponse{Publishers: make([]*Publisher, 0)}
+}
+
+func NewLabelsResponse() *LabelsResponse {
+	return &LabelsResponse{Labels: make([]*Label, 0)}
 }
 
 func (mf MaybeFile) AsFile() File {

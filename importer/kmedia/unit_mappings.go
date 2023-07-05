@@ -5,19 +5,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/common"
 	"io/ioutil"
 	"runtime/debug"
 	"sync"
 	"time"
 
+	"github.com/Bnei-Baruch/mdb/common"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
+	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
@@ -168,9 +170,9 @@ func fileMappingsWorker(jobs <-chan *kmodels.Container, results chan []*FileMapp
 
 		if len(sha1s) > 0 {
 			// fetch mdb files
-			files, err := models.Files(mdb,
-				qm.WhereIn("sha1 in ?", utils.ConvertArgsBytes(sha1s)...)).
-				All()
+			files, err := models.Files(
+				qm4.WhereIn("sha1 in ?", utils.ConvertArgsBytes(sha1s)...)).
+				All(mdb)
 			if err != nil {
 				log.Error(err)
 				debug.PrintStack()
@@ -305,9 +307,9 @@ func fixUnitMappings(mappings []*FileMappings) error {
 func fixFileMappings(mappings []*FileMappings) error {
 
 	// load CU to container mappings
-	rows, err := queries.Raw(mdb,
+	rows, err := queries.Raw(
 		"select id, (properties->>'kmedia_id')::int from content_units where properties ? 'kmedia_id';").
-		Query()
+		Query(mdb)
 	if err != nil {
 		return errors.Wrap(err, "Load CU to container map")
 	}
@@ -356,7 +358,7 @@ func fixFileMappings(mappings []*FileMappings) error {
 			if cuid, ok := cuMap[fm.KMediaContainerID]; ok {
 				log.Infof("Associating file %d to CU %d [container %d]", f.ID, cuid, fm.KMediaContainerID)
 				f.ContentUnitID = null.Int64From(cuid)
-				err = f.Update(mdb, "content_unit_id")
+				_, err = f.Update(mdb, boil.Whitelist("content_unit_id"))
 				if err != nil {
 					return errors.Wrapf(err, "Associate CU [file %d]", f.ID)
 				}

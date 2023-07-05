@@ -13,9 +13,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -45,12 +45,17 @@ func (c *PrintWithDoc) Run() {
 	}
 	defer os.RemoveAll(dir)
 
-	cus, err := models.ContentUnits(mdb,
+	cus, err := models.ContentUnits(
 		qm.Select("distinct on (\"content_units\".id) \"content_units\".*"),
 		//qm.InnerJoin("files f ON f.content_unit_id = \"content_units\".id"),
 		qm.Where("type_id = ?", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_KITEI_MAKOR].ID),
-		qm.Load("Files", "Tags", "Tags.TagI18ns", "DerivedContentUnitDerivations", "DerivedContentUnitDerivations.Source", "DerivedContentUnitDerivations.Source.ContentUnitI18ns"),
-	).All()
+		qm.Load("Files"),
+		qm.Load("Tags"),
+		qm.Load("Tags.TagI18ns"),
+		qm.Load("DerivedContentUnitDerivations"),
+		qm.Load("DerivedContentUnitDerivations.Source"),
+		qm.Load("DerivedContentUnitDerivations.Source.ContentUnitI18ns"),
+	).All(mdb)
 	if err != nil {
 		log.Errorf("can't load units. Error: %s", err)
 	}

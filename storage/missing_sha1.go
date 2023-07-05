@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"database/sql"
 	"encoding/csv"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -12,11 +13,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries"
 
 	"github.com/Bnei-Baruch/mdb/utils"
-	"io"
 )
 
 func MissingSha1Analysis() {
@@ -51,9 +51,8 @@ func MissingSha1Analysis() {
 func loadFilesByKMID(db *sql.DB) (map[int64]string, error) {
 	fileMap := make(map[int64]string, 500000)
 
-	rows, err := queries.Raw(db,
-		`SELECT (properties->>'kmedia_id')::int, encode(sha1, 'hex') FROM files WHERE sha1 IS NOT NULL AND properties ? 'kmedia_id'`).
-		Query()
+	rows, err := queries.Raw(`SELECT (properties->>'kmedia_id')::int, encode(sha1, 'hex') FROM files WHERE sha1 IS NOT NULL AND properties ? 'kmedia_id'`).
+		Query(db)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load files")
 	}
@@ -120,7 +119,7 @@ func analyzeSha1CSV(fileMap map[int64]string, mdb *sql.DB) error {
 		}
 
 		log.Infof("SHA1 mismatch: %d, %s != %s", kmid, sha1, dbSha1)
-		_, err = queries.Raw(mdb, "UPDATE files set sha1=decode($1,'hex') where (properties->>'kmedia_id')::int = $2", sha1, kmid).Exec()
+		_, err = queries.Raw("UPDATE files set sha1=decode($1,'hex') where (properties->>'kmedia_id')::int = $2", sha1, kmid).Exec(mdb)
 		if err != nil {
 			log.Errorf("Update sha1 %d line %d: %s", kmid, i, err.Error())
 		}
@@ -189,7 +188,7 @@ func analyzeMissingSha1CSV(fileMap map[int64]string, mdb *sql.DB) error {
 		_, ok := fileMap[int64(kmid)]
 		if ok {
 			log.Infof("SHA1 should be null kmid %d", kmid)
-			_, err = queries.Raw(mdb, "UPDATE files SET sha1=NULL WHERE (properties->>'kmedia_id')::int = $1", kmid).Exec()
+			_, err = queries.Raw("UPDATE files SET sha1=NULL WHERE (properties->>'kmedia_id')::int = $1", kmid).Exec(mdb)
 			if err != nil {
 				return errors.Wrapf(err, "Update sha1 %d", kmid)
 			}

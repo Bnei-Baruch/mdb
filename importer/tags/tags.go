@@ -9,9 +9,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -103,21 +103,21 @@ func handleTopics(db *sql.DB) error {
 		var tag *models.Tag
 		var parent *models.Tag
 		if level == 1 {
-			tag, err = models.Tags(tx,
+			tag, err = models.Tags(
 				qm.Where("parent_id is null and pattern = ?", pattern)).
-				One()
+				One(tx)
 		} else {
 			parent = parents[level-2]
-			tag, err = models.Tags(tx,
+			tag, err = models.Tags(
 				qm.Where("parent_id = ? and pattern = ?", parent.ID, pattern)).
-				One()
+				One(tx)
 		}
 
 		if err == nil {
 			// update
 			if description != "" {
 				tag.Description = null.StringFrom(description)
-				err = tag.Update(tx, "description")
+				_, err = tag.Update(tx, boil.Whitelist("description"))
 				if err != nil {
 					return errors.Wrapf(err, "Update tag %s", pattern)
 				}
@@ -134,7 +134,7 @@ func handleTopics(db *sql.DB) error {
 				if parent != nil {
 					tag.ParentID = null.Int64From(parent.ID)
 				}
-				err = tag.Insert(tx)
+				err = tag.Insert(tx, boil.Infer())
 				if err != nil {
 					return errors.Wrapf(err, "Insert tag %s", pattern)
 				}
@@ -157,7 +157,8 @@ func handleTopics(db *sql.DB) error {
 			}
 			err = ti18n.Upsert(tx, true,
 				[]string{"tag_id", "language"},
-				[]string{"label"})
+				boil.Whitelist("label"),
+				boil.Infer())
 			if err != nil {
 				return errors.Wrapf(err, "Upsert tag [%d] i18n %s", tag.ID, l)
 			}

@@ -5,16 +5,18 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/Bnei-Baruch/mdb/common"
 	"io/ioutil"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/Bnei-Baruch/mdb/common"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/volatiletech/sqlboiler/queries/qm"
+	qm4 "github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/api"
 	"github.com/Bnei-Baruch/mdb/importer/kmedia/kmodels"
@@ -61,11 +63,12 @@ func Compare() {
 
 func compareCollections() error {
 	log.Info("Loading all collections with kmedia_id")
-	collections, err := models.Collections(mdb,
+	collections, err := models.Collections(
 		//qm.Where("properties -> 'kmedia_id' is not null"),
-		qm.Where("type_id=4 and properties -> 'kmedia_id' is not null"),
-		qm.Load("CollectionsContentUnits", "CollectionsContentUnits.ContentUnit")).
-		All()
+		qm4.Where("type_id=4 and properties -> 'kmedia_id' is not null"),
+		qm4.Load("CollectionsContentUnits"),
+		qm4.Load("CollectionsContentUnits.ContentUnit")).
+		All(mdb)
 	if err != nil {
 		return errors.Wrap(err, "Load collections from mdb")
 	}
@@ -83,9 +86,9 @@ func compareCollections() error {
 
 func compareUnits() error {
 	log.Info("Loading all content units with kmedia_id")
-	units, err := models.ContentUnits(mdb,
-		qm.Where("properties -> 'kmedia_id' is not null")).
-		All()
+	units, err := models.ContentUnits(
+		qm4.Where("properties -> 'kmedia_id' is not null")).
+		All(mdb)
 	if err != nil {
 		return errors.Wrap(err, "Load content_units from mdb")
 	}
@@ -209,9 +212,9 @@ func missingContainers() (map[string][]*kmodels.Container, error) {
 	cuMap := make(map[int]bool)
 
 	log.Info("Loading all content units with kmedia_id")
-	units, err := models.ContentUnits(mdb,
-		qm.Where("properties -> 'kmedia_id' is not null")).
-		All()
+	units, err := models.ContentUnits(
+		qm4.Where("properties -> 'kmedia_id' is not null")).
+		All(mdb)
 	if err != nil {
 		return nil, errors.Wrap(err, "Load content_units from mdb")
 	}
@@ -686,9 +689,9 @@ func compareCollection(c *models.Collection) error {
 	// remaining kmedia containers not in mdb collection. Are they in MDB at all ?
 	if len(cnMap) > 0 {
 		for k, v := range cnMap {
-			cu, err := models.ContentUnits(mdb,
-				qm.Where("(properties->>'kmedia_id')::int = ?", k)).
-				One()
+			cu, err := models.ContentUnits(
+				qm4.Where("(properties->>'kmedia_id')::int = ?", k)).
+				One(mdb)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					log.Warnf("CU doesn't exists. [kmid, container_id] = [%d,%d] %s", kmid, k, v.Name.String)
@@ -715,7 +718,7 @@ func compareCollection(c *models.Collection) error {
 }
 
 func compareUnit(cu *models.ContentUnit, cn *kmodels.Container) error {
-	if err := cu.L.LoadFiles(mdb, true, cu); err != nil {
+	if err := cu.L.LoadFiles(mdb, true, cu, nil); err != nil {
 		return errors.Wrapf(err, "Load CU files %d", cu.ID)
 	}
 
@@ -799,7 +802,7 @@ func compareUnit(cu *models.ContentUnit, cn *kmodels.Container) error {
 				return errors.Wrapf(err, "hex.DecodeString %s", k)
 			}
 
-			exists, err := models.Files(mdb, qm.Where("sha1 = ?", s)).Exists()
+			exists, err := models.Files(qm4.Where("sha1 = ?", s)).Exists(mdb)
 			if err != nil {
 				return errors.Wrapf(err, "check File exists by sha1 %s", k)
 			}

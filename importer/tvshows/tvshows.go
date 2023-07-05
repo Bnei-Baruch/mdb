@@ -9,9 +9,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/boil"
-	"github.com/volatiletech/sqlboiler/queries/qm"
-	"gopkg.in/volatiletech/null.v6"
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
@@ -99,9 +99,9 @@ func handleTVShows(db *sql.DB) error {
 func doTVShow(exec boil.Executor, header map[string]int, record []string) error {
 	// Get or create TV Show
 	ctID := common.CONTENT_TYPE_REGISTRY.ByName[common.CT_VIDEO_PROGRAM].ID
-	show, err := models.Collections(exec,
+	show, err := models.Collections(
 		qm.Where("type_id = ? AND (properties->>'kmedia_id')::int = ?", ctID, record[header["kmedia_id"]])).
-		One()
+		One(exec)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Create
@@ -109,7 +109,7 @@ func doTVShow(exec boil.Executor, header map[string]int, record []string) error 
 				UID:    utils.GenerateUID(8),
 				TypeID: ctID,
 			}
-			err = show.Insert(exec)
+			err = show.Insert(exec, boil.Infer())
 			if err != nil {
 				return errors.Wrapf(err, "Insert show [%s]", record)
 			}
@@ -138,7 +138,7 @@ func doTVShow(exec boil.Executor, header map[string]int, record []string) error 
 	}
 	show.Properties = null.JSONFrom(p)
 
-	err = show.Update(exec)
+	_, err = show.Update(exec, boil.Infer())
 	if err != nil {
 		return errors.Wrap(err, "Update show properties")
 	}
@@ -157,7 +157,8 @@ func doTVShow(exec boil.Executor, header map[string]int, record []string) error 
 		}
 		err = ci18n.Upsert(exec, true,
 			[]string{"collection_id", "language"},
-			[]string{"name"})
+			boil.Whitelist("name"),
+			boil.Infer())
 		if err != nil {
 			return errors.Wrapf(err, "Upsert show i18n")
 		}

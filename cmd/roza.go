@@ -47,7 +47,7 @@ func init() {
 		Use:   "roza-upload",
 		Short: "Prepare files for upload",
 		Run: func(cmd *cobra.Command, args []string) {
-			roza.PrepareUpoad()
+			roza.PrepareUpload()
 		},
 	}
 	RootCmd.AddCommand(command)
