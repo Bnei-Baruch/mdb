@@ -62,7 +62,10 @@ func (m *TestDBManager) InitTestDB() error {
 	}
 
 	// Run migrations
-	m.runMigrations(db)
+	err = m.runMigrations(db)
+	if err != nil {
+		return err
+	}
 
 	// Setup SQLBoiler
 	m.DB = db

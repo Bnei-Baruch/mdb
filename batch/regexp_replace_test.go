@@ -1,10 +1,11 @@
 package batch
 
 import (
+	"github.com/volatiletech/null/v8"
+	"github.com/volatiletech/sqlboiler/v4/boil"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/volatiletech/null.v6"
 
 	"github.com/Bnei-Baruch/mdb/models"
 	"github.com/Bnei-Baruch/mdb/utils"
@@ -47,7 +48,7 @@ func (s *RegexpReplacerSuite) TestHttpToHttps() {
 		Title:   "test post ",
 		Content: act,
 	}
-	s.NoError(post.Insert(s.DB))
+	s.NoError(post.Insert(s.DB, boil.Infer()))
 	s.app.Do()
 	s.NoError(post.Reload(s.DB))
 	s.Equal(exp, post.Content)
@@ -62,7 +63,7 @@ func (s *RegexpReplacerSuite) TestPersonsPattern() {
 		UID:     "12345678",
 		Pattern: null.String{String: act, Valid: true},
 	}
-	s.NoError(p.Insert(s.DB))
+	s.NoError(p.Insert(s.DB, boil.Infer()))
 	s.app.Do()
 	s.NoError(p.Reload(s.DB))
 	s.Equal(exp, p.Pattern.String)
@@ -78,7 +79,7 @@ func (s *RegexpReplacerSuite) TestPostContentHtmlToText() {
 		Title:   "test post",
 		Content: act,
 	}
-	s.NoError(post.Insert(s.DB))
+	s.NoError(post.Insert(s.DB, boil.Infer()))
 	s.app.Do()
 	s.NoError(post.Reload(s.DB))
 	s.Equal(exp, post.Content)
