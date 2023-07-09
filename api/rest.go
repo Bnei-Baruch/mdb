@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/casbin/casbin"
@@ -226,9 +228,12 @@ func CollectionContentUnitsPositionHandler(c *gin.Context) {
 		NewBadRequestError(errors.Wrap(e, "id expects int64")).Abort(c)
 		return
 	}
-
+	var r CCUPositionRequest
+	if c.Bind(&r) != nil {
+		return
+	}
 	tx := mustBeginTx(c)
-	event, err = handleCollectionContentUnitsPosition(tx, id)
+	event, err = handleCollectionContentUnitsPosition(tx, id, r.OrderType)
 	mustConcludeTx(tx, err)
 	if err != nil {
 		NewInternalError(err).Abort(c)
@@ -1744,31 +1749,61 @@ func handleUpdateCollection(cp utils.ContextProvider, exec boil.Executor, c *Par
 	return handleGetCollection(cp, exec, c.ID)
 }
 
-func handleCollectionContentUnitsPosition(exec boil.Executor, id int64) (*events.Event, *HttpError) {
+func handleCollectionContentUnitsPosition(exec boil.Executor, id int64, orderType string) (*events.Event, *HttpError) {
 	collection, err := models.FindCollection(exec, id)
 	event := events.CollectionContentUnitsChangeEvent(collection)
+	all, err := models.CollectionsContentUnits(
+		qm.Load("ContentUnit"),
+		models.CollectionsContentUnitWhere.CollectionID.EQ(id),
+	).All(exec)
 	if err != nil {
-		return &event, NewInternalError(err)
+		return nil, NewInternalError(err)
 	}
 
-	_, err = queries.Raw(
-		`UPDATE collections_content_units
-		SET position = s.row_number 
-		FROM (
-			select cu.id, cu.properties ->> 'film_date', ccu.position, ROW_NUMBER() 
-			OVER ( ORDER BY cu.properties ->> 'film_date') as row_number 
-				from collections_content_units ccu 
-					inner join content_units cu on ccu.content_unit_id = cu.id and ccu.collection_id = $1 
-				order by cu.properties ->> 'film_date'
-		) AS s 
-		WHERE content_unit_id = s.id and collection_id = $1;`,
-		id).Exec(exec)
-	if err != nil {
-		return &event, NewInternalError(err)
+	if orderType == "name" {
+		sort.Slice(all, func(i, j int) bool {
+			nameI, err := strconv.Atoi(all[i].Name)
+			if err != nil {
+				nameI = len(all)
+			}
+			nameJ, err := strconv.Atoi(all[j].Name)
+			if err != nil {
+				nameJ = len(all)
+			}
+			return nameI < nameJ
+		})
+	} else {
+		sort.Slice(all, func(i, j int) bool {
+			fdI := filmDateByCUWithDefault(all[i].R.ContentUnit)
+			fdJ := filmDateByCUWithDefault(all[j].R.ContentUnit)
+			return fdI.Before(fdJ)
+		})
 	}
 
+	for i, ccu := range all {
+		ccu.Position = i
+		_, err = ccu.Update(exec, boil.Whitelist(models.CollectionsContentUnitColumns.Position))
+		if err != nil {
+			return nil, NewInternalError(err)
+		}
+	}
 	return &event, nil
 
+}
+func filmDateByCUWithDefault(cu *models.ContentUnit) time.Time {
+	fd0, _ := time.Parse("2006-01-02", "2000-01-02")
+	if !cu.Properties.Valid {
+		return fd0
+	}
+	var props map[string]interface{}
+	if err := cu.Properties.Unmarshal(&props); err != nil {
+		return fd0
+	}
+	fd, err := time.Parse("2006-01-02", props["film_date"].(string))
+	if err != nil {
+		return fd0
+	}
+	return fd
 }
 
 func handleDeleteCollection(cp utils.ContextProvider, exec boil.Executor, id int64) (*models.Collection, *HttpError) {

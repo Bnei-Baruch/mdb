@@ -419,6 +419,10 @@ type (
 		Name    string       `json:"name"`
 	}
 
+	CCUPositionRequest struct {
+		OrderType string `json:"order_type" ,validate:"omitempty,oneof=date name" `
+	}
+
 	// MFile - Marshalable File
 	MFile struct {
 		models.File
