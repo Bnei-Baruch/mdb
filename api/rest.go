@@ -1801,7 +1801,10 @@ func filmDateByCUWithDefault(cu *models.ContentUnit) time.Time {
 	}
 	fd, err := time.Parse("2006-01-02", props["film_date"].(string))
 	if err != nil {
-		return fd0
+		fd, err = time.Parse(time.RFC3339, props["film_date"].(string))
+		if err != nil {
+			return fd0
+		}
 	}
 	return fd
 }
