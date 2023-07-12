@@ -247,6 +247,10 @@ type (
 		Published string `json:"published" form:"published" binding:"omitempty"`
 	}
 
+	OriginalLanguageFilter struct {
+		OriginalLanguage string `json:"original_language" form:"original_language" binding:"omitempty"`
+	}
+
 	CollectionsRequest struct {
 		ListRequest
 		IDsFilter
@@ -274,6 +278,7 @@ type (
 		SourcesFilter
 		TagsFilter
 		SearchTermFilter
+		OriginalLanguageFilter
 		WithCollections bool `form:"with_collections" binding:"omitempty"`
 	}
 

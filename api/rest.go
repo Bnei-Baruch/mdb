@@ -2175,6 +2175,8 @@ func handleContentUnitsList(cp utils.ContextProvider, exec boil.Executor, r Cont
 	}
 	appendPublishedFilterMods(&mods, r.PublishedFilter)
 
+	appendOriginalFilterMods(&mods, r.OriginalLanguageFilter)
+
 	// count query
 	var total int64
 	countMods := append([]qm.QueryMod{qm.Select("count(DISTINCT id)")}, mods...)
@@ -5006,6 +5008,13 @@ func appendTagsFilterMods(exec boil.Executor, mods *[]qm.QueryMod, f TagsFilter)
 	}
 
 	return nil
+}
+
+func appendOriginalFilterMods(mods *[]qm.QueryMod, f OriginalLanguageFilter) {
+	if f.OriginalLanguage == "" {
+		return
+	}
+	*mods = append(*mods, qm.Where("properties->>'original_language' = ?", f.OriginalLanguage))
 }
 
 // mustBeginTx begins a transaction, panics on error.
