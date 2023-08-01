@@ -927,12 +927,16 @@ SELECT start_uid, uid FROM recurcive_s WHERE uid IN (%s)
 	var uid string
 	var nUid string
 	newByOldUid := make(map[string]string)
+	checkIsNewOnce := make(map[string]bool)
 	for rows.Next() {
 		err = rows.Scan(&uid, &nUid)
 		if err != nil {
 			return nil, NewInternalError(err)
 		}
-
+		if _, ok := checkIsNewOnce[nUid]; ok {
+			continue
+		}
+		checkIsNewOnce[nUid] = true
 		if _, ok := newByOldUid[uid]; !ok || nUid == ZOAR_PART_ONE_UID {
 			newByOldUid[uid] = nUid
 		}

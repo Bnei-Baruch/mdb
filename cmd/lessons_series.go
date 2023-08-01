@@ -15,6 +15,16 @@ var lessonsSeriesCmd = &cobra.Command{
 	},
 }
 
+var insertLikutPropCmd = &cobra.Command{
+	Use:   "insert_likut",
+	Short: "add prop likut for lesson series collection",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.SetLevel(log.DebugLevel)
+		new(lessons_series.LessonsSeries).RunAddLikutProp()
+	},
+}
+
 func init() {
 	RootCmd.AddCommand(lessonsSeriesCmd)
+	RootCmd.AddCommand(insertLikutPropCmd)
 }
