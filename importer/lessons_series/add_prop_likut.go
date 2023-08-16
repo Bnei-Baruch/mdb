@@ -8,6 +8,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/volatiletech/sqlboiler/v4/queries"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"strings"
 )
 
 func (ls *LessonsSeries) RunAddLikutProp() {
@@ -53,7 +54,7 @@ ORDER BY c.id`
 			log.Errorf("cant unmarshal props for collection", cId)
 			continue
 		}
-		props["likutim"] = l
+		props[strings.ToLower(common.CT_LIKUTIM)] = l
 		utils.Must(api.UpdateCollectionProperties(mdb, c, props))
 	}
 	utils.Must(rows.Err())

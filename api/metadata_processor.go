@@ -295,13 +295,6 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source
 		if err != nil {
 			return nil, errors.Wrap(err, "Associate sources")
 		}
-
-		seriesEvnts, err := associateLessonsSeriesSources(exec, cu, metadata.Sources)
-		if err != nil {
-			return nil, errors.Wrap(err, "Associate Lessons series collection by sources")
-		}
-
-		evnts = append(evnts, seriesEvnts...)
 	}
 
 	if len(metadata.Tags) > 0 {
@@ -380,13 +373,6 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source
 			evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(l))
 		}
 		evnts = append(evnts, events.ContentUnitDerivativesChangeEvent(cu))
-		seriesEvnts, err := associateLessonsSeriesLikutim(exec, cu, metadata.Likutim)
-		if err != nil {
-			return nil, errors.Wrap(err, "Associate Lessons series collection by likutim")
-		}
-
-		evnts = append(evnts, seriesEvnts...)
-
 	}
 
 	// Handle persons ...
@@ -445,6 +431,26 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source
 	// Update mode ends here
 	if isUpdate {
 		return evnts, nil
+	}
+
+	// for lesson part that have source or likutim we check if its need add to lessons series collection
+	// if we have number of lessons on period we create new collection
+	if len(metadata.Likutim) > 0 && common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name == common.CT_LESSON_PART {
+		seriesEvnts, err := associateLessonsSeriesLikutim(exec, cu, metadata.Likutim)
+		if err != nil {
+			return nil, errors.Wrap(err, "Associate Lessons series collection by likutim")
+		}
+
+		evnts = append(evnts, seriesEvnts...)
+	}
+
+	if len(metadata.Sources) > 0 && common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name == common.CT_LESSON_PART {
+		seriesEvnts, err := associateLessonsSeriesSources(exec, cu, metadata.Sources)
+		if err != nil {
+			return nil, errors.Wrap(err, "Associate Lessons series collection by sources")
+		}
+
+		evnts = append(evnts, seriesEvnts...)
 	}
 
 	if ct == common.CT_LESSON_PART ||
@@ -1021,7 +1027,7 @@ func associateLessonsSeriesLikutim(exec boil.Executor, cu *models.ContentUnit, l
 			if err := ccu.R.Collection.Properties.Unmarshal(&props); err != nil {
 				continue
 			}
-			_sUid := props["source"].(string)
+			_sUid := props[strings.ToLower(common.CT_LIKUTIM)].(string)
 			if _, ok := cByL[_sUid]; ok {
 				continue
 			}
@@ -1037,7 +1043,7 @@ func associateLessonsSeriesLikutim(exec boil.Executor, cu *models.ContentUnit, l
 	}
 	needAddByC := make(map[int64][]*models.CollectionsContentUnit)
 
-	//find and if need create lessons series per new cu's sources
+	//find and when need - create lessons series per new cu's likutim
 	for _, dcu := range cu.R.SourceContentUnitDerivations {
 		if err := dcu.L.LoadDerived(exec, true, dcu, nil); err != nil {
 			return nil, err
@@ -1046,10 +1052,20 @@ func associateLessonsSeriesLikutim(exec boil.Executor, cu *models.ContentUnit, l
 			continue
 		}
 		if _, ok := cByL[dcu.R.Derived.UID]; !ok {
+			tags := []string{}
+			err := dcu.R.Derived.L.LoadTags(exec, true, dcu.R.Derived, nil)
+			if err != nil {
+				log.Errorf("cant load tags for likut", dcu.R.Derived.UID)
+			} else {
+				for _, t := range dcu.R.Derived.R.Tags {
+					tags = append(tags, t.UID)
+				}
+			}
 			props := map[string]interface{}{
-				"source":     dcu.R.Derived.UID,
-				"end_date":   cuProps["film_date"],
-				"start_date": startDateByL[dcu.R.Derived.UID],
+				strings.ToLower(common.CT_LIKUTIM): []string{dcu.R.Derived.UID},
+				"end_date":                         cuProps["film_date"],
+				"start_date":                       startDateByL[dcu.R.Derived.UID],
+				"tags":                             tags,
 			}
 			c, err := CreateCollection(exec, common.CT_LESSONS_SERIES, props)
 			if err != nil {

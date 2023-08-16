@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
+	"strings"
 	"time"
 )
 
@@ -153,7 +154,7 @@ func (ls *LessonsSeries) attachCollection(cu *models.ContentUnit, bySource map[s
 				item.collection = ccu.R.Collection
 				log.Printf("attach to old collection cu_id - %d, c_id - %d", cu.ID, ccu.CollectionID)
 			}
-			if lProp, ok := props["likutim"]; ok {
+			if lProp, ok := props[strings.ToLower(common.CT_LIKUTIM)]; ok {
 				for _, l := range lProp.([]interface{}) {
 					if l.(string) == uid {
 						item.collection = ccu.R.Collection
@@ -228,12 +229,8 @@ func (ls *LessonsSeries) saveNewCollection(item *bySourceItem, sUid string, end_
 		"start_date": startProps["film_date"],
 	}
 	if item.likut != nil {
-		props["likutim"] = []string{sUid}
+		props[strings.ToLower(common.CT_LIKUTIM)] = []string{sUid}
 		var tags []string
-		/*err := item.likut.L.LoadTags(ls.tx, true, item.likut, nil)
-		if err != nil {
-			return nil, err
-		}*/
 		if item.likut.R.Tags != nil {
 			for _, t := range item.likut.R.Tags {
 				tags = append(tags, t.UID)
@@ -277,7 +274,7 @@ func (ls *LessonsSeries) saveCCUs(item *bySourceItem) ([]events.Event, error) {
 		if has {
 			continue
 		}
-		ccu := &models.CollectionsContentUnit{ContentUnitID: cu.ID, Position: i, Name: fmt.Sprint(i)}
+		ccu := &models.CollectionsContentUnit{ContentUnitID: cu.ID, Position: i, Name: fmt.Sprint(i + 1)}
 		ccus = append(ccus, ccu)
 	}
 
