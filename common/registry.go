@@ -162,6 +162,7 @@ var (
 		{Extension: "ppt", Type: "presentation", SubType: "", MimeType: "application/vnd.ms-powerpoint"},
 		{Extension: "pptx", Type: "presentation", SubType: "", MimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
 		{Extension: "pps", Type: "presentation", SubType: "", MimeType: "application/vnd.ms-powerpoint"},
+		{Extension: "vtt", Type: "subtitles", SubType: "", MimeType: "text/vtt"},
 	}
 )
 
