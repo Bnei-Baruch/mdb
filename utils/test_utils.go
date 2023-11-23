@@ -39,7 +39,6 @@ type TestDBManager struct {
 func (m *TestDBManager) InitTestDB() error {
 	m.testDB = fmt.Sprintf("test_%s", strings.ToLower(GenerateName(10)))
 	fmt.Println("Initializing test DB: ", m.testDB)
-	fmt.Println("mdb.test_url: ", viper.GetString("mdb.test_url"))
 
 	m.initConfig()
 
