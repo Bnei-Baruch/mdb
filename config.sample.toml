@@ -6,8 +6,8 @@ rollbar-token=""
 rollbar-environment="development"
 
 [mdb]
-url="postgres://user:passwordlocalhost/mdb?sslmode=disable"
-test_url="postgres://user:passwordlocalhost/%s?sslmode=disable"
+url="postgres://user:password@localhost/mdb?sslmode=disable"
+test_url="postgres://user:password@localhost/%s?sslmode=disable"
 
 [kmedia_old]
 url="postgres://localhost/kmedia_old?sslmode=disable&user=postgres"
