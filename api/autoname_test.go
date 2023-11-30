@@ -55,7 +55,7 @@ func (suite *AutonameSuite) TestGenericDescriberCollection() {
 		c.TypeID = common.CONTENT_TYPE_REGISTRY.ByName[x].ID
 		names, err := GetI18ns(fmt.Sprintf("content_type.%s", x))
 		suite.Require().Nil(err)
-		i18ns, err := describer.DescribeCollection(c)
+		i18ns, err := describer.DescribeCollection(suite.tx, c)
 		suite.Require().Nil(err)
 		suite.Len(i18ns, len(names), "len(i18ns)")
 		for _, i18n := range i18ns {

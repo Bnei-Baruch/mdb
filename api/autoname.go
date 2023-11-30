@@ -68,7 +68,7 @@ type ContentUnitDescriber interface {
 }
 
 type CollectionDescriber interface {
-	DescribeCollection(*models.Collection) ([]*models.CollectionI18n, error)
+	DescribeCollection(boil.Executor, *models.Collection) ([]*models.CollectionI18n, error)
 }
 
 type GenericDescriber struct{}
@@ -99,7 +99,7 @@ func (d GenericDescriber) DescribeContentUnit(exec boil.Executor,
 	}
 }
 
-func (d GenericDescriber) DescribeCollection(c *models.Collection) ([]*models.CollectionI18n, error) {
+func (d GenericDescriber) DescribeCollection(exec boil.Executor, c *models.Collection) ([]*models.CollectionI18n, error) {
 	i18nKey := fmt.Sprintf("content_type.%s", common.CONTENT_TYPE_REGISTRY.ByID[c.TypeID].Name)
 	names, err := GetI18ns(i18nKey)
 	if err != nil {
@@ -305,6 +305,32 @@ func (d BlogPostDescriber) DescribeContentUnit(exec boil.Executor,
 	return makeCUI18ns(cu.ID, names), nil
 }
 
+type LessonSeriesDescriber struct{}
+
+func (d LessonSeriesDescriber) DescribeCollection(exec boil.Executor,
+	c *models.Collection) ([]*models.CollectionI18n, error) {
+	var props map[string]interface{}
+	var sourceUid string
+	if c.Properties.Valid {
+		if err := json.Unmarshal(c.Properties.JSON, &props); err != nil {
+			return nil, err
+		} else {
+			if uid, ok := props["source"]; !ok {
+				log.Errorf("not found source for collection %d", c.ID)
+				return nil, nil
+			} else {
+				sourceUid = fmt.Sprintf("%s", uid)
+			}
+		}
+	}
+	names, err := nameBySourceUID(exec, sourceUid)
+	if err != nil {
+		return nil, errors.Wrap(err, "Name by source")
+	}
+
+	return makeCI18ns(c.ID, names), nil
+}
+
 var CUDescribers = map[string]ContentUnitDescriber{
 	common.CT_LESSON_PART:           new(LessonPartDescriber),
 	common.CT_VIDEO_PROGRAM_CHAPTER: new(CollectionNameDescriber),
@@ -315,7 +341,9 @@ var CUDescribers = map[string]ContentUnitDescriber{
 	common.CT_FRIENDS_GATHERING:     &FixedKeyDescriber{Key: "autoname.yh"},
 }
 
-var CDescribers = map[string]CollectionDescriber{}
+var CDescribers = map[string]CollectionDescriber{
+	common.CT_LESSONS_SERIES: new(LessonSeriesDescriber),
+}
 
 type EventPartDescriber struct{}
 
@@ -438,7 +466,7 @@ func DescribeCollection(exec boil.Executor, c *models.Collection) error {
 		describer = GenericDescriber{}
 	}
 
-	i18ns, err := describer.DescribeCollection(c)
+	i18ns, err := describer.DescribeCollection(exec, c)
 	if err != nil {
 		return errors.Wrap(err, "Auto naming collection")
 	}
@@ -770,7 +798,8 @@ func (n ZoharNamer) GetName(author *models.Author, path []*models.Source) (map[s
 		}
 
 		// skip if we don't have all i18ns
-		if len(vals)+1 != len(path) {
+		//use "less" condition cause can be path from one item
+		if len(vals)+1 < len(path) {
 			continue
 		}
 

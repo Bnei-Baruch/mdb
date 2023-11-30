@@ -22,6 +22,7 @@ type LessonsSeries struct {
 	from     time.Time
 	tx       *sql.Tx
 	bySource map[string]*bySourceItem
+	rootTES  map[string]string
 }
 
 type bySourceItem struct {
@@ -59,6 +60,7 @@ func (ls *LessonsSeries) Run() {
 }
 
 func (ls *LessonsSeries) fetchBatch() ([]*models.ContentUnit, error) {
+	//uids := []interface{}{86001}
 	return models.ContentUnits(
 		qm.Load("CollectionsContentUnits"),
 		qm.Load("CollectionsContentUnits.Collection"),
@@ -69,7 +71,8 @@ func (ls *LessonsSeries) fetchBatch() ([]*models.ContentUnit, error) {
 		qm.Where("type_id = ? AND published = TRUE AND secure = 0", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID),
 		qm.And("(properties->>'film_date')::date > ?::date", ls.from),
 		qm.And("(properties->>'film_date')::date <= ?::date", ls.from.Add(BATCH_DURATION)),
-		qm.OrderBy("id ASC"),
+		//qm.WhereIn("id in ?", uids...),
+		qm.OrderBy("(properties->>'film_date')::date ASC, id ASC"),
 	).All(ls.tx)
 }
 
@@ -114,12 +117,14 @@ func (ls *LessonsSeries) groupBySource(cu *models.ContentUnit) (map[string]*bySo
 		return nil, err
 	}
 	for _, uid := range sByUids {
-		if _, ok := bySource[uid]; !ok {
-			bySource[uid] = &bySourceItem{cus: make([]*models.ContentUnit, 0), source: uid}
+		if _, ok := bySource[uid]; ok {
+			continue
 		}
-
-		bySource[uid].from = ls.from
-		bySource[uid].cus = append(bySource[uid].cus, cu)
+		bySource[uid] = &bySourceItem{
+			source: uid,
+			from:   ls.from,
+			cus:    []*models.ContentUnit{cu},
+		}
 	}
 	return bySource, nil
 }
@@ -210,7 +215,7 @@ func (ls *LessonsSeries) saveCollection(item *bySourceItem, sUid string) ([]even
 		if err := api.UpdateCollectionProperties(ls.tx, c, props); err != nil {
 			return nil, err
 		}
-	} else if len(item.cus) > api.MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES {
+	} else if len(item.cus) > api.MinCuNumberForNewLessonSeries {
 		if c, err = ls.saveNewCollection(item, sUid, end_props["film_date"].(string)); err != nil {
 			return nil, err
 		}
@@ -245,9 +250,11 @@ func (ls *LessonsSeries) saveNewCollection(item *bySourceItem, sUid string, end_
 		return nil, err
 	}
 	if item.likut != nil {
-		utils.Must(ls.i18nFromCU(sUid, c))
+		utils.Must(api.I18nFromCU(ls.tx, sUid, c))
 	} else {
-		utils.Must(ls.i18nFromSource(sUid, c))
+		if err = api.DescribeCollection(ls.tx, c); err != nil {
+			return nil, err
+		}
 	}
 	c.Published = true
 	_, err = c.Update(ls.tx, boil.Whitelist("published"))
@@ -287,49 +294,6 @@ func (ls *LessonsSeries) saveCCUs(item *bySourceItem) ([]events.Event, error) {
 	evnts = append(evnts, events.CollectionContentUnitsChangeEvent(item.collection))
 
 	return evnts, nil
-}
-
-func (ls *LessonsSeries) i18nFromCU(uid string, c *models.Collection) error {
-	cusI18ns, err := models.ContentUnits(qm.Where("uid = ?", uid), qm.Load("ContentUnitI18ns")).One(ls.tx)
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	if cusI18ns != nil {
-		i18ns := make([]*models.CollectionI18n, 0)
-		for _, sI18n := range cusI18ns.R.ContentUnitI18ns {
-			i18n := &models.CollectionI18n{
-				Language: sI18n.Language,
-				Name:     sI18n.Name,
-			}
-			i18ns = append(i18ns, i18n)
-		}
-		if err = c.AddCollectionI18ns(ls.tx, true, i18ns...); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (ls *LessonsSeries) i18nFromSource(uid string, c *models.Collection) error {
-	cusI18ns, err := models.Sources(qm.Where("uid = ?", uid), qm.Load("SourceI18ns")).One(ls.tx)
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	if cusI18ns != nil {
-		i18ns := make([]*models.CollectionI18n, 0)
-		for _, sI18n := range cusI18ns.R.SourceI18ns {
-			i18n := &models.CollectionI18n{
-				Language: sI18n.Language,
-				Name:     sI18n.Name,
-			}
-			i18ns = append(i18ns, i18n)
-		}
-		if err = c.AddCollectionI18ns(ls.tx, true, i18ns...); err != nil {
-			return err
-		}
-	}
-	return nil
-
 }
 
 func (ls *LessonsSeries) openDB() *sql.DB {

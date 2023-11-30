@@ -1275,7 +1275,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 	s, err := models.Sources(models.SourceWhere.UID.EQ(metadata.Sources[0])).One(suite.tx)
 	utils.Must(err)
 
-	for i := 0; i < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES; i++ {
+	for i := 0; i < MinCuNumberForNewLessonSeries; i++ {
 		_ = createCUWithSourceForLessonsSeries(suite.tx, s, c, i)
 	}
 
@@ -1284,16 +1284,16 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 	makePublishedLast(suite.tx)
 	countCcu, err := models.CollectionsContentUnits(models.CollectionsContentUnitWhere.CollectionID.EQ(c.ID)).Count(suite.tx)
 	utils.Must(err)
-	suite.EqualValues(MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES+1, countCcu)
+	suite.EqualValues(MinCuNumberForNewLessonSeries+1, countCcu)
 
-	for i := 0; i <= MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES; i++ {
+	for i := 0; i <= MinCuNumberForNewLessonSeries; i++ {
 		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 		suite.Require().Nil(err)
 		makePublishedLast(suite.tx)
 		utils.Must(c.Reload(suite.tx))
 		_countCcu, err := models.Collections(qm.WhereIn(`properties->>'source' IN ?`, utils.ConvertArgsString(sUids)...)).Count(suite.tx)
 		utils.Must(err)
-		if i < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES-1 {
+		if i < MinCuNumberForNewLessonSeries-1 {
 			suite.EqualValues(1, _countCcu)
 		} else {
 			suite.EqualValues(len(sUids), _countCcu)
@@ -1304,8 +1304,61 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 	}
 }
 
+func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeries() {
+	//tf := suite.simulateSimpleChain()
+
+	rootUID := TES_PARTS_UIDS[rand.Intn(len(TES_PARTS_UIDS)-1)]
+	tesRoot, err := models.Sources(models.SourceWhere.UID.EQ(rootUID)).One(suite.tx)
+	suite.Require().Nil(err)
+
+	sUids := createDummySources(suite.tx)
+	sources, err := models.Sources(models.SourceWhere.UID.IN(sUids)).All(suite.tx)
+	suite.Require().Nil(err)
+	_, err = sources.UpdateAll(suite.tx, models.M{"parent_id": tesRoot.ID})
+	suite.Require().Nil(err)
+
+	metadata := CITMetadata{
+		ContentType:    common.CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       common.LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(0),
+		Tags:           suite.someTags(),
+		RequireTest:    false,
+	}
+
+	suite.Require().Nil(err)
+	for i := 0; i <= MinCuNumberForNewLessonSeries+1; i++ {
+		tf := suite.simulateSimpleChain()
+		_sUid := sUids[i%len(sUids)]
+		metadata.Sources = []string{_sUid}
+		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
+		suite.Require().Nil(err)
+		makePublishedLast(suite.tx)
+	}
+
+	cs, err := models.Collections(
+		models.CollectionWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSONS_SERIES].ID),
+		qm.OrderBy("id DESC"),
+	).All(suite.tx)
+	_cs := cs[:5]
+	println(_cs)
+	c, err := models.Collections(
+		models.CollectionWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSONS_SERIES].ID),
+		qm.OrderBy("id DESC"),
+	).One(suite.tx)
+	var props map[string]interface{}
+	err = json.Unmarshal(c.Properties.JSON, &props)
+	suite.Require().Nil(err)
+	suite.Equal(rootUID, props["source"])
+}
+
 func (suite *MetadataProcessorSuite) TestDailyLesson_LikutimsAttachLessonsSeries() {
-	chain := suite.simulateLessonChainWithSource()
+	tf := suite.simulateSimpleChain()
 	likutim, err := createDummyLikutim(suite.tx)
 	utils.Must(err)
 	lUids := make([]string, len(likutim))
@@ -1327,43 +1380,46 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_LikutimsAttachLessonsSeries
 		RequireTest:    false,
 	}
 
-	tf := chain["source_part1"]
-	props := map[string]interface{}{"source": lUids[0]}
+	props := map[string]interface{}{"likutim": []string{lUids[0]}}
 	c, err := CreateCollection(suite.tx, common.CT_LESSONS_SERIES, props)
 	utils.Must(err)
 	c.Published = true
 	_, err = c.Update(suite.tx, boil.Infer())
 
-	for i := 0; i < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES; i++ {
+	for i := 0; i < MinCuNumberForNewLessonSeries; i++ {
 		_ = createCUWithLikutForLessonsSeries(suite.tx, likutim[0], c, i)
 	}
 
 	countCcu, err := models.CollectionsContentUnits(models.CollectionsContentUnitWhere.CollectionID.EQ(c.ID)).Count(suite.tx)
 	utils.Must(err)
 
-	suite.EqualValues(MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES, countCcu)
+	suite.EqualValues(MinCuNumberForNewLessonSeries, countCcu)
 	_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 	suite.Require().Nil(err)
 	makePublishedLast(suite.tx)
 	countCcu, err = models.CollectionsContentUnits(models.CollectionsContentUnitWhere.CollectionID.EQ(c.ID)).Count(suite.tx)
-	utils.Must(err)
-	suite.EqualValues(MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES+1, countCcu)
+	suite.Require().Nil(err)
+	suite.EqualValues(MinCuNumberForNewLessonSeries+1, countCcu)
+	countC, err := models.Collections(models.CollectionWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSONS_SERIES].ID)).Count(suite.tx)
+	suite.Require().Nil(err)
 
-	for i := 0; i <= MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES; i++ {
+	for i := 0; i < MinCuNumberForNewLessonSeries; i++ {
 		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 		suite.Require().Nil(err)
 		makePublishedLast(suite.tx)
 		utils.Must(c.Reload(suite.tx))
-		_countCcu, err := models.Collections(qm.WhereIn(`properties->>'source' IN ?`, utils.ConvertArgsString(lUids)...)).Count(suite.tx)
-		utils.Must(err)
-		if i < MIN_CU_NUMBER_FOR_NEW_LESSON_SERIES-1 {
-			suite.EqualValues(1, _countCcu, fmt.Sprintf("iteration no new series %d", i))
+		err = c.L.LoadCollectionsContentUnits(suite.tx, true, c, nil)
+		suite.Require().Nil(err)
+		_countC, err := models.Collections(
+			models.CollectionWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSONS_SERIES].ID),
+		).Count(suite.tx)
+		suite.Require().Nil(err)
+		if i < MinCuNumberForNewLessonSeries-1 {
+			suite.EqualValues(int(countCcu)+i+1, len(c.R.CollectionsContentUnits), fmt.Sprintf("iteration no new series %d", i))
+			suite.EqualValues(countC, _countC, fmt.Sprintf("iteration %d", i))
 		} else {
-			suite.EqualValues(_countCcu, len(lUids), fmt.Sprintf("iteration %d", i))
+			suite.EqualValues(int(countC)+len(lUids)-1, _countC, fmt.Sprintf("iteration %d", i))
 		}
-		countCu, err := models.CollectionsContentUnits(models.CollectionsContentUnitWhere.CollectionID.EQ(c.ID)).Count(suite.tx)
-		utils.Must(err)
-		suite.EqualValues(i+int(countCcu)+1, countCu)
 	}
 }
 
@@ -1376,7 +1432,9 @@ func createCUWithSourceForLessonsSeries(tx boil.Transactor, s *models.Source, c 
 	_, err = cu.Update(tx, boil.Infer())
 	utils.Must(err)
 	utils.Must(cu.AddSources(tx, false, s))
-	utils.Must(c.AddCollectionsContentUnits(tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID}))
+	if c != nil {
+		utils.Must(c.AddCollectionsContentUnits(tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID}))
+	}
 	return cu
 }
 
@@ -1393,7 +1451,7 @@ func createCUWithLikutForLessonsSeries(tx boil.Transactor, l *models.ContentUnit
 		DerivedID: l.ID,
 		Name:      "name",
 	}))
-	utils.Must(c.AddCollectionsContentUnits(tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID}))
+	utils.Must(c.AddCollectionsContentUnits(tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID, Position: i}))
 	return cu
 }
 
@@ -1411,7 +1469,7 @@ func makePublishedLast(tx boil.Transactor) {
 // Helpers
 
 func createDummySources(exec boil.Executor) []string {
-	uids := make([]string, rand.Intn(5)+2)
+	uids := make([]string, rand.Intn(5)+5)
 	s, err := models.Sources(qm.OrderBy("id DESC")).One(exec)
 	utils.Must(err)
 	for i := range uids {
