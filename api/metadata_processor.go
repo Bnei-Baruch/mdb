@@ -28,19 +28,19 @@ func ProcessCITMetadata(exec boil.Executor, metadata CITMetadata, original, prox
 }
 
 // Do all stuff for processing metadata coming from Content Identification Tool.
-// 	1. Update properties for original and proxy (film_date, capture_date)
-//	2. Update language of original
-// 	3. Create content_unit (content_type, dates)
-// 	4. Describe content unit (i18ns)
-//	5. Add files to new unit
-// 	6. Add ancestor files to unit
+//  1. Update properties for original and proxy (film_date, capture_date)
+//  2. Update language of original
+//  3. Create content_unit (content_type, dates)
+//  4. Describe content unit (i18ns)
+//  5. Add files to new unit
+//  6. Add ancestor files to unit
 //  7. Add peer ancestor (related captures)
-// 	8. Associate unit with sources, tags, and persons
-// 	9. Get or create collection
-// 	10. Update collection (content_type, dates, number) if full lesson or new lesson
-// 	11. Associate collection and unit
-// 	12. Associate unit and derived units
-// 	13. Set default permissions ?!
+//  8. Associate unit with sources, tags, and persons
+//  9. Get or create collection
+//  10. Update collection (content_type, dates, number) if full lesson or new lesson
+//  11. Associate collection and unit
+//  12. Associate unit and derived units
+//  13. Set default permissions ?!
 func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source *models.File, cu *models.ContentUnit) ([]events.Event, error) {
 	isUpdate := cu != nil
 	log.Infof("Processing CITMetadata, isUpdate: %t", isUpdate)
@@ -433,6 +433,26 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source
 		return evnts, nil
 	}
 
+	// for lesson part that have source or likutim we check if its need add to lessons series collection
+	// if we have number of lessons on period we create new collection
+	if len(metadata.Likutim) > 0 && common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name == common.CT_LESSON_PART {
+		seriesEvnts, err := (&AssociateByLikutim{tx: exec, cu: cu}).Associate(metadata.Likutim)
+		if err != nil {
+			return nil, errors.Wrap(err, "Associate Lessons series collection by likutim")
+		}
+
+		evnts = append(evnts, seriesEvnts...)
+	}
+
+	if len(metadata.Sources) > 0 && common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name == common.CT_LESSON_PART {
+		seriesEvnts, err := (&AssociateBySources{tx: exec, cu: cu}).Associate(metadata.Sources)
+		if err != nil {
+			return nil, errors.Wrap(err, "Associate Lessons series collection by sources")
+		}
+
+		evnts = append(evnts, seriesEvnts...)
+	}
+
 	if ct == common.CT_LESSON_PART ||
 		ct == common.CT_FULL_LESSON ||
 		ct == common.CT_KTAIM_NIVCHARIM {
@@ -735,7 +755,8 @@ WHERE (cu.properties ->> 'part') :: INT = $4`,
 	return cuID, nil
 }
 
-/* send-fix
+/*
+	send-fix
 
 Sometimes, after a unit was created in a send operation,
 we need to fix it.
@@ -750,7 +771,6 @@ We should:
 2. figure out files for removal
 3. mark those as removed
 4. update the unit's published status
-
 */
 func ProcessCITMetadataUpdate(exec boil.Executor, metadata CITMetadata, original, proxy, source *models.File) ([]events.Event, error) {
 	unit, err := models.ContentUnits(qm.Where("uid = ?", metadata.UnitToFixUID.String)).One(exec)
