@@ -60,7 +60,6 @@ func (ls *LessonsSeries) Run() {
 }
 
 func (ls *LessonsSeries) fetchBatch() ([]*models.ContentUnit, error) {
-	//uids := []interface{}{86001}
 	return models.ContentUnits(
 		qm.Load("CollectionsContentUnits"),
 		qm.Load("CollectionsContentUnits.Collection"),
@@ -71,7 +70,6 @@ func (ls *LessonsSeries) fetchBatch() ([]*models.ContentUnit, error) {
 		qm.Where("type_id = ? AND published = TRUE AND secure = 0", common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID),
 		qm.And("(properties->>'film_date')::date > ?::date", ls.from),
 		qm.And("(properties->>'film_date')::date <= ?::date", ls.from.Add(BATCH_DURATION)),
-		//qm.WhereIn("id in ?", uids...),
 		qm.OrderBy("(properties->>'film_date')::date ASC, id ASC"),
 	).All(ls.tx)
 }

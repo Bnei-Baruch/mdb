@@ -1305,8 +1305,6 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 }
 
 func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeries() {
-	//tf := suite.simulateSimpleChain()
-
 	rootUID := TES_PARTS_UIDS[rand.Intn(len(TES_PARTS_UIDS)-1)]
 	tesRoot, err := models.Sources(models.SourceWhere.UID.EQ(rootUID)).One(suite.tx)
 	suite.Require().Nil(err)
