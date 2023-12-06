@@ -46,12 +46,12 @@ ORDER BY c.id`
 		utils.Must(err)
 		l := findLikutForC(c.R.CollectionsContentUnits)
 		if len(l) == 0 {
-			log.Errorf("not found likut for collection", cId)
+			log.Errorf("not found likut for collection %d", cId)
 		}
 
 		var props map[string]interface{}
 		if err := c.Properties.Unmarshal(&props); err != nil {
-			log.Errorf("cant unmarshal props for collection", cId)
+			log.Errorf("cant unmarshal props for collection %d", cId)
 			continue
 		}
 		props[strings.ToLower(common.CT_LIKUTIM)] = l
