@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -1251,7 +1252,7 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithAdditionalCapture() {
 
 func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries() {
 	tf := suite.simulateSimpleChain()
-	sUids := createDummySources(suite.tx)
+	sUids := createDummySources(suite.tx, nil)
 	metadata := CITMetadata{
 		ContentType:    common.CT_LESSON_PART,
 		AutoName:       "auto_name",
@@ -1305,11 +1306,17 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 }
 
 func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeries() {
-	rootUID := TES_PARTS_UIDS[rand.Intn(len(TES_PARTS_UIDS)-1)]
-	tesRoot, err := models.Sources(models.SourceWhere.UID.EQ(rootUID)).One(suite.tx)
+	s, err := models.Sources(qm.OrderBy("id DESC")).One(suite.tx)
 	suite.Require().Nil(err)
+	//prepare TES root
+	rootUID := TES_PARTS_UIDS[rand.Intn(len(TES_PARTS_UIDS)-1)]
+	author := &models.Author{Code: "bs", Name: "TES Author", FullName: null.StringFrom("test author")}
+	suite.Require().Nil(author.Insert(suite.tx, boil.Infer()))
+	tesRoot := &models.Source{ID: s.ID + 1, UID: rootUID, TypeID: 1, Name: "TES root source"}
+	suite.Require().Nil(tesRoot.Insert(suite.tx, boil.Infer()))
+	suite.Require().Nil((tesRoot.AddAuthors(suite.tx, false, author)))
 
-	sUids := createDummySources(suite.tx)
+	sUids := createDummySources(suite.tx, author)
 	sources, err := models.Sources(models.SourceWhere.UID.IN(sUids)).All(suite.tx)
 	suite.Require().Nil(err)
 	_, err = sources.UpdateAll(suite.tx, models.M{"parent_id": tesRoot.ID})
@@ -1329,7 +1336,6 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeri
 		RequireTest:    false,
 	}
 
-	suite.Require().Nil(err)
 	for i := 0; i <= MinCuNumberForNewLessonSeries+1; i++ {
 		tf := suite.simulateSimpleChain()
 		_sUid := sUids[i%len(sUids)]
@@ -1339,12 +1345,6 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeri
 		makePublishedLast(suite.tx)
 	}
 
-	cs, err := models.Collections(
-		models.CollectionWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSONS_SERIES].ID),
-		qm.OrderBy("id DESC"),
-	).All(suite.tx)
-	_cs := cs[:5]
-	println(_cs)
 	c, err := models.Collections(
 		models.CollectionWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSONS_SERIES].ID),
 		qm.OrderBy("id DESC"),
@@ -1466,13 +1466,27 @@ func makePublishedLast(tx boil.Transactor) {
 
 // Helpers
 
-func createDummySources(exec boil.Executor) []string {
+func createDummySources(exec boil.Executor, author *models.Author) []string {
 	uids := make([]string, rand.Intn(5)+5)
 	s, err := models.Sources(qm.OrderBy("id DESC")).One(exec)
 	utils.Must(err)
+	if author == nil {
+		author, err = models.Authors().One(exec)
+		if err == sql.ErrNoRows {
+			author = &models.Author{Code: "tt", Name: "test", FullName: null.StringFrom("test author")}
+			utils.Must(author.Insert(exec, boil.Infer()))
+		} else if err != nil {
+			utils.Must(err)
+		}
+	}
 	for i := range uids {
-		s := models.Source{ID: s.ID + int64(i) + 1, UID: utils.GenerateUID(8), TypeID: 1, Name: "name"}
+		s := &models.Source{
+			ID:  s.ID + int64(i) + 1,
+			UID: utils.GenerateUID(8), TypeID: 1,
+			Name: fmt.Sprintf("Dummy source %d", i),
+		}
 		utils.Must(s.Insert(exec, boil.Infer()))
+		utils.Must(s.AddAuthors(exec, false, author))
 		uids[i] = s.UID
 	}
 	return uids
