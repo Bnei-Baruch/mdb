@@ -60,6 +60,7 @@ const (
 	OP_INSERT        = "insert"
 	OP_TRANSCODE     = "transcode"
 	OP_JOIN          = "join"
+	OP_REPLACE       = "replace"
 
 	// Source Types
 	SRC_COLLECTION = "COLLECTION"

@@ -86,7 +86,7 @@ var (
 
 	ALL_OPERATION_TYPES = []string{
 		OP_CAPTURE_START, OP_CAPTURE_STOP, OP_DEMUX, OP_TRIM, OP_SEND, OP_CONVERT, OP_UPLOAD, OP_IMPORT_KMEDIA,
-		OP_SIRTUTIM, OP_INSERT, OP_TRANSCODE, OP_JOIN,
+		OP_SIRTUTIM, OP_INSERT, OP_TRANSCODE, OP_JOIN, OP_REPLACE,
 	}
 
 	UNIT_CONTENT_TYPE_CAN_CHANGE = []string{
@@ -220,6 +220,7 @@ func (r *ContentTypeRegistry) Init(exec boil.Executor) error {
 
 type OperationTypeRegistry struct {
 	ByName map[string]*models.OperationType
+	ByID   map[int64]*models.OperationType
 }
 
 func (r *OperationTypeRegistry) Init(exec boil.Executor) error {
@@ -229,8 +230,10 @@ func (r *OperationTypeRegistry) Init(exec boil.Executor) error {
 	}
 
 	r.ByName = make(map[string]*models.OperationType)
+	r.ByID = make(map[int64]*models.OperationType)
 	for _, t := range types {
 		r.ByName[t.Name] = t
+		r.ByID[t.ID] = t
 	}
 
 	return nil

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -129,6 +130,15 @@ func JoinHandler(c *gin.Context) {
 	var i JoinRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleJoin, nil)
+	}
+}
+
+// ReplaceHLS replace HLS file (on add language, quality)
+func ReplaceHLS(c *gin.Context) {
+	log.Info(common.OP_REPLACE)
+	var i JoinRequest
+	if c.BindJSON(&i) == nil {
+		handleOperation(c, i, handleReplaceHLS, nil)
 	}
 }
 
@@ -557,25 +567,10 @@ func handleConvert(exec boil.Executor, input interface{}) (*models.Operation, []
 	evnts := make([]events.Event, 0)
 	files := make([]*models.File, len(uniq)+1)
 	files[0] = in
-	props := make(map[string]interface{})
 	i := 0
 	for _, v := range uniq {
 		x := r.Output[v]
-		props["duration"] = x.Duration
-		if x.VideoSize != "" {
-			props["video_size"] = x.VideoSize
-		}
-
-		if x.Languages != nil {
-			languages := make([]string, len(x.Languages))
-			for i, l := range x.Languages {
-				languages[i] = common.StdLang(l)
-			}
-			props["languages"] = languages
-		}
-		if x.Qualities != nil {
-			props["video_qualities"] = x.Qualities
-		}
+		props := createHLSProps(x)
 		// lookup by sha1 as it might be a "reconvert"
 		f, _, err := FindFileBySHA1(exec, x.Sha1)
 		if err == nil {
@@ -636,7 +631,6 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []e
 			return nil, nil, err
 		}
 	}
-
 	log.Info("Updating file's properties")
 	var fileProps = make(map[string]interface{})
 	if file.Properties.Valid {
@@ -661,7 +655,75 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []e
 		return nil, nil, err
 	}
 
+	log.Info("Check if file must replace")
+	if err := file.L.LoadOperations(exec, true, file, nil); err != nil {
+		return nil, nil, err
+	}
+	var opRepl *models.Operation
+	for _, o := range file.R.Operations {
+		if common.OPERATION_TYPE_REGISTRY.ByName[common.OP_REPLACE].ID == o.TypeID {
+			opRepl = o
+		}
+	}
 	evnts := make([]events.Event, 0)
+	if opRepl != nil {
+		log.Infof("special for Replace operation %d", opRepl.ID)
+		//find old files by replace operation
+		if err := opRepl.L.LoadFiles(exec, true, opRepl, nil); err != nil {
+			return nil, nil, err
+		}
+		var oldFile *models.File
+		for _, f := range opRepl.R.Files {
+			if f.ID != file.ID {
+				oldFile = f
+				break
+			}
+		}
+		if oldFile == nil {
+			return nil, nil, errors.New("no file that was replaced")
+		}
+
+		// find first file Descendants of operation trim of old file
+		var oldTrimDescFileId null.Int64
+		if tree, err := FindFileTreeWithOperations(exec, oldFile.ID); err != nil {
+			return nil, nil, err
+		} else {
+			var trimFileId int64
+			for _, f := range tree {
+				for _, id := range f.OperationIds {
+					if common.OPERATION_TYPE_REGISTRY.ByID[id].Name == common.OP_TRIM {
+						trimFileId = f.ID
+					}
+				}
+			}
+			for _, f := range tree {
+				if f.ParentID.Int64 == trimFileId {
+					oldTrimDescFileId = null.Int64From(f.ID)
+				}
+			}
+		}
+		if !oldTrimDescFileId.Valid {
+			return nil, nil, errors.Wrapf(err, "cant find Ancestors file for old file %d with trim operation", oldFile.ID)
+		}
+		forRemove, err := FindFileDescendants(exec, oldTrimDescFileId.Int64)
+		if err != nil {
+			return nil, nil, err
+		}
+		var forRemoveIds = make([]int64, 0)
+		for _, f := range forRemove {
+			forRemoveIds = append(forRemoveIds, f.ID)
+		}
+
+		_, err = models.Files(models.FileWhere.ID.IN(forRemoveIds)).UpdateAll(
+			exec, models.M{"removed_at": time.Now().UTC(), "published": false},
+		)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "remove files related replace operation %d ", opRepl.ID)
+		}
+		for _, f := range forRemove {
+			evnts = append(evnts, events.FileRemoveEvent(f))
+		}
+	}
 	evnts = append(evnts, events.FilePublishedEvent(file))
 	evnts = append(evnts, impact.Events()...)
 
@@ -1227,6 +1289,74 @@ func handleJoin(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	return operation, nil, operation.AddFiles(exec, false, opFiles...)
 }
 
+func handleReplaceHLS(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
+	r := input.(ReplaceRequest)
+
+	opFiles := make([]*models.File, 0)
+
+	log.Infof("Lookup file by SHA1 %s", r.File.Sha1)
+	fileNil, _, err := FindFileBySHA1(exec, r.File.Sha1)
+	if fileNil != nil {
+		return nil, nil, errors.New(fmt.Sprintf("new file allready created, SHA %s", r.File.Sha1))
+	}
+	if _, ok := err.(FileNotFound); !ok {
+		return nil, nil, err
+	}
+
+	log.Infof("Lookup old file by SHA1 %s", r.File.Sha1)
+	oldFile, _, err := FindFileBySHA1(exec, r.OldSha1)
+	if err != nil {
+		return nil, nil, errors.New(fmt.Sprintf("No file for replace, SHA %s", r.OldSha1))
+	}
+	opFiles = append(opFiles, oldFile)
+
+	log.Info("Creating operation")
+	operation, err := CreateOperation(exec, common.OP_REPLACE, r.Operation, map[string]interface{}{"mode": "replace"})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// create new file based on mode
+	log.Info("Creating new file")
+	var parent *models.File
+	if tree, err := FindFileTreeWithOperations(exec, oldFile.ID); err != nil {
+		return nil, nil, err
+	} else {
+		for _, f := range tree {
+			for _, id := range f.OperationIds {
+				if common.OPERATION_TYPE_REGISTRY.ByID[id].Name == common.OP_TRIM {
+					parent = &f.File
+				}
+			}
+		}
+	}
+
+	opTrim, err := FindUpChainOperation(exec, oldFile.ID, common.OP_TRIM)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "trim operation not found")
+	}
+
+	if err := opTrim.L.LoadFiles(exec, true, opTrim, nil); err != nil {
+		return nil, nil, err
+	}
+
+	props := createHLSProps(r.HLSFile)
+	file, err := CreateFile(exec, parent, r.File, props)
+	if err != nil {
+		return nil, nil, err
+	}
+	log.Infof("Associating file [%d] to content_unit [%d]", file.ID, oldFile.ContentUnitID.Int64)
+	file.ContentUnitID = oldFile.ContentUnitID
+	_, err = file.Update(exec, boil.Whitelist("content_unit_id"))
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Save file.content_unit_id to DB")
+	}
+
+	opFiles = append(opFiles, file)
+	log.Info("Associating files to operation")
+	return operation, nil, operation.AddFiles(exec, false, opFiles...)
+}
+
 // Helpers
 
 type OpHandlerFunc func(boil.Executor, interface{}) (*models.Operation, []events.Event, error)
@@ -1238,11 +1368,11 @@ func defaultResultRenderer(c *gin.Context, exec boil.Executor, input interface{}
 }
 
 // Generic operation handler.
-// 	* Manage DB transactions
-// 	* Call operation logic handler
-//  * Handle errors
-//  * Emit events
-// 	* Render JSON response
+//   - Manage DB transactions
+//   - Call operation logic handler
+//   - Handle errors
+//   - Emit events
+//   - Render JSON response
 func handleOperation(c *gin.Context, input interface{}, opHandler OpHandlerFunc, resFunc OpResponseRenderFunc) {
 	mdb := c.MustGet("MDB").(*sql.DB)
 	tx, err := mdb.Begin()
@@ -1288,4 +1418,24 @@ func handleOperation(c *gin.Context, input interface{}, opHandler OpHandlerFunc,
 			NewInternalError(err).Abort(c)
 		}
 	}
+}
+
+func createHLSProps(d HLSFile) map[string]interface{} {
+	props := make(map[string]interface{})
+	props["duration"] = d.Duration
+	if d.VideoSize != "" {
+		props["video_size"] = d.VideoSize
+	}
+
+	if d.Languages != nil {
+		languages := make([]string, len(d.Languages))
+		for i, l := range d.Languages {
+			languages[i] = common.StdLang(l)
+		}
+		props["languages"] = languages
+	}
+	if d.Qualities != nil {
+		props["video_qualities"] = d.Qualities
+	}
+	return props
 }
