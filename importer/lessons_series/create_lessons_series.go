@@ -37,12 +37,10 @@ func (ls *LessonsSeries) Run() {
 	mdb := ls.openDB()
 	defer mdb.Close()
 
-	//boil.DebugMode = true
 	ls.bySource = map[string]*bySourceItem{}
-	//ls.from, _ = time.Parse("2006-01-02", "1999-01-01")
 	ls.from, _ = time.Parse("2006-01-02", "1980-01-01")
 
-	for ls.from.Before(time.Now()) {
+	for ls.from.Before(time.Now().Add(BATCH_DURATION)) {
 		tx, err := mdb.Begin()
 		utils.Must(err)
 		ls.tx = tx
@@ -155,13 +153,11 @@ func (ls *LessonsSeries) attachCollection(cu *models.ContentUnit, bySource map[s
 		for uid, item := range bySource {
 			if props["source"].(string) == uid {
 				item.collection = ccu.R.Collection
-				log.Printf("attach to old collection cu_id - %d, c_id - %d", cu.ID, ccu.CollectionID)
 			}
 			if lProp, ok := props[strings.ToLower(common.CT_LIKUTIM)]; ok {
 				for _, l := range lProp.([]interface{}) {
 					if l.(string) == uid {
 						item.collection = ccu.R.Collection
-						log.Printf("attach to old collection cu_id - %d, c_id - %d", cu.ID, ccu.CollectionID)
 					}
 				}
 			}
@@ -175,6 +171,9 @@ func (ls *LessonsSeries) save() error {
 	for sUid, item := range ls.bySource {
 		//if have hand created collection that cu was missed we do nothing
 		if item.collection != nil && item.collection.CreatedAt.Before(time.Now().Add(-1*24*time.Hour)) {
+			if item.from.Before(ls.from.Add(-1 * BATCH_DURATION)) {
+				delete(ls.bySource, sUid)
+			}
 			continue
 		}
 		_evnts, err := ls.saveCollection(item, sUid)
