@@ -1452,7 +1452,7 @@ func (suite *MetadataProcessorSuite) TestReplaceHLSProcess() {
 }
 
 func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries() {
-	tf := suite.simulateSimpleChain()
+	tf, _ := suite.simulateSimpleChain()
 	sUids := createDummySources(suite.tx, nil)
 	metadata := CITMetadata{
 		ContentType:    common.CT_LESSON_PART,
@@ -1538,7 +1538,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeri
 	}
 
 	for i := 0; i <= MinCuNumberForNewLessonSeries+1; i++ {
-		tf := suite.simulateSimpleChain()
+		tf, _ := suite.simulateSimpleChain()
 		_sUid := sUids[i%len(sUids)]
 		metadata.Sources = []string{_sUid}
 		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
@@ -1557,7 +1557,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeri
 }
 
 func (suite *MetadataProcessorSuite) TestDailyLesson_LikutimsAttachLessonsSeries() {
-	tf := suite.simulateSimpleChain()
+	tf, _ := suite.simulateSimpleChain()
 	likutim, err := createDummyLikutim(suite.tx)
 	utils.Must(err)
 	lUids := make([]string, len(likutim))

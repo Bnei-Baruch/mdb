@@ -685,18 +685,29 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []e
 
 		// find first file Descendants of operation trim of old file
 		var oldTrimDescFileId null.Int64
-		if tree, err := FindFileTreeWithOperations(exec, oldFile.ID); err != nil {
+		if ancestors, err := FindFileAncestors(exec, oldFile.ID); err != nil {
 			return nil, nil, err
 		} else {
 			var trimFileId int64
-			for _, f := range tree {
-				for _, id := range f.OperationIds {
-					if common.OPERATION_TYPE_REGISTRY.ByID[id].Name == common.OP_TRIM {
+			fIds := []int64{}
+			for _, f := range ancestors {
+				fIds = append(fIds, f.ID)
+			}
+			files, err := models.Files(
+				models.FileWhere.ID.IN(fIds),
+				qm.Load(models.FileRels.Operations),
+			).All(exec)
+			if err != nil {
+				return nil, nil, err
+			}
+			for _, f := range files {
+				for _, op := range f.R.Operations {
+					if common.OPERATION_TYPE_REGISTRY.ByID[op.TypeID].Name == common.OP_TRIM {
 						trimFileId = f.ID
 					}
 				}
 			}
-			for _, f := range tree {
+			for _, f := range ancestors {
 				if f.ParentID.Int64 == trimFileId {
 					oldTrimDescFileId = null.Int64From(f.ID)
 				}
@@ -1319,13 +1330,25 @@ func handleReplaceHLS(exec boil.Executor, input interface{}) (*models.Operation,
 	// create new file based on mode
 	log.Info("Creating new file")
 	var parent *models.File
-	if tree, err := FindFileTreeWithOperations(exec, oldFile.ID); err != nil {
+	if ancestors, err := FindFileAncestors(exec, oldFile.ID); err != nil {
 		return nil, nil, err
 	} else {
-		for _, f := range tree {
-			for _, id := range f.OperationIds {
-				if common.OPERATION_TYPE_REGISTRY.ByID[id].Name == common.OP_TRIM {
-					parent = &f.File
+		fIds := []int64{}
+		for _, f := range ancestors {
+			fIds = append(fIds, f.ID)
+		}
+		files, err := models.Files(
+			models.FileWhere.ID.IN(fIds),
+			qm.Load(models.FileRels.Operations),
+		).All(exec)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		for _, f := range files {
+			for _, op := range f.R.Operations {
+				if common.OPERATION_TYPE_REGISTRY.ByID[op.TypeID].Name == common.OP_TRIM {
+					parent = f
 				}
 			}
 		}
