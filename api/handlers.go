@@ -133,12 +133,12 @@ func JoinHandler(c *gin.Context) {
 	}
 }
 
-// ReplaceHLS replace HLS file (on add language, quality)
-func ReplaceHLS(c *gin.Context) {
+// Replace replace HLS file (on add language, quality)
+func Replace(c *gin.Context) {
 	log.Info(common.OP_REPLACE)
 	var i JoinRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleReplaceHLS, nil)
+		handleOperation(c, i, handleReplace, nil)
 	}
 }
 
@@ -682,58 +682,11 @@ func handleUpload(exec boil.Executor, input interface{}) (*models.Operation, []e
 		if oldFile == nil {
 			return nil, nil, errors.New("no file that was replaced")
 		}
-
-		// find first file Descendants of operation trim of old file
-		var oldTrimDescFileId null.Int64
-		if ancestors, err := FindFileAncestors(exec, oldFile.ID); err != nil {
-			return nil, nil, err
-		} else {
-			var trimFileId int64
-			fIds := []int64{}
-			for _, f := range ancestors {
-				fIds = append(fIds, f.ID)
-			}
-			files, err := models.Files(
-				models.FileWhere.ID.IN(fIds),
-				qm.Load(models.FileRels.Operations),
-			).All(exec)
-			if err != nil {
-				return nil, nil, err
-			}
-			for _, f := range files {
-				for _, op := range f.R.Operations {
-					if common.OPERATION_TYPE_REGISTRY.ByID[op.TypeID].Name == common.OP_TRIM {
-						trimFileId = f.ID
-					}
-				}
-			}
-			for _, f := range ancestors {
-				if f.ParentID.Int64 == trimFileId {
-					oldTrimDescFileId = null.Int64From(f.ID)
-				}
-			}
-		}
-		if !oldTrimDescFileId.Valid {
-			return nil, nil, errors.Wrapf(err, "cant find Ancestors file for old file %d with trim operation", oldFile.ID)
-		}
-		forRemove, err := FindFileDescendants(exec, oldTrimDescFileId.Int64)
+		_evnts, err := removeDescendants(exec, oldFile)
 		if err != nil {
 			return nil, nil, err
 		}
-		var forRemoveIds = make([]int64, 0)
-		for _, f := range forRemove {
-			forRemoveIds = append(forRemoveIds, f.ID)
-		}
-
-		_, err = models.Files(models.FileWhere.ID.IN(forRemoveIds)).UpdateAll(
-			exec, models.M{"removed_at": time.Now().UTC(), "published": false},
-		)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "remove files related replace operation %d ", opRepl.ID)
-		}
-		for _, f := range forRemove {
-			evnts = append(evnts, events.FileRemoveEvent(f))
-		}
+		evnts = append(evnts, _evnts...)
 	}
 	evnts = append(evnts, events.FilePublishedEvent(file))
 	evnts = append(evnts, impact.Events()...)
@@ -1300,7 +1253,7 @@ func handleJoin(exec boil.Executor, input interface{}) (*models.Operation, []eve
 	return operation, nil, operation.AddFiles(exec, false, opFiles...)
 }
 
-func handleReplaceHLS(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
+func handleReplace(exec boil.Executor, input interface{}) (*models.Operation, []events.Event, error) {
 	r := input.(ReplaceRequest)
 
 	opFiles := make([]*models.File, 0)
@@ -1327,39 +1280,10 @@ func handleReplaceHLS(exec boil.Executor, input interface{}) (*models.Operation,
 		return nil, nil, err
 	}
 
-	// create new file based on mode
+	// create new file based on old
 	log.Info("Creating new file")
-	var parent *models.File
-	if ancestors, err := FindFileAncestors(exec, oldFile.ID); err != nil {
-		return nil, nil, err
-	} else {
-		fIds := []int64{}
-		for _, f := range ancestors {
-			fIds = append(fIds, f.ID)
-		}
-		files, err := models.Files(
-			models.FileWhere.ID.IN(fIds),
-			qm.Load(models.FileRels.Operations),
-		).All(exec)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		for _, f := range files {
-			for _, op := range f.R.Operations {
-				if common.OPERATION_TYPE_REGISTRY.ByID[op.TypeID].Name == common.OP_TRIM {
-					parent = f
-				}
-			}
-		}
-	}
-
-	opTrim, err := FindUpChainOperation(exec, oldFile.ID, common.OP_TRIM)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "trim operation not found")
-	}
-
-	if err := opTrim.L.LoadFiles(exec, true, opTrim, nil); err != nil {
+	parent, err := models.FindFile(exec, oldFile.ParentID.Int64)
+	if _, ok := err.(FileNotFound); err != nil && !ok {
 		return nil, nil, err
 	}
 
@@ -1375,9 +1299,14 @@ func handleReplaceHLS(exec boil.Executor, input interface{}) (*models.Operation,
 		return nil, nil, errors.Wrap(err, "Save file.content_unit_id to DB")
 	}
 
+	evnts, err := removeDescendants(exec, oldFile)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	opFiles = append(opFiles, file)
 	log.Info("Associating files to operation")
-	return operation, nil, operation.AddFiles(exec, false, opFiles...)
+	return operation, evnts, operation.AddFiles(exec, false, opFiles...)
 }
 
 // Helpers
@@ -1461,4 +1390,30 @@ func createHLSProps(d HLSFile) map[string]interface{} {
 		props["video_qualities"] = d.Qualities
 	}
 	return props
+}
+
+func removeDescendants(exec boil.Executor, file *models.File) ([]events.Event, error) {
+	evnts := make([]events.Event, 0)
+	if file.RemovedAt.Valid {
+		return evnts, nil
+	}
+	forRemove, err := FindFileDescendants(exec, file.ID)
+	if err != nil {
+		return nil, err
+	}
+	var forRemoveIds = make([]int64, 0)
+	for _, f := range forRemove {
+		forRemoveIds = append(forRemoveIds, f.ID)
+	}
+
+	_, err = models.Files(models.FileWhere.ID.IN(forRemoveIds)).UpdateAll(
+		exec, models.M{"removed_at": time.Now().UTC(), "published": false},
+	)
+	if err != nil {
+		return nil, errors.Wrapf(err, "remove descendants of file %d ", file.ID)
+	}
+	for _, f := range forRemove {
+		evnts = append(evnts, events.FileRemoveEvent(f))
+	}
+	return evnts, nil
 }

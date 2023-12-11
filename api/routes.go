@@ -19,7 +19,7 @@ func SetupRoutes(router *gin.Engine) {
 	operations.POST("/insert", InsertHandler)
 	operations.POST("/transcode", TranscodeHandler)
 	operations.POST("/join", JoinHandler)
-	operations.POST("/replace", ReplaceHLS)
+	operations.POST("/replace", Replace)
 	operations.GET("/descendant_units/:sha1", DescendantUnitsHandler)
 
 	rest := router.Group("rest")

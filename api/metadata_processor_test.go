@@ -1250,7 +1250,7 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithAdditionalCapture() {
 	suite.Equal(tf.Original.ContentUnitID.Int64, souce.ContentUnitID.Int64, "original and source unit")
 }
 
-func (suite *MetadataProcessorSuite) TestReplaceHLSProcess() {
+func (suite *MetadataProcessorSuite) TestReplaceProcess() {
 	tfMain, WorkflowID := suite.simulateSimpleChain()
 	original, proxy := tfMain.Original, tfMain.Proxy
 
@@ -1423,7 +1423,7 @@ func (suite *MetadataProcessorSuite) TestReplaceHLSProcess() {
 		HLSFile: hls2FileReq,
 		OldSha1: HLS1_SHA1,
 	}
-	opHLS, _, err := handleReplaceHLS(suite.tx, reqReplace)
+	opHLS, _, err := handleReplace(suite.tx, reqReplace)
 	suite.Require().Nil(err)
 	hlsFile2 := suite.opFilesBySHA1(opHLS)[HLS2_SHA1]
 	suite.Require().Equal(hlsTrimFile.ID, hlsFile2.ParentID.Int64)
