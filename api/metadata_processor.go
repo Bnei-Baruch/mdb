@@ -438,19 +438,19 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source
 	if len(metadata.Likutim) > 0 && common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name == common.CT_LESSON_PART {
 		seriesEvnts, err := (&AssociateByLikutim{tx: exec, cu: cu}).Associate(metadata.Likutim)
 		if err != nil {
-			return nil, errors.Wrap(err, "Associate Lessons series collection by likutim")
+			log.Error("Associate Lessons series collection by likutim")
+		} else {
+			evnts = append(evnts, seriesEvnts...)
 		}
-
-		evnts = append(evnts, seriesEvnts...)
 	}
 
 	if len(metadata.Sources) > 0 && common.CONTENT_TYPE_REGISTRY.ByID[cu.TypeID].Name == common.CT_LESSON_PART {
 		seriesEvnts, err := (&AssociateBySources{tx: exec, cu: cu}).Associate(metadata.Sources)
 		if err != nil {
-			return nil, errors.Wrap(err, "Associate Lessons series collection by sources")
+			log.Error("Associate Lessons series collection by sources")
+		} else {
+			evnts = append(evnts, seriesEvnts...)
 		}
-
-		evnts = append(evnts, seriesEvnts...)
 	}
 
 	if ct == common.CT_LESSON_PART ||
