@@ -639,7 +639,7 @@ func (suite *MetadataProcessorSuite) TestDerivedBeforeMain() {
 }
 
 func (suite *MetadataProcessorSuite) TestVideoProgram() {
-	tf := suite.simulateSimpleChain()
+	tf, _ := suite.simulateSimpleChain()
 	original, proxy := tf.Original, tf.Proxy
 
 	c, err := CreateCollection(suite.tx, common.CT_VIDEO_PROGRAM, nil)
@@ -684,7 +684,7 @@ func (suite *MetadataProcessorSuite) TestVideoProgram() {
 }
 
 func (suite *MetadataProcessorSuite) TestEventPart() {
-	tf := suite.simulateSimpleChain()
+	tf, _ := suite.simulateSimpleChain()
 	original, proxy := tf.Original, tf.Proxy
 
 	EVENT_TYPES := [...]string{common.CT_CONGRESS, common.CT_HOLIDAY, common.CT_PICNIC, common.CT_UNITY_DAY}
@@ -1250,8 +1250,276 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithAdditionalCapture() {
 	suite.Equal(tf.Original.ContentUnitID.Int64, souce.ContentUnitID.Int64, "original and source unit")
 }
 
+func (suite *MetadataProcessorSuite) TestReplaceProcess() {
+	tfMain, WorkflowID := suite.simulateSimpleChain()
+	original, proxy := tfMain.Original, tfMain.Proxy
+
+	c, err := CreateCollection(suite.tx, common.CT_VIDEO_PROGRAM, nil)
+	suite.Require().Nil(err)
+
+	metadata := CITMetadata{
+		ContentType:    common.CT_VIDEO_PROGRAM_CHAPTER,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       common.LANG_HEBREW,
+		HasTranslation: false,
+		Lecturer:       "norav",
+		CollectionUID:  null.StringFrom(c.UID),
+		Episode:        null.StringFrom("827"),
+		RequireTest:    true,
+	}
+
+	// HLS capture_stop
+	CS_SHA1 := utils.RandomSHA1()
+	_, _, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: WorkflowID,
+		},
+		File: File{
+			FileName:  "capture_stop_hls.mp4",
+			Sha1:      CS_SHA1,
+			Size:      98737,
+			CreatedAt: &Timestamp{Time: time.Now()},
+			Language:  common.LANG_HEBREW,
+		},
+		CaptureSource: "archcap",
+		CollectionUID: "c12356789",
+		Part:          "false",
+	})
+	suite.Require().Nil(err)
+
+	// HLS trim
+	HLS1_TRM_SHA1 := utils.RandomSHA1()
+	opTrim, _, err := handleTrim(suite.tx, TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: CS_SHA1,
+		Original: AVFile{
+			File: File{
+				FileName:  "trim_hls_original.mp4",
+				Sha1:      HLS1_TRM_SHA1,
+				Size:      98000,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.0,
+		},
+		CaptureSource: "archcap",
+		In:            []float64{10.05, 249.43},
+		Out:           []float64{240.51, 899.27},
+	})
+	suite.Require().Nil(err)
+
+	trimFiles := suite.opFilesBySHA1(opTrim)
+	suite.Require().Nil(opTrim.L.LoadUser(suite.tx, true, opTrim, nil))
+	hlsTrimFile := trimFiles[HLS1_TRM_SHA1]
+
+	//HLS convert old
+	HLS1_SHA1 := utils.RandomSHA1()
+	OLD_HLS_LANGS := []string{"he", "ru"}
+	OLD_HLS_QUALITIES := []string{"HD"}
+	inputOldConvert := ConvertRequest{
+		Operation: Operation{
+			Station: "Convert station",
+			User:    "operator@dev.com",
+		},
+		Sha1: HLS1_TRM_SHA1,
+		Output: []HLSFile{
+			{
+				Languages: OLD_HLS_LANGS,
+				Qualities: OLD_HLS_QUALITIES,
+				AVFile: AVFile{
+					File: File{
+						FileName:  "test_file.mp4",
+						Sha1:      HLS1_SHA1,
+						Size:      694,
+						CreatedAt: &Timestamp{Time: time.Now()},
+						Type:      "video",
+						MimeType:  "video/mp4",
+					},
+					Duration: 871,
+				},
+			},
+		},
+	}
+
+	op, _, err := handleConvert(suite.tx, inputOldConvert)
+	suite.Require().Nil(err)
+
+	files := suite.opFilesBySHA1(op)
+	suite.Require().Len(files, 2)
+	suite.Require().Nil(op.L.LoadUser(suite.tx, true, op, nil))
+
+	hlsFile1 := files[HLS1_SHA1]
+	//HLS send old
+	req := SendRequest{
+		Operation: Operation{
+			Station:    op.Station.String,
+			User:       op.R.User.Email,
+			WorkflowID: WorkflowID,
+		},
+		Original: Rename{
+			Sha1:     hex.EncodeToString(original.Sha1.Bytes),
+			FileName: original.Name,
+		},
+		Proxy: &Rename{
+			Sha1:     hex.EncodeToString(proxy.Sha1.Bytes),
+			FileName: proxy.Name,
+		},
+		Source: &Rename{
+			Sha1:     hex.EncodeToString(hlsFile1.Sha1.Bytes),
+			FileName: hlsFile1.Name,
+		},
+		Metadata: metadata,
+		Mode:     null.String{},
+	}
+
+	_, _, err = handleSend(suite.tx, req)
+	suite.Require().Nil(err)
+	suite.Require().Nil(original.Reload(suite.tx))
+	suite.Require().Nil(hlsFile1.Reload(suite.tx))
+	suite.Require().Equal(hlsTrimFile.ID, hlsFile1.ParentID.Int64)
+	suite.Require().Equal(original.ContentUnitID, hlsFile1.ContentUnitID)
+
+	suite.Require().Nil(hlsFile1.L.LoadContentUnit(suite.tx, true, hlsFile1, nil))
+	hlsFile1.Published = true
+	_, err = hlsFile1.Update(suite.tx, boil.Whitelist("published"))
+	suite.Require().Nil(err)
+
+	cu := hlsFile1.R.ContentUnit
+	var propsCu map[string]interface{}
+	suite.Require().Nil(cu.Properties.Unmarshal(&propsCu))
+	var props1 map[string]interface{}
+	suite.Require().Nil(hlsFile1.Properties.Unmarshal(&props1))
+	suite.Require().EqualValues(utils.ConvertArgsString(OLD_HLS_LANGS), props1["languages"])
+	suite.Require().EqualValues(utils.ConvertArgsString(OLD_HLS_QUALITIES), props1["video_qualities"])
+
+	// new HLS replace
+	HLS2_SHA1 := utils.RandomSHA1()
+	NEW_HLS_QUALITIES := []string{"HD", "fHD"}
+	NEW_HLS_LANGS := []string{"he", "ru", "en"}
+	hls2FileReq := HLSFile{
+		AVFile: AVFile{
+			File: File{
+				FileName:  "Replaced HLS file",
+				Sha1:      HLS2_SHA1,
+				Size:      98000,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 820.0,
+		},
+		Languages: NEW_HLS_LANGS,
+		Qualities: NEW_HLS_QUALITIES,
+	}
+	reqReplace := ReplaceRequest{
+		Operation: Operation{
+			Station: "Replace station",
+			User:    "operator@dev.com",
+		},
+		HLSFile: hls2FileReq,
+		OldSha1: HLS1_SHA1,
+	}
+	opHLS, _, err := handleReplace(suite.tx, reqReplace)
+	suite.Require().Nil(err)
+	hlsFile2 := suite.opFilesBySHA1(opHLS)[HLS2_SHA1]
+	suite.Require().Equal(hlsTrimFile.ID, hlsFile2.ParentID.Int64)
+	suite.Require().Equal(original.ContentUnitID, hlsFile2.ContentUnitID)
+	suite.Require().False(hlsFile2.Published)
+	var props2 map[string]interface{}
+	suite.Require().Nil(hlsFile2.Properties.Unmarshal(&props2))
+	suite.Require().EqualValues(utils.ConvertArgsString(NEW_HLS_LANGS), props2["languages"])
+	suite.Require().EqualValues(utils.ConvertArgsString(NEW_HLS_QUALITIES), props2["video_qualities"])
+
+	reqUpload := UploadRequest{
+		Operation: Operation{
+			Station: "Upload station",
+			User:    "operator@dev.com",
+		},
+		AVFile: hls2FileReq.AVFile,
+		Url:    "http://example.com/some/url/to/file.mp4",
+	}
+	_, _, err = handleUpload(suite.tx, reqUpload)
+	suite.Require().Nil(err)
+
+	suite.Require().Nil(hlsFile2.Reload(suite.tx))
+	suite.Require().Nil(hlsFile1.Reload(suite.tx))
+	suite.Require().True(hlsFile2.Published)
+	suite.Require().NotNil(hlsFile1.RemovedAt)
+}
+
+func (suite *MetadataProcessorSuite) TestReplaceNotPublishedProcess() {
+	// Create dummy content unit
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+
+	SHA_INS := utils.RandomSHA1()
+	// Do insert operation
+	input := InsertRequest{
+		Operation: Operation{
+			Station:    "Some station",
+			User:       "operator@dev.com",
+			WorkflowID: "workflow_id",
+		},
+		InsertType:     "akladot",
+		ContentUnitUID: cu.UID,
+		AVFile: AVFile{
+			File: File{
+				FileName:  "akladot.doc",
+				Sha1:      SHA_INS,
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				MimeType:  "application/msword",
+				Language:  common.LANG_HEBREW,
+			},
+			Duration: 123.4,
+		},
+		Mode: "new",
+	}
+
+	_, _, err = handleInsert(suite.tx, input)
+	suite.Require().Nil(err)
+	insFile, _, err := FindFileBySHA1(suite.tx, SHA_INS)
+	suite.Require().Nil(err)
+	insFile.Published = false
+	_, err = insFile.Update(suite.tx, boil.Whitelist("published"))
+	suite.Require().Nil(err)
+
+	SHA_NEW := utils.RandomSHA1()
+	reqReplace := ReplaceRequest{
+		Operation: Operation{
+			Station: "Replace station",
+			User:    "operator@dev.com",
+		},
+		HLSFile: HLSFile{
+			AVFile: AVFile{
+				File: File{
+					FileName:  "Replaced file",
+					Sha1:      SHA_NEW,
+					Size:      98000,
+					CreatedAt: &Timestamp{Time: time.Now()},
+				},
+				Duration: 820.0,
+			},
+		},
+		OldSha1: SHA_INS,
+	}
+	_, _, err = handleReplace(suite.tx, reqReplace)
+	suite.Require().Nil(err)
+
+	newFile, _, err := FindFileBySHA1(suite.tx, SHA_NEW)
+	suite.Require().Nil(err)
+	suite.Require().Nil(insFile.Reload(suite.tx))
+	suite.Require().NotNil(insFile.RemovedAt)
+	suite.Require().Equal(newFile.ContentUnitID, insFile.ContentUnitID)
+	suite.Require().Equal(newFile.ParentID, insFile.ParentID)
+}
+
 func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries() {
-	tf := suite.simulateSimpleChain()
+	tf, _ := suite.simulateSimpleChain()
 	sUids := createDummySources(suite.tx, nil)
 	metadata := CITMetadata{
 		ContentType:    common.CT_LESSON_PART,
@@ -1346,7 +1614,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeri
 	}
 
 	for i := 0; i <= MinCuNumberForNewLessonSeries+1; i++ {
-		tf := suite.simulateSimpleChain()
+		tf, _ := suite.simulateSimpleChain()
 		_sUid := sUids[i%len(sUids)]
 		metadata.Sources = []string{_sUid}
 		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
@@ -1366,7 +1634,7 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeri
 }
 
 func (suite *MetadataProcessorSuite) TestDailyLesson_LikutimsAttachLessonsSeries() {
-	tf := suite.simulateSimpleChain()
+	tf, _ := suite.simulateSimpleChain()
 	likutim, err := createDummyLikutim(suite.tx)
 	utils.Must(err)
 	lUids := make([]string, len(likutim))
@@ -1533,19 +1801,20 @@ type TrimFiles struct {
 	Proxy    *models.File
 }
 
-func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
+func (suite *MetadataProcessorSuite) simulateSimpleChain() (TrimFiles, string) {
 	CS_SHA1 := utils.RandomSHA1()
 	DMX_O_SHA1 := utils.RandomSHA1()
 	DMX_P_SHA1 := utils.RandomSHA1()
 	TRM_O_SHA1 := utils.RandomSHA1()
 	TRM_P_SHA1 := utils.RandomSHA1()
+	WorkflowID := "c12356788"
 
 	// capture_start
 	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
-			WorkflowID: "c12356788",
+			WorkflowID: WorkflowID,
 		},
 		FileName:      "capture_start_simple",
 		CaptureSource: "mltcap",
@@ -1559,7 +1828,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 		Operation: Operation{
 			Station:    "Capture station",
 			User:       "operator@dev.com",
-			WorkflowID: "c12356789",
+			WorkflowID: WorkflowID,
 		},
 		File: File{
 			FileName:  "capture_stop_simple.mp4",
@@ -1636,10 +1905,7 @@ func (suite *MetadataProcessorSuite) simulateSimpleChain() TrimFiles {
 	suite.Require().Nil(err)
 
 	files := suite.opFilesBySHA1(op)
-	return TrimFiles{
-		Original: files[TRM_O_SHA1],
-		Proxy:    files[TRM_P_SHA1],
-	}
+	return TrimFiles{Original: files[TRM_O_SHA1], Proxy: files[TRM_P_SHA1]}, WorkflowID
 }
 
 func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles {

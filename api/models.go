@@ -138,6 +138,14 @@ type (
 		Mode     null.String `json:"mode"`
 	}
 
+	ReplaceRequest struct {
+		Operation
+		HLSFile
+		OldSha1        string       `json:"old_sha1" binding:"omitempty,len=40,hexadecimal"`
+		ContentUnitUID string       `json:"content_unit_uid" binding:"required,len=8"`
+		Metadata       *CITMetadata `json:"metadata" binding:"omitempty"`
+	}
+
 	ConvertRequest struct {
 		Operation
 		Sha1   string    `json:"sha1" binding:"required,len=40,hexadecimal"`
