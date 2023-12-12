@@ -1282,11 +1282,13 @@ func handleReplace(exec boil.Executor, input interface{}) (*models.Operation, []
 
 	// create new file based on old
 	log.Info("Creating new file")
-	parent, err := models.FindFile(exec, oldFile.ParentID.Int64)
-	if _, ok := err.(FileNotFound); err != nil && !ok {
-		return nil, nil, err
+	var parent *models.File
+	if oldFile.ParentID.Valid {
+		parent, err = models.FindFile(exec, oldFile.ParentID.Int64)
+		if _, ok := err.(FileNotFound); err != nil && !ok {
+			return nil, nil, err
+		}
 	}
-
 	props := createHLSProps(r.HLSFile)
 	file, err := CreateFile(exec, parent, r.File, props)
 	if err != nil {

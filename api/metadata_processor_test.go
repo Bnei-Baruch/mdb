@@ -1451,6 +1451,73 @@ func (suite *MetadataProcessorSuite) TestReplaceProcess() {
 	suite.Require().NotNil(hlsFile1.RemovedAt)
 }
 
+func (suite *MetadataProcessorSuite) TestReplaceNotPublishedProcess() {
+	// Create dummy content unit
+	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
+	suite.Require().Nil(err)
+
+	SHA_INS := utils.RandomSHA1()
+	// Do insert operation
+	input := InsertRequest{
+		Operation: Operation{
+			Station:    "Some station",
+			User:       "operator@dev.com",
+			WorkflowID: "workflow_id",
+		},
+		InsertType:     "akladot",
+		ContentUnitUID: cu.UID,
+		AVFile: AVFile{
+			File: File{
+				FileName:  "akladot.doc",
+				Sha1:      SHA_INS,
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+				MimeType:  "application/msword",
+				Language:  common.LANG_HEBREW,
+			},
+			Duration: 123.4,
+		},
+		Mode: "new",
+	}
+
+	_, _, err = handleInsert(suite.tx, input)
+	suite.Require().Nil(err)
+	insFile, _, err := FindFileBySHA1(suite.tx, SHA_INS)
+	suite.Require().Nil(err)
+	insFile.Published = false
+	_, err = insFile.Update(suite.tx, boil.Whitelist("published"))
+	suite.Require().Nil(err)
+
+	SHA_NEW := utils.RandomSHA1()
+	reqReplace := ReplaceRequest{
+		Operation: Operation{
+			Station: "Replace station",
+			User:    "operator@dev.com",
+		},
+		HLSFile: HLSFile{
+			AVFile: AVFile{
+				File: File{
+					FileName:  "Replaced file",
+					Sha1:      SHA_NEW,
+					Size:      98000,
+					CreatedAt: &Timestamp{Time: time.Now()},
+				},
+				Duration: 820.0,
+			},
+		},
+		OldSha1: SHA_INS,
+	}
+	_, _, err = handleReplace(suite.tx, reqReplace)
+	suite.Require().Nil(err)
+
+	newFile, _, err := FindFileBySHA1(suite.tx, SHA_NEW)
+	suite.Require().Nil(err)
+	suite.Require().Nil(insFile.Reload(suite.tx))
+	suite.Require().NotNil(insFile.RemovedAt)
+	suite.Require().Equal(newFile.ContentUnitID, insFile.ContentUnitID)
+	suite.Require().Equal(newFile.ParentID, insFile.ParentID)
+}
+
 func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries() {
 	tf, _ := suite.simulateSimpleChain()
 	sUids := createDummySources(suite.tx, nil)
