@@ -37,17 +37,18 @@ type AssociateBySources struct {
 	tx            boil.Executor
 	cu            *models.ContentUnit
 	evnts         []events.Event
-	seriesSources []string
+	seriesSources map[string]bool
 	cusByS        map[string][]int64
 }
 
 func (a *AssociateBySources) Associate(sUIDs []string) ([]events.Event, error) {
 	a.evnts = make([]events.Event, 0)
+	a.seriesSources = make(map[string]bool)
 
 	if err := a.prepareCUs(sUIDs); err != nil {
 		return nil, NewInternalError(err)
 	}
-	for _, sUid := range a.seriesSources {
+	for sUid, _ := range a.seriesSources {
 		if len(a.cusByS[sUid]) < MinCuNumberForNewLessonSeries {
 			continue
 		}
@@ -66,7 +67,7 @@ func (a *AssociateBySources) Associate(sUIDs []string) ([]events.Event, error) {
 	return a.evnts, nil
 }
 
-func (a *AssociateBySources) prepareCUs(newSUids []string) error {
+func (a *AssociateBySources) prepareCUs(cuSUids []string) error {
 	rows, err := queries.Raw(qCusByS, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID).Query(a.tx)
 	if err != nil {
 		return NewInternalError(err)
@@ -85,21 +86,19 @@ func (a *AssociateBySources) prepareCUs(newSUids []string) error {
 		sUIDs = append(sUIDs, sUid)
 		_cusByS[sUid] = append(_cusByS[sUid], cuIdsByS...)
 	}
-	for _, uid := range newSUids {
-		sUIDs = append(sUIDs, uid)
-	}
+	sUIDs = append(sUIDs, cuSUids...)
 	sByLeaf, err := MapParentByLeaf(a.tx, sUIDs)
 	if err != nil {
 		return NewInternalError(err)
 	}
-	for _, uid := range newSUids {
-		a.seriesSources = append(a.seriesSources, sByLeaf[uid])
+	for _, uid := range cuSUids {
+		a.seriesSources[sByLeaf[uid]] = true
 	}
 
 	a.cusByS = make(map[string][]int64)
 	for _, prevUid := range sUIDs {
 		fixedUid := sByLeaf[prevUid]
-		for _, uid := range a.seriesSources {
+		for uid, _ := range a.seriesSources {
 			if _, ok := a.cusByS[uid]; !ok {
 				a.cusByS[uid] = []int64{}
 			}
