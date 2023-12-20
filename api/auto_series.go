@@ -400,17 +400,26 @@ func findStartDate(tx boil.Executor, id int64) (string, error) {
 	return fd.(string), nil
 }
 
+var LAST_POSITION_BY_C_SQL = `
+SELECT ccu.position
+FROM collections_content_units ccu
+WHERE ccu.collection_id = %d
+ORDER BY ccu.position DESC
+LIMIT 1
+`
+
 func attachCollection(tx boil.Executor, c *models.Collection, cu *models.ContentUnit, cus []int64) error {
-	prevCCU, err := models.FindCollectionsContentUnit(tx, c.ID, cus[len(cus)-1])
-	if err != nil {
+	var prevPos int64
+
+	if err := queries.Raw(fmt.Sprintf(LAST_POSITION_BY_C_SQL, c.ID)).QueryRow(tx).Scan(&prevPos); err != nil {
 		return err
 	}
 	//position start from 0 when Name from 1
 	ccu := &models.CollectionsContentUnit{
 		ContentUnitID: cu.ID,
 		CollectionID:  c.ID,
-		Position:      prevCCU.Position + 1,
-		Name:          fmt.Sprintf("%d", prevCCU.Position+1+1),
+		Position:      int(prevPos) + 1,
+		Name:          fmt.Sprintf("%d", prevPos+1+1),
 	}
 	if err := c.AddCollectionsContentUnits(tx, true, ccu); err != nil {
 		return err
