@@ -138,7 +138,7 @@ func Replace(c *gin.Context) {
 	log.Info(common.OP_REPLACE)
 	var i JoinRequest
 	if c.BindJSON(&i) == nil {
-		handleOperation(c, i, handleReplace, nil)
+		handleOperation(c, i, handleReplace, replaceResultRenderer)
 	}
 }
 
@@ -1311,6 +1311,17 @@ func handleReplace(exec boil.Executor, input interface{}) (*models.Operation, []
 	opFiles = append(opFiles, file)
 	log.Info("Associating files to operation")
 	return operation, evnts, operation.AddFiles(exec, false, opFiles...)
+}
+
+func replaceResultRenderer(c *gin.Context, exec boil.Executor, input interface{}, op *models.Operation) error {
+	r := input.(ReplaceRequest)
+	file, _, err := FindFileBySHA1(exec, r.File.Sha1)
+	if err != nil {
+		return errors.Wrapf(err, "new file not found")
+	}
+
+	c.JSON(http.StatusOK, file)
+	return nil
 }
 
 // Helpers
