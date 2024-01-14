@@ -133,10 +133,10 @@ func JoinHandler(c *gin.Context) {
 	}
 }
 
-// Replace replace HLS file (on add language, quality)
+// Replace HLS file (on add language, quality)
 func Replace(c *gin.Context) {
 	log.Info(common.OP_REPLACE)
-	var i JoinRequest
+	var i ReplaceRequest
 	if c.BindJSON(&i) == nil {
 		handleOperation(c, i, handleReplace, replaceResultRenderer)
 	}

@@ -53,7 +53,7 @@ type (
 
 	HLSFile struct {
 		AVFile
-		Languages []string `json:"languages" binding:"omitempty,min=2,max=3"`
+		Languages []string `json:"languages" binding:"omitempty,dive,min=2,max=3"`
 		Qualities []string `json:"video_qualities" binding:"omitempty"`
 	}
 
@@ -142,7 +142,7 @@ type (
 		Operation
 		HLSFile
 		OldSha1        string       `json:"old_sha1" binding:"omitempty,len=40,hexadecimal"`
-		ContentUnitUID string       `json:"content_unit_uid" binding:"required,len=8"`
+		ContentUnitUID string       `json:"content_unit_uid" binding:"omitempty,len=8"`
 		Metadata       *CITMetadata `json:"metadata" binding:"omitempty"`
 	}
 
