@@ -440,7 +440,6 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source
 		if err != nil {
 			return nil, errors.Wrap(err, "Associate Lessons series collection by likutim")
 		}
-
 		evnts = append(evnts, seriesEvnts...)
 	}
 
@@ -449,7 +448,6 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source
 		if err != nil {
 			return nil, errors.Wrap(err, "Associate Lessons series collection by sources")
 		}
-
 		evnts = append(evnts, seriesEvnts...)
 	}
 

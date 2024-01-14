@@ -1550,15 +1550,16 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 
 	_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 	suite.Require().Nil(err)
-	makePublishedLast(suite.tx)
+	_, err = makePublishedLast(suite.tx)
+	suite.Require().Nil(err)
 	countCcu, err := models.CollectionsContentUnits(models.CollectionsContentUnitWhere.CollectionID.EQ(c.ID)).Count(suite.tx)
-	utils.Must(err)
+	suite.Require().Nil(err)
 	suite.EqualValues(MinCuNumberForNewLessonSeries+1, countCcu)
 
 	for i := 0; i <= MinCuNumberForNewLessonSeries; i++ {
 		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 		suite.Require().Nil(err)
-		makePublishedLast(suite.tx)
+		last, err := makePublishedLast(suite.tx)
 		utils.Must(c.Reload(suite.tx))
 		_countCcu, err := models.Collections(qm.WhereIn(`properties->>'source' IN ?`, utils.ConvertArgsString(sUids)...)).Count(suite.tx)
 		utils.Must(err)
@@ -1567,9 +1568,17 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesAttachLessonsSeries(
 		} else {
 			suite.EqualValues(len(sUids), _countCcu)
 		}
-		countCu, err := models.CollectionsContentUnits(models.CollectionsContentUnitWhere.CollectionID.EQ(c.ID)).Count(suite.tx)
+		ccus, err := models.CollectionsContentUnits(models.CollectionsContentUnitWhere.CollectionID.EQ(c.ID)).All(suite.tx)
 		utils.Must(err)
-		suite.EqualValues(i+int(countCcu)+1, countCu)
+		suite.EqualValues(i+int(countCcu)+1, len(ccus))
+
+		lastPosition := 0
+		for _, ccu := range ccus {
+			if ccu.ContentUnitID == last.ID {
+				lastPosition = ccu.Position
+			}
+		}
+		suite.EqualValues(lastPosition, len(ccus))
 	}
 }
 
@@ -1610,7 +1619,8 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_SourcesTESAttachLessonsSeri
 		metadata.Sources = []string{_sUid}
 		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 		suite.Require().Nil(err)
-		makePublishedLast(suite.tx)
+		_, err = makePublishedLast(suite.tx)
+		suite.Require().Nil(err)
 	}
 
 	c, err := models.Collections(
@@ -1662,7 +1672,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_LikutimsAttachLessonsSeries
 	suite.EqualValues(MinCuNumberForNewLessonSeries, countCcu)
 	_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 	suite.Require().Nil(err)
-	makePublishedLast(suite.tx)
+
+	_, err = makePublishedLast(suite.tx)
+	suite.Require().Nil(err)
 	countCcu, err = models.CollectionsContentUnits(models.CollectionsContentUnitWhere.CollectionID.EQ(c.ID)).Count(suite.tx)
 	suite.Require().Nil(err)
 	suite.EqualValues(MinCuNumberForNewLessonSeries+1, countCcu)
@@ -1672,7 +1684,9 @@ func (suite *MetadataProcessorSuite) TestDailyLesson_LikutimsAttachLessonsSeries
 	for i := 0; i < MinCuNumberForNewLessonSeries; i++ {
 		_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
 		suite.Require().Nil(err)
-		makePublishedLast(suite.tx)
+
+		_, err = makePublishedLast(suite.tx)
+		suite.Require().Nil(err)
 		utils.Must(c.Reload(suite.tx))
 		err = c.L.LoadCollectionsContentUnits(suite.tx, true, c, nil)
 		suite.Require().Nil(err)
@@ -1699,7 +1713,7 @@ func createCUWithSourceForLessonsSeries(tx boil.Transactor, s *models.Source, c 
 	utils.Must(err)
 	utils.Must(cu.AddSources(tx, false, s))
 	if c != nil {
-		utils.Must(c.AddCollectionsContentUnits(tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID}))
+		utils.Must(c.AddCollectionsContentUnits(tx, true, &models.CollectionsContentUnit{ContentUnitID: cu.ID, Position: i + 1}))
 	}
 	return cu
 }
@@ -1721,15 +1735,21 @@ func createCUWithLikutForLessonsSeries(tx boil.Transactor, l *models.ContentUnit
 	return cu
 }
 
-func makePublishedLast(tx boil.Transactor) {
+func makePublishedLast(tx boil.Transactor) (*models.ContentUnit, error) {
 	prev, err := models.ContentUnits(
 		models.ContentUnitWhere.TypeID.EQ(common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID),
 		qm.OrderBy("id DESC"),
 	).One(tx)
-	utils.Must(err)
+	if err != nil {
+		return nil, err
+	}
 	prev.Published = true
 	_, err = prev.Update(tx, boil.Infer())
-	utils.Must(err)
+
+	if err != nil {
+		return nil, err
+	}
+	return prev, nil
 }
 
 // Helpers

@@ -16,7 +16,7 @@ import (
 	"github.com/Bnei-Baruch/mdb/models"
 )
 
-var MinCuNumberForNewLessonSeries = 3
+var MinCuNumberForNewLessonSeries = 2
 var DaysCheckForLessonsSeries = 30
 var TES_ROOT_UID = "xtKmrbb9"
 var TES_PARTS_UIDS = []string{"9xNFLSSp", "XlukqLH8", "AerA1hNN", "1kDKQxJb", "o5lXptLo", "eNwJXy4s", "ahipVtPu", "Pscnn3pP", "Lfu7W3CD", "n03vXCJl", "UGcGGSpP", "NpLQT0LX", "AUArdCkH", "tit6XNAo", "FaKUG7ru", "mW6eON0z"}
@@ -37,17 +37,18 @@ type AssociateBySources struct {
 	tx            boil.Executor
 	cu            *models.ContentUnit
 	evnts         []events.Event
-	seriesSources []string
+	seriesSources map[string]bool
 	cusByS        map[string][]int64
 }
 
 func (a *AssociateBySources) Associate(sUIDs []string) ([]events.Event, error) {
 	a.evnts = make([]events.Event, 0)
+	a.seriesSources = make(map[string]bool)
 
 	if err := a.prepareCUs(sUIDs); err != nil {
 		return nil, NewInternalError(err)
 	}
-	for _, sUid := range a.seriesSources {
+	for sUid, _ := range a.seriesSources {
 		if len(a.cusByS[sUid]) < MinCuNumberForNewLessonSeries {
 			continue
 		}
@@ -66,7 +67,7 @@ func (a *AssociateBySources) Associate(sUIDs []string) ([]events.Event, error) {
 	return a.evnts, nil
 }
 
-func (a *AssociateBySources) prepareCUs(newSUids []string) error {
+func (a *AssociateBySources) prepareCUs(cuSUids []string) error {
 	rows, err := queries.Raw(qCusByS, common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LESSON_PART].ID).Query(a.tx)
 	if err != nil {
 		return NewInternalError(err)
@@ -85,21 +86,19 @@ func (a *AssociateBySources) prepareCUs(newSUids []string) error {
 		sUIDs = append(sUIDs, sUid)
 		_cusByS[sUid] = append(_cusByS[sUid], cuIdsByS...)
 	}
-	for _, uid := range newSUids {
-		sUIDs = append(sUIDs, uid)
-	}
+	sUIDs = append(sUIDs, cuSUids...)
 	sByLeaf, err := MapParentByLeaf(a.tx, sUIDs)
 	if err != nil {
 		return NewInternalError(err)
 	}
-	for _, uid := range newSUids {
-		a.seriesSources = append(a.seriesSources, sByLeaf[uid])
+	for _, uid := range cuSUids {
+		a.seriesSources[sByLeaf[uid]] = true
 	}
 
 	a.cusByS = make(map[string][]int64)
 	for _, prevUid := range sUIDs {
 		fixedUid := sByLeaf[prevUid]
-		for _, uid := range a.seriesSources {
+		for uid, _ := range a.seriesSources {
 			if _, ok := a.cusByS[uid]; !ok {
 				a.cusByS[uid] = []int64{}
 			}
@@ -122,6 +121,7 @@ func (a *AssociateBySources) findPrevCollection(uid string) (*models.Collection,
 		qm.InnerJoin("collections_content_units ccu ON ccu.collection_id = id"),
 		qm.WhereIn("ccu.content_unit_id IN ?", utils.ConvertArgsInt64(cus)...),
 		qm.Where("properties->>'source' = ?", uid),
+		qm.OrderBy("(properties->>'end_date')::date DESC, id DESC"),
 	).One(a.tx)
 	if err != nil {
 		return nil, err
@@ -152,7 +152,9 @@ func (a *AssociateBySources) createCollection(uid string) (*models.Collection, e
 	for i, id := range a.cusByS[uid] {
 		ccu := &models.CollectionsContentUnit{
 			ContentUnitID: id,
+			CollectionID:  c.ID,
 			Position:      i + 1,
+			Name:          fmt.Sprintf("%d", i+1+1),
 		}
 		addCCUs = append(addCCUs, ccu)
 	}
@@ -403,10 +405,12 @@ func attachCollection(tx boil.Executor, c *models.Collection, cu *models.Content
 	if err != nil {
 		return err
 	}
+	//position start from 0 when Name from 1
 	ccu := &models.CollectionsContentUnit{
 		ContentUnitID: cu.ID,
 		CollectionID:  c.ID,
 		Position:      prevCCU.Position + 1,
+		Name:          fmt.Sprintf("%d", prevCCU.Position+1+1),
 	}
 	if err := c.AddCollectionsContentUnits(tx, true, ccu); err != nil {
 		return err

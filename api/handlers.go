@@ -835,6 +835,8 @@ func handleInsert(exec boil.Executor, input interface{}) (*models.Operation, []e
 			r.File.Type = "image"
 		case "aricha":
 			r.File.Type = "video"
+		case "subtitles":
+			r.File.Type = "subtitles"
 		default:
 			r.File.Type = ""
 		}
