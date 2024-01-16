@@ -1417,12 +1417,16 @@ func removeDescendants(exec boil.Executor, file *models.File) ([]events.Event, e
 		return nil, err
 	}
 	var forRemoveIds = make([]int64, 0)
+	now := time.Now().UTC()
 	for _, f := range forRemove {
+		err = UpdateFileProperties(exec, f, map[string]interface{}{"replaced": now})
+		if err != nil {
+			return nil, err
+		}
 		forRemoveIds = append(forRemoveIds, f.ID)
 	}
-
 	_, err = models.Files(models.FileWhere.ID.IN(forRemoveIds)).UpdateAll(
-		exec, models.M{"removed_at": time.Now().UTC(), "published": false},
+		exec, models.M{"removed_at": now, "published": false},
 	)
 	if err != nil {
 		return nil, errors.Wrapf(err, "remove descendants of file %d ", file.ID)
