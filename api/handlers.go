@@ -1320,7 +1320,7 @@ func replaceResultRenderer(c *gin.Context, exec boil.Executor, input interface{}
 		return errors.Wrapf(err, "new file not found")
 	}
 
-	c.JSON(http.StatusOK, file)
+	c.JSON(http.StatusOK, gin.H{"new_file_uid": fmt.Sprintf("%s", file.UID)})
 	return nil
 }
 
