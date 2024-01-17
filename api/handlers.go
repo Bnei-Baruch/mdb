@@ -1416,7 +1416,7 @@ func removeDescendants(exec boil.Executor, file *models.File) ([]events.Event, e
 	if err != nil {
 		return nil, err
 	}
-	var forRemoveIds = make([]int64, 0)
+	forRemoveIds := []int64{file.ID}
 	now := time.Now().UTC()
 	for _, f := range forRemove {
 		err = UpdateFileProperties(exec, f, map[string]interface{}{"replaced": now})
