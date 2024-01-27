@@ -111,7 +111,7 @@ var (
 	// This came to life for mdb-cit UI only Ease of Use. (prevent typing errors and keep consistency)
 	// We keep it here so CCU's would have some information.
 	// This list should be kept in sync with mdb-cit (consts.js)
-	MISC_EVENT_PART_TYPES = [8]string{
+	MISC_EVENT_PART_TYPES = [10]string{
 		"TEKES_PTIHA",
 		"TEKES_SIYUM",
 		"EREV_PATUAH",
@@ -120,6 +120,8 @@ var (
 		"HAANAKAT_TEUDOT",
 		"HATIMAT_SFARIM",
 		"EVENT",
+		"ULPAN_PATUACH",
+		"ZMAN_HEVRATI",
 	}
 
 	// kmedia - select asset_type, count(*) from file_assets group by asset_type order by count(*) desc;
