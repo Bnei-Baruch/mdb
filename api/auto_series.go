@@ -155,7 +155,7 @@ func (a *AssociateBySources) createCollection(uid string) (*models.Collection, e
 			ContentUnitID: id,
 			CollectionID:  c.ID,
 			Position:      i + 1,
-			Name:          fmt.Sprintf("%d", i+1+1),
+			Name:          fmt.Sprintf("%b", math.Max(float64(i+1), 1)),
 		}
 		addCCUs = append(addCCUs, ccu)
 	}
