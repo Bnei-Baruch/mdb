@@ -1059,6 +1059,191 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	}
 }
 
+func (suite *MetadataProcessorSuite) TestWithAdditionalCapture() {
+	originalTf, _ := suite.simulateSimpleChain()
+
+	metadata := CITMetadata{
+		ContentType:    common.CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       common.LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(0),
+		Sources:        suite.someSources(),
+		Tags:           suite.someTags(),
+		RequireTest:    false,
+	}
+
+	metadata.Sources = suite.someSources()
+	metadata.Tags = suite.someTags()
+	original, proxy := originalTf.Original, originalTf.Proxy
+
+	souce := suite.simulateAdditionalCapture()
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, souce)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	// verify add source
+	err = souce.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.Equal(originalTf.Original.ContentUnitID.Int64, souce.ContentUnitID.Int64, "original and source unit")
+
+	ancestors, err := FindFileAncestors(suite.tx, souce.ID)
+	suite.Require().Nil(err)
+	for _, ancestor := range ancestors {
+		suite.Equal(originalTf.Original.ContentUnitID.Int64, ancestor.ContentUnitID.Int64, "source ancestor files")
+	}
+}
+
+func (suite *MetadataProcessorSuite) TestDoubleTrimFromOneStart() {
+	CS_SHA1 := utils.RandomSHA1()
+	DMX_SHA1 := utils.RandomSHA1()
+	TRM_1_SHA1 := utils.RandomSHA1()
+	TRM_2_SHA1 := utils.RandomSHA1()
+	WorkflowID := "c12356788"
+
+	// capture_start
+	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: WorkflowID,
+		},
+		FileName:      "capture_start_simple",
+		CaptureSource: "mltcap",
+		CollectionUID: "c12356788",
+	})
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	// capture_stop
+	_, evnts, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: WorkflowID,
+		},
+		File: File{
+			FileName:  "capture_stop_double_trim.mp4",
+			Sha1:      CS_SHA1,
+			Size:      98737,
+			CreatedAt: &Timestamp{Time: time.Now()},
+			Language:  common.LANG_HEBREW,
+		},
+		CaptureSource: "mltcap",
+		CollectionUID: "c12356789",
+		Part:          "false",
+	})
+	suite.Require().Nil(err)
+
+	// demux
+	_, evnts, err = handleDemux(suite.tx, DemuxRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		Sha1: CS_SHA1,
+		Original: AVFile{
+			File: File{
+				FileName:  "demux_double_trim.mp4",
+				Sha1:      DMX_SHA1,
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		CaptureSource: "mltcap",
+	})
+	suite.Require().Nil(err)
+
+	// trim
+	op_1, _, err := handleTrim(suite.tx, TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: DMX_SHA1,
+		Original: AVFile{
+			File: File{
+				FileName:  "double_trim_1.mp4",
+				Sha1:      TRM_1_SHA1,
+				Size:      98000,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		CaptureSource: "mltcap",
+		In:            []float64{10.05, 249.43},
+		Out:           []float64{240.51, 899.27},
+	})
+	suite.Require().Nil(err)
+
+	op_2, _, err := handleTrim(suite.tx, TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: DMX_SHA1,
+		Original: AVFile{
+			File: File{
+				FileName:  "double_trim_2.mp4",
+				Sha1:      TRM_2_SHA1,
+				Size:      98000,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		CaptureSource: "mltcap",
+		In:            []float64{10.05, 249.43},
+		Out:           []float64{240.51, 899.27},
+	})
+	suite.Require().Nil(err)
+
+	original_1 := suite.opFilesBySHA1(op_1)[TRM_1_SHA1]
+	original_2 := suite.opFilesBySHA1(op_2)[TRM_2_SHA1]
+
+	metadata := CITMetadata{
+		ContentType:    common.CT_LESSON_PART,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       common.LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		Number:         null.IntFrom(1),
+		Part:           null.IntFrom(0),
+		Sources:        suite.someSources(),
+		Tags:           suite.someTags(),
+		RequireTest:    false,
+	}
+
+	metadata.Sources = suite.someSources()
+	metadata.Tags = suite.someTags()
+
+	souce := suite.simulateAdditionalCapture()
+	_, err = ProcessCITMetadata(suite.tx, metadata, original_1, nil, souce)
+	suite.Require().Nil(err)
+
+	// verify add source
+	suite.Require().Nil(original_1.Reload(suite.tx))
+	suite.Require().Nil(souce.Reload(suite.tx))
+	suite.Equal(original_1.ContentUnitID.Int64, souce.ContentUnitID.Int64, "first original and source unit")
+
+	_, err = ProcessCITMetadata(suite.tx, metadata, original_2, nil, nil)
+	suite.Require().Nil(err)
+	suite.Require().Nil(original_1.Reload(suite.tx))
+	suite.Require().Nil(original_2.Reload(suite.tx))
+	suite.Require().Nil(souce.Reload(suite.tx))
+	suite.Equal(original_1.ContentUnitID.Int64, souce.ContentUnitID.Int64, "first original and source unit")
+	suite.NotEqual(original_2.ContentUnitID.Int64, souce.ContentUnitID.Int64, "second original and source unit")
+}
+
 func (suite *MetadataProcessorSuite) TestReplaceProcess() {
 	tfMain, WorkflowID := suite.simulateSimpleChain()
 	original, proxy := tfMain.Original, tfMain.Proxy
@@ -2039,7 +2224,7 @@ func (suite *MetadataProcessorSuite) simulateAdditionalCapture() *models.File {
 			WorkflowID: "c987654321",
 		},
 		FileName:      "capture_start_source",
-		CaptureSource: "mltsource",
+		CaptureSource: "archcap",
 		CollectionUID: "c987654321",
 	})
 	suite.Require().Nil(err)
@@ -2059,7 +2244,7 @@ func (suite *MetadataProcessorSuite) simulateAdditionalCapture() *models.File {
 			CreatedAt: &Timestamp{Time: time.Now()},
 			Language:  common.LANG_MULTI,
 		},
-		CaptureSource: "mltsource",
+		CaptureSource: "archcap",
 		CollectionUID: "c987654321",
 		Part:          "source",
 	})
@@ -2083,7 +2268,7 @@ func (suite *MetadataProcessorSuite) simulateAdditionalCapture() *models.File {
 			Duration: 892.1900,
 		},
 		Proxy:         nil,
-		CaptureSource: "mltbackup",
+		CaptureSource: "archcap",
 		In:            []float64{10.05, 249.43},
 		Out:           []float64{240.51, 899.27},
 	})

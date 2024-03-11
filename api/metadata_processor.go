@@ -172,13 +172,19 @@ func doProcess(exec boil.Executor, metadata CITMetadata, original, proxy, source
 		}
 	}
 	if source != nil {
-		ancestors, err := FindFileAncestors(exec, original.ID)
+		ancestors, err := FindFileAncestors(exec, source.ID)
 		if err != nil {
 			return nil, errors.Wrap(err, "Find source's ancestors")
 		}
-		err = cu.AddFiles(exec, false, append(ancestors, source)...)
+		ancestors = append(ancestors, source)
+		err = cu.AddFiles(exec, false, ancestors...)
 		if err != nil {
 			return nil, errors.Wrap(err, "Add source and his ancestors to unit")
+		}
+		for i := range ancestors {
+			x := ancestors[i]
+			evnts = append(evnts, events.FileUpdateEvent(x))
+			log.Infof("%s [%d]", x.Name, x.ID)
 		}
 	}
 
