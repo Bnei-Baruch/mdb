@@ -1059,13 +1059,8 @@ func (suite *MetadataProcessorSuite) TestFixUnit() {
 	}
 }
 
-func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
-	chain := suite.simulateLessonChainWithSource()
-
-	// send parts
-	// send full
-	// send kitei makor of part 1
-	// send ktaim nivcharim from full
+func (suite *MetadataProcessorSuite) TestWithAdditionalCapture() {
+	originalTf, _ := suite.simulateSimpleChain()
 
 	metadata := CITMetadata{
 		ContentType:    common.CT_LESSON_PART,
@@ -1082,102 +1077,136 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithSourceCapture() {
 		RequireTest:    false,
 	}
 
-	// process parts
-	var collectionID int64
-	for i := 0; i < 4; i++ {
-		metadata.Part = null.IntFrom(i)
-		metadata.Sources = suite.someSources()
-		metadata.Tags = suite.someTags()
-		tf := chain[fmt.Sprintf("part%d", i)]
-		original, proxy := tf.Original, tf.Proxy
+	metadata.Sources = suite.someSources()
+	metadata.Tags = suite.someTags()
+	original, proxy := originalTf.Original, originalTf.Proxy
 
-		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
-		suite.Require().Nil(err)
-		suite.Require().NotNil(evnts)
-
-		err = original.Reload(suite.tx)
-		suite.Require().Nil(err)
-		err = proxy.Reload(suite.tx)
-		suite.Require().Nil(err)
-
-		suite.assertFiles(metadata, original, proxy)
-		suite.assertContentUnit(metadata, original, proxy, false)
-
-		// collection association
-		err = original.L.LoadContentUnit(suite.tx, true, original, nil)
-		suite.Require().Nil(err)
-		cu := original.R.ContentUnit
-		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
-		suite.Require().Nil(err)
-		suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
-		ccu := cu.R.CollectionsContentUnits[0]
-		suite.Equal(strconv.Itoa(i), ccu.Name, "ccu.Name")
-		suite.Equal(i, ccu.Position, "ccu.Position")
-		if collectionID == 0 {
-			collectionID = ccu.CollectionID
-		} else {
-			suite.Equal(collectionID, ccu.CollectionID, "ccu.CollectionID")
-		}
-	}
-
-	// process full
-	metadata.ContentType = common.CT_FULL_LESSON
-	metadata.Part = null.IntFrom(-1)
-	metadata.Sources = nil
-	metadata.Tags = nil
-	tf := chain["full"]
-	original, proxy := tf.Original, tf.Proxy
-
-	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
+	souce := suite.simulateAdditionalCapture()
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, souce)
 	suite.Require().Nil(err)
 	suite.Require().NotNil(evnts)
 
 	err = original.Reload(suite.tx)
 	suite.Require().Nil(err)
-	err = proxy.Reload(suite.tx)
-	suite.Require().Nil(err)
 
-	suite.assertFiles(metadata, original, proxy)
-	suite.assertContentUnit(metadata, original, proxy, false)
+	// verify add source
+	err = souce.Reload(suite.tx)
+	suite.Require().Nil(err)
+	suite.Equal(originalTf.Original.ContentUnitID.Int64, souce.ContentUnitID.Int64, "original and source unit")
 
-	// collection association
-	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
+	ancestors, err := FindFileAncestors(suite.tx, souce.ID)
 	suite.Require().Nil(err)
-	cu := original.R.ContentUnit
-	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
-	suite.Require().Nil(err)
-	suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
-	ccu := cu.R.CollectionsContentUnits[0]
-	suite.Equal("full", ccu.Name, "ccu.Name")
-	suite.Equal(4, ccu.Position, "ccu.Position")
-	suite.Equal(collectionID, ccu.CollectionID, "ccu.CollectionID")
-
-	// process kitei makor for part 1
-	metadata.ContentType = common.CT_LESSON_PART
-	metadata.Part = null.IntFrom(1)
-	metadata.ArtifactType = null.StringFrom("kitei_makor")
-	metadata.WeekDate = nil
-	tf = chain["part1_kitei-makor"]
-	_, err = ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, nil)
-	suite.Require().Nil(err)
-
-	// verify source remains associated to main and not derived
-	tfOriginals := chain["part1"]
-	tfSource := chain["source_part1"]
-	tfKtaim := chain["part1_kitei-makor"]
-
-	err = tfOriginals.Original.Reload(suite.tx)
-	suite.Require().Nil(err)
-	err = tfSource.Original.Reload(suite.tx)
-	suite.Require().Nil(err)
-	err = tfKtaim.Original.Reload(suite.tx)
-	suite.Require().Nil(err)
-	suite.Equal(tfOriginals.Original.ContentUnitID.Int64, tfSource.Original.ContentUnitID.Int64, "main and source unit")
-	suite.NotEqual(tfKtaim.Original.ContentUnitID.Int64, tfSource.Original.ContentUnitID.Int64, "derived and source unit")
+	for _, ancestor := range ancestors {
+		suite.Equal(originalTf.Original.ContentUnitID.Int64, ancestor.ContentUnitID.Int64, "source ancestor files")
+	}
 }
 
-func (suite *MetadataProcessorSuite) TestDailyLessonWithAdditionalCapture() {
-	chain := suite.simulateLessonChainWithSource()
+func (suite *MetadataProcessorSuite) TestDoubleTrimFromOneStart() {
+	CS_SHA1 := utils.RandomSHA1()
+	DMX_SHA1 := utils.RandomSHA1()
+	TRM_1_SHA1 := utils.RandomSHA1()
+	TRM_2_SHA1 := utils.RandomSHA1()
+	WorkflowID := "c12356788"
+
+	// capture_start
+	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: WorkflowID,
+		},
+		FileName:      "capture_start_simple",
+		CaptureSource: "mltcap",
+		CollectionUID: "c12356788",
+	})
+	suite.Require().Nil(err)
+	suite.Require().Nil(evnts)
+
+	// capture_stop
+	_, evnts, err = handleCaptureStop(suite.tx, CaptureStopRequest{
+		Operation: Operation{
+			Station:    "Capture station",
+			User:       "operator@dev.com",
+			WorkflowID: WorkflowID,
+		},
+		File: File{
+			FileName:  "capture_stop_double_trim.mp4",
+			Sha1:      CS_SHA1,
+			Size:      98737,
+			CreatedAt: &Timestamp{Time: time.Now()},
+			Language:  common.LANG_HEBREW,
+		},
+		CaptureSource: "mltcap",
+		CollectionUID: "c12356789",
+		Part:          "false",
+	})
+	suite.Require().Nil(err)
+
+	// demux
+	_, evnts, err = handleDemux(suite.tx, DemuxRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		Sha1: CS_SHA1,
+		Original: AVFile{
+			File: File{
+				FileName:  "demux_double_trim.mp4",
+				Sha1:      DMX_SHA1,
+				Size:      98737,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		CaptureSource: "mltcap",
+	})
+	suite.Require().Nil(err)
+
+	// trim
+	op_1, _, err := handleTrim(suite.tx, TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: DMX_SHA1,
+		Original: AVFile{
+			File: File{
+				FileName:  "double_trim_1.mp4",
+				Sha1:      TRM_1_SHA1,
+				Size:      98000,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		CaptureSource: "mltcap",
+		In:            []float64{10.05, 249.43},
+		Out:           []float64{240.51, 899.27},
+	})
+	suite.Require().Nil(err)
+
+	op_2, _, err := handleTrim(suite.tx, TrimRequest{
+		Operation: Operation{
+			Station: "Trimmer station",
+			User:    "operator@dev.com",
+		},
+		OriginalSha1: DMX_SHA1,
+		Original: AVFile{
+			File: File{
+				FileName:  "double_trim_2.mp4",
+				Sha1:      TRM_2_SHA1,
+				Size:      98000,
+				CreatedAt: &Timestamp{Time: time.Now()},
+			},
+			Duration: 892.1900,
+		},
+		CaptureSource: "mltcap",
+		In:            []float64{10.05, 249.43},
+		Out:           []float64{240.51, 899.27},
+	})
+	suite.Require().Nil(err)
+
+	original_1 := suite.opFilesBySHA1(op_1)[TRM_1_SHA1]
+	original_2 := suite.opFilesBySHA1(op_2)[TRM_2_SHA1]
 
 	metadata := CITMetadata{
 		ContentType:    common.CT_LESSON_PART,
@@ -1194,60 +1223,25 @@ func (suite *MetadataProcessorSuite) TestDailyLessonWithAdditionalCapture() {
 		RequireTest:    false,
 	}
 
-	// process parts
-	var collectionID int64
-	for i := 0; i < 4; i++ {
-		metadata.Part = null.IntFrom(i)
-		metadata.Sources = suite.someSources()
-		metadata.Tags = suite.someTags()
-		tf := chain[fmt.Sprintf("part%d", i)]
-		original, proxy := tf.Original, tf.Proxy
+	metadata.Sources = suite.someSources()
+	metadata.Tags = suite.someTags()
 
-		evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
-		suite.Require().Nil(err)
-		suite.Require().NotNil(evnts)
-
-		err = original.Reload(suite.tx)
-		suite.Require().Nil(err)
-		err = proxy.Reload(suite.tx)
-		suite.Require().Nil(err)
-
-		suite.assertFiles(metadata, original, proxy)
-		suite.assertContentUnit(metadata, original, proxy, false)
-
-		// collection association
-		err = original.L.LoadContentUnit(suite.tx, true, original, nil)
-		suite.Require().Nil(err)
-		cu := original.R.ContentUnit
-		err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
-		suite.Require().Nil(err)
-		suite.Equal(1, len(cu.R.CollectionsContentUnits), "len(cu.R.CollectionsContentUnits)")
-		ccu := cu.R.CollectionsContentUnits[0]
-		suite.Equal(strconv.Itoa(i), ccu.Name, "ccu.Name")
-		suite.Equal(i, ccu.Position, "ccu.Position")
-		if collectionID == 0 {
-			collectionID = ccu.CollectionID
-		} else {
-			suite.Equal(collectionID, ccu.CollectionID, "ccu.CollectionID")
-		}
-	}
-
-	// process kitei makor for part 1
-	metadata.ContentType = common.CT_LESSON_PART
-	metadata.Part = null.IntFrom(1)
-	metadata.ArtifactType = null.StringFrom("kitei_makor")
-	metadata.WeekDate = nil
-	tf := chain["part1_kitei-makor"]
 	souce := suite.simulateAdditionalCapture()
-	_, err := ProcessCITMetadata(suite.tx, metadata, tf.Original, tf.Proxy, souce)
+	_, err = ProcessCITMetadata(suite.tx, metadata, original_1, nil, souce)
 	suite.Require().Nil(err)
 
 	// verify add source
-	err = tf.Original.Reload(suite.tx)
+	suite.Require().Nil(original_1.Reload(suite.tx))
+	suite.Require().Nil(souce.Reload(suite.tx))
+	suite.Equal(original_1.ContentUnitID.Int64, souce.ContentUnitID.Int64, "first original and source unit")
+
+	_, err = ProcessCITMetadata(suite.tx, metadata, original_2, nil, nil)
 	suite.Require().Nil(err)
-	err = souce.Reload(suite.tx)
-	suite.Require().Nil(err)
-	suite.Equal(tf.Original.ContentUnitID.Int64, souce.ContentUnitID.Int64, "original and source unit")
+	suite.Require().Nil(original_1.Reload(suite.tx))
+	suite.Require().Nil(original_2.Reload(suite.tx))
+	suite.Require().Nil(souce.Reload(suite.tx))
+	suite.Equal(original_1.ContentUnitID.Int64, souce.ContentUnitID.Int64, "first original and source unit")
+	suite.NotEqual(original_2.ContentUnitID.Int64, souce.ContentUnitID.Int64, "second original and source unit")
 }
 
 func (suite *MetadataProcessorSuite) TestReplaceProcess() {
@@ -2230,7 +2224,7 @@ func (suite *MetadataProcessorSuite) simulateAdditionalCapture() *models.File {
 			WorkflowID: "c987654321",
 		},
 		FileName:      "capture_start_source",
-		CaptureSource: "mltsource",
+		CaptureSource: "archcap",
 		CollectionUID: "c987654321",
 	})
 	suite.Require().Nil(err)
@@ -2250,7 +2244,7 @@ func (suite *MetadataProcessorSuite) simulateAdditionalCapture() *models.File {
 			CreatedAt: &Timestamp{Time: time.Now()},
 			Language:  common.LANG_MULTI,
 		},
-		CaptureSource: "mltsource",
+		CaptureSource: "archcap",
 		CollectionUID: "c987654321",
 		Part:          "source",
 	})
@@ -2274,7 +2268,7 @@ func (suite *MetadataProcessorSuite) simulateAdditionalCapture() *models.File {
 			Duration: 892.1900,
 		},
 		Proxy:         nil,
-		CaptureSource: "mltbackup",
+		CaptureSource: "archcap",
 		In:            []float64{10.05, 249.43},
 		Out:           []float64{240.51, 899.27},
 	})
@@ -2900,28 +2894,6 @@ func (suite *MetadataProcessorSuite) assertContentUnit(metadata CITMetadata, ori
 			proxy.L.LoadParent(suite.tx, true, proxy, nil)
 			suite.Require().Nil(err)
 			filesInUnit = append(filesInUnit, proxy.R.Parent)
-
-			// related captures
-			captureStop, err := FindUpChainOperation(suite.tx, original.ID, common.OP_CAPTURE_STOP)
-			suite.Require().Nil(err)
-			err = json.Unmarshal(captureStop.Properties.JSON, &props)
-			suite.Require().Nil(err)
-			if workflowID, ok := props["workflow_id"]; ok {
-				relatedCaptures, err := FindOperationsByWorkflowID(suite.tx, workflowID, common.OP_CAPTURE_STOP)
-				suite.Require().Nil(err)
-				for _, capture := range relatedCaptures {
-					if capture.ID == captureStop.ID {
-						continue
-					}
-					err = capture.L.LoadFiles(suite.tx, true, capture, nil)
-					suite.Require().Nil(err)
-					captureFile := capture.R.Files[0]
-					filesInUnit = append(filesInUnit, captureFile)
-					files, err := FindFileDescendants(suite.tx, captureFile.ID)
-					suite.Require().Nil(err)
-					filesInUnit = append(filesInUnit, files...)
-				}
-			}
 		}
 
 		suite.Equal(len(filesInUnit), len(cu.R.Files), "len(cu.R.Files)")
