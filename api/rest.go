@@ -338,7 +338,7 @@ func ContentUnitHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
-//Get auto names of unit
+// Get auto names of unit
 func ContentUnitAutoname(c *gin.Context) {
 	var r *ContentUnitAutonameRequest
 	if c.Bind(&r) != nil {
@@ -1451,7 +1451,7 @@ func StoragesHandler(c *gin.Context) {
 	concludeRequest(c, resp, err)
 }
 
-//Labels
+// Labels
 func LabelListHandler(c *gin.Context) {
 	var err *HttpError
 	var resp interface{}
@@ -4385,7 +4385,7 @@ func handleUpdatePublisherI18n(exec boil.Executor, id int64, i18ns []*models.Pub
 	return handleGetPublisher(exec, id)
 }
 
-//Labels
+// Labels
 func handleGetLabelList(cp utils.ContextProvider, exec boil.Executor, r *LabelsRequest) (*LabelsResponse, *HttpError) {
 	mods := []qm.QueryMod{
 		qm.InnerJoin("content_units cu on cu.id=content_unit_id and cu.secure <= ?", allowedSecure(cp, common.PERM_LABEL_READ)),
@@ -5037,12 +5037,9 @@ func mustConcludeTx(tx *sql.Tx, err *HttpError) {
 func mdbReplicationLocation(c utils.ContextProvider) (string, error) {
 	var loc string
 	db := c.MustGet("MDB").(*sql.DB)
-	err := db.QueryRow("SELECT pg_current_xlog_insert_location();").Scan(&loc) // postgres version <= 9.x
+	err := db.QueryRow("SELECT pg_current_wal_insert_lsn();").Scan(&loc)
 	if err != nil {
-		err = db.QueryRow("SELECT pg_current_wal_insert_lsn();").Scan(&loc) // postgres version > 9.x
-		if err != nil {
-			return "", errors.Wrap(err, "Fetch Replication Position")
-		}
+		return "", errors.Wrap(err, "Fetch Replication Position")
 	}
 	return loc, nil
 }
