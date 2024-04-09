@@ -155,7 +155,7 @@ func (a *AssociateBySources) createCollection(uid string) (*models.Collection, e
 			ContentUnitID: id,
 			CollectionID:  c.ID,
 			Position:      i + 1,
-			Name:          fmt.Sprintf("%b", math.Max(float64(i+1), 1)),
+			Name:          fmt.Sprintf("%d", int(math.Max(float64(i+1), 1))),
 		}
 		addCCUs = append(addCCUs, ccu)
 	}
@@ -420,7 +420,7 @@ func attachCollection(tx boil.Executor, c *models.Collection, cu *models.Content
 		ContentUnitID: cu.ID,
 		CollectionID:  c.ID,
 		Position:      int(prevPos) + 1,
-		Name:          fmt.Sprintf("%b", math.Max(float64(prevPos+1), 1)),
+		Name:          fmt.Sprintf("%d", int(math.Max(float64(prevPos+1), 1))),
 	}
 	if err := c.AddCollectionsContentUnits(tx, true, ccu); err != nil {
 		return err
