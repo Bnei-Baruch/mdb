@@ -267,10 +267,13 @@ func handleCaptureStop(exec boil.Executor, input interface{}) (*models.Operation
 	var parentID int64
 	err = queries.Raw(
 		`SELECT file_id FROM files_operations
-		 INNER JOIN operations ON operation_id = id
-		 WHERE type_id=$1 AND properties -> 'workflow_id' ? $2`,
+    	INNER JOIN operations ON operation_id = id
+		WHERE type_id=$1 
+		AND properties -> 'workflow_id' ? $2
+		AND properties -> 'capture_source' ? $3`,
 		common.OPERATION_TYPE_REGISTRY.ByName[common.OP_CAPTURE_START].ID,
-		r.Operation.WorkflowID).
+		r.Operation.WorkflowID,
+		r.CaptureSource).
 		QueryRow(exec).
 		Scan(&parentID)
 	if err == nil {
