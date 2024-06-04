@@ -461,6 +461,17 @@
     "cs": "Source unit",
     "tr": "Source unit"
   },
+  "content_type.PUBLIC_EVENTS": {
+    "he": "public events",
+    "en": "public events",
+    "ru": "public events",
+    "es": "public events",
+    "ua": "public events",
+    "de": "public events",
+    "it": "public events",
+    "cs": "public events",
+    "tr": "public events"
+  },
   "lang.en": {
     "es": "Ingles",
     "he": "אנגלית",

@@ -20,6 +20,7 @@ const (
 	CT_LESSONS_SERIES     = "LESSONS_SERIES"
 	CT_SONGS              = "SONGS"
 	CT_BOOKS              = "BOOKS"
+	CT_PUBLIC_EVENTS      = "PUBLIC_EVENTS"
 
 	// Content Unit Types
 	CT_LESSON_PART           = "LESSON_PART"
