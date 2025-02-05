@@ -14,9 +14,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/kat-co/vala"
 	_ "github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/randomize"
 	"github.com/volatiletech/sqlboiler/v4/drivers/sqlboiler-psql/driver"

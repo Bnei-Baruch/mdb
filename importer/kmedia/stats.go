@@ -48,7 +48,7 @@ type ImportStatistics struct {
 	LessonsProcessed       AtomicInt32
 	ValidLessons           AtomicInt32
 	InvalidLessons         AtomicInt32
-	CatalogsProcessed       AtomicInt32
+	CatalogsProcessed      AtomicInt32
 	ContainersProcessed    AtomicInt32
 	ContainersVisited      AtomicInt32
 	ContainersWithFiles    AtomicInt32

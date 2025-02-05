@@ -12,12 +12,11 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type AutonameSuite struct {
 	suite.Suite
-	utils.TestDBManager
+	common.TestDBManager
 	tx *sql.Tx
 }
 

@@ -2,9 +2,9 @@ package events
 
 import (
 	"context"
+	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/nats-io/go-nats-streaming"
 	"github.com/spf13/viper"
 )
 
@@ -20,16 +20,10 @@ func InitEmitter() (*BufferedEmitter, error) {
 			case "logger":
 				eventHandlers = append(eventHandlers, new(LoggerEventHandler))
 			case "nats":
-				log.Info("Initializing nats streaming event handler")
-				h, err := NewNatsStreamingEventHandler(
-					viper.GetString("nats.subject"),
-					viper.GetString("nats.cluster-id"),
-					viper.GetString("nats.client-id"),
-					stan.NatsURL(viper.GetString("nats.url")),
-					stan.PubAckWait(viper.GetDuration("nats.pub-ack-wait")),
-				)
-				if err != nil {
-					log.Errorf("Error connecting to nats streaming server: %s", err)
+				log.Info("Initializing nats jetstreaming event handler")
+				if h, err := NewNatsStreamingEventHandler(viper.GetString("nats.url")); err != nil {
+					// Fail if NATS not starting.
+					return nil, fmt.Errorf("Error connecting to nats streaming server: %w", err)
 				} else {
 					eventHandlers = append(eventHandlers, h)
 				}

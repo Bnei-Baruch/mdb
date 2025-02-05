@@ -1,19 +1,20 @@
 package batch
 
 import (
+	"testing"
+
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
-	"testing"
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type RegexpReplacerSuite struct {
 	suite.Suite
-	utils.TestDBManager
+	common.TestDBManager
 	app RegexpReplacer
 }
 

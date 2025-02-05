@@ -200,7 +200,7 @@ func (c *CreateUnits) moveFiles(tx *sql.Tx, cukm, newu *models.ContentUnit) erro
 func (c *CreateUnits) createCU(tx *sql.Tx, cuo *models.ContentUnit, filmDate string, f *models.File) (models.ContentUnit, error) {
 	props, _ := json.Marshal(map[string]string{"film_date": filmDate, "pattern": patternByFileName(f.Name), "original_language": common.LANG_HEBREW})
 	cu := models.ContentUnit{
-		UID:        utils.GenerateUID(8),
+		UID:        common.GenerateUID(8),
 		TypeID:     common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
 		Secure:     0,
 		Published:  true,

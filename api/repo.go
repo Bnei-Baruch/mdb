@@ -855,7 +855,7 @@ func (c *LabelUIDChecker) Check(exec boil.Executor, uid string) (exists bool, er
 
 func GetFreeUID(exec boil.Executor, checker UIDChecker) (uid string, err error) {
 	for {
-		uid = utils.GenerateUID(8)
+		uid = common.GenerateUID(8)
 		exists, ex := checker.Check(exec, uid)
 		if ex != nil {
 			err = errors.Wrap(ex, "Check UID exists")
