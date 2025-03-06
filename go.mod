@@ -1,6 +1,6 @@
 module github.com/Bnei-Baruch/mdb
 
-go 1.17
+go 1.24
 
 require (
 	github.com/360EntSecGroup-Skylar/excelize v1.4.1
