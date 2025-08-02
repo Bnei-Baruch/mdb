@@ -1,7 +1,7 @@
 ARG work_dir=/go/src/github.com/Bnei-Baruch/mdb
 ARG build_number=dev
 
-FROM golang:1.17-alpine3.15 as build
+FROM golang:1.17-alpine3.15 AS build
 
 LABEL maintainer="edoshor@gmail.com"
 
@@ -25,6 +25,7 @@ ARG work_dir
 WORKDIR /app
 COPY misc/*.sh ./
 COPY --from=build ${work_dir}/mdb .
+COPY --from=build ${work_dir}/migrations migrations
 
 EXPOSE 8080
 CMD ["./mdb", "server"]
