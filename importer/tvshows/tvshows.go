@@ -106,7 +106,7 @@ func doTVShow(exec boil.Executor, header map[string]int, record []string) error 
 		if err == sql.ErrNoRows {
 			// Create
 			show = &models.Collection{
-				UID:    utils.GenerateUID(8),
+				UID:    common.GenerateUID(8),
 				TypeID: ctID,
 			}
 			err = show.Insert(exec, boil.Infer())

@@ -29,7 +29,7 @@ require (
 	github.com/volatiletech/sqlboiler v2.6.0+incompatible
 	github.com/volatiletech/sqlboiler/v4 v4.8.6
 	github.com/volatiletech/strmangle v0.0.1
-	golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420
+	golang.org/x/net v0.21.0
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	gopkg.in/gin-contrib/cors.v1 v1.0.0-20161109062726-fb918bcd825b
 	gopkg.in/gin-gonic/gin.v1 v1.1.5-0.20170702092826-d459835d2b07
@@ -68,6 +68,7 @@ require (
 	github.com/hashicorp/raft v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
+	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
@@ -78,8 +79,9 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/nats-io/gnatsd v1.3.0 // indirect
 	github.com/nats-io/go-nats v1.7.0 // indirect
-	github.com/nats-io/nkeys v0.0.2 // indirect
-	github.com/nats-io/nuid v1.0.1-0.20171025203129-33c603157d6f // indirect
+	github.com/nats-io/nats.go v1.38.0 // indirect
+	github.com/nats-io/nkeys v0.4.9 // indirect
+	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.0-20180506121414-d4647c9c7a84 // indirect
 	github.com/pascaldekloe/goe v0.1.0 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
@@ -96,9 +98,9 @@ require (
 	github.com/tinylib/msgp v1.1.6 // indirect
 	github.com/ugorji/go v0.0.0-20171101021841-50189f05eaf5 // indirect
 	github.com/volatiletech/inflect v0.0.1 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect
-	golang.org/x/text v0.3.6 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect

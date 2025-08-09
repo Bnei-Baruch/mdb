@@ -51,4 +51,3 @@ func doImport() error {
 
 	return nil
 }
-

@@ -34,8 +34,8 @@ var TableNames = struct {
 	Users                                string
 	VirtualLessons                       string
 }{
-	CatalogDescriptions: "catalog_descriptions",
-	Catalogs:            "catalogs",
+	CatalogDescriptions:                  "catalog_descriptions",
+	Catalogs:                             "catalogs",
 	CatalogsContainerDescriptionPatterns: "catalogs_container_description_patterns",
 	CatalogsContainers:                   "catalogs_containers",
 	CkeditorAssets:                       "ckeditor_assets",

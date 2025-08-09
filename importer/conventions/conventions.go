@@ -104,7 +104,7 @@ func doConvention(exec boil.Executor, header map[string]int, record []string) er
 		if err == sql.ErrNoRows {
 			// Create
 			convention = models.Collection{
-				UID:    utils.GenerateUID(8),
+				UID:    common.GenerateUID(8),
 				TypeID: ctID,
 			}
 			err = convention.Insert(exec, boil.Infer())

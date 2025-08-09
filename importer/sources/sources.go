@@ -227,7 +227,7 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 		if err == sql.ErrNoRows {
 			// create
 			collection = &models.Source{
-				UID:     utils.GenerateUID(8),
+				UID:     common.GenerateUID(8),
 				Name:    name,
 				Pattern: null.NewString(pattern, pattern != ""),
 				TypeID:  common.SOURCE_TYPE_REGISTRY.ByName[common.SRC_COLLECTION].ID,
@@ -337,7 +337,7 @@ func doCollection(exec boil.Executor, header map[string]int, record []string) er
 			if err == sql.ErrNoRows {
 				// create
 				source = &models.Source{
-					UID:         utils.GenerateUID(8),
+					UID:         common.GenerateUID(8),
 					TypeID:      sType.ID,
 					Name:        name,
 					Description: null.NewString(description, description != ""),

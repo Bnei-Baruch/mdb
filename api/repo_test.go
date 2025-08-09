@@ -13,12 +13,11 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type RepoSuite struct {
 	suite.Suite
-	utils.TestDBManager
+	common.TestDBManager
 	tx *sql.Tx
 }
 
@@ -59,7 +58,7 @@ func (suite *RepoSuite) TestCreateOperation() {
 	suite.Require().Nil(op.Reload(suite.tx))
 
 	suite.Equal(common.OPERATION_TYPE_REGISTRY.ByName[common.OP_CAPTURE_START].ID, op.TypeID, "TypeID")
-	suite.Regexp(utils.UID_REGEX, op.UID, "UID")
+	suite.Regexp(common.UID_REGEX, op.UID, "UID")
 	suite.True(op.Station.Valid, "Station.Valid")
 	suite.Equal(o.Station, op.Station.String, "Station.String")
 	user, err := models.Users(qm.Where("email=?", o.User)).One(suite.tx)
@@ -102,7 +101,7 @@ func (suite *RepoSuite) TestCreateFile() {
 	suite.Require().Nil(err)
 	suite.Require().Nil(file.Reload(suite.tx))
 
-	suite.Regexp(utils.UID_REGEX, file.UID, "UID")
+	suite.Regexp(common.UID_REGEX, file.UID, "UID")
 	suite.Equal(f.FileName, file.Name, "Name")
 	suite.True(file.FileCreatedAt.Valid, "FileCreatedAt.Valid")
 	suite.Equal(f.CreatedAt.Unix(), file.FileCreatedAt.Time.Unix(), "FileCreatedAt.Time")
@@ -312,7 +311,7 @@ func (suite *RepoSuite) TestGetFreeUID() {
 		for i := 0; i < 100; i++ {
 			uid, err := GetFreeUID(suite.tx, checker)
 			suite.Require().Nil(err)
-			suite.Regexp(utils.UID_REGEX, uid, "UID")
+			suite.Regexp(common.UID_REGEX, uid, "UID")
 			if _, ok := uids[uid]; ok {
 				suite.Fail("UID not unique")
 			} else {

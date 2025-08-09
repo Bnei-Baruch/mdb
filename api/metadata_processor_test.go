@@ -23,7 +23,7 @@ import (
 
 type MetadataProcessorSuite struct {
 	suite.Suite
-	utils.TestDBManager
+	common.TestDBManager
 	tx boil.Transactor
 }
 
@@ -1102,10 +1102,10 @@ func (suite *MetadataProcessorSuite) TestWithAdditionalCapture() {
 }
 
 func (suite *MetadataProcessorSuite) TestDoubleTrimFromOneStart() {
-	CS_SHA1 := utils.RandomSHA1()
-	DMX_SHA1 := utils.RandomSHA1()
-	TRM_1_SHA1 := utils.RandomSHA1()
-	TRM_2_SHA1 := utils.RandomSHA1()
+	CS_SHA1 := common.RandomSHA1()
+	DMX_SHA1 := common.RandomSHA1()
+	TRM_1_SHA1 := common.RandomSHA1()
+	TRM_2_SHA1 := common.RandomSHA1()
 	WorkflowID := "c12356788"
 
 	// capture_start
@@ -1265,7 +1265,7 @@ func (suite *MetadataProcessorSuite) TestReplaceProcess() {
 	}
 
 	// HLS capture_stop
-	CS_SHA1 := utils.RandomSHA1()
+	CS_SHA1 := common.RandomSHA1()
 	_, _, err = handleCaptureStop(suite.tx, CaptureStopRequest{
 		Operation: Operation{
 			Station:    "Capture station",
@@ -1286,7 +1286,7 @@ func (suite *MetadataProcessorSuite) TestReplaceProcess() {
 	suite.Require().Nil(err)
 
 	// HLS trim
-	HLS1_TRM_SHA1 := utils.RandomSHA1()
+	HLS1_TRM_SHA1 := common.RandomSHA1()
 	opTrim, _, err := handleTrim(suite.tx, TrimRequest{
 		Operation: Operation{
 			Station: "Trimmer station",
@@ -1313,7 +1313,7 @@ func (suite *MetadataProcessorSuite) TestReplaceProcess() {
 	hlsTrimFile := trimFiles[HLS1_TRM_SHA1]
 
 	//HLS convert old
-	HLS1_SHA1 := utils.RandomSHA1()
+	HLS1_SHA1 := common.RandomSHA1()
 	OLD_HLS_LANGS := []string{"he", "ru"}
 	OLD_HLS_QUALITIES := []string{"HD"}
 	inputOldConvert := ConvertRequest{
@@ -1393,7 +1393,7 @@ func (suite *MetadataProcessorSuite) TestReplaceProcess() {
 	suite.Require().EqualValues(utils.ConvertArgsString(OLD_HLS_QUALITIES), props1["video_qualities"])
 
 	// new HLS replace
-	HLS2_SHA1 := utils.RandomSHA1()
+	HLS2_SHA1 := common.RandomSHA1()
 	NEW_HLS_QUALITIES := []string{"HD", "fHD"}
 	NEW_HLS_LANGS := []string{"he", "ru", "en"}
 	hls2FileReq := HLSFile{
@@ -1450,7 +1450,7 @@ func (suite *MetadataProcessorSuite) TestReplaceNotPublishedProcess() {
 	cu, err := CreateContentUnit(suite.tx, common.CT_LESSON_PART, nil)
 	suite.Require().Nil(err)
 
-	SHA_INS := utils.RandomSHA1()
+	SHA_INS := common.RandomSHA1()
 	// Do insert operation
 	input := InsertRequest{
 		Operation: Operation{
@@ -1482,7 +1482,7 @@ func (suite *MetadataProcessorSuite) TestReplaceNotPublishedProcess() {
 	_, err = insFile.Update(suite.tx, boil.Whitelist("published"))
 	suite.Require().Nil(err)
 
-	SHA_NEW := utils.RandomSHA1()
+	SHA_NEW := common.RandomSHA1()
 	reqReplace := ReplaceRequest{
 		Operation: Operation{
 			Station: "Replace station",
@@ -1764,7 +1764,7 @@ func createDummySources(exec boil.Executor, author *models.Author) []string {
 	for i := range uids {
 		s := &models.Source{
 			ID:  s.ID + int64(i) + 1,
-			UID: utils.GenerateUID(8), TypeID: 1,
+			UID: common.GenerateUID(8), TypeID: 1,
 			Name: fmt.Sprintf("Dummy source %d", i),
 		}
 		utils.Must(s.Insert(exec, boil.Infer()))
@@ -1778,7 +1778,7 @@ func createDummyLikutim(exec boil.Executor) ([]*models.ContentUnit, error) {
 	likutim := make([]*models.ContentUnit, rand.Intn(5)+2)
 	for i, _ := range likutim {
 		likutim[i] = &models.ContentUnit{
-			UID:       utils.GenerateUID(8),
+			UID:       common.GenerateUID(8),
 			TypeID:    common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
 			Published: true,
 		}
@@ -1796,11 +1796,11 @@ type TrimFiles struct {
 }
 
 func (suite *MetadataProcessorSuite) simulateSimpleChain() (TrimFiles, string) {
-	CS_SHA1 := utils.RandomSHA1()
-	DMX_O_SHA1 := utils.RandomSHA1()
-	DMX_P_SHA1 := utils.RandomSHA1()
-	TRM_O_SHA1 := utils.RandomSHA1()
-	TRM_P_SHA1 := utils.RandomSHA1()
+	CS_SHA1 := common.RandomSHA1()
+	DMX_O_SHA1 := common.RandomSHA1()
+	DMX_P_SHA1 := common.RandomSHA1()
+	TRM_O_SHA1 := common.RandomSHA1()
+	TRM_P_SHA1 := common.RandomSHA1()
 	WorkflowID := "c12356788"
 
 	// capture_start
@@ -1909,16 +1909,16 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 	TRM_O_SHA1 := [7]string{}
 	TRM_P_SHA1 := [7]string{}
 	for i := range CS_SHA1 {
-		CS_SHA1[i] = utils.RandomSHA1()
-		DMX_O_SHA1[i] = utils.RandomSHA1()
-		DMX_P_SHA1[i] = utils.RandomSHA1()
-		TRM_O_SHA1[i] = utils.RandomSHA1()
-		TRM_P_SHA1[i] = utils.RandomSHA1()
+		CS_SHA1[i] = common.RandomSHA1()
+		DMX_O_SHA1[i] = common.RandomSHA1()
+		DMX_P_SHA1[i] = common.RandomSHA1()
+		TRM_O_SHA1[i] = common.RandomSHA1()
+		TRM_P_SHA1[i] = common.RandomSHA1()
 	}
-	TRM_O_SHA1[5] = utils.RandomSHA1()
-	TRM_P_SHA1[5] = utils.RandomSHA1()
-	TRM_O_SHA1[6] = utils.RandomSHA1()
-	TRM_P_SHA1[6] = utils.RandomSHA1()
+	TRM_O_SHA1[5] = common.RandomSHA1()
+	TRM_P_SHA1[5] = common.RandomSHA1()
+	TRM_O_SHA1[6] = common.RandomSHA1()
+	TRM_P_SHA1[6] = common.RandomSHA1()
 
 	// capture_start
 	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
@@ -2213,8 +2213,8 @@ func (suite *MetadataProcessorSuite) simulateLessonChain() map[string]TrimFiles 
 }
 
 func (suite *MetadataProcessorSuite) simulateAdditionalCapture() *models.File {
-	CsSha1 := utils.RandomSHA1()
-	TrmSSha1 := utils.RandomSHA1()
+	CsSha1 := common.RandomSHA1()
+	TrmSSha1 := common.RandomSHA1()
 
 	// capture_start
 	_, evnts, err := handleCaptureStart(suite.tx, CaptureStartRequest{
@@ -2284,15 +2284,15 @@ func (suite *MetadataProcessorSuite) simulateSpecialLessonChain() map[string]Tri
 	TRM_O_SHA1 := [13]string{}
 	TRM_P_SHA1 := [13]string{}
 
-	CS_SHA1[0] = utils.RandomSHA1()
-	CS_SHA1[1] = utils.RandomSHA1()
-	DMX_O_SHA1[0] = utils.RandomSHA1()
-	DMX_O_SHA1[1] = utils.RandomSHA1()
-	DMX_P_SHA1[0] = utils.RandomSHA1()
-	DMX_P_SHA1[1] = utils.RandomSHA1()
+	CS_SHA1[0] = common.RandomSHA1()
+	CS_SHA1[1] = common.RandomSHA1()
+	DMX_O_SHA1[0] = common.RandomSHA1()
+	DMX_O_SHA1[1] = common.RandomSHA1()
+	DMX_P_SHA1[0] = common.RandomSHA1()
+	DMX_P_SHA1[1] = common.RandomSHA1()
 	for i := range TRM_O_SHA1 {
-		TRM_O_SHA1[i] = utils.RandomSHA1()
-		TRM_P_SHA1[i] = utils.RandomSHA1()
+		TRM_O_SHA1[i] = common.RandomSHA1()
+		TRM_P_SHA1[i] = common.RandomSHA1()
 	}
 
 	// capture_start
@@ -2605,7 +2605,7 @@ func (suite *MetadataProcessorSuite) simulateConvertUpload(original *models.File
 					AVFile: AVFile{
 						File: File{
 							FileName:  fmt.Sprintf("%s_test_file.mp4", lang),
-							Sha1:      utils.RandomSHA1(),
+							Sha1:      common.RandomSHA1(),
 							Size:      694,
 							CreatedAt: &Timestamp{Time: time.Now()},
 							Type:      "video",
@@ -2620,7 +2620,7 @@ func (suite *MetadataProcessorSuite) simulateConvertUpload(original *models.File
 					AVFile: AVFile{
 						File: File{
 							FileName:  fmt.Sprintf("%s_test_file.mp3", lang),
-							Sha1:      utils.RandomSHA1(),
+							Sha1:      common.RandomSHA1(),
 							Size:      694,
 							CreatedAt: &Timestamp{Time: time.Now()},
 							Type:      "audio",
@@ -2680,9 +2680,9 @@ func (suite *MetadataProcessorSuite) simulateLessonChainWithSource() map[string]
 	DMX_O_SHA1 := [4]string{}
 	TRM_O_SHA1 := [4]string{}
 	for i := range CS_SHA1 {
-		CS_SHA1[i] = utils.RandomSHA1()
-		DMX_O_SHA1[i] = utils.RandomSHA1()
-		TRM_O_SHA1[i] = utils.RandomSHA1()
+		CS_SHA1[i] = common.RandomSHA1()
+		DMX_O_SHA1[i] = common.RandomSHA1()
+		TRM_O_SHA1[i] = common.RandomSHA1()
 	}
 
 	// capture_start
@@ -2969,7 +2969,7 @@ func SomeLikutim(exec boil.Executor) ([]*models.ContentUnit, error) {
 	likutim := make([]*models.ContentUnit, 1+rand.Intn(10))
 	for i, _ := range likutim {
 		l := &models.ContentUnit{
-			UID:       utils.GenerateUID(8),
+			UID:       common.GenerateUID(8),
 			TypeID:    common.CONTENT_TYPE_REGISTRY.ByName[common.CT_LIKUTIM].ID,
 			Secure:    0,
 			Published: true,

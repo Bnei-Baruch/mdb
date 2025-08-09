@@ -181,7 +181,7 @@ func importVirtualLesson(exec boil.Executor, vl *kmodels.VirtualLesson) (*models
 		if err == sql.ErrNoRows {
 			// Create new collection
 			collection = &models.Collection{
-				UID:    utils.GenerateUID(8),
+				UID:    common.GenerateUID(8),
 				TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.CT_DAILY_LESSON].ID,
 			}
 			err = collection.Insert(exec, boil.Infer())

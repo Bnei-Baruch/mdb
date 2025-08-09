@@ -29,11 +29,11 @@ func init() {
 
 type Line struct {
 	Language string
-	OT string
-	Rav string
+	OT       string
+	Rav      string
 	FilmDate string
-	Bitrate string
-	Format string
+	Bitrate  string
+	Format   string
 }
 
 func ParseLine(name string) Line {
@@ -47,7 +47,7 @@ func ParseLine(name string) Line {
 	parts := strings.Split(name, "_")
 	for i := range parts {
 		part := strings.TrimSpace(parts[i])
-		if v := OT_RE.FindString(part); v !="" {
+		if v := OT_RE.FindString(part); v != "" {
 			line.OT = v
 		} else if v := BITRATE_RE.FindString(part); v != "" {
 			line.Bitrate = v
@@ -83,4 +83,3 @@ func NormalizedFileName(name string) string {
 	name = strings.Join(parts, "_")
 	return strings.Replace(name, "_br", "", -1)
 }
-

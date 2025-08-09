@@ -127,7 +127,7 @@ func handleTopics(db *sql.DB) error {
 				log.Infof("New pattern %s", pattern)
 				// create
 				tag = &models.Tag{
-					UID:         utils.GenerateUID(8),
+					UID:         common.GenerateUID(8),
 					Pattern:     null.StringFrom(pattern),
 					Description: null.NewString(description, description != ""),
 				}

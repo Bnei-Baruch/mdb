@@ -22,7 +22,7 @@ import (
 
 type DocsSuite struct {
 	suite.Suite
-	utils.TestDBManager
+	common.TestDBManager
 	router     *gin.Engine
 	testServer *test.Server
 }

@@ -20,7 +20,7 @@ func NumToHebrew(num uint16) string {
 
 	res := ""
 	for i := 0; i < len(digits); i++ {
-		d, _ := strconv.Atoi(digits[i:i+1])
+		d, _ := strconv.Atoi(digits[i : i+1])
 		m := len(digits) - (i + 1)
 		if m == 3 {
 			res = res + numToHeb(d, m) + " "

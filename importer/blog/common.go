@@ -30,7 +30,14 @@ func Init() (time.Time, *events.BufferedEmitter) {
 	clock := time.Now()
 
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
-	//log.SetLevel(log.WarnLevel)
+	logLevelStr := viper.GetString("server.log-level")
+	if logLevelStr == "" {
+		logLevelStr = "info"
+	}
+	logLevel, err := log.ParseLevel(logLevelStr)
+	utils.Must(err)
+	log.Infof("Setting log level: %+v", logLevel)
+	log.SetLevel(logLevel)
 
 	log.Info("Starting blog import")
 
