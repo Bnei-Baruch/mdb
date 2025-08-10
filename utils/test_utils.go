@@ -43,7 +43,6 @@ func (m *TestDBManager) InitTestDB() error {
 	m.initConfig()
 
 	// Open connection to RDBMS
-	fmt.Println(viper.GetString("mdb.test_url"))
 	db, err := sql.Open("postgres", fmt.Sprintf(viper.GetString("mdb.test_url"), "postgres"))
 	if err != nil {
 		return err
