@@ -1,0 +1,114 @@
+name: CI/CD Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Select deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+    
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: mdb
+        options: >-
+          --health-cmd="pg_isready" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.17'
+
+      - name: Run unit tests
+        env:
+          GOOS: linux
+          CGO_ENABLED: 0
+          MDB_URL: postgres://user:password@localhost/mdb?sslmode=disable
+          MDB_TEST_URL: postgres://user:password@localhost/%s?sslmode=disable
+        run: |
+          mv config.sample.toml config.toml
+          set -o pipefail
+          go test -v $(go list ./... | grep -v /models) | tee test.log
+        continue-on-error: false
+
+      - name: Upload test log if tests fail
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: test.log
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    if: ${{ success() || needs.test.result == 'success' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.BBDEPLOYMENT_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.BBDEPLOYMENT_DOCKERHUB_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            bneibaruch/mdb:latest
+            bneibaruch/mdb:gh_${{github.run_number}}
+          build-args: |
+            build_number=gh_${{github.run_number}}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Set deployment variables
+        run: |
+          if [[ "${{ github.event.inputs.environment }}" == "staging" ]]; then
+            echo "SSH_HOST=${{ secrets.MDB_HOST_STAGING }}" >> $GITHUB_ENV
+          else
+            echo "SSH_HOST=${{ secrets.MDB_HOST_PRODUCTION }}" >> $GITHUB_ENV
+          fi
+            
+      - name: Deploy to ${{ github.event.inputs.environment }} via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: root
+          key: ${{ secrets.BBDEPLOYMENT_SSH_PRIVATE_KEY }}
+          script: |
+            cd /root/mdb-docker
+            sed -i 's/API_VERSION.*/API_VERSION=gh_${{github.run_number}}/g' .env
+            docker compose pull api
+            docker compose up -d --no-deps api
+            docker compose exec nginx nginx -s reload
+            

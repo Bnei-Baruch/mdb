@@ -21,6 +21,16 @@ RUN go build -ldflags "-w -X github.com/Bnei-Baruch/mdb/version.PreRelease=${bui
 
 FROM alpine:3.15
 
+RUN apk update && \
+    apk add --no-cache \
+    mailx \
+    postfix
+
+RUN echo "mydomain = bbdomain.org" >> /etc/postfix/main.cf
+RUN echo "myhostname = app.mdb" >> /etc/postfix/main.cf
+RUN echo "myorigin = \$mydomain" >> /etc/postfix/main.cf
+RUN echo "relayhost = [smtp.local]" >> /etc/postfix/main.cf
+
 ARG work_dir
 WORKDIR /app
 COPY misc/*.sh ./
