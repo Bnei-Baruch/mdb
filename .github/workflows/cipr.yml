@@ -37,8 +37,8 @@ jobs:
         env:
           GOOS: linux
           CGO_ENABLED: 0
-          MDB_URL: postgres://user:password@db/mdb?sslmode=disable
-          MDB_TEST_URL: postgres://user:password@db/%s?sslmode=disable
+          MDB_URL: postgres://user:password@localhost/mdb?sslmode=disable
+          MDB_TEST_URL: postgres://user:password@localhost/%s?sslmode=disable
         run: |
           mv config.sample.toml config.toml
           set -o pipefail
