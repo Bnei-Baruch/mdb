@@ -23,6 +23,18 @@ jobs:
           --health-interval=10s 
           --health-timeout=5s 
           --health-retries=5
+      nats:
+        image: nats:2.11
+        ports:
+          - 4222:4222
+          - 8222:8222
+        options: >-
+          --jetstream 
+          --http_port 8222
+          --health-cmd="wget http://localhost:8222/healthz -q -S -O -" 
+          --health-interval=14s 
+          --health-timeout=3s 
+          --health-retries=3
 
     steps:
       - name: Checkout code
