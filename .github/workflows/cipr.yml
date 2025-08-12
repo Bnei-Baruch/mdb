@@ -28,9 +28,9 @@ jobs:
         ports:
           - 4222:4222
           - 8222:8222
+        volumes:
+          - ${{github.workspace}}/misc/nats-server-ci.conf:/nats-server.conf
         options: >-
-          --jetstream 
-          --http_port 8222
           --health-cmd="wget http://localhost:8222/healthz -q -S -O -" 
           --health-interval=14s 
           --health-timeout=3s 
