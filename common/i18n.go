@@ -80,4 +80,3 @@ func (cu *UnitWName) Description() string {
 	}
 	return cu.description
 }
-

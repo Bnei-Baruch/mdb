@@ -21,10 +21,21 @@ RUN go build -ldflags "-w -X github.com/Bnei-Baruch/mdb/version.PreRelease=${bui
 
 FROM alpine
 
+RUN apk update && \
+    apk add --no-cache \
+    mailx \
+    postfix
+
+RUN echo "mydomain = bbdomain.org" >> /etc/postfix/main.cf
+RUN echo "myhostname = app.mdb" >> /etc/postfix/main.cf
+RUN echo "myorigin = \$mydomain" >> /etc/postfix/main.cf
+RUN echo "relayhost = [smtp.local]" >> /etc/postfix/main.cf
+
 ARG work_dir
 WORKDIR /app
 COPY misc/*.sh ./
 COPY --from=build ${work_dir}/mdb .
+COPY --from=build ${work_dir}/migrations migrations
 
 EXPOSE 8080
 CMD ["./mdb", "server"]

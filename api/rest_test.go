@@ -22,7 +22,7 @@ import (
 
 type RestSuite struct {
 	suite.Suite
-	utils.TestDBManager
+	common.TestDBManager
 	tx *sql.Tx
 }
 
@@ -397,7 +397,7 @@ func createDummyCollections(exec boil.Executor, n int) []*models.Collection {
 	for i := range collections {
 		j := n - i - 1
 		collections[j] = &models.Collection{
-			UID:    utils.GenerateUID(8),
+			UID:    common.GenerateUID(8),
 			TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.ALL_CONTENT_TYPES[rand.Intn(len(common.ALL_CONTENT_TYPES))]].ID,
 		}
 		utils.Must(collections[j].Insert(exec, boil.Infer()))
@@ -418,7 +418,7 @@ func createDummyContentUnits(exec boil.Executor, n int) []*models.ContentUnit {
 	for i := range units {
 		j := n - i - 1
 		units[j] = &models.ContentUnit{
-			UID:    utils.GenerateUID(8),
+			UID:    common.GenerateUID(8),
 			TypeID: common.CONTENT_TYPE_REGISTRY.ByName[common.ALL_CONTENT_TYPES[rand.Intn(len(common.ALL_CONTENT_TYPES))]].ID,
 		}
 		utils.Must(units[j].Insert(exec, boil.Infer()))
@@ -441,7 +441,7 @@ func createDummyFiles(exec boil.Executor, n int) []*models.File {
 		sha1 := make([]byte, 20)
 		rand.Read(sha1)
 		files[j] = &models.File{
-			UID:  utils.GenerateUID(8),
+			UID:  common.GenerateUID(8),
 			Name: fmt.Sprintf("test_file_%d", j),
 			Size: rand.Int63(),
 			Sha1: null.BytesFrom(sha1),
@@ -459,7 +459,7 @@ func createDummyOperations(exec boil.Executor, n int) []*models.Operation {
 		//sha1 := make([]byte, 20)
 		//rand.Read(sha1)
 		operations[j] = &models.Operation{
-			UID:     utils.GenerateUID(8),
+			UID:     common.GenerateUID(8),
 			Station: null.StringFrom(fmt.Sprintf("station_%d", j)),
 			UserID:  null.Int64From(1),
 			TypeID: common.OPERATION_TYPE_REGISTRY.

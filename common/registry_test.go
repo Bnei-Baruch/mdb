@@ -4,13 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-
-	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type RegistrySuite struct {
 	suite.Suite
-	utils.TestDBManager
+	TestDBManager
 }
 
 func (suite *RegistrySuite) SetupSuite() {

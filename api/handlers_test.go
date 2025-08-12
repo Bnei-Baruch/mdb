@@ -15,12 +15,11 @@ import (
 
 	"github.com/Bnei-Baruch/mdb/common"
 	"github.com/Bnei-Baruch/mdb/models"
-	"github.com/Bnei-Baruch/mdb/utils"
 )
 
 type HandlersSuite struct {
 	suite.Suite
-	utils.TestDBManager
+	common.TestDBManager
 	tx *sql.Tx
 }
 
@@ -1798,7 +1797,7 @@ func (suite *HandlersSuite) TestHandleJoin() {
 		fi := File{
 			FileName:  fmt.Sprintf("dummy original file %d", i+1),
 			CreatedAt: &Timestamp{time.Now()},
-			Sha1:      utils.RandomSHA1(),
+			Sha1:      common.RandomSHA1(),
 			Size:      math.MaxInt64,
 		}
 		_, err := CreateFile(suite.tx, nil, fi, nil)
@@ -1811,7 +1810,7 @@ func (suite *HandlersSuite) TestHandleJoin() {
 		fi := File{
 			FileName:  fmt.Sprintf("dummy proxy file %d", i+1),
 			CreatedAt: &Timestamp{time.Now()},
-			Sha1:      utils.RandomSHA1(),
+			Sha1:      common.RandomSHA1(),
 			Size:      math.MaxInt64,
 		}
 		_, err := CreateFile(suite.tx, nil, fi, nil)
@@ -1905,7 +1904,7 @@ func (suite *HandlersSuite) TestHandleJoinNoProxy() {
 		fi := File{
 			FileName:  fmt.Sprintf("dummy original file %d", i+1),
 			CreatedAt: &Timestamp{time.Now()},
-			Sha1:      utils.RandomSHA1(),
+			Sha1:      common.RandomSHA1(),
 			Size:      math.MaxInt64,
 		}
 		_, err := CreateFile(suite.tx, nil, fi, nil)

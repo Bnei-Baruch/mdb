@@ -1,0 +1,53 @@
+name: Pull Request CI
+
+on:
+  pull_request:
+    branches:
+      - 'master'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: mdb
+        options: >-
+          --health-cmd="pg_isready" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.17'
+
+      - name: Run unit tests
+        env:
+          GOOS: linux
+          CGO_ENABLED: 0
+          MDB_URL: postgres://user:password@localhost/mdb?sslmode=disable
+          MDB_TEST_URL: postgres://user:password@localhost/%s?sslmode=disable
+        run: |
+          mv config.sample.toml config.toml
+          set -o pipefail
+          go test -v $(go list ./... | grep -v /models) | tee test.log
+        continue-on-error: false
+
+      - name: Upload test log if tests fail
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: test.log

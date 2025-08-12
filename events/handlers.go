@@ -3,12 +3,13 @@ package events
 import (
 	"context"
 	"encoding/json"
-	"os"
+	"fmt"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/nats-io/go-nats-streaming"
-	"github.com/pkg/errors"
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 type EventHandler interface {
@@ -31,174 +32,77 @@ func (eh *LoggerEventHandler) Close(ctx context.Context) error {
 	return nil
 }
 
-const queueSize = 4096
-const nats_tmp_file = "__DO_NOT_REMOVE_nats-event-handler.tmp"
-
-type NatsStreamingEventHandler struct {
-	sc      stan.Conn
-	subject string
-	ch      chan *Event
-	stopCH  chan bool
+// Nats
+type NatsEventHandler struct {
+	nc       *nats.Conn
+	js       jetstream.JetStream
+	ncClosed chan struct{}
 }
 
-func NewNatsStreamingEventHandler(subject, clusterID, clientID string,
-	options ...stan.Option) (*NatsStreamingEventHandler, error) {
-	eh := new(NatsStreamingEventHandler)
-
-	// connect to nats
-
-	// Unfortunately, there is an open issue regarding connection failures on startup.
-	// see https://github.com/nats-io/go-nats/issues/195
-	// we should upgrade as soon as it's fixed !
-	var err error
-	eh.sc, err = stan.Connect(clusterID, clientID, options...)
+func (eh *NatsEventHandler) Handle(event Event) {
+	payload, err := json.Marshal(event)
 	if err != nil {
-		return nil, errors.Wrap(err, "connect")
+		log.Errorf("NatsEvetnHandler.Handle: json.Marshal: %s %v", event.ID, err)
+		return
 	}
 
-	eh.subject = subject
-	eh.stopCH = make(chan bool)
-	eh.ch = make(chan *Event, queueSize)
+	subject := fmt.Sprintf("mdb.%s", strings.ToLower(event.Type))
 
-	// start runner
-	go eh.run()
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	_, err = eh.js.Publish(ctx, subject, payload, jetstream.WithRetryAttempts(3))
+	if err != nil {
+		log.Errorf("NatsEvetnHandler.Handle: jetstream.Publish: %s %v", event.ID, err)
+		return
+	}
+}
 
-	// try to load unprocessed events from temp file (last shutdown)
-	if err := eh.loadFromFile(); err != nil {
-		return nil, errors.Wrap(err, "load from file")
+func (eh *NatsEventHandler) Close(ctx context.Context) error {
+	if err := eh.nc.Drain(); err != nil {
+		return fmt.Errorf("NatsEventhandler: nc.Drain(): %w", err)
+	}
+
+	select {
+	case <-eh.ncClosed:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("NatsEventHandler drain ctx.Done: %w", ctx.Err())
+	}
+}
+
+func (eh *NatsEventHandler) closedCallback(conn *nats.Conn) {
+	log.Info("Nats connection closed.")
+	eh.ncClosed <- struct{}{}
+}
+
+func NewNatsStreamingEventHandler(natsURL string) (*NatsEventHandler, error) {
+	eh := new(NatsEventHandler)
+	eh.ncClosed = make(chan struct{})
+
+	var err error
+	log.Infof("Initialize connection to nats: %s", natsURL)
+	eh.nc, err = nats.Connect(natsURL, nats.ClosedHandler(eh.closedCallback))
+	if err != nil {
+		return nil, fmt.Errorf("nats.Connect: %w", err)
+	}
+
+	eh.js, err = jetstream.New(eh.nc)
+	if err != nil {
+		return nil, fmt.Errorf("jetstream.New: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err = eh.js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:        "MDB",
+		Description: "Events stream for MDB",
+		Subjects:    []string{"mdb.*"},
+		MaxMsgs:     4096,
+		Storage:     jetstream.FileStorage,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("jetstream.CreateOrUpdateStream: %w", err)
 	}
 
 	return eh, nil
-}
-
-func (eh *NatsStreamingEventHandler) Handle(event Event) {
-	if len(eh.ch) < cap(eh.ch) {
-		eh.ch <- &event
-	} else {
-		log.Warnf("nats: buffer limit reached, dropping event %s", event.ID)
-	}
-}
-
-func (eh *NatsStreamingEventHandler) Close(ctx context.Context) error {
-	// whatever happens, close connection to nats (second time is noop)
-	defer eh.sc.Close()
-
-	// close channel
-	log.Infof("nats: close events channel")
-	close(eh.ch)
-
-	// poll timer until context timeout or no more messages in queue
-	log.Infof("nats: drain %d events in queue", len(eh.ch))
-	ticker := time.NewTicker(250 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		if len(eh.ch) == 0 {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			break
-		case <-ticker.C:
-		}
-	}
-
-	// stop runner
-	log.Infof("nats: stop runner")
-	eh.stopCH <- true
-
-	// drain what we have left in queue to file
-	if err := eh.drainToFile(); err != nil {
-		return errors.Wrap(err, "drain to file")
-	}
-
-	// close connection to nats
-	log.Infof("nats: close connection")
-	return eh.sc.Close()
-}
-
-func (eh *NatsStreamingEventHandler) run() {
-	for {
-		select {
-		case <-eh.stopCH:
-			return
-		case event := <-eh.ch:
-			if event != nil {
-				if err := eh.publish(event); err != nil {
-					log.Errorf("nats: publish error %s", err.Error())
-				}
-			}
-		}
-	}
-}
-
-func (eh *NatsStreamingEventHandler) publish(event *Event) error {
-	log.Infof("nats: publish event %s", event.ID)
-
-	b, err := json.Marshal(event)
-	if err != nil {
-		log.Errorf("nats: json.Marshal event [%s]: %s", event.ID, err.Error())
-		return nil // not a nats related error. report don't choke
-	}
-
-	// sync publish, timeout is set on the nats client
-	err = eh.sc.Publish(eh.subject, b)
-	if err != nil {
-		return errors.Wrapf(err, "publish event [%s]", event.ID)
-	}
-
-	return nil
-}
-
-func (eh *NatsStreamingEventHandler) loadFromFile() error {
-	f, err := os.Open(nats_tmp_file)
-	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrap(err, "os.Open")
-	}
-
-	defer func() {
-		f.Close()
-		os.Remove(nats_tmp_file)
-	}()
-
-	if f != nil {
-		var evnts []*Event
-		if err := json.NewDecoder(f).Decode(&evnts); err != nil {
-			return errors.Wrap(err, "json.Decode")
-		}
-
-		if len(evnts) > 0 {
-			log.Warnf("nats: tmp file has %d events. queuing...", len(evnts))
-			for i := range evnts {
-				eh.ch <- evnts[i]
-			}
-		}
-	}
-
-	return nil
-}
-
-func (eh *NatsStreamingEventHandler) drainToFile() error {
-	evnts := make([]*Event, 0)
-
-	// drain channel
-	// channel is expected to be closed by now
-	for e := range eh.ch {
-		evnts = append(evnts, e)
-	}
-
-	if len(evnts) > 0 {
-		log.Infof("nats: drain %d unprocessed events to tmp file", len(evnts))
-
-		f, err := os.Create(nats_tmp_file)
-		if err != nil {
-			return errors.Wrap(err, "create tmp file")
-		}
-		defer f.Close()
-
-		if err := json.NewEncoder(f).Encode(evnts); err != nil {
-			return errors.Wrap(err, "json.Encode")
-		}
-	}
-
-	return nil
 }

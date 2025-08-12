@@ -1,4 +1,4 @@
-package utils
+package common
 
 import (
 	"crypto/sha1"
@@ -29,6 +29,24 @@ import (
 	_ "github.com/volatiletech/strmangle"
 )
 
+func InitConfig() {
+	viper.SetDefault("mdb", map[string]interface{}{
+		"test_url": "postgres://localhost/%s?sslmode=disable&?user=postgres",
+	})
+
+	viper.SetConfigName("config")
+	viper.AddConfigPath("../")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+	viper.AutomaticEnv()
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Println("Could not read config, using: ", viper.ConfigFileUsed(), err.Error())
+	}
+
+	fmt.Println("Config file used:", viper.ConfigFileUsed())
+
+	log.SetLevel(log.ErrorLevel)
+}
+
 var UID_REGEX = regexp.MustCompile("[a-zA-z0-9]{8}")
 
 type TestDBManager struct {
@@ -40,8 +58,9 @@ func (m *TestDBManager) InitTestDB() error {
 	m.testDB = fmt.Sprintf("test_%s", strings.ToLower(GenerateName(10)))
 	fmt.Println("Initializing test DB: ", m.testDB)
 
-	m.initConfig()
+	InitConfig()
 
+	fmt.Println("Connecting to: ", fmt.Sprintf(viper.GetString("mdb.test_url"), "postgres"))
 	// Open connection to RDBMS
 	db, err := sql.Open("postgres", fmt.Sprintf(viper.GetString("mdb.test_url"), "postgres"))
 	if err != nil {
@@ -98,22 +117,6 @@ func (m *TestDBManager) DestroyTestDB() error {
 	}
 
 	return nil
-}
-
-func (m *TestDBManager) initConfig() {
-	viper.SetDefault("mdb", map[string]interface{}{
-		"test_url": "postgres://localhost/%s?sslmode=disable&?user=postgres",
-	})
-
-	viper.SetConfigName("config")
-	viper.AddConfigPath("../")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
-	viper.AutomaticEnv()
-	if err := viper.ReadInConfig(); err != nil {
-		fmt.Println("Could not read config, using: ", viper.ConfigFileUsed(), err.Error())
-	}
-
-	log.SetLevel(log.ErrorLevel)
 }
 
 func (m *TestDBManager) runMigrations(db *sql.DB) error {
