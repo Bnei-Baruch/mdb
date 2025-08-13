@@ -79,7 +79,7 @@ func NewNatsStreamingEventHandler(natsURL string) (*NatsEventHandler, error) {
 	eh.ncClosed = make(chan struct{})
 
 	var err error
-	log.Infof("Initialize connection to nats: %s", natsURL)
+	log.Info("Initialize connection to nats")
 	eh.nc, err = nats.Connect(natsURL, nats.ClosedHandler(eh.closedCallback))
 	if err != nil {
 		return nil, fmt.Errorf("nats.Connect: %w", err)
