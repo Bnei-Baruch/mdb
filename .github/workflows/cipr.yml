@@ -28,16 +28,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Verify Docker and Docker Compose versions
-        run: |
-          echo "Docker version:"
-          docker --version
-          echo "Docker Compose version:"
-          docker-compose --version || docker compose version
-
       - name: Start NATS service with Docker Compose
         run: |
-          docker-compose -f ${{ github.workspace }}/docker-compose.yml up -d nats
+          docker compose -f ${{ github.workspace }}/docker-compose.yml up -d nats
       
       - name: Wait for NATS service to become healthy
         run: |
@@ -80,4 +73,4 @@ jobs:
       - name: Cleanup Docker Compose environment
         if: always()
         run: |
-          docker-compose -f ${{ github.workspace }}/docker-compose.yml down -v
+          docker compose -f ${{ github.workspace }}/docker-compose.yml down -v
