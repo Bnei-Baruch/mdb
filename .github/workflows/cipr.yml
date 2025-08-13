@@ -23,23 +23,36 @@ jobs:
           --health-interval=10s 
           --health-timeout=5s 
           --health-retries=5
-      nats:
-        image: nats:2.11
-        ports:
-          - 4222:4222
-          - 8222:8222
-        volumes:
-          - ${{github.workspace}}/misc/nats-server-ci.conf:/nats-server.conf
-        options: >-
-          --health-cmd="wget http://localhost:8222/healthz -q -S -O -" 
-          --health-interval=14s 
-          --health-timeout=3s 
-          --health-retries=3
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Verify Docker and Docker Compose versions
+        run: |
+          echo "Docker version:"
+          docker --version
+          echo "Docker Compose version:"
+          docker-compose --version || docker compose version
+
+      - name: Start NATS service with Docker Compose
+        run: |
+          docker-compose -f ${{ github.workspace }}/docker-compose.yml up -d nats
+      
+      - name: Wait for NATS service to become healthy
+        run: |
+          for i in {1..15}; do
+            if curl --fail http://localhost:8222/health; then
+              echo "NATS service is healthy!"
+              exit 0
+            else
+              echo "Waiting for NATS service..."
+              sleep 3
+            fi
+          done
+          echo "NATS service failed to become healthy in time."
+          exit 1
+  
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -63,3 +76,8 @@ jobs:
         with:
           name: test-logs
           path: test.log
+    
+      - name: Cleanup Docker Compose environment
+        if: always()
+        run: |
+          docker-compose -f ${{ github.workspace }}/docker-compose.yml down -v
