@@ -23,15 +23,33 @@ jobs:
           --health-interval=10s 
           --health-timeout=5s 
           --health-retries=5
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Start NATS service with Docker Compose
+        run: |
+          docker compose -f ${{ github.workspace }}/docker-compose.yml up -d nats
+      
+      - name: Wait for NATS service to become healthy
+        run: |
+          for i in {1..15}; do
+            if curl --fail http://localhost:8222/healthz; then
+              echo "NATS service is healthy!"
+              exit 0
+            else
+              echo "Waiting for NATS service..."
+              sleep 3
+            fi
+          done
+          echo "NATS service failed to become healthy in time."
+          exit 1
+  
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.17'
+          go-version: '1.24'
 
       - name: Run unit tests
         env:
@@ -51,3 +69,8 @@ jobs:
         with:
           name: test-logs
           path: test.log
+    
+      - name: Cleanup Docker Compose environment
+        if: always()
+        run: |
+          docker compose -f ${{ github.workspace }}/docker-compose.yml down -v

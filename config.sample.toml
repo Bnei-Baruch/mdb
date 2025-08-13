@@ -18,7 +18,7 @@ api-url="http://storage.backend.com"
 index-directory="/somewhere/to/store/index/files/"
 
 [nats]
-url="nats://nats"
+url="nats://localhost:4222"
 
 [events]
 handlers=["logger"]

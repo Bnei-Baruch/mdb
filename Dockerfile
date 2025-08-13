@@ -1,7 +1,7 @@
 ARG work_dir=/go/src/github.com/Bnei-Baruch/mdb
 ARG build_number=dev
 
-FROM golang:1.17-alpine3.15 AS build
+FROM golang:1.24-alpine AS build
 
 LABEL maintainer="edoshor@gmail.com"
 
@@ -19,7 +19,7 @@ WORKDIR ${work_dir}
 COPY . .
 RUN go build -ldflags "-w -X github.com/Bnei-Baruch/mdb/version.PreRelease=${build_number}"
 
-FROM alpine:3.15
+FROM alpine
 
 RUN apk update && \
     apk add --no-cache \
