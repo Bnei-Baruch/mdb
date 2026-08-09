@@ -472,6 +472,17 @@
     "cs": "public events",
     "tr": "public events"
   },
+  "content_type.TAPE": {
+    "he": "tape",
+    "en": "tape",
+    "ru": "tape",
+    "es": "tape",
+    "ua": "tape",
+    "de": "tape",
+    "it": "tape",
+    "cs": "tape",
+    "tr": "tape"
+  },
   "lang.en": {
     "es": "Ingles",
     "he": "אנגלית",
