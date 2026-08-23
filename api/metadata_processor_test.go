@@ -683,6 +683,42 @@ func (suite *MetadataProcessorSuite) TestVideoProgram() {
 	suite.Equal(0, ccu.Position, "ccu.Position")
 }
 
+func (suite *MetadataProcessorSuite) TestTape() {
+	tf, _ := suite.simulateSimpleChain()
+	original, proxy := tf.Original, tf.Proxy
+
+	metadata := CITMetadata{
+		ContentType:    common.CT_TAPE,
+		AutoName:       "auto_name",
+		FinalName:      "final_name",
+		CaptureDate:    Date{time.Now()},
+		Language:       common.LANG_HEBREW,
+		HasTranslation: true,
+		Lecturer:       "rav",
+		RequireTest:    false,
+	}
+
+	evnts, err := ProcessCITMetadata(suite.tx, metadata, original, proxy, nil)
+	suite.Require().Nil(err)
+	suite.Require().NotNil(evnts)
+
+	err = original.Reload(suite.tx)
+	suite.Require().Nil(err)
+	err = proxy.Reload(suite.tx)
+	suite.Require().Nil(err)
+
+	suite.assertFiles(metadata, original, proxy)
+	suite.assertContentUnit(metadata, original, proxy, false)
+
+	// not associated with any collection
+	err = original.L.LoadContentUnit(suite.tx, true, original, nil)
+	suite.Require().Nil(err)
+	cu := original.R.ContentUnit
+	err = cu.L.LoadCollectionsContentUnits(suite.tx, true, cu, nil)
+	suite.Require().Nil(err)
+	suite.Empty(cu.R.CollectionsContentUnits, "cu.R.CollectionsContentUnits empty")
+}
+
 func (suite *MetadataProcessorSuite) TestEventPart() {
 	tf, _ := suite.simulateSimpleChain()
 	original, proxy := tf.Original, tf.Proxy
