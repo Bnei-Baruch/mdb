@@ -147,12 +147,17 @@ jobs:
           echo "${version}"
 
           # everything the remote host needs, flat, as TeamCity used to upload it
-          mkdir -p dist
+          mkdir -p payload dist
           dummy="dummy_mdb_${version}"
           docker create --name "${dummy}" "${IMAGE}"
-          docker cp "${dummy}:/app/mdb" "./dist/mdb-${version}"
+          docker cp "${dummy}:/app/mdb" "./payload/mdb-${version}"
           docker rm -f "${dummy}"
-          cp migrations/*.sql ./dist/
+          cp migrations/*.sql ./payload/
+
+          # a handful of migrations have a colon in their name, which github
+          # artifacts reject outright. tar the payload instead - that also keeps
+          # the file modes intact all the way to the target host.
+          tar -cf "dist/mdb-${version}.tar" -C payload .
 
           echo "version=${version}" >> $GITHUB_OUTPUT
 
@@ -200,8 +205,9 @@ jobs:
             set -e
             cd /sites/mdb
 
+            tar -xf /tmp/mdb-${VER}/mdb-${VER}.tar -C /tmp/mdb-${VER}
+
             mv /tmp/mdb-${VER}/mdb-${VER} /sites/mdb/mdb-${VER}
-            # github artifacts are zipped, the executable bit doesn't survive the round trip
             chmod +x /sites/mdb/mdb-${VER}
 
             rm -rf /sites/mdb/migrations/*.sql
