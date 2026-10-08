@@ -8,6 +8,11 @@ name: CI/CD Pipeline (legacy VM)
 on:
   workflow_dispatch:
 
+# the pipeline authenticates to docker hub and the deploy hosts with its own secrets,
+# GITHUB_TOKEN only ever needs to read the repo
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
