@@ -1,0 +1,209 @@
+name: CI/CD Pipeline (legacy VM)
+
+# Deployment pipeline for the legacy (non docker) production VM.
+# Test and build are identical to cicd.yml, deploy replicates what TeamCity used to do:
+# extract the binary out of the docker image, upload it with the migrations over ssh,
+# apply migrations and restart the supervisor managed process.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: mdb
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start NATS service with Docker Compose
+        run: |
+          docker compose -f ${{ github.workspace }}/docker-compose.yml up -d nats
+
+      - name: Wait for NATS service to become healthy
+        run: |
+          for i in {1..15}; do
+            if curl --fail http://localhost:8222/healthz; then
+              echo "NATS service is healthy!"
+              exit 0
+            else
+              echo "Waiting for NATS service..."
+              sleep 3
+            fi
+          done
+          echo "NATS service failed to become healthy in time."
+          exit 1
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Run unit tests
+        env:
+          GOOS: linux
+          CGO_ENABLED: 0
+          MDB_URL: postgres://user:password@localhost/mdb?sslmode=disable
+          MDB_TEST_URL: postgres://user:password@localhost/%s?sslmode=disable
+        run: |
+          mv config.sample.toml config.toml
+          set -o pipefail
+          go test -v $(go list ./... | grep -v /models) | tee test.log
+        continue-on-error: false
+
+      - name: Upload test log if tests fail
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: test.log
+
+      - name: Cleanup Docker Compose environment
+        if: always()
+        run: |
+          docker compose -f ${{ github.workspace }}/docker-compose.yml down -v
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    if: ${{ success() || needs.test.result == 'success' }}
+
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.BBDEPLOYMENT_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.BBDEPLOYMENT_DOCKERHUB_PASSWORD }}
+
+      - name: Set image tag
+        id: image
+        # gho_ prefix (and no :latest) so this pipeline never collides with cicd.yml,
+        # which has its own, independent, run_number sequence.
+        run: echo "image=bneibaruch/mdb:gho_${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image.outputs.image }}
+          build-args: |
+            build_number=gho_${{ github.run_number }}
+
+  # TeamCity step 1 - extract the binary out of the docker image
+  extract:
+    runs-on: ubuntu-latest
+    needs: build
+
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.BBDEPLOYMENT_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.BBDEPLOYMENT_DOCKERHUB_PASSWORD }}
+
+      - name: Extract binary from image
+        id: extract
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+        run: |
+          set -euo pipefail
+
+          docker pull "${IMAGE}"
+          version="$(docker run --rm ${IMAGE} /app/mdb version | tail -n 1 | awk '{print $NF}')"
+          [ -n "${version}" ] || exit 1
+          echo "${version}"
+
+          # everything the remote host needs, flat, as TeamCity used to upload it
+          mkdir -p dist
+          dummy="dummy_mdb_${version}"
+          docker create --name "${dummy}" "${IMAGE}"
+          docker cp "${dummy}:/app/mdb" "./dist/mdb-${version}"
+          docker rm -f "${dummy}"
+          cp migrations/*.sql ./dist/
+
+          echo "version=${version}" >> $GITHUB_OUTPUT
+
+      - name: Upload deployment payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: mdb-${{ steps.extract.outputs.version }}
+          path: dist
+          retention-days: 7
+
+  # TeamCity steps 2 & 3 - upload over ssh, migrate and restart
+  deploy:
+    runs-on: [self-hosted, linux, merkaz]
+    needs: [build, extract]
+
+    env:
+      VER: ${{ needs.extract.outputs.version }}
+      SSH_HOST: ${{ secrets.MDB_HOST_OLD || 'app.mdb.bbdomain.org' }}
+
+    steps:
+      - name: Download deployment payload
+        uses: actions/download-artifact@v4
+        with:
+          name: mdb-${{ needs.extract.outputs.version }}
+          path: dist
+
+      - name: Upload binary and migrations to ${{ env.SSH_HOST }}
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: root
+          key: ${{ secrets.BBDEPLOYMENT_SSH_PRIVATE_KEY }}
+          source: "dist/*"
+          strip_components: 1
+          target: /tmp/mdb-${{ env.VER }}
+
+      - name: Install and restart
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: root
+          key: ${{ secrets.BBDEPLOYMENT_SSH_PRIVATE_KEY }}
+          envs: VER
+          script: |
+            set -e
+            cd /sites/mdb
+
+            mv /tmp/mdb-${VER}/mdb-${VER} /sites/mdb/mdb-${VER}
+            # github artifacts are zipped, the executable bit doesn't survive the round trip
+            chmod +x /sites/mdb/mdb-${VER}
+
+            rm -rf /sites/mdb/migrations/*.sql
+            mv /tmp/mdb-${VER}/*.sql /sites/mdb/migrations/
+            /sites/mdb/migrations/rambler --configuration=/sites/mdb/migrations/rambler.json apply --all
+
+            ln -sf /sites/mdb/mdb-${VER} /sites/mdb/mdb
+            supervisorctl restart mdb
+
+            rm -rf /tmp/mdb-${VER}
